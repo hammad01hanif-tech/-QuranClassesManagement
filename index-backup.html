@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <title>Quran Classes — نظام إدارة الحلقات</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: sans-serif; direction: rtl; padding: 18px; background: #f5f5f5; }
+    label { display:block; margin-top:8px; }
+    select, input, textarea { width:100%; padding:8px; margin-top:6px; box-sizing:border-box; }
+    .row { display:flex; gap:10px; }
+    .col { flex:1; }
+    .student-list { max-height:240px; overflow:auto; margin-top:8px; border:1px solid #ddd; padding:8px; background: white; }
+    .student-item { padding:6px; border-bottom:1px solid #f0f0f0; }
+    button { padding:8px 12px; margin-top:10px; cursor:pointer; }
+    .small { font-size:0.9rem; color:#555; }
+    
+    /* Role Selection Page */
+    .role-selection { 
+      max-width: 600px; 
+      margin: 100px auto; 
+      text-align: center; 
+      background: white; 
+      padding: 40px; 
+      border-radius: 10px; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+    }
+    .role-button { 
+      display: inline-block; 
+      width: 150px; 
+      height: 150px; 
+      margin: 15px; 
+      padding: 20px; 
+      background: #2d7a44; 
+      color: white; 
+      border: none; 
+      border-radius: 10px; 
+      font-size: 18px; 
+      cursor: pointer; 
+      transition: all 0.3s; 
+    }
+    .role-button:hover { background: #236035; transform: scale(1.05); }
+    
+    /* Admin Page */
+    .admin-section { display: none; }
+    .admin-header { 
+      background: #2d7a44; 
+      color: white; 
+      padding: 15px; 
+      margin: -18px -18px 20px -18px; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+    }
+    .logout-btn { 
+      background: #dc3545; 
+      color: white; 
+      border: none; 
+      padding: 8px 15px; 
+      border-radius: 5px; 
+      cursor: pointer; 
+    }
+    .tabs { 
+      display: flex; 
+      gap: 10px; 
+      margin-bottom: 20px; 
+      border-bottom: 2px solid #ddd; 
+    }
+    .tab { 
+      padding: 10px 20px; 
+      background: #f0f0f0; 
+      border: none; 
+      cursor: pointer; 
+      border-radius: 5px 5px 0 0; 
+    }
+    .tab.active { background: #2d7a44; color: white; }
+    .tab-content { display: none; background: white; padding: 20px; border-radius: 5px; }
+    .tab-content.active { display: block; }
+    
+    /* Reports Table */
+    .reports-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .reports-table th, .reports-table td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+    .reports-table th { background: #2d7a44; color: white; }
+    .reports-table tr:hover { background: #f5f5f5; }
+    .view-report-btn { background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+    .struggle-item { background: #ffe6e6; border-left: 4px solid #dc3545; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    .struggle-item h4 { margin: 0 0 10px 0; color: #dc3545; }
+  </style>
+</head>
+<body>
+  
+  <!-- Role Selection Page -->
+  <div id="roleSelection" class="role-selection">
+    <h1>نظام إدارة حلقات القرآن الكريم</h1>
+    <p style="margin-bottom: 30px;">اختر دورك للدخول إلى النظام</p>
+    <button class="role-button" onclick="selectRole('admin')">
+      👨‍💼<br>مدير<br>Admin
+    </button>
+    <button class="role-button" onclick="selectRole('teacher')">
+      👨‍🏫<br>معلم<br>Teacher
+    </button>
+    <button class="role-button" onclick="selectRole('student')">
+      👨‍🎓<br>طالب<br>Student
+    </button>
+  </div>
+
+  <!-- Admin Section -->
+  <div id="adminSection" class="admin-section">
+    <div class="admin-header">
+      <h2>لوحة تحكم المدير</h2>
+      <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('students')">إدارة الطلاب</button>
+      <button class="tab" onclick="switchTab('reports')">تقارير المتابعة</button>
+      <button class="tab" onclick="switchTab('classes')">إدارة الحلقات</button>
+    </div>
+
+    <!-- Students Management Tab -->
+    <div id="studentsTab" class="tab-content active">
+      <h3>إضافة طالب جديد</h3>
+
+      <h3>إضافة طالب جديد</h3>
+
+  <label>اسم الطالب:</label>
+  <input type="text" id="studentName" placeholder="أدخل اسم الطالب">
+
+  <label>اختر الحلقة:</label>
+  <select id="classSelectAdd">
+    <option value="">-- اختر الحلقة --</option>
+  </select>
+
+  <button onclick="addStudent()">إضافة الطالب</button>
+  <p id="result"></p>
+
+  <hr>
+
+  <h3>قائمة الطلاب حسب الحلقة</h3>
+  <label>اختيار الحلقة:</label>
+  <select id="classSelectView"><option value="">-- اختر الحلقة --</option></select>
+
+  <div id="students" class="student-list">اختر حلقة لعرض الطلاب</div>
+    </div>
+
+    <!-- Reports Tab -->
+    <div id="reportsTab" class="tab-content">
+      <h3>تقارير متابعة الطلاب</h3>
+      
+      <label>اختر الحلقة:</label>
+      <select id="classSelectReports"><option value="">-- اختر الحلقة --</option></select>
+      
+      <label>اختر الطالب:</label>
+      <select id="studentSelectReports"><option value="">-- اختر طالب --</option></select>
+      
+      <div id="reportsContainer" style="margin-top: 20px;">
+        <p class="small">اختر حلقة وطالب لعرض تقارير المتابعة</p>
+      </div>
+    </div>
+
+    <!-- Classes Management Tab -->
+    <div id="classesTab" class="tab-content">
+      <h3>إدارة الحلقات</h3>
+      <p class="small">قريباً: إضافة وتعديل الحلقات</p>
+    </div>
+  </div>
+
+  <!-- Teacher Section (Coming Soon) -->
+  <div id="teacherSection" style="display:none;">
+    <div class="admin-header">
+      <h2>لوحة تحكم المعلم</h2>
+      <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+    </div>
+
+    <div style="padding: 20px;">
+      <h3>اختر طالب للمتابعة</h3>
+      <select id="teacherStudentSelect" style="max-width: 400px;">
+        <option value="">-- اختر طالب --</option>
+      </select>
+
+      <div id="teacherStudentActions" style="display:none; margin-top: 20px;">
+        <h4>الطالب: <span id="selectedTeacherStudent"></span></h4>
+        
+        <div style="display: flex; gap: 15px; margin-top: 20px;">
+          <button class="action-btn" onclick="showNewAssessment()" style="background: #28a745; color: white; padding: 15px 30px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer;">
+            ➕ تقييم جديد
+          </button>
+          <button class="action-btn" onclick="showPastReports()" style="background: #007bff; color: white; padding: 15px 30px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer;">
+            📋 التقييمات السابقة
+          </button>
+          <button class="action-btn" onclick="showStruggles()" style="background: #dc3545; color: white; padding: 15px 30px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer;">
+            ⚠️ التعثرات
+          </button>
+        </div>
+
+        <!-- New Assessment Form -->
+        <div id="newAssessmentForm" style="display:none; margin-top: 30px; background: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+          <h3>نموذج التقييم الجديد</h3>
+
+          <div class="row">
+            <div class="col">
+              <label>صلاة العصر (0-5)</label>
+              <input id="teacherAsrPrayerScore" type="number" min="0" max="5" value="5">
+            </div>
+            <div class="col">
+              <label>الدرس (درجة 0-5)</label>
+              <input id="teacherLessonScore" type="number" min="0" max="5" value="5">
+            </div>
+          </div>
+
+          <label>درس من (مثال: "البقرة 20")</label>
+          <input id="teacherLessonFrom" type="text">
+
+          <label>درس إلى</label>
+          <input id="teacherLessonTo" type="text">
+
+          <label>جنب الدرس (درجة 0-5)</label>
+          <input id="teacherLessonSideScore" type="number" min="0" max="5" value="5">
+
+          <label>نص جنب الدرس</label>
+          <input id="teacherLessonSideText" type="text">
+
+          <label>المراجعة (درجة 0-5)</label>
+          <input id="teacherRevisionScore" type="number" min="0" max="5" value="5">
+
+          <label>مراجعة من</label>
+          <input id="teacherRevisionFrom" type="text">
+
+          <label>مراجعة إلى</label>
+          <input id="teacherRevisionTo" type="text">
+
+          <label>القراءة بالنظر (0-5)</label>
+          <input id="teacherReadingScore" type="number" min="0" max="5" value="5">
+
+          <label>السلوك (0-5)</label>
+          <input id="teacherBehaviorScore" type="number" min="0" max="5" value="5">
+
+          <button onclick="saveTeacherAssessment()" style="background: #28a745; color: white; padding: 10px 20px; margin-top: 15px; border: none; border-radius: 5px; cursor: pointer;">
+            💾 حفظ التقييم
+          </button>
+          <div id="teacherStatus" class="small" style="margin-top: 10px;"></div>
+        </div>
+
+        <!-- Past Reports -->
+        <div id="pastReportsSection" style="display:none; margin-top: 30px;">
+          <h3>التقييمات السابقة</h3>
+          <div id="pastReportsContainer"></div>
+        </div>
+
+        <!-- Struggles Section -->
+        <div id="strugglesSection" style="display:none; margin-top: 30px;">
+          <h3>التعثرات (الدرجات غير الكاملة)</h3>
+          <div id="strugglesContainer"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student Section (Coming Soon) -->
+  <div id="studentSection" style="display:none;">
+    <h2>صفحة الطالب</h2>
+    <button onclick="logout()">تسجيل الخروج</button>
+    <p>قريباً...</p>
+  </div>
+
+  <script type="module">
+    // ---- Firebase v9 modular imports via CDN ----
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, doc, query, where, setDoc, addDoc, serverTimestamp, orderBy, startAt, endAt, updateDoc, arrayUnion, deleteDoc, arrayRemove
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // ====== ضع هنا إعدادات مشروعك ======
+    const firebaseConfig = {
+    apiKey: "AIzaSyALjuy8zAf9oiyWV3h3epsTtx0ZKSccxRo",
+    authDomain: "quranclassesmanagement.firebaseapp.com",
+    projectId: "quranclassesmanagement",
+    storageBucket: "quranclassesmanagement.firebasestorage.app",
+    messagingSenderId: "868247342998",
+    appId: "1:868247342998:web:95908153b6d0f25fb8d7b7",
+    measurementId: "G-F1MW3KMZGG"
+};
+    // =====================================
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Global role selection functions
+    window.selectRole = function(role) {
+      document.getElementById('roleSelection').style.display = 'none';
+      if (role === 'admin') {
+        document.getElementById('adminSection').style.display = 'block';
+        initAdmin();
+      } else if (role === 'teacher') {
+        document.getElementById('teacherSection').style.display = 'block';
+        initTeacher();
+      } else if (role === 'student') {
+        document.getElementById('studentSection').style.display = 'block';
+      }
+    };
+
+    window.logout = function() {
+      document.getElementById('roleSelection').style.display = 'block';
+      document.getElementById('adminSection').style.display = 'none';
+      document.getElementById('teacherSection').style.display = 'none';
+      document.getElementById('studentSection').style.display = 'none';
+    };
+
+    window.switchTab = function(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      
+      // Show selected tab
+      document.getElementById(tabName + 'Tab').classList.add('active');
+      event.target.classList.add('active');
+    };
+
+    // Admin section variables
+    const classSelectAdd = document.getElementById('classSelectAdd');
+    const classSelectView = document.getElementById('classSelectView');
+    const classSelectReports = document.getElementById('classSelectReports');
+    const studentSelectReports = document.getElementById('studentSelectReports');
+    const studentsDiv = document.getElementById('students');
+    const reportsContainer = document.getElementById('reportsContainer');
+
+    // Teacher section variables
+    const teacherStudentSelect = document.getElementById('teacherStudentSelect');
+    const teacherStudentActions = document.getElementById('teacherStudentActions');
+    const selectedTeacherStudentSpan = document.getElementById('selectedTeacherStudent');
+    
+    let selectedClassId = null;
+    let currentTeacherStudentId = null;
+    let currentTeacherStudentName = null;
+
+    // Initialize admin section
+    function initAdmin() {
+      loadClasses();
+    }
+
+    // addStudent function - exposed globally
+    window.addStudent = async function() {
+      const name = document.getElementById("studentName").value.trim();
+      const classId = document.getElementById("classSelectAdd").value;
+      const result = document.getElementById("result");
+
+      if (!name) {
+        result.innerText = "الرجاء إدخال اسم الطالب";
+        return;
+      }
+
+      if (!classId) {
+        result.innerText = "الرجاء اختيار الحلقة";
+        return;
+      }
+
+      try {
+        // نعمل userId تلقائي بناء على classId
+        const randomNumber = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+        const userId = `${classId}_${randomNumber}`;
+
+        // استخدام setDoc بدلاً من addDoc لتحديد document ID
+        await setDoc(doc(db, "users", userId), {
+          userId: userId,
+          name: name,
+          role: "student",
+          classId: classId,
+          createdAt: serverTimestamp()
+        });
+
+        // إضافة الطالب إلى قائمة studentIds في الحلقة
+        const classDocRef = doc(db, "classes", classId);
+        await updateDoc(classDocRef, {
+          studentIds: arrayUnion(userId)
+        });
+
+        result.innerText = `تم إضافة الطالب: ${name} (${userId})`;
+        result.style.color = 'green';
+        document.getElementById("studentName").value = ""; // مسح الحقل بعد الإضافة
+        
+        // Refresh student list if same class is selected
+        if (selectedClassId === classId) {
+          loadStudentsForClass(classId);
+        }
+      } catch (error) {
+        console.error("Error adding student:", error);
+        result.innerText = "خطأ في إضافة الطالب: " + error.message;
+        result.style.color = 'red';
+      }
+    };
+
+    // load classes
+    async function loadClasses() {
+      classSelectAdd.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+      classSelectView.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+      classSelectReports.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+      
+      const snap = await getDocs(collection(db, 'classes'));
+      snap.forEach(d => {
+        const data = d.data();
+        const cid = data.classId || d.id;
+        const label = data.className || cid;
+        
+        // Add to all dropdowns
+        const opt1 = document.createElement('option');
+        opt1.value = cid;
+        opt1.textContent = `${label}`;
+        classSelectAdd.appendChild(opt1);
+        
+        const opt2 = document.createElement('option');
+        opt2.value = cid;
+        opt2.textContent = `${label}`;
+        classSelectView.appendChild(opt2);
+        
+        const opt3 = document.createElement('option');
+        opt3.value = cid;
+        opt3.textContent = `${label}`;
+        classSelectReports.appendChild(opt3);
+      });
+    }
+
+    // load students for chosen class
+    async function loadStudentsForClass(classId) {
+      studentsDiv.innerHTML = 'جارٍ التحميل...';
+      selectedClassId = classId;
+      try {
+        // استعلام بسيط بدون orderBy لتجنب مشكلة الفهرس
+        let q = query(collection(db, 'users'), where('classId', '==', classId));
+        let snap = await getDocs(q);
+        
+        if (snap.empty) {
+          studentsDiv.innerHTML = 'لا يوجد طلاب مُسجلين لهذه الحلقة.';
+          return;
+        }
+        
+        studentsDiv.innerHTML = '';
+        const students = [];
+        snap.forEach(d => {
+          const dt = d.data();
+          const id = d.id;
+          const name = dt.name || '(بدون اسم)';
+          const role = dt.role || '';
+          if (role === 'student') {
+            students.push({ id, name });
+          }
+        });
+        
+        // ترتيب الطلاب يدويًا
+        students.sort((a, b) => a.id.localeCompare(b.id));
+        
+        students.forEach(student => {
+          const div = document.createElement('div');
+          div.className = 'student-item';
+          div.innerHTML = `<strong>${student.id}</strong> — ${student.name} 
+            <button data-id="${student.id}" data-name="${student.name}" class="delete-btn" style="float:left;background:#dc3545;color:white;">حذف</button>`;
+          studentsDiv.appendChild(div);
+          
+          // حذف الطالب
+          div.querySelector('.delete-btn').addEventListener('click', async (e) => {
+            const studentId = e.target.dataset.id;
+            const studentName = e.target.dataset.name;
+            if (confirm(`هل أنت متأكد من حذف الطالب "${studentName}" (${studentId})؟\nسيتم حذف جميع بياناته نهائياً.`)) {
+              await deleteStudent(studentId, studentName);
+            }
+          });
+        });
+      } catch (error) {
+        console.error('Error loading students:', error);
+        studentsDiv.innerHTML = 'خطأ في تحميل الطلاب: ' + error.message;
+      }
+    }
+
+    // حذف طالب
+    async function deleteStudent(studentId, studentName) {
+      try {
+        // حذف من مجموعة users
+        await deleteDoc(doc(db, 'users', studentId));
+        
+        // إزالة من studentIds في الحلقة
+        if (selectedClassId) {
+          const classDocRef = doc(db, 'classes', selectedClassId);
+          await updateDoc(classDocRef, {
+            studentIds: arrayRemove(studentId)
+          });
+        }
+        
+        alert(`تم حذف الطالب "${studentName}" (${studentId}) بنجاح`);
+        
+        // إعادة تحميل قائمة الطلاب
+        if (selectedClassId) {
+          loadStudentsForClass(selectedClassId);
+        }
+      } catch (error) {
+        console.error('خطأ في حذف الطالب:', error);
+        alert('حدث خطأ أثناء حذف الطالب: ' + error.message);
+      }
+    }
+
+    // Load students for reports tab
+    async function loadStudentsForReports(classId) {
+      studentSelectReports.innerHTML = '<option value="">-- اختر طالب --</option>';
+      reportsContainer.innerHTML = '<p class="small">اختر طالب لعرض تقاريره</p>';
+      
+      try {
+        let q = query(collection(db, 'users'), where('classId', '==', classId), where('role', '==', 'student'));
+        let snap = await getDocs(q);
+        
+        if (snap.empty) {
+          studentSelectReports.innerHTML = '<option value="">لا يوجد طلاب</option>';
+          return;
+        }
+        
+        const students = [];
+        snap.forEach(d => {
+          const dt = d.data();
+          students.push({ id: d.id, name: dt.name || '(بدون اسم)' });
+        });
+        
+        students.sort((a, b) => a.id.localeCompare(b.id));
+        
+        students.forEach(student => {
+          const opt = document.createElement('option');
+          opt.value = student.id;
+          opt.textContent = `${student.id} — ${student.name}`;
+          studentSelectReports.appendChild(opt);
+        });
+      } catch (error) {
+        console.error('Error loading students:', error);
+        studentSelectReports.innerHTML = '<option value="">خطأ في التحميل</option>';
+      }
+    }
+
+    // Load reports for selected student
+    async function loadReportsForStudent(studentId) {
+      reportsContainer.innerHTML = '<p>جاري تحميل التقارير...</p>';
+      
+      try {
+        const reportsSnap = await getDocs(collection(db, 'studentProgress', studentId, 'dailyReports'));
+        
+        if (reportsSnap.empty) {
+          reportsContainer.innerHTML = '<p class="small">لا توجد تقارير متابعة لهذا الطالب</p>';
+          return;
+        }
+        
+        const reports = [];
+        reportsSnap.forEach(d => {
+          reports.push({ dateId: d.id, ...d.data() });
+        });
+        
+        // Sort by date descending
+        reports.sort((a, b) => b.dateId.localeCompare(a.dateId));
+        
+        // Create table
+        let tableHTML = `
+          <table class="reports-table">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>اليوم</th>
+                <th>المجموع</th>
+                <th>صلاة العصر</th>
+                <th>الدرس</th>
+                <th>جنب الدرس</th>
+                <th>المراجعة</th>
+                <th>القراءة</th>
+                <th>السلوك</th>
+                <th>التفاصيل</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        reports.forEach(report => {
+          const date = new Date(report.dateId);
+          const dayName = date.toLocaleDateString('ar-EG', { weekday: 'long' });
+          
+          tableHTML += `
+            <tr>
+              <td>${report.dateId}</td>
+              <td>${dayName}</td>
+              <td><strong>${report.totalScore || 0}</strong></td>
+              <td>${report.asrPrayerScore || 0}</td>
+              <td>${report.lessonScore || 0}</td>
+              <td>${report.lessonSideScore || 0}</td>
+              <td>${report.revisionScore || 0}</td>
+              <td>${report.readingScore || 0}</td>
+              <td>${report.behaviorScore || 0}</td>
+              <td><button class="view-report-btn" onclick="viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">عرض</button></td>
+            </tr>
+          `;
+        });
+        
+        tableHTML += `
+            </tbody>
+          </table>
+        `;
+        
+        reportsContainer.innerHTML = `<h4>تقارير المتابعة (${reports.length} تقرير)</h4>` + tableHTML;
+      } catch (error) {
+        console.error('Error loading reports:', error);
+        reportsContainer.innerHTML = '<p style="color:red;">خطأ في تحميل التقارير: ' + error.message + '</p>';
+      }
+    }
+
+    // View report details
+    window.viewReportDetails = function(dateId, report) {
+      const details = `
+التاريخ: ${dateId}
+اسم الطالب: ${report.studentName || 'غير محدد'}
+رقم الطالب: ${report.studentId || 'غير محدد'}
+
+=== الدرجات ===
+صلاة العصر: ${report.asrPrayerScore || 0}/5
+الدرس: ${report.lessonScore || 0}/5 (من ${report.lessonFrom || '-'} إلى ${report.lessonTo || '-'})
+جنب الدرس: ${report.lessonSideScore || 0}/5 (${report.lessonSideText || '-'})
+المراجعة: ${report.revisionScore || 0}/5 (من ${report.revisionFrom || '-'} إلى ${report.revisionTo || '-'})
+القراءة بالنظر: ${report.readingScore || 0}/5
+السلوك: ${report.behaviorScore || 0}/5
+
+المجموع الكلي: ${report.totalScore || 0}/30
+      `;
+      alert(details);
+    };
+
+    // Event listeners for reports tab
+    classSelectReports.addEventListener('change', (e) => {
+      const cid = e.target.value;
+      if (!cid) {
+        studentSelectReports.innerHTML = '<option value="">-- اختر طالب --</option>';
+        reportsContainer.innerHTML = '<p class="small">اختر حلقة أولاً</p>';
+        return;
+      }
+      loadStudentsForReports(cid);
+    });
+
+    studentSelectReports.addEventListener('change', (e) => {
+      const sid = e.target.value;
+      if (!sid) {
+        reportsContainer.innerHTML = '<p class="small">اختر طالب لعرض تقاريره</p>';
+        return;
+      }
+      loadReportsForStudent(sid);
+    });
+
+    // events
+    classSelectView.addEventListener('change', (e) => {
+      const cid = e.target.value;
+      if (!cid) { studentsDiv.innerHTML = 'اختر حلقة.'; return; }
+      loadStudentsForClass(cid);
+    });
+
+    // ========== TEACHER SECTION ==========
+    
+    // Initialize teacher section
+    function initTeacher() {
+      loadTeacherStudents();
+    }
+
+    // Load all students for teacher (in real app, filter by teacher's classId)
+    async function loadTeacherStudents() {
+      teacherStudentSelect.innerHTML = '<option value="">-- اختر طالب --</option>';
+      
+      try {
+        // For now, load all students. In production, filter by teacher's classId
+        let q = query(collection(db, 'users'), where('role', '==', 'student'));
+        let snap = await getDocs(q);
+        
+        if (snap.empty) {
+          teacherStudentSelect.innerHTML = '<option value="">لا يوجد طلاب</option>';
+          return;
+        }
+        
+        const students = [];
+        snap.forEach(d => {
+          const dt = d.data();
+          students.push({ id: d.id, name: dt.name || '(بدون اسم)' });
+        });
+        
+        students.sort((a, b) => a.id.localeCompare(b.id));
+        
+        students.forEach(student => {
+          const opt = document.createElement('option');
+          opt.value = student.id;
+          opt.textContent = `${student.id} — ${student.name}`;
+          teacherStudentSelect.appendChild(opt);
+        });
+      } catch (error) {
+        console.error('Error loading students:', error);
+      }
+    }
+
+    // Teacher student selection event
+    teacherStudentSelect.addEventListener('change', (e) => {
+      const studentId = e.target.value;
+      if (!studentId) {
+        teacherStudentActions.style.display = 'none';
+        return;
+      }
+      
+      const selectedOption = e.target.options[e.target.selectedIndex];
+      const studentText = selectedOption.textContent;
+      
+      currentTeacherStudentId = studentId;
+      currentTeacherStudentName = studentText.split(' — ')[1] || studentId;
+      
+      selectedTeacherStudentSpan.textContent = studentText;
+      teacherStudentActions.style.display = 'block';
+      
+      // Hide all sections
+      document.getElementById('newAssessmentForm').style.display = 'none';
+      document.getElementById('pastReportsSection').style.display = 'none';
+      document.getElementById('strugglesSection').style.display = 'none';
+    });
+
+    // Show new assessment form
+    window.showNewAssessment = function() {
+      document.getElementById('newAssessmentForm').style.display = 'block';
+      document.getElementById('pastReportsSection').style.display = 'none';
+      document.getElementById('strugglesSection').style.display = 'none';
+      
+      // Reset form
+      document.getElementById('teacherAsrPrayerScore').value = 5;
+      document.getElementById('teacherLessonScore').value = 5;
+      document.getElementById('teacherLessonFrom').value = '';
+      document.getElementById('teacherLessonTo').value = '';
+      document.getElementById('teacherLessonSideScore').value = 5;
+      document.getElementById('teacherLessonSideText').value = '';
+      document.getElementById('teacherRevisionScore').value = 5;
+      document.getElementById('teacherRevisionFrom').value = '';
+      document.getElementById('teacherRevisionTo').value = '';
+      document.getElementById('teacherReadingScore').value = 5;
+      document.getElementById('teacherBehaviorScore').value = 5;
+      document.getElementById('teacherStatus').textContent = '';
+    };
+
+    // Save teacher assessment
+    window.saveTeacherAssessment = async function() {
+      if (!currentTeacherStudentId) {
+        alert('الرجاء اختيار طالب');
+        return;
+      }
+      
+      const statusDiv = document.getElementById('teacherStatus');
+      statusDiv.textContent = 'جاري الحفظ...';
+      statusDiv.style.color = 'blue';
+      
+      const data = {
+        studentId: currentTeacherStudentId,
+        studentName: currentTeacherStudentName,
+        asrPrayerScore: Number(document.getElementById('teacherAsrPrayerScore').value) || 0,
+        lessonScore: Number(document.getElementById('teacherLessonScore').value) || 0,
+        lessonFrom: (document.getElementById('teacherLessonFrom').value || '').trim(),
+        lessonTo: (document.getElementById('teacherLessonTo').value || '').trim(),
+        lessonSideScore: Number(document.getElementById('teacherLessonSideScore').value) || 0,
+        lessonSideText: (document.getElementById('teacherLessonSideText').value || '').trim(),
+        revisionScore: Number(document.getElementById('teacherRevisionScore').value) || 0,
+        revisionFrom: (document.getElementById('teacherRevisionFrom').value || '').trim(),
+        revisionTo: (document.getElementById('teacherRevisionTo').value || '').trim(),
+        readingScore: Number(document.getElementById('teacherReadingScore').value) || 0,
+        behaviorScore: Number(document.getElementById('teacherBehaviorScore').value) || 0
+      };
+      
+      // Calculate total
+      data.totalScore = data.asrPrayerScore + data.lessonScore + data.lessonSideScore
+                      + data.revisionScore + data.readingScore + data.behaviorScore;
+      
+      // Check completeness
+      const missing = [];
+      if (!data.lessonFrom || !data.lessonTo) missing.push('lesson');
+      if (!data.revisionFrom || !data.revisionTo) missing.push('revision');
+      if (!data.lessonSideText) missing.push('lessonSide');
+      data.missingFields = missing;
+      data.isComplete = missing.length === 0;
+      data.date = serverTimestamp();
+      
+      // Get today's date
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth()+1).padStart(2,'0');
+      const d = String(today.getDate()).padStart(2,'0');
+      const dateId = `${y}-${m}-${d}`;
+      
+      try {
+        const targetDoc = doc(db, 'studentProgress', currentTeacherStudentId, 'dailyReports', dateId);
+        await setDoc(targetDoc, data);
+        statusDiv.textContent = `✅ تم حفظ التقييم بنجاح — المجموع: ${data.totalScore}/30`;
+        statusDiv.style.color = 'green';
+        
+        // Clear form after 2 seconds
+        setTimeout(() => {
+          showNewAssessment();
+        }, 2000);
+      } catch (error) {
+        console.error('Error saving assessment:', error);
+        statusDiv.textContent = '❌ خطأ في حفظ التقييم: ' + error.message;
+        statusDiv.style.color = 'red';
+      }
+    };
+
+    // Show past reports
+    window.showPastReports = async function() {
+      document.getElementById('newAssessmentForm').style.display = 'none';
+      document.getElementById('pastReportsSection').style.display = 'block';
+      document.getElementById('strugglesSection').style.display = 'none';
+      
+      const container = document.getElementById('pastReportsContainer');
+      container.innerHTML = '<p>جاري تحميل التقارير...</p>';
+      
+      try {
+        const reportsSnap = await getDocs(collection(db, 'studentProgress', currentTeacherStudentId, 'dailyReports'));
+        
+        if (reportsSnap.empty) {
+          container.innerHTML = '<p class="small">لا توجد تقارير سابقة لهذا الطالب</p>';
+          return;
+        }
+        
+        const reports = [];
+        reportsSnap.forEach(d => {
+          reports.push({ dateId: d.id, ...d.data() });
+        });
+        
+        reports.sort((a, b) => b.dateId.localeCompare(a.dateId));
+        
+        let tableHTML = `
+          <table class="reports-table">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>اليوم</th>
+                <th>المجموع</th>
+                <th>صلاة العصر</th>
+                <th>الدرس</th>
+                <th>جنب الدرس</th>
+                <th>المراجعة</th>
+                <th>القراءة</th>
+                <th>السلوك</th>
+                <th>التفاصيل</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        reports.forEach(report => {
+          const date = new Date(report.dateId);
+          const dayName = date.toLocaleDateString('ar-EG', { weekday: 'long' });
+          
+          tableHTML += `
+            <tr>
+              <td>${report.dateId}</td>
+              <td>${dayName}</td>
+              <td><strong>${report.totalScore || 0}</strong></td>
+              <td>${report.asrPrayerScore || 0}</td>
+              <td>${report.lessonScore || 0}</td>
+              <td>${report.lessonSideScore || 0}</td>
+              <td>${report.revisionScore || 0}</td>
+              <td>${report.readingScore || 0}</td>
+              <td>${report.behaviorScore || 0}</td>
+              <td><button class="view-report-btn" onclick="viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">عرض</button></td>
+            </tr>
+          `;
+        });
+        
+        tableHTML += '</tbody></table>';
+        container.innerHTML = `<h4>إجمالي التقارير: ${reports.length}</h4>` + tableHTML;
+      } catch (error) {
+        console.error('Error loading reports:', error);
+        container.innerHTML = '<p style="color:red;">خطأ في تحميل التقارير</p>';
+      }
+    };
+
+    // Show struggles (incomplete scores)
+    window.showStruggles = async function() {
+      document.getElementById('newAssessmentForm').style.display = 'none';
+      document.getElementById('pastReportsSection').style.display = 'none';
+      document.getElementById('strugglesSection').style.display = 'block';
+      
+      const container = document.getElementById('strugglesContainer');
+      container.innerHTML = '<p>جاري تحميل التعثرات...</p>';
+      
+      try {
+        const reportsSnap = await getDocs(collection(db, 'studentProgress', currentTeacherStudentId, 'dailyReports'));
+        
+        if (reportsSnap.empty) {
+          container.innerHTML = '<p class="small">لا توجد تقارير لهذا الطالب</p>';
+          return;
+        }
+        
+        const struggles = [];
+        reportsSnap.forEach(d => {
+          const report = { dateId: d.id, ...d.data() };
+          
+          // Check if any score is less than 5
+          if (report.lessonScore < 5 || report.lessonSideScore < 5 || report.revisionScore < 5) {
+            struggles.push(report);
+          }
+        });
+        
+        if (struggles.length === 0) {
+          container.innerHTML = '<p style="color: green;">✅ ممتاز! لا توجد تعثرات لهذا الطالب</p>';
+          return;
+        }
+        
+        struggles.sort((a, b) => b.dateId.localeCompare(a.dateId));
+        
+        let html = `<p><strong>عدد الأيام التي بها تعثرات: ${struggles.length}</strong></p>`;
+        
+        struggles.forEach(report => {
+          const date = new Date(report.dateId);
+          const dayName = date.toLocaleDateString('ar-EG', { weekday: 'long' });
+          
+          html += `
+            <div class="struggle-item">
+              <h4>📅 ${report.dateId} (${dayName})</h4>
+          `;
+          
+          if (report.lessonScore < 5) {
+            html += `<p>❌ <strong>الدرس:</strong> ${report.lessonScore}/5 — من ${report.lessonFrom || '-'} إلى ${report.lessonTo || '-'}</p>`;
+          }
+          
+          if (report.lessonSideScore < 5) {
+            html += `<p>❌ <strong>جنب الدرس:</strong> ${report.lessonSideScore}/5 — ${report.lessonSideText || '-'}</p>`;
+          }
+          
+          if (report.revisionScore < 5) {
+            html += `<p>❌ <strong>المراجعة:</strong> ${report.revisionScore}/5 — من ${report.revisionFrom || '-'} إلى ${report.revisionTo || '-'}</p>`;
+          }
+          
+          html += `<p class="small"><strong>المجموع الكلي:</strong> ${report.totalScore || 0}/30</p>`;
+          html += '</div>';
+        });
+        
+        container.innerHTML = html;
+      } catch (error) {
+        console.error('Error loading struggles:', error);
+        container.innerHTML = '<p style="color:red;">خطأ في تحميل التعثرات</p>';
+      }
+    };
+
+  </script>
+</body>
+</html>
