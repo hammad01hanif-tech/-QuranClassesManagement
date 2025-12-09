@@ -1689,6 +1689,55 @@ label:has(input[type="radio"][name="recitationType"][value="dabt"]:checked) span
   }
 }
 
+/* Attendance Report Mobile-Friendly Styles */
+.attendance-student-card {
+  background: white;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+  padding: 12px 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+}
+
+.attendance-student-card:hover {
+  transform: scale(1.01);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.attendance-student-card:active {
+  transform: scale(0.99);
+}
+
+/* Slide Down Animation for Absence Details */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Responsive Adjustments for Attendance Report */
+@media (max-width: 768px) {
+  #adminAttendanceReportSection {
+    padding: 0 !important;
+  }
+  
+  #adminAttendanceTableContainer {
+    padding: 12px !important;
+  }
+  
+  .attendance-student-card {
+    padding: 10px 12px;
+  }
+}
+
 
 
 

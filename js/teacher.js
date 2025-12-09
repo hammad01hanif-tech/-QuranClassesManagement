@@ -1156,26 +1156,15 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
             <td style="text-align: center; color: #dc3545; font-weight: bold;">❌ غائب (${excuseText})</td>
           </tr>
           <tr id="${uniqueId}" class="report-details" style="display: none;">
-            <td colspan="3" style="background: #fff5f5; padding: 20px;">
-              <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #dc3545;">
-                <h4 style="margin-top: 0; color: #dc3545; text-align: center;">📋 تفاصيل الغياب</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                  <div>
-                    <strong>التاريخ:</strong> ${fullHijriDate}
-                  </div>
-                  <div>
-                    <strong>اليوم:</strong> ${dayName}
-                  </div>
-                  <div>
-                    <strong>الحالة:</strong> <span style="color: #dc3545;">❌ غائب</span>
-                  </div>
-                  <div>
-                    <strong>نوع الغياب:</strong> ${excuseText}
-                  </div>
+            <td colspan="3" style="background: #fff5f5; padding: 15px;">
+              <div style="background: white; padding: 15px; border-radius: 8px; border: 2px solid #dc3545;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <strong style="color: #dc3545;">❌ غائب (${excuseText})</strong>
+                  <button class="delete-report-btn" onclick="event.stopPropagation(); window.deleteReportConfirm('${report.dateId}', '${fullHijriDate}')" style="padding: 5px 15px; font-size: 13px;">🗑️ حذف</button>
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                  <button class="view-report-btn" onclick="event.stopPropagation(); window.viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">📄 عرض التفاصيل</button>
-                  <button class="delete-report-btn" onclick="event.stopPropagation(); window.deleteReportConfirm('${report.dateId}', '${fullHijriDate}')">🗑️ حذف</button>
+                <div style="font-size: 13px; color: #666;">
+                  <div>📅 ${fullHijriDate}</div>
+                  <div>📆 ${dayName}</div>
                 </div>
               </div>
             </td>
@@ -1186,6 +1175,15 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
         const statusColor = report.totalScore >= 25 ? '#28a745' : report.totalScore >= 20 ? '#ffc107' : '#dc3545';
         const statusIcon = report.totalScore >= 25 ? '✅' : report.totalScore >= 20 ? '⚠️' : '❌';
         
+        // Format lesson and revision details
+        const lessonDetails = report.lessonSurahFrom && report.lessonVerseFrom 
+          ? `من ${report.lessonSurahFrom}:${report.lessonVerseFrom} إلى ${report.lessonSurahTo}:${report.lessonVerseTo}`
+          : 'غير محدد';
+        
+        const revisionDetails = report.revisionSurahFrom && report.revisionVerseFrom
+          ? `من ${report.revisionSurahFrom}:${report.revisionVerseFrom} إلى ${report.revisionSurahTo}:${report.revisionVerseTo}`
+          : 'غير محدد';
+        
         tableHTML += `
           <tr class="report-row clickable-row" onclick="toggleReportDetails('${uniqueId}')" style="cursor: pointer;">
             <td>${fullHijriDate}</td>
@@ -1193,58 +1191,69 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
             <td style="text-align: center; color: ${statusColor}; font-weight: bold;">${statusIcon} ${report.totalScore || 0}/30</td>
           </tr>
           <tr id="${uniqueId}" class="report-details" style="display: none;">
-            <td colspan="3" style="background: #f8f9fa; padding: 20px;">
-              <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <h4 style="margin-top: 0; color: #667eea; text-align: center;">📊 تفاصيل التقييم اليومي</h4>
+            <td colspan="3" style="background: #f8f9fa; padding: 10px;">
+              <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.08);">
                 
-                <!-- Summary Card -->
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
-                  <div style="font-size: 12px; opacity: 0.9;">المجموع الكلي</div>
-                  <div style="font-size: 32px; font-weight: bold;">${report.totalScore || 0}/30</div>
-                  <div style="font-size: 12px; opacity: 0.9;">${fullHijriDate}</div>
-                </div>
-                
-                <!-- Scores Grid -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                  <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #28a745;">${report.asrPrayerScore || 0}</div>
-                    <div style="font-size: 12px; color: #666;">صلاة العصر</div>
-                  </div>
-                  <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #2196f3;">${report.lessonScore || 0}</div>
-                    <div style="font-size: 12px; color: #666;">الدرس</div>
-                  </div>
-                  <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #9c27b0;">${report.lessonSideScore || 0}</div>
-                    <div style="font-size: 12px; color: #666;">جنب الدرس</div>
-                  </div>
-                  <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #ff9800;">${report.revisionScore || 0}</div>
-                    <div style="font-size: 12px; color: #666;">المراجعة</div>
-                  </div>
-                  <div style="background: #fce4ec; padding: 15px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #e91e63;">${report.readingScore || 0}</div>
-                    <div style="font-size: 12px; color: #666;">القراءة</div>
-                  </div>
-                  <div style="background: #e0f7fa; padding: 15px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #00bcd4;">${report.behaviorScore || 0}</div>
-                    <div style="font-size: 12px; color: #666;">السلوك</div>
+                <!-- Compact Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #667eea;">
+                  <div>
+                    <span style="font-size: 20px; font-weight: bold; color: ${statusColor};">${report.totalScore || 0}/30</span>
+                    <span style="font-size: 12px; color: #999; margin-right: 8px;">${fullHijriDate}</span>
                   </div>
                 </div>
                 
-                <!-- Details Section -->
+                <!-- Compact Scores -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+                  <div style="background: #e8f5e9; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: #28a745;">${report.asrPrayerScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">العصر</div>
+                  </div>
+                  <div style="background: #e3f2fd; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: #2196f3;">${report.lessonScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">الدرس</div>
+                  </div>
+                  <div style="background: #f3e5f5; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: #9c27b0;">${report.lessonSideScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">جنب الدرس</div>
+                  </div>
+                  <div style="background: #fff3e0; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: #ff9800;">${report.revisionScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">المراجعة</div>
+                  </div>
+                  <div style="background: #fce4ec; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: #e91e63;">${report.readingScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">القراءة</div>
+                  </div>
+                  <div style="background: #e0f7fa; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: #00bcd4;">${report.behaviorScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">السلوك</div>
+                  </div>
+                </div>
+                
+                <!-- Recitation Details -->
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 13px;">
+                  <div style="margin-bottom: 6px;">
+                    <strong style="color: #2196f3;">📖 الدرس:</strong>
+                    <div style="color: #666; margin-top: 2px; margin-right: 20px;">${lessonDetails}</div>
+                  </div>
+                  <div>
+                    <strong style="color: #ff9800;">🔄 المراجعة:</strong>
+                    <div style="color: #666; margin-top: 2px; margin-right: 20px;">${revisionDetails}</div>
+                  </div>
+                </div>
+                
+                <!-- Notes -->
                 ${report.details ? `
-                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <strong style="color: #667eea;">📝 ملاحظات:</strong>
-                    <p style="margin: 10px 0 0 0; white-space: pre-wrap;">${report.details}</p>
+                  <div style="background: #fffbea; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; border-right: 3px solid #ffc107;">
+                    <strong style="color: #f57c00;">📝 ملاحظات:</strong>
+                    <p style="margin: 5px 0 0 0; color: #666; white-space: pre-wrap;">${report.details}</p>
                   </div>
                 ` : ''}
                 
                 <!-- Action Buttons -->
-                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                  <button class="view-report-btn" onclick="event.stopPropagation(); window.viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">📄 عرض كامل</button>
-                  <button class="edit-report-btn" onclick="event.stopPropagation(); window.editReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">✏️ تعديل</button>
-                  <button class="delete-report-btn" onclick="event.stopPropagation(); window.deleteReportConfirm('${report.dateId}', '${fullHijriDate}')">🗑️ حذف</button>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                  <button class="edit-report-btn" onclick="event.stopPropagation(); window.editReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})" style="padding: 6px 12px; font-size: 12px;">✏️ تعديل</button>
+                  <button class="delete-report-btn" onclick="event.stopPropagation(); window.deleteReportConfirm('${report.dateId}', '${fullHijriDate}')" style="padding: 6px 12px; font-size: 12px;">🗑️ حذف</button>
                 </div>
               </div>
             </td>

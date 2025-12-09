@@ -210,7 +210,7 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
           </tr>
         `;
       } else if (report.status === 'absent') {
-        // Absent
+        // Absent - Simplified card without details button
         const excuseText = report.excuseType === 'withExcuse' ? 'بعذر' : 'بدون عذر';
         tableHTML += `
           <tr class="report-row clickable-row" onclick="toggleReportDetails('${uniqueId}')" style="background: #ffe5e5; cursor: pointer;">
@@ -219,36 +219,40 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
             <td style="text-align: center; color: #dc3545; font-weight: bold;">❌ غائب (${excuseText})</td>
           </tr>
           <tr id="${uniqueId}" class="report-details" style="display: none;">
-            <td colspan="3" style="background: #fff5f5; padding: 20px;">
-              <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #dc3545;">
-                <h4 style="margin-top: 0; color: #dc3545; text-align: center;">📋 تفاصيل الغياب</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                  <div>
+            <td colspan="3" style="background: #fff5f5; padding: 12px;">
+              <div style="background: white; padding: 12px; border-radius: 8px; border: 2px solid #dc3545;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div style="font-size: 12px;">
                     <strong>التاريخ:</strong> ${fullHijriDate}
                   </div>
-                  <div>
+                  <div style="font-size: 12px;">
                     <strong>اليوم:</strong> ${dayName}
                   </div>
-                  <div>
+                  <div style="font-size: 12px;">
                     <strong>الحالة:</strong> <span style="color: #dc3545;">❌ غائب</span>
                   </div>
-                  <div>
+                  <div style="font-size: 12px;">
                     <strong>نوع الغياب:</strong> ${excuseText}
                   </div>
-                </div>
-                <div style="text-align: center;">
-                  <button class="view-report-btn" onclick="event.stopPropagation(); viewStudentReportDetails(${JSON.stringify(report).replace(/"/g, '&quot;')})">📄 عرض التفاصيل</button>
                 </div>
               </div>
             </td>
           </tr>
         `;
       } else {
-        // Has assessment with scores
+        // Has assessment with scores - Lightweight card with recitation details
         const statusColor = isStruggling ? '#dc3545' : (report.totalScore >= 25 ? '#28a745' : '#ffc107');
         const statusIcon = isStruggling ? '⚠️' : (report.totalScore >= 25 ? '✅' : '⏳');
         const statusText = isStruggling ? 'تعثر' : `${report.totalScore}/30`;
         const rowStyle = isStruggling ? 'background: #ffebee; border-right: 4px solid #dc3545;' : '';
+        
+        // Format lesson and revision details
+        const lessonDetails = report.lessonSurahFrom && report.lessonVerseFrom 
+          ? `من ${report.lessonSurahFrom}:${report.lessonVerseFrom} إلى ${report.lessonSurahTo}:${report.lessonVerseTo}`
+          : 'غير محدد';
+        const revisionDetails = report.revisionSurahFrom && report.revisionVerseFrom 
+          ? `من ${report.revisionSurahFrom}:${report.revisionVerseFrom} إلى ${report.revisionSurahTo}:${report.revisionVerseTo}`
+          : 'غير محدد';
         
         tableHTML += `
           <tr class="report-row clickable-row" onclick="toggleReportDetails('${uniqueId}')" style="${rowStyle} cursor: pointer;">
@@ -257,58 +261,62 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
             <td style="text-align: center; color: ${statusColor}; font-weight: bold;">${statusIcon} ${statusText}</td>
           </tr>
           <tr id="${uniqueId}" class="report-details" style="display: none;">
-            <td colspan="3" style="background: #f8f9fa; padding: 20px;">
-              <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <h4 style="margin-top: 0; color: #667eea; text-align: center;">📊 تفاصيل التقييم اليومي</h4>
-                
-                <!-- Summary Card -->
-                <div style="background: linear-gradient(135deg, ${isStruggling ? '#dc3545' : '#667eea'} 0%, ${isStruggling ? '#c82333' : '#764ba2'} 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
-                  <div style="font-size: 12px; opacity: 0.9;">المجموع الكلي</div>
-                  <div style="font-size: 32px; font-weight: bold;">${report.totalScore || 0}/30</div>
-                  <div style="font-size: 12px; opacity: 0.9;">${fullHijriDate}</div>
-                  ${isStruggling ? '<div style="margin-top: 10px; font-size: 14px;">⚠️ يوجد تعثر في بعض البنود</div>' : ''}
+            <td colspan="3" style="background: #f8f9fa; padding: 12px;">
+              <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                <!-- Compact header -->
+                <div style="text-align: center; padding: 8px; background: ${isStruggling ? '#ffebee' : '#f0f4ff'}; border-radius: 6px; margin-bottom: 10px;">
+                  <div style="font-size: 16px; font-weight: bold; color: ${isStruggling ? '#dc3545' : '#667eea'};">${report.totalScore || 0}/30</div>
+                  <div style="font-size: 10px; color: #666;">${fullHijriDate}</div>
+                  ${isStruggling ? '<div style="margin-top: 5px; font-size: 11px; color: #dc3545;">⚠️ تعثر في بعض البنود</div>' : ''}
                 </div>
                 
-                <!-- Scores Grid -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px;">
-                  <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 20px; font-weight: bold; color: #28a745;">${report.asrPrayerScore || 0}</div>
-                    <div style="font-size: 11px; color: #666;">صلاة العصر</div>
+                <!-- Compact Scores Grid (3x2) -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+                  <div style="background: #e8f5e9; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: #28a745;">${report.asrPrayerScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">صلاة العصر</div>
                   </div>
-                  <div style="background: ${report.lessonScore < 5 ? '#ffebee' : '#e3f2fd'}; padding: 12px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 20px; font-weight: bold; color: ${report.lessonScore < 5 ? '#dc3545' : '#2196f3'};">${report.lessonScore || 0}</div>
-                    <div style="font-size: 11px; color: #666;">الدرس ${report.lessonScore < 5 ? '⚠️' : ''}</div>
+                  <div style="background: ${report.lessonScore < 5 ? '#ffebee' : '#e3f2fd'}; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: ${report.lessonScore < 5 ? '#dc3545' : '#2196f3'};">${report.lessonScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">الدرس ${report.lessonScore < 5 ? '⚠️' : ''}</div>
                   </div>
-                  <div style="background: ${report.lessonSideScore < 5 ? '#ffebee' : '#f3e5f5'}; padding: 12px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 20px; font-weight: bold; color: ${report.lessonSideScore < 5 ? '#dc3545' : '#9c27b0'};">${report.lessonSideScore || 0}</div>
-                    <div style="font-size: 11px; color: #666;">جنب الدرس ${report.lessonSideScore < 5 ? '⚠️' : ''}</div>
+                  <div style="background: ${report.lessonSideScore < 5 ? '#ffebee' : '#f3e5f5'}; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: ${report.lessonSideScore < 5 ? '#dc3545' : '#9c27b0'};">${report.lessonSideScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">جنب الدرس ${report.lessonSideScore < 5 ? '⚠️' : ''}</div>
                   </div>
-                  <div style="background: ${report.revisionScore < 5 ? '#ffebee' : '#fff3e0'}; padding: 12px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 20px; font-weight: bold; color: ${report.revisionScore < 5 ? '#dc3545' : '#ff9800'};">${report.revisionScore || 0}</div>
-                    <div style="font-size: 11px; color: #666;">المراجعة ${report.revisionScore < 5 ? '⚠️' : ''}</div>
+                  <div style="background: ${report.revisionScore < 5 ? '#ffebee' : '#fff3e0'}; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: ${report.revisionScore < 5 ? '#dc3545' : '#ff9800'};">${report.revisionScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">المراجعة ${report.revisionScore < 5 ? '⚠️' : ''}</div>
                   </div>
-                  <div style="background: #fce4ec; padding: 12px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 20px; font-weight: bold; color: #e91e63;">${report.readingScore || 0}</div>
-                    <div style="font-size: 11px; color: #666;">القراءة</div>
+                  <div style="background: #fce4ec; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: #e91e63;">${report.readingScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">القراءة</div>
                   </div>
-                  <div style="background: #e0f7fa; padding: 12px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 20px; font-weight: bold; color: #00bcd4;">${report.behaviorScore || 0}</div>
-                    <div style="font-size: 11px; color: #666;">السلوك</div>
+                  <div style="background: #e0f7fa; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: #00bcd4;">${report.behaviorScore || 0}</div>
+                    <div style="font-size: 10px; color: #666;">السلوك</div>
                   </div>
                 </div>
                 
-                <!-- Details Section -->
+                <!-- Recitation Details Section -->
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 12px;">
+                  <div style="margin-bottom: 8px;">
+                    <strong style="color: #667eea;">📖 الدرس:</strong>
+                    <div style="color: #666; margin-top: 3px;">${lessonDetails}</div>
+                  </div>
+                  <div>
+                    <strong style="color: #667eea;">🔄 المراجعة:</strong>
+                    <div style="color: #666; margin-top: 3px;">${revisionDetails}</div>
+                  </div>
+                </div>
+                
+                <!-- Notes Section -->
                 ${report.details ? `
-                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                  <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; font-size: 12px;">
                     <strong style="color: #667eea;">📝 ملاحظات المعلم:</strong>
-                    <p style="margin: 10px 0 0 0; white-space: pre-wrap;">${report.details}</p>
+                    <p style="margin: 5px 0 0 0; color: #666; white-space: pre-wrap;">${report.details}</p>
                   </div>
                 ` : ''}
-                
-                <!-- View Button -->
-                <div style="text-align: center;">
-                  <button class="view-report-btn" onclick="event.stopPropagation(); viewStudentReportDetails(${JSON.stringify(report).replace(/"/g, '&quot;')})">📄 عرض التفاصيل الكاملة</button>
-                </div>
               </div>
             </td>
           </tr>

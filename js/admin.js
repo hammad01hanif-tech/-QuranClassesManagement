@@ -1457,11 +1457,8 @@ window.loadAdminAttendanceReport = async function() {
     
     document.getElementById('adminAttendanceTeacherName').textContent = teacherName;
     
-    // Populate date filter with study days
-    await populateAdminDateFilter();
-    
-    // Load report based on filter (default: current month)
-    await filterAdminAbsenceReport();
+    // Populate month filter
+    await populateAdminMonthFilter();
     
   } catch (error) {
     console.error('Error loading attendance report:', error);
@@ -1469,54 +1466,102 @@ window.loadAdminAttendanceReport = async function() {
   }
 };
 
-// Populate admin date filter with study days
-async function populateAdminDateFilter() {
-  const select = document.getElementById('adminAbsenceDateFilter');
+// Populate admin month filter
+async function populateAdminMonthFilter() {
+  const select = document.getElementById('adminAbsenceMonthFilter');
+  const today = new Date();
   
-  // Clear existing options except first two
-  select.innerHTML = `
-    <option value="current-month">الشهر الحالي</option>
-  `;
+  // Get current Hijri date
+  const currentHijriDate = getHijriDate(today);
   
-  // Get all study days in current Hijri month
-  const studyDays = getStudyDaysInCurrentHijriMonth();
-  
-  // Add each study day as an option
-  for (const dateId of studyDays) {
-    // Parse Hijri date (format: YYYY-MM-DD)
-    const [year, month, day] = dateId.split('-');
+  // Create list of last 6 months including current month
+  const months = [];
+  for (let i = 0; i < 6; i++) {
+    const monthDate = new Date(today);
+    monthDate.setMonth(today.getMonth() - i);
+    const hijriDate = getHijriDate(monthDate);
     
-    // Format in Arabic
-    const hijriDate = new Date();
-    hijriDate.setHours(12, 0, 0, 0);
-    
-    // Convert to Gregorian to get day of week
-    const gregorianDate = hijriDateToGregorian(dateId);
-    const dayOfWeek = gregorianDate.getDay();
-    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-    const dayName = dayNames[dayOfWeek];
-    
-    // Format Hijri date in Arabic
     const hijriMonthNames = [
       'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة',
       'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
     ];
-    const monthName = hijriMonthNames[parseInt(month) - 1];
     
-    const option = document.createElement('option');
-    option.value = dateId;
-    option.textContent = `${dayName} - ${parseInt(day)} ${monthName} ${year} هـ`;
-    select.appendChild(option);
+    const monthName = hijriMonthNames[hijriDate.month - 1];
+    const monthValue = `${hijriDate.year}-${String(hijriDate.month).padStart(2, '0')}`;
+    
+    months.push({
+      value: monthValue,
+      text: `${monthName} ${hijriDate.year} هـ`
+    });
   }
+  
+  select.innerHTML = months.map((month, index) => 
+    `<option value="${month.value}" ${index === 0 ? 'selected' : ''}>${month.text}</option>`
+  ).join('');
+  
+  // Load days for current month
+  await populateAdminDaysFilter();
 }
 
-// Convert Hijri date ID to Gregorian Date
-function hijriDateToGregorian(dateId) {
-  // dateId format: YYYY-MM-DD (Hijri)
-  const [year, month, day] = dateId.split('-').map(Number);
+// Populate admin days filter based on selected month
+window.populateAdminDaysFilter = async function() {
+  const monthValue = document.getElementById('adminAbsenceMonthFilter').value;
+  const select = document.getElementById('adminAbsenceDateFilter');
   
-  // استخدام التقويم الدقيق
-  return convertHijriToGregorian(year, month, day);
+  if (!monthValue) return;
+  
+  const [year, month] = monthValue.split('-').map(Number);
+  
+  // Get all study days in the selected month
+  const studyDays = getStudyDaysInHijriMonth(year, month);
+  
+  // Build options
+  let options = '<option value="all-days">جميع أيام الشهر</option>';
+  
+  const hijriMonthNames = [
+    'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة',
+    'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+  ];
+  
+  for (const dateId of studyDays) {
+    const [y, m, d] = dateId.split('-').map(Number);
+    const gregorianDate = convertHijriToGregorian(y, m, d);
+    const dayOfWeek = gregorianDate.getDay();
+    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const dayName = dayNames[dayOfWeek];
+    const monthName = hijriMonthNames[m - 1];
+    
+    options += `<option value="${dateId}">${dayName} - ${d} ${monthName} ${y} هـ</option>`;
+  }
+  
+  select.innerHTML = options;
+  
+  // Load report for selected month
+  await filterAdminAbsenceReport();
+};
+
+// Get study days in a specific Hijri month
+function getStudyDaysInHijriMonth(year, month) {
+  const studyDays = [];
+  
+  // Iterate through all days in the month (max 30 days)
+  for (let day = 1; day <= 30; day++) {
+    try {
+      const gregorianDate = convertHijriToGregorian(year, month, day);
+      const dayOfWeek = gregorianDate.getDay();
+      
+      // Check if it's a study day (not Friday or Saturday)
+      if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+        const dateId = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        studyDays.push(dateId);
+      }
+    } catch (e) {
+      // Invalid date (e.g., day 30 in a 29-day month)
+      break;
+    }
+  }
+  
+  return studyDays;
 }
 
 // Filter admin absence report
@@ -1528,24 +1573,26 @@ window.filterAdminAbsenceReport = async function() {
   
   if (!classId) return;
   
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">جاري تحميل البيانات...</td></tr>';
-  statsContainer.style.display = 'none';
+  tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">جاري تحميل البيانات...</div>';
+  if (statsContainer) statsContainer.style.display = 'none';
   
   try {
     // Get all students in the class with their guardian phone
     const studentsSnap = await getDocs(query(collection(db, 'users'), where('classId', '==', classId), where('role', '==', 'student')));
     
     if (studentsSnap.empty) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">لا يوجد طلاب في هذه الحلقة</td></tr>';
+      tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">لا يوجد طلاب في هذه الحلقة</div>';
       return;
     }
     
     // Get date range based on filter
     let dateIds = [];
     
-    if (filterValue === 'current-month') {
-      // All study days in current month
-      dateIds = getStudyDaysInCurrentHijriMonth();
+    if (filterValue === 'all-days') {
+      // All study days in selected month
+      const monthValue = document.getElementById('adminAbsenceMonthFilter').value;
+      const [year, month] = monthValue.split('-').map(Number);
+      dateIds = getStudyDaysInHijriMonth(year, month);
     } else {
       // Specific date selected
       dateIds = [filterValue];
@@ -1603,14 +1650,19 @@ window.filterAdminAbsenceReport = async function() {
     }
     
     // Show statistics
-    statsContainer.style.display = 'block';
-    document.getElementById('totalPresentCount').textContent = totalPresent;
-    document.getElementById('totalWithExcuseCount').textContent = totalWithExcuse;
-    document.getElementById('totalWithoutExcuseCount').textContent = totalWithoutExcuse;
+    if (statsContainer) {
+      statsContainer.style.display = 'block';
+      document.getElementById('totalPresentCount').textContent = totalPresent;
+      document.getElementById('totalWithExcuseCount').textContent = totalWithExcuse;
+      document.getElementById('totalWithoutExcuseCount').textContent = totalWithoutExcuse;
+    }
     
-    // Display table
+    // Update student count
+    document.getElementById('adminAttendanceStudentCount').textContent = absenceData.size;
+    
+    // Display list
     if (absenceData.size === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #51cf66; font-weight: bold;">✅ لا يوجد طلاب غائبين في هذه الفترة</td></tr>';
+      tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #51cf66; font-weight: bold;">✅ لا يوجد طلاب غائبين في هذه الفترة</div>';
       return;
     }
     
@@ -1621,42 +1673,70 @@ window.filterAdminAbsenceReport = async function() {
       totalAbsence: data.withExcuse + data.withoutExcuse
     })).sort((a, b) => b.totalAbsence - a.totalAbsence);
     
+    // Build mobile-friendly list
     tbody.innerHTML = absenceArray.map((student, index) => {
-      const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
       const totalAbsence = student.withExcuse + student.withoutExcuse;
+      const uniqueId = `absence-details-${student.id}`;
       
       return `
-        <tr style="background: ${rowColor};">
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">${index + 1}</td>
-          <td style="padding: 12px; text-align: right; border: 1px solid #ddd; font-weight: bold;">${student.name}</td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-            <span style="background: linear-gradient(135deg, #ffd43b 0%, #fab005 100%); color: white; padding: 8px 20px; border-radius: 15px; font-weight: bold; font-size: 18px;">${totalAbsence}</span>
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-            <span style="background: #667eea; color: white; padding: 6px 15px; border-radius: 15px; font-weight: bold; font-size: 16px;">${student.withExcuse}</span>
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-            <span style="background: #ff6b6b; color: white; padding: 6px 15px; border-radius: 15px; font-weight: bold; font-size: 16px;">${student.withoutExcuse}</span>
-          </td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
-            ${student.guardianPhone ? `
-              <div style="display: flex; gap: 8px; justify-content: center;">
-                <a href="tel:${student.guardianPhone}" style="background: #007bff; color: white; padding: 8px 12px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 5px;">
-                  📞 ${student.guardianPhone}
-                </a>
-                <a href="https://wa.me/966${student.guardianPhone.replace(/^0/, '')}" target="_blank" style="background: #25D366; color: white; padding: 8px 12px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center;">
-                  💬
-                </a>
+        <!-- Student Row -->
+        <div onclick="toggleAbsenceDetails('${uniqueId}')" style="background: white; padding: 12px 15px; border-radius: 8px; border: 2px solid #e0e0e0; cursor: pointer; transition: all 0.2s;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="flex: 1;">
+              <div style="font-weight: bold; color: #333; font-size: 15px; margin-bottom: 4px;">
+                ${index + 1}. ${student.name}
               </div>
-            ` : '<span style="color: #999;">غير محدد</span>'}
-          </td>
-        </tr>
+              <div style="font-size: 12px; color: #666;">
+                <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 10px; margin-left: 5px;">📄 ${student.withExcuse}</span>
+                <span style="background: #ff6b6b; color: white; padding: 2px 8px; border-radius: 10px;">⚠️ ${student.withoutExcuse}</span>
+              </div>
+            </div>
+            <div style="font-size: 18px; font-weight: bold; color: #ffc107; min-width: 40px; text-align: center;">
+              ${totalAbsence}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Expanded Details -->
+        <div id="${uniqueId}" style="display: none; background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin-top: -6px; border: 2px solid #e0e0e0; border-top: none; animation: slideDown 0.3s ease;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+            <div style="background: #e8f5e9; padding: 10px; border-radius: 6px; text-align: center;">
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">📄 غياب بعذر</div>
+              <div style="font-size: 20px; font-weight: bold; color: #667eea;">${student.withExcuse}</div>
+            </div>
+            <div style="background: #ffebee; padding: 10px; border-radius: 6px; text-align: center;">
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">⚠️ غياب بدون عذر</div>
+              <div style="font-size: 20px; font-weight: bold; color: #ff6b6b;">${student.withoutExcuse}</div>
+            </div>
+          </div>
+          
+          ${student.guardianPhone ? `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <a href="tel:${student.guardianPhone}" style="background: #007bff; color: white; padding: 10px; border-radius: 6px; text-decoration: none; text-align: center; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                📞 اتصال
+              </a>
+              <a href="https://wa.me/966${student.guardianPhone.replace(/^0/, '')}" target="_blank" style="background: #25D366; color: white; padding: 10px; border-radius: 6px; text-decoration: none; text-align: center; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                💬 واتساب
+              </a>
+            </div>
+          ` : '<div style="text-align: center; color: #999; font-size: 13px;">لا يوجد رقم جوال</div>'}
+        </div>
       `;
     }).join('');
     
   } catch (error) {
     console.error('Error filtering absence report:', error);
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #ff6b6b;">حدث خطأ في تحميل البيانات</td></tr>';
+    tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #ff6b6b;">حدث خطأ في تحميل البيانات</div>';
+  }
+};
+
+// Toggle absence details
+window.toggleAbsenceDetails = function(uniqueId) {
+  const detailsDiv = document.getElementById(uniqueId);
+  if (detailsDiv.style.display === 'none' || detailsDiv.style.display === '') {
+    detailsDiv.style.display = 'block';
+  } else {
+    detailsDiv.style.display = 'none';
   }
 };
 

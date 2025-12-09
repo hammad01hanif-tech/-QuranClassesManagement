@@ -264,19 +264,34 @@
       
       <div id="adminAttendanceReportSection" style="display:none; margin-top: 20px;">
         <!-- Filter Section -->
-        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
-          <h3 style="margin: 0 0 15px 0; color: #17a2b8;">📅 فلترة تقارير الغياب</h3>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px;">
-            <div>
-              <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #666;">📆 اختر التاريخ</label>
-              <select id="adminAbsenceDateFilter" onchange="filterAdminAbsenceReport()" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 15px;">
-                <option value="current-month">الشهر الحالي</option>
-                <option value="today">اليوم</option>
-              </select>
+        <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px;">
+          <h3 style="margin: 0 0 15px 0; color: #17a2b8; font-size: 18px;">📅 فلترة تقارير الغياب</h3>
+          
+          <!-- Month Filter -->
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 6px; font-weight: bold; color: #666; font-size: 14px;">📆 اختر الشهر</label>
+            <select id="adminAbsenceMonthFilter" onchange="populateAdminDaysFilter()" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px;">
+              <option value="">جاري التحميل...</option>
+            </select>
+          </div>
+          
+          <!-- Day Filter -->
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 6px; font-weight: bold; color: #666; font-size: 14px;">📅 اختر اليوم</label>
+            <select id="adminAbsenceDateFilter" onchange="filterAdminAbsenceReport()" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px;">
+              <option value="all-days">جميع أيام الشهر</option>
+            </select>
+          </div>
+          
+          <!-- Teacher Name & Student Count -->
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 150px;">
+              <label style="display: block; margin-bottom: 6px; font-weight: bold; color: #666; font-size: 14px;">👨‍🏫 المعلم</label>
+              <div id="adminAttendanceTeacherName" style="padding: 10px; background: #f8f9fa; border-radius: 8px; font-weight: bold; color: #333; font-size: 13px;">-</div>
             </div>
-            <div>
-              <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #666;">👨‍🏫 المعلم</label>
-              <div id="adminAttendanceTeacherName" style="padding: 12px; background: #f8f9fa; border-radius: 8px; font-weight: bold; color: #333;">-</div>
+            <div style="flex: 1; min-width: 120px;">
+              <label style="display: block; margin-bottom: 6px; font-weight: bold; color: #666; font-size: 14px;">👥 عدد الطلاب</label>
+              <div id="adminAttendanceStudentCount" style="padding: 10px; background: #e8f5e9; border-radius: 8px; font-weight: bold; color: #28a745; font-size: 13px; text-align: center;">0</div>
             </div>
           </div>
         </div>
@@ -299,25 +314,12 @@
           </div>
         </div>
 
-        <!-- Absence Table -->
-        <div id="adminAttendanceTableContainer" style="overflow-x: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-          <h3 style="margin: 0 0 15px 0; color: #17a2b8;">📋 قائمة الطلاب الغائبين</h3>
-          <table class="reports-table" style="width: 100%; border-collapse: collapse;">
-            <thead>
-              <tr style="background: #17a2b8; color: white;">
-                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 50px;">#</th>
-                <th style="padding: 12px; text-align: right; border: 1px solid #ddd; min-width: 150px;">اسم الطالب</th>
-                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 100px;">🔢 الإجمالي</th>
-                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 120px;">📄 بعذر</th>
-                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 120px;">⚠️ بدون عذر</th>
-                <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 150px;">📞 جوال ولي الأمر</th>
-              </tr>
-            </thead>
-            <tbody id="adminAttendanceTableBody">
-              <tr>
-                <td colspan="6" style="text-align: center; padding: 20px;">اختر حلقة لعرض التقرير</td>
-              </tr>
-            </tbody>
+        <!-- Absence List (Mobile-Friendly) -->
+        <div id="adminAttendanceTableContainer" style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h3 style="margin: 0 0 12px 0; color: #17a2b8; font-size: 16px;">📋 قائمة الطلاب الغائبين</h3>
+          <div id="adminAttendanceTableBody" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="text-align: center; padding: 20px; color: #999;">اختر حلقة لعرض التقرير</div>
+          </div>
           </table>
         </div>
       </div>
