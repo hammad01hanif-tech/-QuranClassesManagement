@@ -1566,27 +1566,12 @@ window.populateAdminDaysFilter = async function() {
 // Get study days in a specific Hijri month
 function getStudyDaysInHijriMonth(year, month) {
   console.log('🔵 getStudyDaysInHijriMonth:', year, month);
-  const studyDays = [];
   
-  // Iterate through all days in the month (max 30 days)
-  for (let day = 1; day <= 30; day++) {
-    try {
-      const gregorianDate = convertHijriToGregorian(year, month, day);
-      const dayOfWeek = gregorianDate.getDay();
-      
-      // Check if it's a study day (not Friday or Saturday)
-      if (dayOfWeek !== 5 && dayOfWeek !== 6) {
-        const dateId = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        studyDays.push(dateId);
-      }
-    } catch (e) {
-      // Invalid date (e.g., day 30 in a 29-day month)
-      console.log('⚠️ Invalid date at day', day);
-      break;
-    }
-  }
-  console.log('✅ Study days found:', studyDays.length);
+  // Use accurate Hijri calendar from hijri-date.js
+  const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+  const studyDays = getStudyDaysForHijriMonth(monthKey);
   
+  console.log('✅ Study days found from accurate calendar:', studyDays.length);
   return studyDays;
 }
 
