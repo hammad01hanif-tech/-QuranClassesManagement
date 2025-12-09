@@ -1131,47 +1131,54 @@ window.loadReportsForStudent = async function(studentId, selectedMonthFilter = '
   }
 }
 
-// Calculate student statistics (weekly, monthly, total) based on Hijri calendar
+// Calculate student statistics (weekly from Sunday-Thursday, monthly) based on Hijri calendar
 function calculateStudentStatistics(reports) {
   const today = new Date();
-  today.setHours(12, 0, 0, 0); // Noon for accurate conversion
   
-  // Get Hijri dates for week and month ago using accurate calendar
-  const currentHijri = getCurrentHijriDate();
-  const currentHijriDate = currentHijri?.hijri || getTodayForStorage(); // YYYY-MM-DD
+  // Get current Hijri date using accurate calendar
+  const currentHijri = gregorianToHijri(today);
+  const currentHijriDate = currentHijri.formatted; // YYYY-MM-DD
   
-  // Calculate 7 days ago in Hijri
-  const weekAgo = new Date(today);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekHijri = getCurrentHijriDate.call({ toString: () => weekAgo.toISOString() });
-  const weekHijriDate = weekHijri?.hijri || currentHijriDate;
+  // Find the start of current study week (last Sunday)
+  const currentDayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+  const daysToLastSunday = currentDayOfWeek; // If today is Sunday (0), daysToLastSunday = 0
   
-  // Calculate 30 days ago in Hijri (approximate month)
+  const weekStartDate = new Date(today);
+  weekStartDate.setDate(weekStartDate.getDate() - daysToLastSunday);
+  weekStartDate.setHours(0, 0, 0, 0); // Start of Sunday
+  
+  const weekStartHijri = gregorianToHijri(weekStartDate);
+  const weekStartHijriDate = weekStartHijri.formatted; // YYYY-MM-DD
+  
+  // Calculate 30 days ago (approximate Hijri month) using Gregorian then convert to Hijri
   const monthAgo = new Date(today);
   monthAgo.setDate(monthAgo.getDate() - 30);
-  const monthHijri = getCurrentHijriDate.call({ toString: () => monthAgo.toISOString() });
-  const monthHijriDate = monthHijri?.hijri || currentHijriDate;
+  const monthAgoHijri = gregorianToHijri(monthAgo);
+  const monthAgoHijriDate = monthAgoHijri.formatted; // YYYY-MM-DD
+  
+  console.log('📅 Date ranges for statistics:');
+  console.log('Current Hijri:', currentHijriDate);
+  console.log('Week start (Sunday) Hijri:', weekStartHijriDate);
+  console.log('Month ago Hijri:', monthAgoHijriDate);
+  console.log('Current day of week:', currentDayOfWeek, '(0=Sun, 1=Mon, ..., 6=Sat)');
   
   let weeklyLessons = 0;
   let weeklyRevisionPages = 0;
   let monthlyLessons = 0;
   let monthlyRevisionPages = 0;
-  let totalLessons = 0;
-  let totalRevisionPages = 0;
   
   reports.forEach(report => {
     const reportDateId = report.dateId; // This is in Hijri format: YYYY-MM-DD
     
-    // Debug: Log to verify dates are in Hijri format
-    if (reports.indexOf(report) === 0) {
-      console.log('Sample report dateId:', reportDateId);
-      console.log('Current Hijri date:', currentHijriDate);
-      console.log('Week ago Hijri:', weekHijriDate);
-      console.log('Month ago Hijri:', monthHijriDate);
-    }
+    // Get the Gregorian date of the report to check day of week
+    const [hijriYear, hijriMonth, hijriDay] = reportDateId.split('-').map(Number);
+    const reportGregorian = convertHijriToGregorian(hijriYear, hijriMonth, hijriDay);
+    const reportDayOfWeek = reportGregorian.getDay(); // 0=Sunday, 6=Saturday
+    
+    // Only count if it's a study day (Sunday=0 to Thursday=4)
+    const isStudyDay = reportDayOfWeek >= 0 && reportDayOfWeek <= 4;
     
     // Count lessons based on score (every 5 points = 1 lesson)
-    // e.g., 5 points = 1 lesson, 10 points = 2 lessons, 15 points = 3 lessons, etc.
     const lessonsFromScore = Math.floor((report.lessonScore || 0) / 5);
     
     // Also add extraLessonCount if it exists (for backward compatibility)
@@ -1179,28 +1186,29 @@ function calculateStudentStatistics(reports) {
     const totalLessonsForDay = lessonsFromScore + extraLessons;
     
     // Calculate revision pages
-    // Count pages if revision was attempted (revisionScore > 0) and has valid from/to
     let revisionPages = 0;
     if (report.revisionScore > 0 && report.revisionFrom && report.revisionTo) {
       revisionPages = calculateRevisionPages(report.revisionFrom, report.revisionTo);
     }
     
-    // Total stats
-    totalLessons += totalLessonsForDay;
-    totalRevisionPages += revisionPages;
-    
-    // Weekly stats (compare Hijri dates as strings)
-    if (reportDateId >= weekHijriDate && reportDateId <= currentHijriDate) {
+    // Weekly stats: from current week's Sunday to today, only study days (Sun-Thu)
+    if (isStudyDay && reportDateId >= weekStartHijriDate && reportDateId <= currentHijriDate) {
       weeklyLessons += totalLessonsForDay;
       weeklyRevisionPages += revisionPages;
+      console.log('📊 Weekly report:', reportDateId, '(Day:', reportDayOfWeek + ')', 'Lessons:', totalLessonsForDay, 'Pages:', revisionPages);
     }
     
-    // Monthly stats (compare Hijri dates as strings)
-    if (reportDateId >= monthHijriDate && reportDateId <= currentHijriDate) {
+    // Monthly stats (last 30 days, only study days)
+    if (isStudyDay && reportDateId >= monthAgoHijriDate && reportDateId <= currentHijriDate) {
       monthlyLessons += totalLessonsForDay;
       monthlyRevisionPages += revisionPages;
+      console.log('📈 Monthly report:', reportDateId, '(Day:', reportDayOfWeek + ')', 'Lessons:', totalLessonsForDay, 'Pages:', revisionPages);
     }
   });
+  
+  console.log('✅ Final statistics:');
+  console.log('Weekly (Sun-Thu this week) - Lessons:', weeklyLessons, 'Pages:', weeklyRevisionPages);
+  console.log('Monthly (last 30 days, Sun-Thu only) - Lessons:', monthlyLessons, 'Pages:', monthlyRevisionPages);
   
   // Update UI
   document.getElementById('studentStatsSummary').style.display = 'block';
@@ -1208,8 +1216,6 @@ function calculateStudentStatistics(reports) {
   document.getElementById('weeklyRevisionPages').textContent = weeklyRevisionPages;
   document.getElementById('monthlyLessonsCount').textContent = monthlyLessons;
   document.getElementById('monthlyRevisionPages').textContent = monthlyRevisionPages;
-  document.getElementById('totalLessonsCount').textContent = totalLessons;
-  document.getElementById('totalRevisionPages').textContent = totalRevisionPages;
 }
 
 // View report details
