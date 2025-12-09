@@ -770,8 +770,11 @@ async function loadStudentsForReports(classId) {
 }
 
 // Load reports for selected student with month filter
-window.loadReportsForStudent = async function(studentId, selectedMonthFilter = 'current-month') {
+window.loadReportsForStudent = async function(studentId, selectedMonthFilter = 'current-month', selectedDayFilter = 'all-days') {
   reportsContainer.innerHTML = '<p>جاري تحميل التقارير...</p>';
+  
+  // Store current studentId for filter callbacks
+  window.currentAdminReportStudentId = studentId;
   
   try {
     // Get student data to check for transfer history
@@ -894,23 +897,41 @@ window.loadReportsForStudent = async function(studentId, selectedMonthFilter = '
       });
     }
     
-    // Create month filter dropdown
-    let filterHTML = `
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
-        <label style="color: white; font-weight: bold; margin-left: 10px; font-size: 16px;">📅 فلترة حسب الشهر:</label>
-        <select id="adminMonthFilter" onchange="window.loadReportsForStudent('${studentId}', this.value)" style="padding: 8px 15px; border-radius: 6px; border: 2px solid white; font-size: 14px; font-weight: bold; cursor: pointer; min-width: 200px;">
-          <option value="current-month" ${!selectedMonthFilter || selectedMonthFilter === 'current-month' ? 'selected' : ''}>الشهر الحالي</option>
-    `;
-    
+    // Populate month and day filters in the filter section
+    const monthSelect = document.getElementById('adminReportsMonthFilter');
+    monthSelect.innerHTML = '<option value="current-month">الشهر الحالي</option>';
     allMonths.forEach(month => {
       const displayText = `${month.name} ${month.year} هـ`;
-      filterHTML += `<option value="${month.key}" ${selectedMonthFilter === month.key ? 'selected' : ''}>${displayText}</option>`;
+      const option = document.createElement('option');
+      option.value = month.key;
+      option.textContent = displayText;
+      if (selectedMonthFilter === month.key) {
+        option.selected = true;
+      }
+      monthSelect.appendChild(option);
     });
     
-    filterHTML += `
-        </select>
-      </div>
-    `;
+    // Populate days filter
+    const daySelect = document.getElementById('adminReportsDateFilter');
+    daySelect.innerHTML = '<option value="all-days">جميع أيام الشهر</option>';
+    allStudyDays.forEach(dateId => {
+      const [y, m, d] = dateId.split('-').map(Number);
+      const gregorianDate = convertHijriToGregorian(y, m, d);
+      const dayOfWeek = gregorianDate.getDay();
+      const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+      const dayName = dayNames[dayOfWeek];
+      const monthName = hijriMonths[m - 1];
+      const option = document.createElement('option');
+      option.value = dateId;
+      option.textContent = `${dayName} - ${d} ${monthName} ${y} هـ`;
+      if (selectedDayFilter === dateId) {
+        option.selected = true;
+      }
+      daySelect.appendChild(option);
+    });
+    
+    // Show filters
+    document.getElementById('adminReportsFilters').style.display = 'block';
     
     // Calculate statistics only for reports with actual data (not "not-assessed")
     const reportsForStats = completeReports.filter(r => r.hasReport);
@@ -969,32 +990,31 @@ window.loadReportsForStudent = async function(studentId, selectedMonthFilter = '
     
     // Check if we have any reports for the selected month
     if (completeReports.length === 0) {
-      reportsContainer.innerHTML = filterHTML + '<p class="small">لا توجد أيام دراسية في هذا الشهر</p>';
+      reportsContainer.innerHTML = '<p class="small">لا توجد أيام دراسية في هذا الشهر</p>';
       document.getElementById('studentStatsSummary').style.display = 'none';
       return;
     }
     
+    // Filter reports by selected day if not "all-days"
+    let filteredReports = completeReports;
+    if (selectedDayFilter !== 'all-days') {
+      filteredReports = completeReports.filter(r => r.dateId === selectedDayFilter);
+    }
+    
     let tableHTML = `
-      <table class="reports-table">
+      <h4 style="margin: 20px 0 15px 0;">تقارير المتابعة (${filteredReports.length} يوم دراسي)</h4>
+      <table class="compact-reports-table" style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr>
-            <th>التاريخ</th>
-            <th>اليوم</th>
-            <th>الحالة</th>
-            <th>المجموع</th>
-            <th>صلاة العصر</th>
-            <th>الدرس</th>
-            <th>جنب الدرس</th>
-            <th>المراجعة</th>
-            <th>القراءة</th>
-            <th>السلوك</th>
-            <th>التفاصيل</th>
+          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <th style="padding: 12px; text-align: right; border-radius: 8px 0 0 0;">التاريخ</th>
+            <th style="padding: 12px; text-align: center;">اليوم</th>
+            <th style="padding: 12px; text-align: center; border-radius: 0 8px 0 0;">الحالة</th>
           </tr>
         </thead>
         <tbody>
     `;
     
-    completeReports.forEach(report => {
+    filteredReports.forEach((report, index) => {
       // dateId is already in Hijri format YYYY-MM-DD
       const [year, month, day] = report.dateId.split('-');
       const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
@@ -1008,55 +1028,102 @@ window.loadReportsForStudent = async function(studentId, selectedMonthFilter = '
         dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
       } else {
         // Convert Hijri date to get day name
-        const gregorianDate = hijriDateToGregorian(report.dateId);
+        const [y, m, d] = report.dateId.split('-').map(Number);
+        const gregorianDate = convertHijriToGregorian(y, m, d);
         dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
       }
       
-      // Check report status
+      const uniqueId = `admin-report-${report.dateId}-${index}`;
+      const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      
+      // Check report status and build details
+      let statusHTML = '';
+      let detailsHTML = '';
+      
       if (!report.hasReport) {
         // Not assessed yet
-        tableHTML += `
-          <tr style="background: #fff3cd;">
-            <td>${fullHijriDate}</td>
-            <td>${dayName}</td>
-            <td colspan="8" style="text-align: center; color: #856404; font-weight: bold; font-size: 16px;">⏳ لم يُقيّم بعد</td>
-            <td>-</td>
-          </tr>
+        statusHTML = '<span style="color: #856404; font-weight: bold;">⏳ لم يُقيّم</span>';
+        detailsHTML = `
+          <div style="text-align: center; color: #856404; padding: 20px;">
+            <p style="font-size: 18px; font-weight: bold;">⏳ هذا اليوم لم يُقيّم بعد</p>
+            <p>لا توجد تفاصيل متاحة</p>
+          </div>
         `;
       } else if (report.status === 'absent') {
         // Absent
         const excuseText = report.excuseType === 'withExcuse' ? 'بعذر' : 'بدون عذر';
-        tableHTML += `
-          <tr style="background: #ffe5e5;">
-            <td>${fullHijriDate}</td>
-            <td>${dayName}</td>
-            <td style="text-align: center; color: #dc3545; font-weight: bold;">❌ غائب (${excuseText})</td>
-            <td colspan="7" style="text-align: center; color: #999;">-</td>
-            <td><button class="view-report-btn" onclick="viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">عرض</button></td>
-          </tr>
+        const excuseIcon = report.excuseType === 'withExcuse' ? '📄' : '⚠️';
+        statusHTML = `<span style="color: #dc3545; font-weight: bold;">❌ غائب (${excuseText})</span>`;
+        detailsHTML = `
+          <div style="padding: 20px;">
+            <div style="text-align: center; color: #dc3545; font-size: 18px; font-weight: bold; margin-bottom: 15px;">
+              ${excuseIcon} غائب ${excuseText}
+            </div>
+            ${report.excuseReason ? `<div style="background: #ffe5e5; padding: 12px; border-radius: 8px; margin-bottom: 10px;"><strong>سبب العذر:</strong> ${report.excuseReason}</div>` : ''}
+            ${report.notes ? `<div style="background: #fff3cd; padding: 12px; border-radius: 8px;"><strong>ملاحظات:</strong> ${report.notes}</div>` : ''}
+          </div>
         `;
       } else {
-        // Normal assessment with scores
-        tableHTML += `
-          <tr>
-            <td>${fullHijriDate}</td>
-            <td>${dayName}</td>
-            <td style="text-align: center; color: #28a745; font-weight: bold;">✅ حاضر</td>
-            <td><strong>${report.totalScore || 0}</strong></td>
-            <td>${report.asrPrayerScore || 0}</td>
-            <td>${report.lessonScore || 0}</td>
-            <td>${report.lessonSideScore || 0}</td>
-            <td>${report.revisionScore || 0}</td>
-            <td>${report.readingScore || 0}</td>
-            <td>${report.behaviorScore || 0}</td>
-            <td><button class="view-report-btn" onclick="viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">عرض</button></td>
-          </tr>
+        // Present with scores
+        statusHTML = `<span style="color: #28a745; font-weight: bold;">✅ حاضر (${report.totalScore || 0})</span>`;
+        detailsHTML = `
+          <div style="padding: 15px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 15px;">
+              <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📊 المجموع</div>
+                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${report.totalScore || 0}</div>
+              </div>
+              <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">🕌 صلاة العصر</div>
+                <div style="font-size: 24px; font-weight: bold; color: #2196f3;">${report.asrPrayerScore || 0}</div>
+              </div>
+              <div style="background: #fff3e0; padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📖 الدرس</div>
+                <div style="font-size: 24px; font-weight: bold; color: #ff9800;">${report.lessonScore || 0}</div>
+              </div>
+              <div style="background: #f3e5f5; padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📝 جنب الدرس</div>
+                <div style="font-size: 24px; font-weight: bold; color: #9c27b0;">${report.lessonSideScore || 0}</div>
+              </div>
+              <div style="background: #fce4ec; padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📄 المراجعة</div>
+                <div style="font-size: 24px; font-weight: bold; color: #e91e63;">${report.revisionScore || 0}</div>
+              </div>
+              <div style="background: #e0f2f1; padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📚 القراءة</div>
+                <div style="font-size: 24px; font-weight: bold; color: #009688;">${report.readingScore || 0}</div>
+              </div>
+              <div style="background: #ede7f6; padding: 12px; border-radius: 8px; text-align: center;">
+                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">⭐ السلوك</div>
+                <div style="font-size: 24px; font-weight: bold; color: #673ab7;">${report.behaviorScore || 0}</div>
+              </div>
+            </div>
+            ${report.lessonFrom || report.lessonTo ? `<div style="background: #fff8e1; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px;"><strong>📖 الدرس:</strong> من ${report.lessonFrom || '-'} إلى ${report.lessonTo || '-'}</div>` : ''}
+            ${report.revisionFrom || report.revisionTo ? `<div style="background: #f1f8e9; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px;"><strong>📄 المراجعة:</strong> من ${report.revisionFrom || '-'} إلى ${report.revisionTo || '-'}</div>` : ''}
+            ${report.notes ? `<div style="background: #e1f5fe; padding: 10px; border-radius: 6px; font-size: 13px;"><strong>📝 ملاحظات:</strong> ${report.notes}</div>` : ''}
+          </div>
         `;
       }
+      
+      // Build row with expandable details
+      tableHTML += `
+        <tr class="clickable-row" onclick="toggleAdminReportDetails('${uniqueId}')" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;">
+          <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${fullHijriDate}</td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">${dayName}</td>
+          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">${statusHTML}</td>
+        </tr>
+        <tr id="${uniqueId}" class="details-row" style="display: none;">
+          <td colspan="3" style="padding: 0; background: #f8f9fa; border: 1px solid #ddd;">
+            <div style="background: white; margin: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              ${detailsHTML}
+            </div>
+          </td>
+        </tr>
+      `;
     });
     
     tableHTML += '</tbody></table>';
-    reportsContainer.innerHTML = transferHistoryHTML + filterHTML + `<h4>تقارير المتابعة (${completeReports.length} يوم دراسي)</h4>` + tableHTML + examHTML;
+    reportsContainer.innerHTML = transferHistoryHTML + tableHTML + examHTML;
   } catch (error) {
     console.error('Error loading reports:', error);
     reportsContainer.innerHTML = '<p style="color:red;">خطأ في تحميل التقارير: ' + error.message + '</p>';
@@ -1908,3 +1975,63 @@ async function updateAdminNotificationBadge() {
     console.error('Error updating notification badge:', error);
   }
 }
+
+// Toggle admin report details
+window.toggleAdminReportDetails = function(uniqueId) {
+  const detailsRow = document.getElementById(uniqueId);
+  if (detailsRow.style.display === 'none' || detailsRow.style.display === '') {
+    detailsRow.style.display = 'table-row';
+  } else {
+    detailsRow.style.display = 'none';
+  }
+};
+
+// Populate admin reports days filter  
+window.populateAdminReportsDaysFilter = async function() {
+  const monthValue = document.getElementById('adminReportsMonthFilter').value;
+  const select = document.getElementById('adminReportsDateFilter');
+  
+  if (!monthValue) {
+    select.innerHTML = '<option value="all-days">جميع أيام الشهر</option>';
+    return;
+  }
+  
+  // Get study days based on selected month
+  let studyDays = [];
+  if (monthValue === 'current-month') {
+    studyDays = getStudyDaysInCurrentHijriMonth();
+  } else {
+    studyDays = getStudyDaysForHijriMonth(monthValue);
+  }
+  
+  // Build options
+  let options = '<option value="all-days">جميع أيام الشهر</option>';
+  const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  for (const dateId of studyDays) {
+    const [y, m, d] = dateId.split('-').map(Number);
+    const gregorianDate = convertHijriToGregorian(y, m, d);
+    const dayOfWeek = gregorianDate.getDay();
+    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const dayName = dayNames[dayOfWeek];
+    const monthName = hijriMonths[m - 1];
+    
+    options += `<option value="${dateId}">${dayName} - ${d} ${monthName} ${y} هـ</option>`;
+  }
+  
+  select.innerHTML = options;
+  
+  // Reload reports with new filter
+  await window.filterAdminReportsByDate();
+};
+
+// Filter admin reports by date
+window.filterAdminReportsByDate = async function() {
+  const monthValue = document.getElementById('adminReportsMonthFilter').value;
+  const dayValue = document.getElementById('adminReportsDateFilter').value;
+  const studentId = window.currentAdminReportStudentId;
+  
+  if (studentId) {
+    await window.loadReportsForStudent(studentId, monthValue, dayValue);
+  }
+};

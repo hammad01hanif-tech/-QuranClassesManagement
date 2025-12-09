@@ -226,6 +226,24 @@
         </div>
       </div>
       
+      <!-- Month and Day Filters -->
+      <div id="adminReportsFilters" style="display: none; margin: 20px 0;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: end;">
+          <div>
+            <label style="display: block; color: white; font-weight: bold; margin-bottom: 8px; font-size: 14px;">📅 الشهر الهجري:</label>
+            <select id="adminReportsMonthFilter" onchange="window.populateAdminReportsDaysFilter()" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid white; font-size: 14px; font-weight: bold;">
+              <option value="">-- اختر الشهر --</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; color: white; font-weight: bold; margin-bottom: 8px; font-size: 14px;">📆 اليوم:</label>
+            <select id="adminReportsDateFilter" onchange="window.filterAdminReportsByDate()" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid white; font-size: 14px; font-weight: bold;">
+              <option value="all-days">جميع أيام الشهر</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
       <div id="reportsContainer" style="margin-top: 20px;">
         <p class="small">اختر حلقة وطالب لعرض تقارير المتابعة</p>
       </div>
