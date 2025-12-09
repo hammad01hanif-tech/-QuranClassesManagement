@@ -1819,15 +1819,20 @@ window.hideClassAttendanceReport = function() {
 
 // Load attendance report for entire class
 async function loadClassAttendanceReport(classId) {
+  console.log('🔵 loadClassAttendanceReport: Start, classId:', classId);
   const tbody = document.getElementById('classAttendanceTableBody');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">جاري تحميل البيانات...</td></tr>';
+  console.log('🔵 tbody element:', tbody);
+  tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">جاري تحميل البيانات...</div>';
   
   try {
     // Get all students in the class
+    console.log('🔵 Fetching students for class:', classId);
     const studentsSnap = await getDocs(query(collection(db, 'users'), where('classId', '==', classId), where('role', '==', 'student')));
+    console.log('🔵 Students found:', studentsSnap.size);
     
     if (studentsSnap.empty) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">لا يوجد طلاب في هذه الحلقة</td></tr>';
+      console.log('⚠️ No students found');
+      tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">لا يوجد طلاب في هذه الحلقة</div>';
       return;
     }
     
@@ -1917,54 +1922,106 @@ async function loadClassAttendanceReport(classId) {
     
     // Display table
     displayAttendanceTable(attendanceData);
+    console.log('✅ loadClassAttendanceReport: Complete');
     
   } catch (error) {
-    console.error('Error loading attendance report:', error);
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: red;">حدث خطأ في تحميل البيانات</td></tr>';
+    console.error('❌ Error loading attendance report:', error);
+    tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: red;">حدث خطأ في تحميل البيانات</div>';
   }
 }
 
 // Display attendance table
 function displayAttendanceTable(attendanceData) {
+  console.log('🔵 displayAttendanceTable: Displaying', attendanceData.length, 'students');
   const tbody = document.getElementById('classAttendanceTableBody');
   
   if (attendanceData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">لا توجد بيانات حضور</td></tr>';
+    tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">لا توجد بيانات حضور</div>';
     return;
   }
   
+  // Build mobile-friendly compact list
   tbody.innerHTML = attendanceData.map((student, index) => {
-    const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+    const uniqueId = `attendance-student-${student.id}`;
     
     return `
-      <tr style="background: ${rowColor};">
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${index + 1}</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${student.name}</td>
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #28a745; font-weight: bold; font-size: 18px;">${student.present}</td>
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #dc3545; font-weight: bold; font-size: 18px;">${student.absent}</td>
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #ffc107; font-weight: bold; font-size: 18px;">${student.notAssessed}</td>
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: #17a2b8; font-weight: bold;">${student.total}</td>
-      </tr>
+      <!-- Student Card -->
+      <div onclick="toggleAttendanceDetails('${uniqueId}')" style="background: white; padding: 12px 15px; border-radius: 8px; border: 2px solid #e0e0e0; cursor: pointer; transition: all 0.2s;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="flex: 1;">
+            <div style="font-weight: bold; color: #333; font-size: 15px; margin-bottom: 4px;">
+              ${index + 1}. ${student.name}
+            </div>
+            <div style="font-size: 12px; color: #666;">
+              <span style="background: #28a745; color: white; padding: 2px 8px; border-radius: 10px; margin-left: 5px;">✅ ${student.present}</span>
+              <span style="background: #dc3545; color: white; padding: 2px 8px; border-radius: 10px; margin-left: 5px;">❌ ${student.absent}</span>
+              <span style="background: #ffc107; color: white; padding: 2px 8px; border-radius: 10px;">⏳ ${student.notAssessed}</span>
+            </div>
+          </div>
+          <div style="font-size: 16px; font-weight: bold; color: #17a2b8; min-width: 40px; text-align: center;">
+            ${student.total}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Expanded Details -->
+      <div id="${uniqueId}" style="display: none; background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin-top: -6px; border: 2px solid #e0e0e0; border-top: none; animation: slideDown 0.3s ease;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+          <div style="background: #e8f5e9; padding: 10px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">✅ حاضر</div>
+            <div style="font-size: 20px; font-weight: bold; color: #28a745;">${student.present}</div>
+          </div>
+          <div style="background: #ffebee; padding: 10px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">❌ غائب</div>
+            <div style="font-size: 20px; font-weight: bold; color: #dc3545;">${student.absent}</div>
+          </div>
+          <div style="background: #fff3e0; padding: 10px; border-radius: 6px; text-align: center;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">⏳ لم يُقيَّم</div>
+            <div style="font-size: 20px; font-weight: bold; color: #ffc107;">${student.notAssessed}</div>
+          </div>
+        </div>
+        <div style="margin-top: 10px; text-align: center; background: #e3f2fd; padding: 10px; border-radius: 6px;">
+          <div style="font-size: 12px; color: #666;">📊 إجمالي الأيام</div>
+          <div style="font-size: 20px; font-weight: bold; color: #17a2b8;">${student.total}</div>
+        </div>
+      </div>
     `;
   }).join('');
+  
+  console.log('✅ Attendance table displayed');
 }
+
+// Toggle attendance details
+window.toggleAttendanceDetails = function(uniqueId) {
+  const detailsDiv = document.getElementById(uniqueId);
+  if (detailsDiv.style.display === 'none' || detailsDiv.style.display === '') {
+    detailsDiv.style.display = 'block';
+  } else {
+    detailsDiv.style.display = 'none';
+  }
+};
 
 // Filter attendance by date
 window.filterAttendanceByDate = async function() {
+  console.log('🔵 filterAttendanceByDate: Start');
   const selectedDate = document.getElementById('attendanceDateFilter').value;
+  console.log('🔵 Selected date:', selectedDate);
   
   if (selectedDate === 'all') {
     // Show all days
+    console.log('🔵 Showing all days data');
     displayAttendanceTable(window.currentAttendanceData);
     return;
   }
   
   // Filter for specific date
   const tbody = document.getElementById('classAttendanceTableBody');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">جاري تحميل البيانات...</td></tr>';
+  tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">جاري تحميل البيانات...</div>';
   
   try {
+    console.log('🔵 Fetching students for specific date...');
     const studentsSnap = await getDocs(query(collection(db, 'users'), where('classId', '==', currentTeacherClassId), where('role', '==', 'student')));
+    console.log('🔵 Students found:', studentsSnap.size);
     
     const dayData = [];
     
@@ -1979,6 +2036,7 @@ window.filterAttendanceByDate = async function() {
       
       let status = 'لم يُقيَّم';
       let statusColor = '#ffc107';
+      let statusIcon = '⏳';
       
       if (reportSnap.exists()) {
         const reportData = reportSnap.data();
@@ -1986,10 +2044,12 @@ window.filterAttendanceByDate = async function() {
         if (reportData.status === 'absent') {
           status = 'غائب';
           statusColor = '#dc3545';
+          statusIcon = '❌';
         } else if (reportData.status === 'present' || reportData.totalScore !== undefined) {
           // Either explicitly marked as present, or has scores (old format)
           status = 'حاضر';
           statusColor = '#28a745';
+          statusIcon = '✅';
         }
       }
       
@@ -1997,29 +2057,38 @@ window.filterAttendanceByDate = async function() {
         id: studentId,
         name: studentName,
         status: status,
-        statusColor: statusColor
+        statusColor: statusColor,
+        statusIcon: statusIcon
       });
     }
     
     // Sort by name
     dayData.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    console.log('🔵 Day data prepared:', dayData.length, 'students');
     
-    // Display single day view
+    // Display single day view - Mobile-friendly cards
     tbody.innerHTML = dayData.map((student, index) => {
-      const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-      
       return `
-        <tr style="background: ${rowColor};">
-          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${index + 1}</td>
-          <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${student.name}</td>
-          <td colspan="4" style="padding: 10px; text-align: center; border: 1px solid #ddd; color: ${student.statusColor}; font-weight: bold; font-size: 18px;">${student.status}</td>
-        </tr>
+        <div style="background: white; padding: 12px 15px; border-radius: 8px; border: 2px solid #e0e0e0; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="flex: 1;">
+              <div style="font-weight: bold; color: #333; font-size: 15px;">
+                ${index + 1}. ${student.name}
+              </div>
+            </div>
+            <div style="background: ${student.statusColor}; color: white; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px;">
+              ${student.statusIcon} ${student.status}
+            </div>
+          </div>
+        </div>
       `;
     }).join('');
     
+    console.log('✅ Single day view displayed');
+    
   } catch (error) {
-    console.error('Error filtering attendance:', error);
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: red;">حدث خطأ في تحميل البيانات</td></tr>';
+    console.error('❌ Error filtering attendance:', error);
+    tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: red;">حدث خطأ في تحميل البيانات</div>';
   }
 };
 
@@ -4461,15 +4530,19 @@ window.closeNotificationsModal = function() {
 
 // Show Class Attendance Report
 window.showClassAttendanceReport = function() {
+  console.log('🔵 showClassAttendanceReport: Start');
   hideAllSections();
   
   // Show the class attendance section (for all students)
   const classSection = document.getElementById('classAttendanceReportSection');
+  console.log('🔵 classAttendanceReportSection element:', classSection);
   if (classSection) {
     classSection.style.display = 'block';
+    console.log('✅ Section displayed, calling loadClassAttendanceReport...');
     loadClassAttendanceReport(currentTeacherClassId);
     classSection.scrollIntoView({ behavior: 'smooth' });
   } else {
+    console.error('❌ Section not found!');
     alert('⚠️ قسم تقرير الحضور غير موجود');
   }
 };

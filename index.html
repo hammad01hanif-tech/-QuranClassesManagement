@@ -284,42 +284,46 @@
           </div>
           
           <!-- Teacher Name & Student Count -->
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 150px;">
-              <label style="display: block; margin-bottom: 6px; font-weight: bold; color: #666; font-size: 14px;">👨‍🏫 المعلم</label>
-              <div id="adminAttendanceTeacherName" style="padding: 10px; background: #f8f9fa; border-radius: 8px; font-weight: bold; color: #333; font-size: 13px;">-</div>
-            </div>
-            <div style="flex: 1; min-width: 120px;">
-              <label style="display: block; margin-bottom: 6px; font-weight: bold; color: #666; font-size: 14px;">👥 عدد الطلاب</label>
-              <div id="adminAttendanceStudentCount" style="padding: 10px; background: #e8f5e9; border-radius: 8px; font-weight: bold; color: #28a745; font-size: 13px; text-align: center;">0</div>
-            </div>
+          <div>
+            <label style="display: block; margin-bottom: 6px; font-weight: bold; color: #666; font-size: 14px;">👨‍🏫 المعلم</label>
+            <div id="adminAttendanceTeacherName" style="padding: 10px; background: #f8f9fa; border-radius: 8px; font-weight: bold; color: #333; font-size: 13px;">-</div>
           </div>
         </div>
 
         <!-- Statistics Cards -->
-        <div id="absenceStatsContainer" style="display: none; margin-bottom: 20px;">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-            <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #51cf66 0%, #2d7a44 100%); border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">✅ إجمالي الحضور</div>
-              <div id="totalPresentCount" style="font-size: 32px; font-weight: bold;">0</div>
+        <div id="absenceStatsContainer" style="display: none; margin-bottom: 15px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+            <div style="text-align: center; padding: 15px; background: linear-gradient(135deg, #51cf66 0%, #2d7a44 100%); border-radius: 10px; color: white; box-shadow: 0 3px 10px rgba(0,0,0,0.15);">
+              <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">✅ إجمالي الحضور</div>
+              <div id="totalPresentCount" style="font-size: 28px; font-weight: bold;">0</div>
             </div>
-            <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">📄 غياب بعذر</div>
-              <div id="totalWithExcuseCount" style="font-size: 32px; font-weight: bold;">0</div>
+            <div style="text-align: center; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white; box-shadow: 0 3px 10px rgba(0,0,0,0.15);">
+              <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">📄 غياب بعذر</div>
+              <div id="totalWithExcuseCount" style="font-size: 28px; font-weight: bold;">0</div>
             </div>
-            <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); border-radius: 12px; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">⚠️ غياب بدون عذر</div>
-              <div id="totalWithoutExcuseCount" style="font-size: 32px; font-weight: bold;">0</div>
+            <div style="text-align: center; padding: 15px; background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); border-radius: 10px; color: white; box-shadow: 0 3px 10px rgba(0,0,0,0.15);">
+              <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">⚠️ غياب بدون عذر</div>
+              <div id="totalWithoutExcuseCount" style="font-size: 28px; font-weight: bold;">0</div>
             </div>
           </div>
         </div>
 
-        <!-- Absence List (Mobile-Friendly) -->
-        <div id="adminAttendanceTableContainer" style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <!-- Compact 3-column Table -->
+        <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <h3 style="margin: 0 0 12px 0; color: #17a2b8; font-size: 16px;">📋 قائمة الطلاب الغائبين</h3>
-          <div id="adminAttendanceTableBody" style="display: flex; flex-direction: column; gap: 8px;">
-            <div style="text-align: center; padding: 20px; color: #999;">اختر حلقة لعرض التقرير</div>
-          </div>
+          <table class="compact-absence-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: #17a2b8; color: white;">
+                <th style="padding: 10px; text-align: right; border: 1px solid #ddd; font-size: 14px;">اسم الطالب</th>
+                <th style="padding: 10px; text-align: center; border: 1px solid #ddd; font-size: 14px; width: 80px;">📄 بعذر</th>
+                <th style="padding: 10px; text-align: center; border: 1px solid #ddd; font-size: 14px; width: 80px;">⚠️ بدون عذر</th>
+              </tr>
+            </thead>
+            <tbody id="adminAttendanceTableBody">
+              <tr>
+                <td colspan="3" style="text-align: center; padding: 20px; color: #999;">اختر حلقة لعرض التقرير</td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -403,52 +407,37 @@
 
         <!-- Class Attendance Report Section -->
         <div id="classAttendanceReportSection" style="display:none; margin-top: 30px;">
-          <div id="classAttendanceTableContainer" style="overflow-x: auto;">
-            <div style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); padding: 20px; border-radius: 12px 12px 0 0; color: white;">
-              <h3 style="margin: 0 0 15px 0;">📅 تقرير حضور جميع طلاب الحلقة</h3>
+          <div id="classAttendanceTableContainer">
+            <div style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); padding: 15px; border-radius: 12px; color: white; margin-bottom: 15px;">
+              <h3 style="margin: 0 0 12px 0; font-size: 18px;">📅 تقرير حضور جميع طلاب الحلقة</h3>
               
               <!-- Date Filter -->
-              <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <label style="font-size: 14px; opacity: 0.9; margin-bottom: 8px; display: block;">اختر التاريخ:</label>
-                <select id="attendanceDateFilter" onchange="window.filterAttendanceByDate()" style="width: 100%; max-width: 300px; padding: 10px; border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 16px; background: white; color: #333; cursor: pointer;">
+              <div style="background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                <label style="font-size: 13px; opacity: 0.9; margin-bottom: 6px; display: block;">اختر التاريخ:</label>
+                <select id="attendanceDateFilter" onchange="window.filterAttendanceByDate()" style="width: 100%; padding: 10px; border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 14px; background: white; color: #333; cursor: pointer;">
                   <option value="all">جميع أيام الشهر الحالي</option>
                 </select>
               </div>
               
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <div style="background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px;">
-                  <div style="font-size: 13px; opacity: 0.9;">👨‍🏫 المعلم</div>
-                  <div id="classAttendanceTeacherName" style="font-size: 18px; font-weight: bold; margin-top: 5px;">-</div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">
+                <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px;">
+                  <div style="font-size: 12px; opacity: 0.9;">👨‍🏫 المعلم</div>
+                  <div id="classAttendanceTeacherName" style="font-size: 14px; font-weight: bold; margin-top: 3px;">-</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px;">
-                  <div style="font-size: 13px; opacity: 0.9;">👥 عدد الطلاب</div>
-                  <div id="classAttendanceTotalStudents" style="font-size: 18px; font-weight: bold; margin-top: 5px;">0</div>
+                <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px;">
+                  <div style="font-size: 12px; opacity: 0.9;">👥 الطلاب</div>
+                  <div id="classAttendanceTotalStudents" style="font-size: 14px; font-weight: bold; margin-top: 3px;">0</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.2); padding: 12px; border-radius: 8px;">
-                  <div style="font-size: 13px; opacity: 0.9;">📊 الفترة</div>
-                  <div id="classAttendancePeriod" style="font-size: 18px; font-weight: bold; margin-top: 5px;">الشهر الحالي</div>
+                <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px;">
+                  <div style="font-size: 12px; opacity: 0.9;">📊 الفترة</div>
+                  <div id="classAttendancePeriod" style="font-size: 14px; font-weight: bold; margin-top: 3px;">الشهر الحالي</div>
                 </div>
               </div>
             </div>
 
-            <div style="overflow-x: auto;">
-              <table class="reports-table" style="width: 100%; border-collapse: collapse; min-width: 800px;">
-                <thead>
-                  <tr style="background: #17a2b8; color: white;">
-                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 50px;">#</th>
-                    <th style="padding: 12px; text-align: right; border: 1px solid #ddd; min-width: 150px;">اسم الطالب</th>
-                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 100px;">✅ حاضر</th>
-                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 100px;">❌ غائب</th>
-                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 120px;">⏳ لم يُقيَّم</th>
-                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd; min-width: 100px;">📊 الإجمالي</th>
-                  </tr>
-                </thead>
-                <tbody id="classAttendanceTableBody">
-                  <tr>
-                    <td colspan="6" style="text-align: center; padding: 20px;">جاري تحميل البيانات...</td>
-                  </tr>
-                </tbody>
-              </table>
+            <!-- Compact Student List -->
+            <div id="classAttendanceTableBody" style="display: flex; flex-direction: column; gap: 8px; background: white; padding: 15px; border-radius: 12px;">
+              <div style="text-align: center; padding: 20px; color: #999;">جاري تحميل البيانات...</div>
             </div>
           </div>
           

@@ -16,7 +16,7 @@ import {
 } from '../firebase-config.js';
 
 import { calculateRevisionPages } from './quran-juz-data.js';
-import { formatHijriDate, gregorianToHijriDisplay, getHijriWeekAgo, getHijriMonthAgo, getStudyDaysInCurrentHijriMonth, getStudyDaysForHijriMonth, getTodayForStorage, getCurrentHijriDate, hijriToGregorian as convertHijriToGregorian } from './hijri-date.js';
+import { formatHijriDate, gregorianToHijriDisplay, getHijriWeekAgo, getHijriMonthAgo, getStudyDaysInCurrentHijriMonth, getStudyDaysForHijriMonth, getTodayForStorage, getCurrentHijriDate, gregorianToHijri, hijriToGregorian as convertHijriToGregorian } from './hijri-date.js';
 
 // DOM Elements - will be initialized in initAdmin()
 let classSelectAdd;
@@ -1428,14 +1428,19 @@ async function loadAbsentStudentsReports() {
 
 // Load admin attendance report
 window.loadAdminAttendanceReport = async function() {
+  console.log('🔵 loadAdminAttendanceReport: Start');
   const classId = document.getElementById('classSelectAttendance').value;
+  console.log('🔵 classId:', classId);
   const reportSection = document.getElementById('adminAttendanceReportSection');
+  console.log('🔵 reportSection:', reportSection);
   
   if (!classId) {
+    console.log('⚠️ No classId, hiding report section');
     reportSection.style.display = 'none';
     return;
   }
   
+  console.log('✅ Showing report section');
   reportSection.style.display = 'block';
   
   // Get teacher name
@@ -1456,30 +1461,36 @@ window.loadAdminAttendanceReport = async function() {
     }
     
     document.getElementById('adminAttendanceTeacherName').textContent = teacherName;
+    console.log('✅ Teacher name set:', teacherName);
     
     // Populate month filter
+    console.log('🔵 Calling populateAdminMonthFilter...');
     await populateAdminMonthFilter();
+    console.log('✅ loadAdminAttendanceReport: Complete');
     
   } catch (error) {
-    console.error('Error loading attendance report:', error);
+    console.error('❌ Error loading attendance report:', error);
     alert('حدث خطأ في تحميل التقرير');
   }
 };
 
 // Populate admin month filter
 async function populateAdminMonthFilter() {
+  console.log('🔵 populateAdminMonthFilter: Start');
   const select = document.getElementById('adminAbsenceMonthFilter');
+  console.log('🔵 Month select element:', select);
   const today = new Date();
   
   // Get current Hijri date
-  const currentHijriDate = getHijriDate(today);
+  const currentHijriDate = gregorianToHijri(today);
+  console.log('🔵 Current Hijri Date:', currentHijriDate);
   
   // Create list of last 6 months including current month
   const months = [];
   for (let i = 0; i < 6; i++) {
     const monthDate = new Date(today);
     monthDate.setMonth(today.getMonth() - i);
-    const hijriDate = getHijriDate(monthDate);
+    const hijriDate = gregorianToHijri(monthDate);
     
     const hijriMonthNames = [
       'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة',
@@ -1498,17 +1509,26 @@ async function populateAdminMonthFilter() {
   select.innerHTML = months.map((month, index) => 
     `<option value="${month.value}" ${index === 0 ? 'selected' : ''}>${month.text}</option>`
   ).join('');
+  console.log('✅ Month options populated:', months.length, 'months');
   
   // Load days for current month
+  console.log('🔵 Calling populateAdminDaysFilter...');
   await populateAdminDaysFilter();
+  console.log('✅ populateAdminMonthFilter: Complete');
 }
 
 // Populate admin days filter based on selected month
 window.populateAdminDaysFilter = async function() {
+  console.log('🔵 populateAdminDaysFilter: Start');
   const monthValue = document.getElementById('adminAbsenceMonthFilter').value;
+  console.log('🔵 Month value:', monthValue);
   const select = document.getElementById('adminAbsenceDateFilter');
+  console.log('🔵 Day select element:', select);
   
-  if (!monthValue) return;
+  if (!monthValue) {
+    console.log('⚠️ No month value, returning');
+    return;
+  }
   
   const [year, month] = monthValue.split('-').map(Number);
   
@@ -1535,13 +1555,17 @@ window.populateAdminDaysFilter = async function() {
   }
   
   select.innerHTML = options;
+  console.log('✅ Day options populated');
   
   // Load report for selected month
+  console.log('🔵 Calling filterAdminAbsenceReport...');
   await filterAdminAbsenceReport();
+  console.log('✅ populateAdminDaysFilter: Complete');
 };
 
 // Get study days in a specific Hijri month
 function getStudyDaysInHijriMonth(year, month) {
+  console.log('🔵 getStudyDaysInHijriMonth:', year, month);
   const studyDays = [];
   
   // Iterate through all days in the month (max 30 days)
@@ -1557,31 +1581,44 @@ function getStudyDaysInHijriMonth(year, month) {
       }
     } catch (e) {
       // Invalid date (e.g., day 30 in a 29-day month)
+      console.log('⚠️ Invalid date at day', day);
       break;
     }
   }
+  console.log('✅ Study days found:', studyDays.length);
   
   return studyDays;
 }
 
 // Filter admin absence report
 window.filterAdminAbsenceReport = async function() {
+  console.log('🔵 filterAdminAbsenceReport: Start');
   const classId = document.getElementById('classSelectAttendance').value;
+  console.log('🔵 classId:', classId);
   const filterValue = document.getElementById('adminAbsenceDateFilter').value;
+  console.log('🔵 filterValue:', filterValue);
   const tbody = document.getElementById('adminAttendanceTableBody');
+  console.log('🔵 tbody element:', tbody);
   const statsContainer = document.getElementById('absenceStatsContainer');
+  console.log('🔵 statsContainer:', statsContainer);
   
-  if (!classId) return;
+  if (!classId) {
+    console.log('⚠️ No classId, returning');
+    return;
+  }
   
-  tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">جاري تحميل البيانات...</div>';
+  tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #999;">جاري تحميل البيانات...</td></tr>';
   if (statsContainer) statsContainer.style.display = 'none';
   
   try {
     // Get all students in the class with their guardian phone
+    console.log('🔵 Fetching students for class:', classId);
     const studentsSnap = await getDocs(query(collection(db, 'users'), where('classId', '==', classId), where('role', '==', 'student')));
+    console.log('🔵 Students found:', studentsSnap.size);
     
     if (studentsSnap.empty) {
-      tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">لا يوجد طلاب في هذه الحلقة</div>';
+      console.log('⚠️ No students found');
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #999;">لا يوجد طلاب في هذه الحلقة</td></tr>';
       return;
     }
     
@@ -1591,12 +1628,15 @@ window.filterAdminAbsenceReport = async function() {
     if (filterValue === 'all-days') {
       // All study days in selected month
       const monthValue = document.getElementById('adminAbsenceMonthFilter').value;
+      console.log('🔵 Getting all days for month:', monthValue);
       const [year, month] = monthValue.split('-').map(Number);
       dateIds = getStudyDaysInHijriMonth(year, month);
     } else {
       // Specific date selected
+      console.log('🔵 Using specific date:', filterValue);
       dateIds = [filterValue];
     }
+    console.log('🔵 Date IDs to check:', dateIds);
     
     // Collect absence data
     const absenceData = new Map(); // studentId -> {name, guardianPhone, withExcuse, withoutExcuse}
@@ -1649,22 +1689,26 @@ window.filterAdminAbsenceReport = async function() {
       }
     }
     
+    console.log('🔵 Absence data collected:', absenceData.size, 'students with absences');
+    console.log('🔵 Total stats - Present:', totalPresent, 'WithExcuse:', totalWithExcuse, 'WithoutExcuse:', totalWithoutExcuse);
+    
     // Show statistics
     if (statsContainer) {
       statsContainer.style.display = 'block';
       document.getElementById('totalPresentCount').textContent = totalPresent;
       document.getElementById('totalWithExcuseCount').textContent = totalWithExcuse;
       document.getElementById('totalWithoutExcuseCount').textContent = totalWithoutExcuse;
+      console.log('✅ Statistics displayed');
     }
-    
-    // Update student count
-    document.getElementById('adminAttendanceStudentCount').textContent = absenceData.size;
     
     // Display list
     if (absenceData.size === 0) {
-      tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #51cf66; font-weight: bold;">✅ لا يوجد طلاب غائبين في هذه الفترة</div>';
+      console.log('ℹ️ No absences found');
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #51cf66; font-weight: bold;">✅ لا يوجد طلاب غائبين في هذه الفترة</td></tr>';
       return;
     }
+    
+    console.log('🔵 Building table for', absenceData.size, 'absent students...');
     
     // Convert to array and sort by total absences
     const absenceArray = Array.from(absenceData.entries()).map(([id, data]) => ({
@@ -1673,70 +1717,70 @@ window.filterAdminAbsenceReport = async function() {
       totalAbsence: data.withExcuse + data.withoutExcuse
     })).sort((a, b) => b.totalAbsence - a.totalAbsence);
     
-    // Build mobile-friendly list
+    // Build 3-column table with expandable details
     tbody.innerHTML = absenceArray.map((student, index) => {
-      const totalAbsence = student.withExcuse + student.withoutExcuse;
-      const uniqueId = `absence-details-${student.id}`;
+      const uniqueId = `admin-absence-${student.id}`;
+      const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
       
       return `
-        <!-- Student Row -->
-        <div onclick="toggleAbsenceDetails('${uniqueId}')" style="background: white; padding: 12px 15px; border-radius: 8px; border: 2px solid #e0e0e0; cursor: pointer; transition: all 0.2s;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="flex: 1;">
-              <div style="font-weight: bold; color: #333; font-size: 15px; margin-bottom: 4px;">
-                ${index + 1}. ${student.name}
+        <tr class="clickable-row" onclick="toggleAdminAbsenceDetails('${uniqueId}')" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;">
+          <td style="padding: 10px; text-align: right; border: 1px solid #ddd; font-weight: bold;">${student.name}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+            <span style="background: #667eea; color: white; padding: 5px 12px; border-radius: 15px; font-weight: bold;">${student.withExcuse}</span>
+          </td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+            <span style="background: #ff6b6b; color: white; padding: 5px 12px; border-radius: 15px; font-weight: bold;">${student.withoutExcuse}</span>
+          </td>
+        </tr>
+        <tr id="${uniqueId}" class="details-row" style="display: none;">
+          <td colspan="3" style="padding: 15px; background: #f8f9fa; border: 1px solid #ddd;">
+            <div style="background: white; padding: 15px; border-radius: 8px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                <div style="background: #e8f5e9; padding: 12px; border-radius: 6px; text-align: center;">
+                  <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📄 بعذر</div>
+                  <div style="font-size: 24px; font-weight: bold; color: #667eea;">${student.withExcuse}</div>
+                </div>
+                <div style="background: #ffebee; padding: 12px; border-radius: 6px; text-align: center;">
+                  <div style="font-size: 11px; color: #666; margin-bottom: 4px;">⚠️ بدون عذر</div>
+                  <div style="font-size: 24px; font-weight: bold; color: #ff6b6b;">${student.withoutExcuse}</div>
+                </div>
+                <div style="background: #fff3e0; padding: 12px; border-radius: 6px; text-align: center;">
+                  <div style="font-size: 11px; color: #666; margin-bottom: 4px;">🔢 الإجمالي</div>
+                  <div style="font-size: 24px; font-weight: bold; color: #ffa726;">${student.totalAbsence}</div>
+                </div>
               </div>
-              <div style="font-size: 12px; color: #666;">
-                <span style="background: #667eea; color: white; padding: 2px 8px; border-radius: 10px; margin-left: 5px;">📄 ${student.withExcuse}</span>
-                <span style="background: #ff6b6b; color: white; padding: 2px 8px; border-radius: 10px;">⚠️ ${student.withoutExcuse}</span>
-              </div>
+              ${student.guardianPhone ? `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;">
+                  <a href="tel:${student.guardianPhone}" style="background: #007bff; color: white; padding: 10px; border-radius: 8px; text-decoration: none; text-align: center; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    📞 ${student.guardianPhone}
+                  </a>
+                  <a href="https://wa.me/966${student.guardianPhone.replace(/^0/, '')}" target="_blank" style="background: #25D366; color: white; padding: 10px; border-radius: 8px; text-decoration: none; text-align: center; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    💬 واتساب
+                  </a>
+                </div>
+              ` : '<div style="text-align: center; color: #999; margin-top: 10px; font-size: 13px;">لا يوجد رقم جوال لولي الأمر</div>'}
             </div>
-            <div style="font-size: 18px; font-weight: bold; color: #ffc107; min-width: 40px; text-align: center;">
-              ${totalAbsence}
-            </div>
-          </div>
-        </div>
-        
-        <!-- Expanded Details -->
-        <div id="${uniqueId}" style="display: none; background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin-top: -6px; border: 2px solid #e0e0e0; border-top: none; animation: slideDown 0.3s ease;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-            <div style="background: #e8f5e9; padding: 10px; border-radius: 6px; text-align: center;">
-              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">📄 غياب بعذر</div>
-              <div style="font-size: 20px; font-weight: bold; color: #667eea;">${student.withExcuse}</div>
-            </div>
-            <div style="background: #ffebee; padding: 10px; border-radius: 6px; text-align: center;">
-              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">⚠️ غياب بدون عذر</div>
-              <div style="font-size: 20px; font-weight: bold; color: #ff6b6b;">${student.withoutExcuse}</div>
-            </div>
-          </div>
-          
-          ${student.guardianPhone ? `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-              <a href="tel:${student.guardianPhone}" style="background: #007bff; color: white; padding: 10px; border-radius: 6px; text-decoration: none; text-align: center; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                📞 اتصال
-              </a>
-              <a href="https://wa.me/966${student.guardianPhone.replace(/^0/, '')}" target="_blank" style="background: #25D366; color: white; padding: 10px; border-radius: 6px; text-decoration: none; text-align: center; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                💬 واتساب
-              </a>
-            </div>
-          ` : '<div style="text-align: center; color: #999; font-size: 13px;">لا يوجد رقم جوال</div>'}
-        </div>
+          </td>
+        </tr>
       `;
     }).join('');
     
+    console.log('✅ Table generated for', absenceArray.length, 'students');
+    console.log('✅ filterAdminAbsenceReport: Complete');
+    
   } catch (error) {
-    console.error('Error filtering absence report:', error);
-    tbody.innerHTML = '<div style="text-align: center; padding: 20px; color: #ff6b6b;">حدث خطأ في تحميل البيانات</div>';
+    console.error('❌ Error filtering absence report:', error);
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #ff6b6b;">حدث خطأ في تحميل البيانات</td></tr>';
   }
 };
 
-// Toggle absence details
-window.toggleAbsenceDetails = function(uniqueId) {
-  const detailsDiv = document.getElementById(uniqueId);
-  if (detailsDiv.style.display === 'none' || detailsDiv.style.display === '') {
-    detailsDiv.style.display = 'block';
+// Toggle admin absence details
+window.toggleAdminAbsenceDetails = function(uniqueId) {
+  const detailsRow = document.getElementById(uniqueId);
+  if (detailsRow.style.display === 'none' || detailsRow.style.display === '') {
+    detailsRow.style.display = 'table-row';
   } else {
-    detailsDiv.style.display = 'none';
+    detailsRow.style.display = 'none';
   }
 };
 
