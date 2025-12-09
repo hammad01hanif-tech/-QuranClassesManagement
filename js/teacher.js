@@ -1097,27 +1097,18 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
     }
     
     let tableHTML = `
-      <table class="reports-table">
+      <table class="reports-table compact-reports-table">
         <thead>
           <tr>
             <th>التاريخ</th>
             <th>اليوم</th>
             <th>الحالة</th>
-            <th>المجموع</th>
-            <th>صلاة العصر</th>
-            <th>الدرس</th>
-            <th>جنب الدرس</th>
-            <th>المراجعة</th>
-            <th>القراءة</th>
-            <th>السلوك</th>
-            <th>التفاصيل</th>
-            <th>إجراءات</th>
           </tr>
         </thead>
         <tbody>
     `;
     
-    filteredReports.forEach(report => {
+    filteredReports.forEach((report, index) => {
       // dateId is already in Hijri format YYYY-MM-DD
       const [year, month, day] = report.dateId.split('-');
       const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
@@ -1135,51 +1126,127 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
         dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
       }
       
+      const uniqueId = `report-${report.dateId}-${index}`;
+      
       // Check report status
       if (!report.hasReport) {
         // Not assessed yet
         tableHTML += `
-          <tr style="background: #fff3cd;">
+          <tr class="report-row clickable-row" onclick="toggleReportDetails('${uniqueId}')" style="background: #fff3cd; cursor: pointer;">
             <td>${fullHijriDate}</td>
             <td>${dayName}</td>
-            <td colspan="7" style="text-align: center; color: #856404; font-weight: bold; font-size: 16px;">⏳ لم يُقيّم بعد</td>
-            <td>-</td>
-            <td>-</td>
+            <td style="text-align: center; color: #856404; font-weight: bold;">⏳ لم يُقيّم</td>
+          </tr>
+          <tr id="${uniqueId}" class="report-details" style="display: none;">
+            <td colspan="3" style="background: #fffbf0; padding: 20px;">
+              <div style="text-align: center; color: #856404; padding: 20px;">
+                <p style="font-size: 18px; font-weight: bold;">⏳ هذا اليوم لم يُقيّم بعد</p>
+                <p>لا توجد تفاصيل متاحة</p>
+              </div>
+            </td>
           </tr>
         `;
       } else if (report.status === 'absent') {
         // Absent
         const excuseText = report.excuseType === 'withExcuse' ? 'بعذر' : 'بدون عذر';
         tableHTML += `
-          <tr style="background: #ffe5e5;">
+          <tr class="report-row clickable-row" onclick="toggleReportDetails('${uniqueId}')" style="background: #ffe5e5; cursor: pointer;">
             <td>${fullHijriDate}</td>
             <td>${dayName}</td>
             <td style="text-align: center; color: #dc3545; font-weight: bold;">❌ غائب (${excuseText})</td>
-            <td colspan="6" style="text-align: center; color: #999;">-</td>
-            <td><button class="view-report-btn" onclick="window.viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">عرض</button></td>
-            <td>
-              <button class="delete-report-btn" onclick="window.deleteReportConfirm('${report.dateId}', '${fullHijriDate}')">حذف</button>
+          </tr>
+          <tr id="${uniqueId}" class="report-details" style="display: none;">
+            <td colspan="3" style="background: #fff5f5; padding: 20px;">
+              <div style="background: white; padding: 20px; border-radius: 10px; border: 2px solid #dc3545;">
+                <h4 style="margin-top: 0; color: #dc3545; text-align: center;">📋 تفاصيل الغياب</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                  <div>
+                    <strong>التاريخ:</strong> ${fullHijriDate}
+                  </div>
+                  <div>
+                    <strong>اليوم:</strong> ${dayName}
+                  </div>
+                  <div>
+                    <strong>الحالة:</strong> <span style="color: #dc3545;">❌ غائب</span>
+                  </div>
+                  <div>
+                    <strong>نوع الغياب:</strong> ${excuseText}
+                  </div>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                  <button class="view-report-btn" onclick="event.stopPropagation(); window.viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">📄 عرض التفاصيل</button>
+                  <button class="delete-report-btn" onclick="event.stopPropagation(); window.deleteReportConfirm('${report.dateId}', '${fullHijriDate}')">🗑️ حذف</button>
+                </div>
+              </div>
             </td>
           </tr>
         `;
       } else {
         // Has assessment with scores
+        const statusColor = report.totalScore >= 25 ? '#28a745' : report.totalScore >= 20 ? '#ffc107' : '#dc3545';
+        const statusIcon = report.totalScore >= 25 ? '✅' : report.totalScore >= 20 ? '⚠️' : '❌';
+        
         tableHTML += `
-          <tr>
+          <tr class="report-row clickable-row" onclick="toggleReportDetails('${uniqueId}')" style="cursor: pointer;">
             <td>${fullHijriDate}</td>
             <td>${dayName}</td>
-            <td style="text-align: center; color: #28a745; font-weight: bold;">✅ حاضر</td>
-            <td><strong>${report.totalScore || 0}</strong></td>
-            <td>${report.asrPrayerScore || 0}</td>
-            <td>${report.lessonScore || 0}</td>
-            <td>${report.lessonSideScore || 0}</td>
-            <td>${report.revisionScore || 0}</td>
-            <td>${report.readingScore || 0}</td>
-            <td>${report.behaviorScore || 0}</td>
-            <td><button class="view-report-btn" onclick="window.viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">عرض</button></td>
-            <td>
-              <button class="edit-report-btn" onclick="window.editReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">تعديل</button>
-              <button class="delete-report-btn" onclick="window.deleteReportConfirm('${report.dateId}', '${fullHijriDate}')">حذف</button>
+            <td style="text-align: center; color: ${statusColor}; font-weight: bold;">${statusIcon} ${report.totalScore || 0}/30</td>
+          </tr>
+          <tr id="${uniqueId}" class="report-details" style="display: none;">
+            <td colspan="3" style="background: #f8f9fa; padding: 20px;">
+              <div style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h4 style="margin-top: 0; color: #667eea; text-align: center;">📊 تفاصيل التقييم اليومي</h4>
+                
+                <!-- Summary Card -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
+                  <div style="font-size: 12px; opacity: 0.9;">المجموع الكلي</div>
+                  <div style="font-size: 32px; font-weight: bold;">${report.totalScore || 0}/30</div>
+                  <div style="font-size: 12px; opacity: 0.9;">${fullHijriDate}</div>
+                </div>
+                
+                <!-- Scores Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                  <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #28a745;">${report.asrPrayerScore || 0}</div>
+                    <div style="font-size: 12px; color: #666;">صلاة العصر</div>
+                  </div>
+                  <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #2196f3;">${report.lessonScore || 0}</div>
+                    <div style="font-size: 12px; color: #666;">الدرس</div>
+                  </div>
+                  <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #9c27b0;">${report.lessonSideScore || 0}</div>
+                    <div style="font-size: 12px; color: #666;">جنب الدرس</div>
+                  </div>
+                  <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #ff9800;">${report.revisionScore || 0}</div>
+                    <div style="font-size: 12px; color: #666;">المراجعة</div>
+                  </div>
+                  <div style="background: #fce4ec; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #e91e63;">${report.readingScore || 0}</div>
+                    <div style="font-size: 12px; color: #666;">القراءة</div>
+                  </div>
+                  <div style="background: #e0f7fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #00bcd4;">${report.behaviorScore || 0}</div>
+                    <div style="font-size: 12px; color: #666;">السلوك</div>
+                  </div>
+                </div>
+                
+                <!-- Details Section -->
+                ${report.details ? `
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <strong style="color: #667eea;">📝 ملاحظات:</strong>
+                    <p style="margin: 10px 0 0 0; white-space: pre-wrap;">${report.details}</p>
+                  </div>
+                ` : ''}
+                
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                  <button class="view-report-btn" onclick="event.stopPropagation(); window.viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">📄 عرض كامل</button>
+                  <button class="edit-report-btn" onclick="event.stopPropagation(); window.editReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})">✏️ تعديل</button>
+                  <button class="delete-report-btn" onclick="event.stopPropagation(); window.deleteReportConfirm('${report.dateId}', '${fullHijriDate}')">🗑️ حذف</button>
+                </div>
+              </div>
             </td>
           </tr>
         `;
@@ -1196,6 +1263,21 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
   } catch (error) {
     console.error('Error loading reports:', error);
     container.innerHTML = '<p style="color:red;">خطأ في تحميل التقارير</p>';
+  }
+};
+
+// Toggle report details visibility
+window.toggleReportDetails = function(detailsId) {
+  const detailsRow = document.getElementById(detailsId);
+  if (detailsRow) {
+    const isVisible = detailsRow.style.display !== 'none';
+    detailsRow.style.display = isVisible ? 'none' : 'table-row';
+    
+    // Toggle row background for visual feedback
+    const mainRow = detailsRow.previousElementSibling;
+    if (mainRow) {
+      mainRow.style.background = isVisible ? '' : '#e8f5e9';
+    }
   }
 };
 
