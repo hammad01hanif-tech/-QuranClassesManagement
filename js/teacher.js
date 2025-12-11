@@ -18,7 +18,7 @@ import {
 } from '../firebase-config.js';
 
 import { quranSurahs } from './quran-data.js';
-import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, isTodayAStudyDay } from './hijri-date.js';
+import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, gregorianToHijri, isTodayAStudyDay } from './hijri-date.js';
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
 
 // DOM Elements
@@ -4203,12 +4203,20 @@ window.showTopPerformers = async function() {
   modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;';
   
   modal.innerHTML = `
-    <div style="background: white; width: 90%; max-width: 800px; max-height: 80vh; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-      <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="margin: 0; font-size: 22px;">🏆 ترتيب الأوائل</h3>
+    <div style="background: white; width: 95%; max-width: 800px; max-height: 85vh; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+      <div style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <h3 style="margin: 0; font-size: 20px;">🏆 ترتيب الأوائل</h3>
         <button onclick="window.closeTopPerformersModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">×</button>
       </div>
-      <div id="topPerformersContent" style="padding: 20px; max-height: calc(80vh - 80px); overflow-y: auto;">
+      
+      <!-- Month Filter -->
+      <div style="padding: 15px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0;">
+        <select id="topPerformersMonthFilter" onchange="window.filterTopPerformersByMonth()" style="width: 100%; padding: 10px; border: 2px solid #FFD700; border-radius: 8px; font-size: 15px; background: white; color: #333; cursor: pointer;">
+          <option value="">اختر الشهر...</option>
+        </select>
+      </div>
+      
+      <div id="topPerformersContent" style="padding: 10px; max-height: calc(85vh - 200px); overflow-y: auto;">
         ⏳ جاري تحميل البيانات...
       </div>
       <div style="text-align: center; padding: 15px; border-top: 1px solid #eee;">
@@ -4221,9 +4229,14 @@ window.showTopPerformers = async function() {
   
   document.body.appendChild(modal);
   
-  // Load top performers data
+  // Populate month filter
+  await populateTopPerformersMonthFilter();
+  
+  // Load top performers data for current month
   try {
-    await loadMonthlyScores(currentTeacherClassId);
+    const currentHijri = getCurrentHijriDate();
+    const currentMonthKey = `${currentHijri.hijriYear}-${String(currentHijri.hijriMonth).padStart(2, '0')}`;
+    await loadMonthlyScoresForMonth(currentTeacherClassId, currentMonthKey);
     
     const scoresData = window.currentClassScores || [];
     
@@ -4246,26 +4259,26 @@ window.showTopPerformers = async function() {
         const subTextColor = student.rank <= 3 ? 'rgba(255,255,255,0.9)' : '#666';
         
         return `
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #e0e0e0; background: ${rowBg}; border-radius: 8px; margin-bottom: 8px; box-shadow: ${student.rank <= 3 ? '0 3px 10px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.05)'};">
-            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-              <span style="font-size: 28px; font-weight: bold; min-width: 40px;">${rankDisplay}</span>
-              <div>
-                <div style="font-weight: bold; color: ${textColor}; font-size: 17px;">${student.name}</div>
-                <div style="font-size: 12px; color: ${subTextColor};">${student.id}</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e0e0e0; background: ${rowBg}; border-radius: 8px; margin-bottom: 6px; box-shadow: ${student.rank <= 3 ? '0 2px 8px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.05)'}; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 150px;">
+              <span style="font-size: 24px; font-weight: bold; min-width: 35px;">${rankDisplay}</span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: bold; color: ${textColor}; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${student.name}</div>
+                <div style="font-size: 11px; color: ${subTextColor};">${student.id}</div>
               </div>
             </div>
-            <div style="display: flex; gap: 15px; align-items: center;">
-              <div style="text-align: center; min-width: 60px;">
-                <div style="font-size: 11px; color: ${subTextColor}; margin-bottom: 3px;">النقاط</div>
-                <div style="font-size: 18px; font-weight: bold; color: ${student.rank <= 3 ? 'white' : '#667eea'};">${student.totalScore}</div>
+            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: nowrap;">
+              <div style="text-align: center; min-width: 55px;">
+                <div style="font-size: 10px; color: ${subTextColor}; margin-bottom: 2px;">النقاط</div>
+                <div style="font-size: 16px; font-weight: bold; color: ${student.rank <= 3 ? 'white' : '#667eea'};">${student.totalScore}</div>
               </div>
-              <div style="text-align: center; min-width: 60px;">
-                <div style="font-size: 11px; color: ${subTextColor}; margin-bottom: 3px;">الاختبار</div>
-                <div style="font-size: 18px; font-weight: bold; color: ${student.rank <= 3 ? 'white' : '#764ba2'};">${student.examScore}</div>
+              <div style="text-align: center; min-width: 55px;">
+                <div style="font-size: 10px; color: ${subTextColor}; margin-bottom: 2px;">اختبار</div>
+                <div style="font-size: 16px; font-weight: bold; color: ${student.rank <= 3 ? 'white' : '#764ba2'};">${student.examScore}</div>
               </div>
-              <div style="text-align: center; min-width: 60px; padding: 8px; background: ${student.rank <= 3 ? 'rgba(255,255,255,0.2)' : '#f0f7ff'}; border-radius: 8px;">
-                <div style="font-size: 11px; color: ${subTextColor}; margin-bottom: 3px;">المعدل</div>
-                <div style="font-size: 20px; font-weight: bold; color: ${student.rank <= 3 ? 'white' : '#28a745'};">${avgDisplay}</div>
+              <div style="text-align: center; min-width: 55px; padding: 6px; background: ${student.rank <= 3 ? 'rgba(255,255,255,0.2)' : '#f0f7ff'}; border-radius: 6px;">
+                <div style="font-size: 10px; color: ${subTextColor}; margin-bottom: 2px;">معدل</div>
+                <div style="font-size: 17px; font-weight: bold; color: ${student.rank <= 3 ? 'white' : '#28a745'};">${avgDisplay}</div>
               </div>
             </div>
           </div>
@@ -4285,6 +4298,205 @@ window.closeTopPerformersModal = function() {
   const modal = document.getElementById('topPerformersModal');
   if (modal) modal.remove();
 };
+
+// Populate month filter for top performers (current + next 6 months)
+async function populateTopPerformersMonthFilter() {
+  const monthSelect = document.getElementById('topPerformersMonthFilter');
+  if (!monthSelect) return;
+  
+  // Get current Hijri date from accurate calendar
+  const currentHijri = getCurrentHijriDate();
+  
+  const hijriMonthNames = [
+    'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة',
+    'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+  ];
+  
+  // Current month + next 6 months
+  monthSelect.innerHTML = '<option value="">اختر الشهر...</option>';
+  
+  for (let i = 0; i < 7; i++) {
+    // Calculate Hijri month by adding months to current Hijri month
+    let year = currentHijri.hijriYear;
+    let month = currentHijri.hijriMonth + i;
+    
+    // Handle year overflow (month > 12)
+    while (month > 12) {
+      month -= 12;
+      year += 1;
+    }
+    
+    const monthName = hijriMonthNames[month - 1];
+    const monthValue = `${year}-${String(month).padStart(2, '0')}`;
+    
+    const option = document.createElement('option');
+    option.value = monthValue;
+    option.textContent = `${monthName} ${year} هـ`;
+    
+    if (i === 0) {
+      option.selected = true;
+      option.textContent += ' (الشهر الحالي)';
+    }
+    
+    monthSelect.appendChild(option);
+  }
+}
+
+// Filter top performers by selected month
+window.filterTopPerformersByMonth = async function() {
+  const monthSelect = document.getElementById('topPerformersMonthFilter');
+  const selectedMonth = monthSelect.value;
+  
+  if (!selectedMonth) {
+    document.getElementById('topPerformersContent').innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">اختر شهراً لعرض الترتيب</p>';
+    return;
+  }
+  
+  document.getElementById('topPerformersContent').innerHTML = '⏳ جاري تحميل البيانات...';
+  
+  try {
+    await loadMonthlyScoresForMonth(currentTeacherClassId, selectedMonth);
+    
+    const scoresData = window.currentClassScores || [];
+    
+    if (scoresData.length === 0) {
+      document.getElementById('topPerformersContent').innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">لا توجد بيانات لهذا الشهر</p>';
+    } else {
+      const medals = ['🥇', '🥈', '🥉'];
+      
+      const html = scoresData.map(student => {
+        const rankDisplay = student.rank <= 3 ? medals[student.rank - 1] : `#${student.rank}`;
+        const avgDisplay = student.average > 0 ? student.average.toFixed(1) : '0.0';
+        const rowBg = student.rank <= 3 ? 
+          (student.rank === 1 ? 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)' :
+           student.rank === 2 ? 'linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%)' :
+           'linear-gradient(135deg, #CD7F32 0%, #B8732A 100%)') :
+          (student.rank % 2 === 0 ? '#f9f9f9' : 'white');
+        
+        const textColor = student.rank <= 3 ? 'white' : '#333';
+        const subTextColor = student.rank <= 3 ? 'rgba(255,255,255,0.9)' : '#666';
+        
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e0e0e0; background: ${rowBg}; border-radius: 8px; margin-bottom: 6px; box-shadow: ${student.rank <= 3 ? '0 2px 8px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.05)'}; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 150px;">
+              <span style="font-size: 24px; font-weight: bold; min-width: 35px;">${rankDisplay}</span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: bold; color: ${textColor}; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${student.name}</div>
+                <div style="font-size: 11px; color: ${subTextColor};">${student.id}</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: nowrap;">
+              <div style="text-align: center; min-width: 55px;">
+                <div style="font-size: 10px; color: ${subTextColor}; margin-bottom: 2px;">النقاط</div>
+                <div style="font-size: 16px; font-weight: bold; color: ${student.rank <= 3 ? 'white' : '#667eea'};">${student.totalScore}</div>
+              </div>
+              <div style="text-align: center; min-width: 55px;">
+                <div style="font-size: 10px; color: ${subTextColor}; margin-bottom: 2px;">اختبار</div>
+                <div style="font-size: 16px; font-weight: bold; color: ${student.rank <= 3 ? 'white' : '#764ba2'};">${student.examScore}</div>
+              </div>
+              <div style="text-align: center; min-width: 55px; padding: 6px; background: ${student.rank <= 3 ? 'rgba(255,255,255,0.2)' : '#f0f7ff'}; border-radius: 6px;">
+                <div style="font-size: 10px; color: ${subTextColor}; margin-bottom: 2px;">معدل</div>
+                <div style="font-size: 17px; font-weight: bold; color: ${student.rank <= 3 ? 'white' : '#28a745'};">${avgDisplay}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('topPerformersContent').innerHTML = html;
+    }
+  } catch (error) {
+    console.error('Error filtering top performers:', error);
+    document.getElementById('topPerformersContent').innerHTML = '<p style="text-align: center; color: #dc3545;">❌ حدث خطأ في تحميل البيانات</p>';
+  }
+};
+
+// Load monthly scores for specific month
+async function loadMonthlyScoresForMonth(classId, monthKey) {
+  try {
+    // Get all students in this class
+    const studentsQuery = query(
+      collection(db, 'users'),
+      where('role', '==', 'student'),
+      where('classId', '==', classId)
+    );
+    const studentsSnap = await getDocs(studentsQuery);
+    
+    const studentsScores = [];
+    
+    // Calculate scores for each student
+    for (const studentDoc of studentsSnap.docs) {
+      const studentId = studentDoc.id;
+      const studentData = studentDoc.data();
+      const studentName = studentData.name || studentId;
+      
+      // Get all daily reports for this student in selected month
+      const reportsSnap = await getDocs(
+        collection(db, 'studentProgress', studentId, 'dailyReports')
+      );
+      
+      let totalScore = 0;
+      let daysCount = 0;
+      
+      reportsSnap.forEach(reportDoc => {
+        const reportDateId = reportDoc.id; // This is in Hijri format: YYYY-MM-DD
+        
+        // Check if report is from selected month (compare YYYY-MM prefix)
+        if (reportDateId.startsWith(monthKey)) {
+          const reportData = reportDoc.data();
+          totalScore += reportData.totalScore || 0;
+          daysCount++;
+        }
+      });
+      
+      // Get exam score from actual exam reports
+      let examScore = 0;
+      try {
+        const examReportsSnap = await getDocs(
+          collection(db, 'studentProgress', studentId, 'examReports')
+        );
+        
+        // Check if there's an exam report for selected month
+        examReportsSnap.forEach(examDoc => {
+          const examDateId = examDoc.id;
+          if (examDateId.startsWith(monthKey)) {
+            const examData = examDoc.data();
+            examScore = examData.finalScore || 0;
+          }
+        });
+      } catch (error) {
+        console.warn(`Could not load exam reports for ${studentId}:`, error);
+      }
+      
+      const average = (examScore > 0) ? ((totalScore + examScore) / 2) : 0;
+      
+      studentsScores.push({
+        id: studentId,
+        name: studentName,
+        totalScore: totalScore,
+        daysCount: daysCount,
+        examScore: examScore,
+        average: average
+      });
+    }
+    
+    // Sort by average (descending)
+    studentsScores.sort((a, b) => b.average - a.average);
+    
+    // Add rank to each student
+    studentsScores.forEach((student, index) => {
+      student.rank = index + 1;
+    });
+    
+    // Store for later use
+    window.currentClassScores = studentsScores;
+    
+  } catch (error) {
+    console.error('Error loading monthly scores for month:', error);
+    throw error;
+  }
+}
+
 
 // Show Today's Struggling Students Report
 window.showTodayStrugglingReport = async function() {
