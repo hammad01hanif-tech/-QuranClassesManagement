@@ -466,25 +466,13 @@
             </div>
           </div>
 
-          <div style="overflow-x: auto; background: white; padding: 20px; border-radius: 0 0 12px 12px;">
-            <table class="reports-table" style="width: 100%; border-collapse: collapse; min-width: 900px;">
-              <thead>
-                <tr style="background: #9c27b0; color: white;">
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">#</th>
-                  <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">اسم الطالب</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">التاريخ</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">الدرجة</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">النسبة</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">النتيجة</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody id="monthlyExamsTableBody">
-                <tr>
-                  <td colspan="7" style="text-align: center; padding: 20px;">لا توجد اختبارات شهرية</td>
-                </tr>
-              </tbody>
-            </table>
+          <div id="monthlyExamsTableContainer" style="background: white; padding: 15px; border-radius: 0 0 12px 12px;">
+            <!-- Exams will be displayed as cards on mobile, table on desktop -->
+            <div id="monthlyExamsDisplay">
+              <div style="text-align: center; padding: 40px; color: #999;">
+                لا توجد اختبارات شهرية
+              </div>
+            </div>
           </div>
           
           <div style="text-align: center; margin-top: 20px;">
@@ -873,24 +861,8 @@
 
             <!-- Questions Table -->
             <div id="examQuestionsContainer" style="display: none;">
-              <div style="overflow-x: auto; margin-bottom: 20px;">
-                <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden;">
-                  <thead>
-                    <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                      <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">رقم</th>
-                      <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">السورة</th>
-                      <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">الموضع</th>
-                      <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">تنبيه</th>
-                      <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">خطأ</th>
-                      <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">تجويد</th>
-                      <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">لحن جلي</th>
-                      <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">ملاحظات</th>
-                      <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">نقاط مخصومة</th>
-                    </tr>
-                  </thead>
-                  <tbody id="examQuestionsTableBody">
-                  </tbody>
-                </table>
+              <div id="examQuestionsDisplay" style="margin-bottom: 20px;">
+                <!-- Questions will be displayed as responsive cards -->
               </div>
 
               <!-- Summary -->

@@ -2147,69 +2147,97 @@ window.sendAbsentStudentToAdmin = async function(studentId, studentName, absentC
 // Generate exam questions
 window.generateExamQuestions = function() {
   const count = parseInt(document.getElementById('examQuestionsCount').value) || 6;
-  const tbody = document.getElementById('examQuestionsTableBody');
-  tbody.innerHTML = '';
+  const container = document.getElementById('examQuestionsDisplay');
+  container.innerHTML = '';
   
   // Sample surahs for exam
   const examSurahs = quranSurahs.slice(); // All surahs
+  
+  let cardsHTML = '';
   
   for (let i = 1; i <= count; i++) {
     const randomIndex = Math.floor(Math.random() * examSurahs.length);
     const surah = examSurahs[randomIndex];
     
-    const tr = document.createElement('tr');
-    tr.style.background = i % 2 === 0 ? '#f8f9fa' : 'white';
-    tr.innerHTML = `
-      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${i}</td>
-      <td style="padding: 10px; border: 1px solid #ddd;">
-        <input type="text" class="exam-surah-input" list="surahDatalist" value="${surah.name}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;" />
-      </td>
-      <td style="padding: 10px; border: 1px solid #ddd;">
-        <input type="text" class="exam-position-input" placeholder="موضع اختياري" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;" />
-      </td>
-      <td style="padding: 10px; border: 1px solid #ddd;">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
-          <button onclick="changeExamCount(this, 'tanbih', -1)" style="width: 30px; height: 30px; border: 1px solid #ddd; background: #f0f0f0; border-radius: 4px; cursor: pointer;">-</button>
-          <input type="number" class="exam-count" data-type="tanbih" value="0" min="0" style="width: 50px; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;" />
-          <button onclick="changeExamCount(this, 'tanbih', 1)" style="width: 30px; height: 30px; border: 1px solid #ddd; background: #f0f0f0; border-radius: 4px; cursor: pointer;">+</button>
+    cardsHTML += `
+      <div class="exam-question-card" data-question="${i}" style="background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid #667eea;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: bold; font-size: 16px;">📝 السؤال ${i}</span>
+          <span class="exam-row-points" style="background: rgba(255,255,255,0.3); padding: 5px 15px; border-radius: 20px; font-weight: bold;">0 نقطة</span>
         </div>
-      </td>
-      <td style="padding: 10px; border: 1px solid #ddd;">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
-          <button onclick="changeExamCount(this, 'khata', -1)" style="width: 30px; height: 30px; border: 1px solid #ddd; background: #f0f0f0; border-radius: 4px; cursor: pointer;">-</button>
-          <input type="number" class="exam-count" data-type="khata" value="0" min="0" style="width: 50px; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;" />
-          <button onclick="changeExamCount(this, 'khata', 1)" style="width: 30px; height: 30px; border: 1px solid #ddd; background: #f0f0f0; border-radius: 4px; cursor: pointer;">+</button>
+        
+        <!-- السورة والموضع -->
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; color: #666; font-size: 13px; font-weight: bold;">📖 السورة</label>
+          <input type="text" class="exam-surah-input" list="surahDatalist" value="${surah.name}" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;" />
         </div>
-      </td>
-      <td style="padding: 10px; border: 1px solid #ddd;">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
-          <button onclick="changeExamCount(this, 'tajweed', -1)" style="width: 30px; height: 30px; border: 1px solid #ddd; background: #f0f0f0; border-radius: 4px; cursor: pointer;">-</button>
-          <input type="number" class="exam-count" data-type="tajweed" value="0" min="0" style="width: 50px; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;" />
-          <button onclick="changeExamCount(this, 'tajweed', 1)" style="width: 30px; height: 30px; border: 1px solid #ddd; background: #f0f0f0; border-radius: 4px; cursor: pointer;">+</button>
+        
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; color: #666; font-size: 13px; font-weight: bold;">📍 الموضع (اختياري)</label>
+          <input type="text" class="exam-position-input" placeholder="مثال: من الآية 1 إلى الآية 10" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px;" />
         </div>
-      </td>
-      <td style="padding: 10px; border: 1px solid #ddd;">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
-          <button onclick="changeExamCount(this, 'lahn', -1)" style="width: 30px; height: 30px; border: 1px solid #ddd; background: #f0f0f0; border-radius: 4px; cursor: pointer;">-</button>
-          <input type="number" class="exam-count" data-type="lahn" value="0" min="0" style="width: 50px; padding: 4px; text-align: center; border: 1px solid #ddd; border-radius: 4px;" />
-          <button onclick="changeExamCount(this, 'lahn', 1)" style="width: 30px; height: 30px; border: 1px solid #ddd; background: #f0f0f0; border-radius: 4px; cursor: pointer;">+</button>
+        
+        <!-- الأخطاء -->
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+          <h4 style="margin: 0 0 12px 0; color: #333; font-size: 14px;">⚠️ تسجيل الأخطاء</h4>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">
+            
+            <div style="background: #ffeaa7; padding: 10px; border-radius: 8px;">
+              <label style="display: block; margin-bottom: 6px; color: #666; font-size: 12px; text-align: center; font-weight: bold;">⚡ تنبيه</label>
+              <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                <button onclick="changeExamCount(this, 'tanbih', -1)" style="width: 32px; height: 32px; border: none; background: rgba(0,0,0,0.1); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;">-</button>
+                <input type="number" class="exam-count" data-type="tanbih" value="0" min="0" style="width: 50px; padding: 6px; text-align: center; border: 2px solid #fdcb6e; border-radius: 6px; font-weight: bold;" onchange="calculateExamResults()" />
+                <button onclick="changeExamCount(this, 'tanbih', 1)" style="width: 32px; height: 32px; border: none; background: rgba(0,0,0,0.1); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;">+</button>
+              </div>
+            </div>
+            
+            <div style="background: #fab1a0; padding: 10px; border-radius: 8px;">
+              <label style="display: block; margin-bottom: 6px; color: #666; font-size: 12px; text-align: center; font-weight: bold;">❌ خطأ</label>
+              <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                <button onclick="changeExamCount(this, 'khata', -1)" style="width: 32px; height: 32px; border: none; background: rgba(0,0,0,0.1); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;">-</button>
+                <input type="number" class="exam-count" data-type="khata" value="0" min="0" style="width: 50px; padding: 6px; text-align: center; border: 2px solid #e17055; border-radius: 6px; font-weight: bold;" onchange="calculateExamResults()" />
+                <button onclick="changeExamCount(this, 'khata', 1)" style="width: 32px; height: 32px; border: none; background: rgba(0,0,0,0.1); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;">+</button>
+              </div>
+            </div>
+            
+            <div style="background: #a29bfe; padding: 10px; border-radius: 8px;">
+              <label style="display: block; margin-bottom: 6px; color: #fff; font-size: 12px; text-align: center; font-weight: bold;">🎯 تجويد</label>
+              <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                <button onclick="changeExamCount(this, 'tajweed', -1)" style="width: 32px; height: 32px; border: none; background: rgba(0,0,0,0.1); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;">-</button>
+                <input type="number" class="exam-count" data-type="tajweed" value="0" min="0" style="width: 50px; padding: 6px; text-align: center; border: 2px solid #6c5ce7; border-radius: 6px; font-weight: bold;" onchange="calculateExamResults()" />
+                <button onclick="changeExamCount(this, 'tajweed', 1)" style="width: 32px; height: 32px; border: none; background: rgba(0,0,0,0.1); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;">+</button>
+              </div>
+            </div>
+            
+            <div style="background: #ff7675; padding: 10px; border-radius: 8px;">
+              <label style="display: block; margin-bottom: 6px; color: #fff; font-size: 12px; text-align: center; font-weight: bold;">🚫 لحن جلي</label>
+              <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                <button onclick="changeExamCount(this, 'lahn', -1)" style="width: 32px; height: 32px; border: none; background: rgba(0,0,0,0.1); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;">-</button>
+                <input type="number" class="exam-count" data-type="lahn" value="0" min="0" style="width: 50px; padding: 6px; text-align: center; border: 2px solid #d63031; border-radius: 6px; font-weight: bold;" onchange="calculateExamResults()" />
+                <button onclick="changeExamCount(this, 'lahn', 1)" style="width: 32px; height: 32px; border: none; background: rgba(0,0,0,0.1); border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px;">+</button>
+              </div>
+            </div>
+            
+          </div>
         </div>
-      </td>
-      <td style="padding: 10px; border: 1px solid #ddd;">
-        <input type="text" class="exam-note-input" placeholder="ملاحظة" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;" />
-      </td>
-      <td class="exam-row-points" style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold;">0</td>
+        
+        <!-- ملاحظات -->
+        <div>
+          <label style="display: block; margin-bottom: 5px; color: #666; font-size: 13px; font-weight: bold;">📋 ملاحظات</label>
+          <textarea class="exam-note-input" placeholder="أضف ملاحظاتك هنا..." style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; min-height: 60px; resize: vertical;"></textarea>
+        </div>
+      </div>
     `;
-    tbody.appendChild(tr);
   }
   
+  container.innerHTML = cardsHTML;
   document.getElementById('examQuestionsContainer').style.display = 'block';
 };
 
 // Change exam count
 window.changeExamCount = function(button, type, delta) {
-  const row = button.closest('tr');
-  const input = row.querySelector(`input[data-type="${type}"]`);
+  const card = button.closest('.exam-question-card');
+  const input = card.querySelector(`input[data-type="${type}"]`);
   let value = parseInt(input.value) || 0;
   value = Math.max(0, value + delta);
   input.value = value;
@@ -2227,15 +2255,15 @@ window.calculateExamResults = function() {
   
   let sumTanbih = 0, sumKhata = 0, sumTajweed = 0, sumLahn = 0, sumPoints = 0;
   
-  const rows = document.querySelectorAll('#examQuestionsTableBody tr');
-  rows.forEach(row => {
-    const tanbih = parseInt(row.querySelector('input[data-type="tanbih"]').value) || 0;
-    const khata = parseInt(row.querySelector('input[data-type="khata"]').value) || 0;
-    const tajweed = parseInt(row.querySelector('input[data-type="tajweed"]').value) || 0;
-    const lahn = parseInt(row.querySelector('input[data-type="lahn"]').value) || 0;
+  const cards = document.querySelectorAll('#examQuestionsDisplay .exam-question-card');
+  cards.forEach(card => {
+    const tanbih = parseInt(card.querySelector('input[data-type="tanbih"]').value) || 0;
+    const khata = parseInt(card.querySelector('input[data-type="khata"]').value) || 0;
+    const tajweed = parseInt(card.querySelector('input[data-type="tajweed"]').value) || 0;
+    const lahn = parseInt(card.querySelector('input[data-type="lahn"]').value) || 0;
     
     const rowPoints = (tanbih * wTanbih) + (khata * wKhata) + (tajweed * wTajweed) + (lahn * wLahn);
-    row.querySelector('.exam-row-points').textContent = rowPoints.toFixed(2);
+    card.querySelector('.exam-row-points').textContent = rowPoints.toFixed(2) + ' نقطة';
     
     sumTanbih += tanbih;
     sumKhata += khata;
@@ -2295,20 +2323,23 @@ window.saveExamResults = async function() {
     
     // Get questions data
     const questions = [];
-    const rows = document.querySelectorAll('#examQuestionsTableBody tr');
-    rows.forEach((row, index) => {
-      const surahInput = row.querySelector('.exam-surah-input');
-      const positionInput = row.querySelector('.exam-position-input');
-      const tanbih = parseInt(row.querySelector('input[data-type="tanbih"]').value) || 0;
-      const khata = parseInt(row.querySelector('input[data-type="khata"]').value) || 0;
-      const tajweed = parseInt(row.querySelector('input[data-type="tajweed"]').value) || 0;
-      const lahn = parseInt(row.querySelector('input[data-type="lahn"]').value) || 0;
-      const points = parseFloat(row.querySelector('.exam-row-points').textContent) || 0;
+    const cards = document.querySelectorAll('#examQuestionsDisplay .exam-question-card');
+    cards.forEach((card, index) => {
+      const surahInput = card.querySelector('.exam-surah-input');
+      const positionInput = card.querySelector('.exam-position-input');
+      const noteInput = card.querySelector('.exam-note-input');
+      const tanbih = parseInt(card.querySelector('input[data-type="tanbih"]').value) || 0;
+      const khata = parseInt(card.querySelector('input[data-type="khata"]').value) || 0;
+      const tajweed = parseInt(card.querySelector('input[data-type="tajweed"]').value) || 0;
+      const lahn = parseInt(card.querySelector('input[data-type="lahn"]').value) || 0;
+      const pointsText = card.querySelector('.exam-row-points').textContent;
+      const points = parseFloat(pointsText.replace(' نقطة', '')) || 0;
       
       questions.push({
         number: index + 1,
         surah: surahInput ? surahInput.value : '',
         position: positionInput ? positionInput.value : '',
+        notes: noteInput ? noteInput.value : '',
         errors: {
           tanbih: tanbih,
           khata: khata,
@@ -2335,6 +2366,26 @@ window.saveExamResults = async function() {
       timestamp: serverTimestamp()
     });
     
+    // Also save to examReports for top performers calculation
+    const examReportRef = doc(db, 'studentProgress', currentTeacherStudentId, 'examReports', examId);
+    await setDoc(examReportRef, {
+      studentId: currentTeacherStudentId,
+      studentName: currentTeacherStudentName,
+      examDate: examId,
+      finalScore: finalScore,
+      maxScore: maxScore,
+      passPercent: passPercent,
+      isPassed: isPassed,
+      questionsCount: questions.length,
+      errorCounts: {
+        tanbih: questions.reduce((sum, q) => sum + q.errors.tanbih, 0),
+        khata: questions.reduce((sum, q) => sum + q.errors.khata, 0),
+        tajweed: questions.reduce((sum, q) => sum + q.errors.tajweed, 0),
+        lahn: questions.reduce((sum, q) => sum + q.errors.lahn, 0)
+      },
+      timestamp: serverTimestamp()
+    });
+    
     // Update student's exam score in users collection (for monthly scores)
     const studentRef = doc(db, 'users', currentTeacherStudentId);
     await updateDoc(studentRef, {
@@ -2349,8 +2400,11 @@ window.saveExamResults = async function() {
     statusDiv.textContent = `✅ تم حفظ درجة الاختبار بنجاح: ${finalScore.toFixed(2)}`;
     statusDiv.style.color = '#28a745';
     
-    // Show send to admin button
-    document.getElementById('sendExamToAdminBtn').style.display = 'inline-block';
+    // Hide send to admin button since exam is already saved to examReports
+    const sendBtn = document.getElementById('sendExamToAdminBtn');
+    if (sendBtn) {
+      sendBtn.style.display = 'none';
+    }
     
     setTimeout(() => {
       statusDiv.textContent = '';
@@ -3652,8 +3706,8 @@ async function updateTeacherNotificationBadge() {
 // Show monthly exams management section
 window.showMonthlyExamsManagement = async function() {
   // Hide other sections
-  document.getElementById('classAttendanceReportSection').style.display = 'none';
-  document.getElementById('strugglingStudentsSection').style.display = 'none';
+  const attendanceSection = document.getElementById('classAttendanceReportSection');
+  if (attendanceSection) attendanceSection.style.display = 'none';
   
   // Show exams section
   document.getElementById('monthlyExamsManagementSection').style.display = 'block';
@@ -3669,10 +3723,10 @@ window.hideMonthlyExamsManagement = function() {
 
 // Load monthly exams for the class
 async function loadMonthlyExamsManagement() {
-  const tbody = document.getElementById('monthlyExamsTableBody');
+  const displayContainer = document.getElementById('monthlyExamsDisplay');
   const monthFilter = document.getElementById('examMonthFilter');
   
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">جاري تحميل البيانات...</td></tr>';
+  displayContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">جاري تحميل البيانات...</div>';
   
   try {
     // Get all students in the class
@@ -3728,16 +3782,16 @@ async function loadMonthlyExamsManagement() {
     
   } catch (error) {
     console.error('Error loading monthly exams:', error);
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">حدث خطأ في تحميل البيانات</td></tr>';
+    displayContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #dc3545;">❌ حدث خطأ في تحميل البيانات</div>';
   }
 }
 
-// Display monthly exams in table
+// Display monthly exams as responsive cards
 function displayMonthlyExams(exams) {
-  const tbody = document.getElementById('monthlyExamsTableBody');
+  const displayContainer = document.getElementById('monthlyExamsDisplay');
   
   if (exams.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">لا توجد اختبارات شهرية</td></tr>';
+    displayContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">لا توجد اختبارات شهرية</div>';
     updateExamsStats(0, 0, 0);
     return;
   }
@@ -3755,32 +3809,48 @@ function displayMonthlyExams(exams) {
   const failedCount = exams.length - passedCount;
   updateExamsStats(exams.length, passedCount, failedCount);
   
-  // Display exams
-  tbody.innerHTML = exams.map((exam, index) => {
-    const percentage = ((exam.totalScore / exam.maxScore) * 100).toFixed(1);
-    const resultColor = exam.isPassed ? '#28a745' : '#dc3545';
-    const resultText = exam.isPassed ? '✅ ناجح' : '❌ راسب';
-    const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-    
-    return `
-      <tr style="background: ${rowColor};">
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${index + 1}</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd; font-weight: bold;">${exam.studentName}</td>
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${exam.hijriDate || '-'}</td>
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${resultColor};">${exam.totalScore} / ${exam.maxScore}</td>
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${percentage}%</td>
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd; color: ${resultColor}; font-weight: bold;">${resultText}</td>
-        <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
-          <button onclick="window.viewExamDetails('${exam.studentId}', '${exam.id}')" style="background: #007bff; color: white; padding: 5px 12px; border: none; border-radius: 5px; cursor: pointer; margin: 2px; font-size: 12px;">
-            👁️ عرض
-          </button>
-          <button onclick="window.deleteMonthlyExam('${exam.studentId}', '${exam.id}')" style="background: #dc3545; color: white; padding: 5px 12px; border: none; border-radius: 5px; cursor: pointer; margin: 2px; font-size: 12px;">
-            🗑️ حذف
-          </button>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  // Display exams as mobile-friendly cards
+  displayContainer.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+      ${exams.map((exam, index) => {
+        const percentage = ((exam.totalScore / exam.maxScore) * 100).toFixed(1);
+        const resultColor = exam.isPassed ? '#28a745' : '#dc3545';
+        const resultBg = exam.isPassed ? 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)' : 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)';
+        const resultText = exam.isPassed ? '✅ ناجح' : '❌ راسب';
+        const borderColor = exam.isPassed ? '#28a745' : '#dc3545';
+        
+        return `
+          <div style="background: white; border: 2px solid ${borderColor}; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+              <div style="flex: 1;">
+                <div style="font-weight: bold; font-size: 16px; color: #333; margin-bottom: 4px;">${exam.studentName}</div>
+                <div style="font-size: 12px; color: #666;">📅 ${exam.hijriDate || '-'}</div>
+              </div>
+              <div style="background: ${resultBg}; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; color: ${resultColor}; white-space: nowrap;">
+                ${resultText}
+              </div>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 14px; color: #666;">📊 الدرجة النهائية:</span>
+                <span style="font-size: 24px; font-weight: bold; color: ${resultColor};">${exam.totalScore} / ${exam.maxScore}</span>
+              </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px;">
+              <button onclick="window.viewExamDetails('${exam.studentId}', '${exam.id}')" style="flex: 1; background: #007bff; color: white; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold;">
+                👁️ عرض
+              </button>
+              <button onclick="window.deleteMonthlyExam('${exam.studentId}', '${exam.id}')" style="flex: 1; background: #dc3545; color: white; padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold;">
+                🗑️ حذف
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 // Update exams statistics
@@ -3821,8 +3891,6 @@ window.viewExamDetails = async function(studentId, examId) {
     const examData = examDoc.data();
     const content = document.getElementById('examDetailsContent');
     
-    // Calculate percentage
-    const percentage = ((examData.totalScore / examData.maxScore) * 100).toFixed(1);
     const resultColor = examData.isPassed ? '#28a745' : '#dc3545';
     const resultText = examData.isPassed ? '✅ ناجح' : '❌ راسب';
     
@@ -3847,23 +3915,19 @@ window.viewExamDetails = async function(studentId, examId) {
       
       <div style="background: white; border: 2px solid ${resultColor}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
         <h4 style="margin: 0 0 15px 0; color: ${resultColor};">النتيجة النهائية</h4>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
-          <div>
-            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">الدرجة</div>
-            <div style="font-weight: bold; font-size: 28px; color: ${resultColor};">${examData.totalScore} / ${examData.maxScore}</div>
+        <div style="display: flex; justify-content: space-around; align-items: center; gap: 20px; flex-wrap: wrap;">
+          <div style="text-align: center;">
+            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">📊 الدرجة النهائية</div>
+            <div style="font-weight: bold; font-size: 32px; color: ${resultColor};">${examData.totalScore} / ${examData.maxScore}</div>
           </div>
-          <div>
-            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">النسبة المئوية</div>
-            <div style="font-weight: bold; font-size: 28px; color: ${resultColor};">${percentage}%</div>
-          </div>
-          <div>
+          <div style="text-align: center;">
             <div style="font-size: 14px; color: #666; margin-bottom: 5px;">الحالة</div>
-            <div style="font-weight: bold; font-size: 24px; color: ${resultColor};">${resultText}</div>
+            <div style="font-weight: bold; font-size: 28px; color: ${resultColor};">${resultText}</div>
           </div>
         </div>
       </div>
       
-      <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
         <h4 style="margin: 0 0 15px 0; color: #9c27b0;">تفاصيل الأسئلة</h4>
     `;
     
@@ -3874,29 +3938,51 @@ window.viewExamDetails = async function(studentId, examId) {
         const qColor = hasErrors ? '#dc3545' : '#28a745';
         
         html += `
-          <div style="background: white; padding: 15px; border-right: 4px solid ${qColor}; margin-bottom: 10px; border-radius: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-              <div style="font-weight: bold; color: #333;">السؤال ${q.number || i + 1}</div>
-              <div style="background: ${qColor}; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold;">
+          <div style="background: white; padding: 15px; border-right: 4px solid ${qColor}; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+              <div style="font-weight: bold; color: #333; font-size: 16px;">📝 السؤال ${q.number || i + 1}</div>
+              <div style="background: ${qColor}; color: white; padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 14px;">
                 -${q.deductedPoints?.toFixed(2) || 0} نقطة
               </div>
             </div>
-            <div style="color: #666; margin-bottom: 8px;">
-              <strong>السورة:</strong> ${q.surah || '-'}
-              ${q.position ? ` | <strong>الموضع:</strong> ${q.position}` : ''}
+            
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 10px;">
+              <div style="color: #666; font-size: 14px; margin-bottom: 6px;">
+                <strong>📖 السورة:</strong> ${q.surah || '-'}
+              </div>
+              ${q.position ? `<div style="color: #666; font-size: 14px;">
+                <strong>📍 الموضع:</strong> ${q.position}
+              </div>` : ''}
             </div>
-            ${q.errors ? `<div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 8px; font-size: 14px;">
-              <strong>الأخطاء:</strong> 
-              تنبيه: ${q.errors.tanbih || 0} | 
-              خطأ: ${q.errors.khata || 0} | 
-              تجويد: ${q.errors.tajweed || 0} | 
-              لحن: ${q.errors.lahn || 0}
-            </div>` : ''}
+            
+            ${q.errors ? `
+              <div style="background: #fff; padding: 12px; border-radius: 6px; border: 1px solid #e0e0e0;">
+                <div style="font-weight: bold; color: #333; margin-bottom: 8px; font-size: 14px;">⚠️ الأخطاء المسجلة:</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px;">
+                  <div style="background: #ffeaa7; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 3px;">تنبيه</div>
+                    <div style="font-weight: bold; font-size: 18px; color: #fdcb6e;">${q.errors.tanbih || 0}</div>
+                  </div>
+                  <div style="background: #fab1a0; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 3px;">خطأ</div>
+                    <div style="font-weight: bold; font-size: 18px; color: #e17055;">${q.errors.khata || 0}</div>
+                  </div>
+                  <div style="background: #a29bfe; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: #666; margin-bottom: 3px;">تجويد</div>
+                    <div style="font-weight: bold; font-size: 18px; color: #6c5ce7;">${q.errors.tajweed || 0}</div>
+                  </div>
+                  <div style="background: #ff7675; padding: 8px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 11px; color: #fff; margin-bottom: 3px;">لحن جلي</div>
+                    <div style="font-weight: bold; font-size: 18px; color: #fff;">${q.errors.lahn || 0}</div>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
           </div>
         `;
       });
     } else {
-      html += '<p style="text-align: center; color: #999;">لا توجد تفاصيل أسئلة</p>';
+      html += '<p style="text-align: center; color: #999; padding: 20px;">لا توجد تفاصيل أسئلة</p>';
     }
     
     html += '</div>';
