@@ -1414,17 +1414,12 @@ function setupEventListeners() {
 
 // Load today's struggling students
 async function loadTodayStrugglingStudents(classId) {
-  const strugglingSection = document.getElementById('strugglingStudentsSection');
-  const strugglingList = document.getElementById('strugglingStudentsList');
-  const sendBtn = document.querySelector('.send-to-admin-btn');
-  const shareBtn = document.querySelector('.share-struggling-btn');
-  
   try {
-    // Get today's date in Hijri format (YYYY-MM-DD)
-    const todayHijri = getCurrentHijriDate();
-    const todayHijriId = todayHijri?.hijri || getTodayForStorage(); // e.g., "1447-06-05"
+    // Get today's date in accurate Hijri format (YYYY-MM-DD)
+    const todayHijriData = getCurrentHijriDate();
+    const todayHijriId = todayHijriData.hijri; // e.g., "1447-06-20" - accurate format
     
-    // Get Hijri date display (e.g., "5 جمادى الآخرة 1447 هـ")
+    // Get Hijri date display (e.g., "20 جمادى الآخرة 1447 هـ")
     const [year, month, day] = todayHijriId.split('-');
     const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
     const monthName = hijriMonths[parseInt(month) - 1];
@@ -1434,7 +1429,8 @@ async function loadTodayStrugglingStudents(classId) {
     const todayDate = new Date();
     const dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(todayDate);
     
-    console.log('Checking for struggling students on Hijri date:', todayHijriId);
+    console.log('Checking for struggling students on accurate Hijri date:', todayHijriId);
+    console.log('Display format:', todayHijriDisplay);
     
     // Get all students in this class
     const studentsQuery = query(
@@ -1502,64 +1498,26 @@ async function loadTodayStrugglingStudents(classId) {
     
     console.log('Total struggling students:', strugglingStudents.length);
     
-    // Display struggling students
+    // Note: The red box (strugglingStudentsSection) has been removed from HTML
+    // Struggling students are now only shown in the "متعثرو اليوم" modal report
+    // This function now only stores data for internal use
+    
     if (strugglingStudents.length > 0) {
-      strugglingSection.style.display = 'block';
-      
-      // Show share button always when there are struggling students
-      shareBtn.style.display = 'block';
-      
-      // Hide send button - notifications are sent automatically now
-      sendBtn.style.display = 'none';
-      
-      // Show info message that notifications were sent automatically
-      strugglingList.innerHTML = `
-        <div style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); border: 2px solid #28a745; border-radius: 10px; padding: 15px; margin-bottom: 15px; text-align: center;">
-          <h4 style="margin: 0; color: #155724; font-size: 18px;">✅ تم إرسال الإشعارات تلقائياً</h4>
-          <p style="margin: 10px 0 0 0; color: #155724; font-size: 14px;">التاريخ: ${todayHijriDisplay}</p>
-          <p style="margin: 5px 0 0 0; color: #155724; font-size: 13px;">تم إرسال إشعارات للإدارة وللطلاب المتعثرين</p>
-          <p style="margin: 5px 0 0 0; color: #155724; font-size: 13px;">عدد الطلاب المتعثرين: ${strugglingStudents.length}</p>
-        </div>
-      `;
-      
-      // Add struggling students list
-      strugglingList.innerHTML += strugglingStudents.map(student => `
-        <div class="struggling-student-card">
-          <h4>👤 ${student.name} (${student.id})</h4>
-          <p><strong>التعثرات:</strong></p>
-          ${student.issues.map(issue => `<span class="issue">${issue}</span>`).join('')}
-        </div>
-      `).join('');
-      
-      // Store struggling students data for sharing only (not for sending - already sent)
+      // Store struggling students data for sharing/reporting
       window.strugglingDataForSharing = {
         students: strugglingStudents,
         date: todayHijriDisplay,
         dayName: dayName,
         classId: classId
       };
+      
+      console.log('✅ Struggling students data stored for reporting:', strugglingStudents.length);
     } else {
-      strugglingSection.style.display = 'block';
-      sendBtn.style.display = 'none';
-      shareBtn.style.display = 'none';
-      strugglingList.innerHTML = `
-        <div class="no-struggling">
-          لا يوجد طلاب متعثرين اليوم - ممتاز! 🎉
-          <p style="font-size: 14px; margin-top: 10px; color: #666;">
-            التاريخ الهجري: ${todayHijriDisplay}
-          </p>
-        </div>
-      `;
+      window.strugglingDataForSharing = null;
+      console.log('✅ No struggling students today');
     }
   } catch (error) {
     console.error('Error loading struggling students:', error);
-    strugglingSection.style.display = 'block';
-    strugglingList.innerHTML = `
-      <div style="text-align: center; padding: 20px; color: #d32f2f;">
-        ❌ حدث خطأ في تحميل البيانات
-        <p style="font-size: 14px; margin-top: 10px;">${error.message}</p>
-      </div>
-    `;
   }
 }
 
@@ -4506,11 +4464,12 @@ window.showTodayStrugglingReport = async function() {
   modal.id = 'strugglingModal';
   modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;';
   
-  const hijriDate = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  }).format(new Date());
+  // Get accurate Hijri date for display
+  const todayHijriData = getCurrentHijriDate();
+  const [year, month, day] = todayHijriData.hijri.split('-');
+  const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  const monthName = hijriMonths[parseInt(month) - 1];
+  const hijriDate = `${parseInt(day)} ${monthName} ${year} هـ`;
   
   modal.innerHTML = `
     <div style="background: white; width: 90%; max-width: 900px; max-height: 80vh; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
@@ -4534,14 +4493,9 @@ window.showTodayStrugglingReport = async function() {
   
   document.body.appendChild(modal);
   
-  // Load today's report
+  // Load today's report using accurate Hijri date
   try {
-    const today = new Date();
-    const dateId = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(today).split('/').reverse().join('-');
+    const dateId = todayHijriData.hijri; // Accurate Hijri date in YYYY-MM-DD format
     
     const reportId = `${currentTeacherClassId}_${dateId}`;
     const reportRef = doc(db, 'strugglingReports', reportId);
