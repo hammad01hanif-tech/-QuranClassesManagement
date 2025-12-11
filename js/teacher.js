@@ -1688,7 +1688,7 @@ function displayMonthlyScores(studentsScores) {
           <span style="font-size: 18px; font-weight: bold; min-width: 30px;">${rankDisplay}</span>
           <span style="font-weight: ${student.rank <= 3 ? 'bold' : '500'}; color: #333; font-size: 14px;">${student.name}</span>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <div style="text-align: center; min-width: 45px;">
             <div style="font-size: 10px; color: #666;">النقاط</div>
             <div style="font-size: 14px; font-weight: bold; color: #667eea;">${student.totalScore}</div>
@@ -1701,11 +1701,72 @@ function displayMonthlyScores(studentsScores) {
             <div style="font-size: 10px; color: #666;">المعدل</div>
             <div style="font-size: 15px; font-weight: bold; color: ${student.rank <= 3 ? '#28a745' : '#17a2b8'};">${avgDisplay}</div>
           </div>
+          <button onclick="editStudentExamScore('${student.id}', '${student.name.replace(/'/g, "\\'")}', ${student.examScore})" style="padding: 5px 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; min-width: 60px;">
+            ✏️ تعديل
+          </button>
         </div>
       </div>
     `;
   }).join('');
 }
+
+// Edit student exam score manually
+window.editStudentExamScore = async function(studentId, studentName, currentExamScore) {
+  const newScore = prompt(`تعديل درجة الاختبار لـ ${studentName}\nالدرجة الحالية: ${currentExamScore}\n\nأدخل الدرجة الجديدة (0-100):`, currentExamScore);
+  
+  if (newScore === null) return; // User cancelled
+  
+  const scoreValue = parseFloat(newScore);
+  
+  // Validate input
+  if (isNaN(scoreValue) || scoreValue < 0 || scoreValue > 100) {
+    alert('❌ يرجى إدخال درجة صحيحة بين 0 و 100');
+    return;
+  }
+  
+  try {
+    // Get current Hijri date for exam ID
+    const todayHijriData = getCurrentHijriDate();
+    const examId = todayHijriData.hijri; // Format: "1447-06-20"
+    
+    // Save to examReports collection
+    const examReportRef = doc(db, 'studentProgress', studentId, 'examReports', examId);
+    await setDoc(examReportRef, {
+      studentId: studentId,
+      studentName: studentName,
+      examDate: examId,
+      finalScore: scoreValue,
+      maxScore: 100,
+      passPercent: 97,
+      isPassed: scoreValue >= 97,
+      questionsCount: 0,
+      errorCounts: {
+        tanbih: 0,
+        khata: 0,
+        tajweed: 0,
+        lahn: 0
+      },
+      manualEntry: true,
+      timestamp: serverTimestamp()
+    });
+    
+    // Update student's exam score in users collection
+    const studentRef = doc(db, 'users', studentId);
+    await updateDoc(studentRef, {
+      examScore: scoreValue,
+      lastExamDate: examId
+    });
+    
+    // Reload monthly scores to update display
+    await loadMonthlyScores(currentTeacherClassId);
+    
+    alert(`✅ تم حفظ درجة الاختبار بنجاح\n${studentName}: ${scoreValue} / 100`);
+    
+  } catch (error) {
+    console.error('Error saving manual exam score:', error);
+    alert('❌ حدث خطأ في حفظ الدرجة: ' + error.message);
+  }
+};
 
 // Get student rank and score by ID
 function getStudentRankAndScore(studentId) {
@@ -4326,6 +4387,11 @@ window.showTopPerformers = async function() {
               </div>
             </div>
           </div>
+          <div style="padding: 8px; border-top: 1px solid ${student.rank <= 3 ? 'rgba(255,255,255,0.2)' : '#e0e0e0'};">
+            <button onclick="editStudentExamScoreFromModal('${student.id}', '${student.name.replace(/'/g, "\\'")}', ${student.examScore})" style="width: 100%; padding: 8px; background: ${student.rank <= 3 ? 'rgba(255,255,255,0.3)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
+              ✏️ تعديل درجة الاختبار
+            </button>
+          </div>
         `;
       }).join('');
       
@@ -4341,6 +4407,72 @@ window.showTopPerformers = async function() {
 window.closeTopPerformersModal = function() {
   const modal = document.getElementById('topPerformersModal');
   if (modal) modal.remove();
+};
+
+// Edit student exam score from top performers modal
+window.editStudentExamScoreFromModal = async function(studentId, studentName, currentExamScore) {
+  const newScore = prompt(`تعديل درجة الاختبار لـ ${studentName}\nالدرجة الحالية: ${currentExamScore}\n\nأدخل الدرجة الجديدة (0-100):`, currentExamScore);
+  
+  if (newScore === null) return; // User cancelled
+  
+  const scoreValue = parseFloat(newScore);
+  
+  // Validate input
+  if (isNaN(scoreValue) || scoreValue < 0 || scoreValue > 100) {
+    alert('❌ يرجى إدخال درجة صحيحة بين 0 و 100');
+    return;
+  }
+  
+  try {
+    // Get selected month from filter
+    const monthSelect = document.getElementById('topPerformersMonthFilter');
+    const selectedMonth = monthSelect ? monthSelect.value : '';
+    
+    if (!selectedMonth) {
+      alert('❌ يرجى اختيار الشهر أولاً');
+      return;
+    }
+    
+    // Use the selected month as exam ID base
+    const examId = selectedMonth + '-15'; // Use middle of month as ID
+    
+    // Save to examReports collection
+    const examReportRef = doc(db, 'studentProgress', studentId, 'examReports', examId);
+    await setDoc(examReportRef, {
+      studentId: studentId,
+      studentName: studentName,
+      examDate: examId,
+      finalScore: scoreValue,
+      maxScore: 100,
+      passPercent: 97,
+      isPassed: scoreValue >= 97,
+      questionsCount: 0,
+      errorCounts: {
+        tanbih: 0,
+        khata: 0,
+        tajweed: 0,
+        lahn: 0
+      },
+      manualEntry: true,
+      timestamp: serverTimestamp()
+    });
+    
+    // Update student's exam score in users collection
+    const studentRef = doc(db, 'users', studentId);
+    await updateDoc(studentRef, {
+      examScore: scoreValue,
+      lastExamDate: examId
+    });
+    
+    // Reload the modal content
+    await window.filterTopPerformersByMonth();
+    
+    alert(`✅ تم حفظ درجة الاختبار بنجاح\n${studentName}: ${scoreValue} / 100`);
+    
+  } catch (error) {
+    console.error('Error saving manual exam score:', error);
+    alert('❌ حدث خطأ في حفظ الدرجة: ' + error.message);
+  }
 };
 
 // Populate month filter for top performers (current + next 6 months)
