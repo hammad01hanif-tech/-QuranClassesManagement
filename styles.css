@@ -941,6 +941,154 @@ button {
 }
 
 /* Students Grid Cards */
+/* Compact Student Cards - Small and Practical */
+.student-card-compact {
+  background: white;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: all 0.2s ease;
+  position: relative;
+  border: 1.5px solid #e9ecef;
+  animation: fadeInUp 0.3s ease-out;
+  margin-bottom: 8px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.student-card-compact:hover {
+  transform: translateX(-3px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  border-color: #667eea;
+}
+
+.compact-card-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.student-number {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 13px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.student-info-compact {
+  flex: 1;
+  min-width: 0;
+}
+
+.student-name-compact {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.student-id-compact {
+  font-size: 11px;
+  color: #666;
+  background: #f8f9fa;
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.student-status-compact {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.not-assessed-indicator {
+  animation: pulse 2s ease-in-out infinite;
+  cursor: help;
+  filter: drop-shadow(0 0 2px rgba(255, 193, 7, 0.5));
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.15);
+  }
+}
+
+/* Three Dots Button - Compact Version */
+.three-dots-btn-compact {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  font-weight: bold;
+  color: #666;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.three-dots-btn-compact:hover {
+  background: #f0f0f0;
+  color: #667eea;
+}
+
+/* Student Menu - Compact Version */
+.student-menu-compact {
+  display: none;
+  position: absolute;
+  left: 10px;
+  top: 50px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 200px;
+  overflow: hidden;
+  animation: slideDown 0.2s ease-out;
+}
+
+.student-menu-compact.show {
+  display: block;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Keep old classes for backward compatibility */
 .student-card {
   background: white;
   border-radius: 12px;
@@ -949,18 +1097,6 @@ button {
   transition: all 0.3s ease;
   position: relative;
   border: 2px solid transparent;
-  animation: fadeInUp 0.5s ease-out;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .student-card:hover {
@@ -995,17 +1131,6 @@ button {
   animation: pulse 2s ease-in-out infinite;
   cursor: help;
   filter: drop-shadow(0 0 3px rgba(255, 193, 7, 0.5));
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.1);
-  }
 }
 
 .student-id {
@@ -1523,6 +1648,7 @@ label:has(input[type="radio"][name="recitationType"][value="dabt"]:checked) span
   input, select, textarea {
     font-size: 16px !important; /* Prevents zoom on iOS */
     -webkit-appearance: none;
+    appearance: none;
     border-radius: 8px !important;
   }
   

@@ -148,30 +148,39 @@ async function loadTeacherStudents(classId) {
       studentsGridContainer.appendChild(weekendNotice);
     }
     
-    // Create student cards
-    students.forEach(student => {
+    // Add student count header
+    const countHeader = document.createElement('div');
+    countHeader.style.cssText = 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);';
+    countHeader.innerHTML = `
+      <div style="font-size: 28px; font-weight: bold; margin-bottom: 5px;">${students.length}</div>
+      <div style="font-size: 14px; opacity: 0.95;">إجمالي عدد الطلاب</div>
+    `;
+    studentsGridContainer.appendChild(countHeader);
+    
+    // Create compact student cards with numbering
+    students.forEach((student, index) => {
       const card = document.createElement('div');
-      card.className = 'student-card';
+      card.className = 'student-card-compact';
       
       // Add indicator if not assessed today
       const notAssessedBadge = !student.assessedToday 
-        ? '<span class="not-assessed-badge" title="لم يتم التقييم اليوم">⚠️</span>' 
-        : '';
+        ? '<span class="not-assessed-indicator" title="لم يتم التقييم اليوم">⚠️</span>' 
+        : '<span style="color: #28a745; font-size: 14px;" title="تم التقييم اليوم">✓</span>';
       
       // Disable assessment button on weekends
       const assessmentBtnDisabled = !isStudyDay ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
       const assessmentBtnTitle = !isStudyDay ? 'title="لا يمكن التقييم في أيام الإجازة"' : '';
       
       card.innerHTML = `
-        <div class="student-card-header">
-          <div class="student-info">
-            <div class="student-name">
-              👤 ${student.name} ${notAssessedBadge}
-            </div>
-            <span class="student-id">${student.id}</span>
+        <div class="compact-card-content">
+          <div class="student-number">${index + 1}</div>
+          <div class="student-info-compact">
+            <div class="student-name-compact">${student.name}</div>
+            <div class="student-id-compact">${student.id}</div>
           </div>
-          <button class="three-dots-btn" onclick="toggleStudentMenu('${student.id}')">⋮</button>
-          <div id="menu-${student.id}" class="student-menu">
+          <div class="student-status-compact">${notAssessedBadge}</div>
+          <button class="three-dots-btn-compact" onclick="toggleStudentMenu('${student.id}')">⋮</button>
+          <div id="menu-${student.id}" class="student-menu-compact">
             <button class="menu-item assessment" ${assessmentBtnDisabled} ${assessmentBtnTitle} onclick="selectStudentAndShowAssessment('${student.id}', '${student.name}')">
               ➕ تقييم جديد
             </button>
@@ -190,16 +199,6 @@ async function loadTeacherStudents(classId) {
             <button class="menu-item info" onclick="selectStudentAndShowInfo('${student.id}', '${student.name}')">
               ℹ️ معلومات الطالب
             </button>
-          </div>
-        </div>
-        <div class="student-stats">
-          <div class="stat-item">
-            <div class="stat-label">الترتيب</div>
-            <div class="stat-value">#${student.rank || '-'}</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-label">الدرجة الشهرية</div>
-            <div class="stat-value">${student.monthlyScore || 0}</div>
           </div>
         </div>
       `;
