@@ -214,7 +214,7 @@ async function loadTeacherStudents(classId) {
 // Toggle student menu (three dots)
 window.toggleStudentMenu = function(studentId) {
   const menu = document.getElementById(`menu-${studentId}`);
-  const allMenus = document.querySelectorAll('.student-menu');
+  const allMenus = document.querySelectorAll('.student-menu-compact');
   
   // Close all other menus
   allMenus.forEach(m => {
@@ -229,18 +229,27 @@ window.toggleStudentMenu = function(studentId) {
 
 // Close menus when clicking outside
 document.addEventListener('click', function(event) {
-  if (!event.target.closest('.three-dots-btn') && !event.target.closest('.student-menu')) {
-    const allMenus = document.querySelectorAll('.student-menu');
+  if (!event.target.closest('.three-dots-btn-compact') && !event.target.closest('.student-menu-compact')) {
+    const allMenus = document.querySelectorAll('.student-menu-compact');
     allMenus.forEach(m => m.classList.remove('show'));
   }
 });
 
+// Helper function to close all menus
+function closeAllStudentMenus() {
+  const allMenus = document.querySelectorAll('.student-menu-compact');
+  allMenus.forEach(m => m.classList.remove('show'));
+}
+
 // Helper functions to select student and show specific section
 window.selectStudentAndShowInfo = function(studentId, studentName) {
+  closeAllStudentMenus();
   showStudentInfoModal(studentId, studentName);
 };
 
 window.selectStudentAndShowAssessment = async function(studentId, studentName) {
+  closeAllStudentMenus();
+  
   // Check if today is a study day
   if (!isTodayAStudyDay()) {
     alert('⚠️ لا يمكن إضافة تقييمات جديدة في أيام الإجازة (الجمعة والسبت)\nيمكنك مراجعة التقييمات السابقة والتقارير');
@@ -252,23 +261,57 @@ window.selectStudentAndShowAssessment = async function(studentId, studentName) {
 };
 
 window.selectStudentAndShowReports = async function(studentId, studentName) {
+  closeAllStudentMenus();
   await selectStudent(studentId, studentName);
-  showPastReports();
+  
+  setTimeout(() => {
+    showPastReports();
+  }, 100);
 };
 
 window.selectStudentAndShowExam = async function(studentId, studentName) {
+  closeAllStudentMenus();
   await selectStudent(studentId, studentName);
-  showMonthlyExam();
+  
+  setTimeout(() => {
+    showMonthlyExam();
+  }, 100);
 };
 
 window.selectStudentAndShowAttendance = async function(studentId, studentName) {
+  closeAllStudentMenus();
   await selectStudent(studentId, studentName);
-  showStudentAttendanceReport();
+  
+  setTimeout(() => {
+    showStudentAttendanceReport();
+  }, 100);
 };
 
 window.selectStudentAndShowStruggles = async function(studentId, studentName) {
+  closeAllStudentMenus();
   await selectStudent(studentId, studentName);
-  showStruggles();
+  
+  setTimeout(() => {
+    showStruggles();
+  }, 100);
+};
+
+// Close all sections and hide close button
+window.closeAllSections = function() {
+  document.getElementById('newAssessmentForm').style.display = 'none';
+  document.getElementById('dabtAssessmentForm').style.display = 'none';
+  document.getElementById('nooraniAssessmentForm').style.display = 'none';
+  document.getElementById('pastReportsSection').style.display = 'none';
+  document.getElementById('strugglesSection').style.display = 'none';
+  document.getElementById('monthlyExamSection').style.display = 'none';
+  document.getElementById('attendanceReportSection').style.display = 'none';
+  
+  // Hide close button
+  const closeBtn = document.getElementById('closeSectionBtn');
+  if (closeBtn) closeBtn.style.display = 'none';
+  
+  // Scroll back to student selection
+  document.getElementById('teacherStudentActions').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 // Select student function
@@ -986,6 +1029,10 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
   document.getElementById('monthlyExamSection').style.display = 'none';
   document.getElementById('attendanceReportSection').style.display = 'none';
   
+  // Show close button
+  const closeBtn = document.getElementById('closeSectionBtn');
+  if (closeBtn) closeBtn.style.display = 'block';
+  
   const container = document.getElementById('pastReportsContainer');
   container.innerHTML = '<p>جاري تحميل التقارير...</p>';
   
@@ -1296,6 +1343,10 @@ window.showStruggles = async function() {
   document.getElementById('strugglesSection').style.display = 'block';
   document.getElementById('monthlyExamSection').style.display = 'none';
   document.getElementById('attendanceReportSection').style.display = 'none';
+  
+  // Show close button
+  const closeBtn = document.getElementById('closeSectionBtn');
+  if (closeBtn) closeBtn.style.display = 'block';
   
   const container = document.getElementById('strugglesContainer');
   container.innerHTML = '<p>جاري تحميل التعثرات...</p>';
@@ -1810,6 +1861,10 @@ window.showMonthlyExam = function() {
   document.getElementById('monthlyExamSection').style.display = 'block';
   document.getElementById('attendanceReportSection').style.display = 'none';
   
+  // Show close button
+  const closeBtn = document.getElementById('closeSectionBtn');
+  if (closeBtn) closeBtn.style.display = 'block';
+  
   // Fill student and teacher info
   document.getElementById('examStudentName').value = currentTeacherStudentName || '';
   document.getElementById('examTeacherName').value = sessionStorage.getItem('loggedInTeacherName') || '';
@@ -2122,6 +2177,10 @@ window.showStudentAttendanceReport = async function() {
   document.getElementById('strugglesSection').style.display = 'none';
   document.getElementById('monthlyExamSection').style.display = 'none';
   document.getElementById('attendanceReportSection').style.display = 'block';
+  
+  // Show close button
+  const closeBtn = document.getElementById('closeSectionBtn');
+  if (closeBtn) closeBtn.style.display = 'block';
   
   await loadStudentAttendanceReport(currentTeacherStudentId, currentTeacherStudentName);
 };

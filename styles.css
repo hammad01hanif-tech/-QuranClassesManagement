@@ -975,6 +975,7 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
 }
 
 .student-number {
@@ -1063,24 +1064,25 @@ button {
   display: none;
   position: absolute;
   left: 10px;
-  top: 50px;
+  bottom: 100%;
+  margin-bottom: 5px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   z-index: 1000;
   min-width: 200px;
   overflow: hidden;
-  animation: slideDown 0.2s ease-out;
+  animation: slideUp 0.2s ease-out;
 }
 
 .student-menu-compact.show {
   display: block;
 }
 
-@keyframes slideDown {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -1863,6 +1865,21 @@ label:has(input[type="radio"][name="recitationType"][value="dabt"]:checked) span
     padding: 10px 12px;
   }
 }
+
+/* Close Section Button Styles */
+#closeSectionBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+}
+
+#closeSectionBtn:active {
+  transform: translateY(0);
+}
+
+
+
+
+
 
 
 
