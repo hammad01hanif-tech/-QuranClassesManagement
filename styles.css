@@ -1877,6 +1877,31 @@ label:has(input[type="radio"][name="recitationType"][value="dabt"]:checked) span
 }
 
 /* Date Range Filter Styles */
+#adminReportsStartDateHijri,
+#adminReportsEndDateHijri {
+  padding: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 13px;
+  font-family: 'Arial', sans-serif;
+  color: #333;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#adminReportsStartDateHijri:focus,
+#adminReportsEndDateHijri:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.6);
+  background: white;
+  box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+}
+
+/* Old date inputs (keeping for backward compatibility) */
 #adminReportsStartDate,
 #adminReportsEndDate {
   padding: 10px;

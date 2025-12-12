@@ -936,203 +936,27 @@ window.loadReportsForStudent = async function(studentId, selectedMonthFilter = '
     // Show filters
     document.getElementById('adminReportsFilters').style.display = 'block';
     
-    // Calculate statistics only for reports with actual data (not "not-assessed")
-    const reportsForStats = completeReports.filter(r => r.hasReport);
-    calculateStudentStatistics(reportsForStats);
+    // Populate Hijri date range selects
+    await populateHijriDateRangeFilters();
     
-    // Process exam reports
-    const examReports = [];
-    examReportsSnap.forEach(d => {
-      const data = d.data();
-      examReports.push({ dateId: d.id, ...data });
-    });
-    examReports.sort((a, b) => b.dateId.localeCompare(a.dateId));
+    // Set default date range (from start of current month to today)
+    await setDefaultDateRange();
     
-    // Display exam reports if available
-    let examHTML = '';
-    if (examReports.length > 0) {
-      examHTML = `
-        <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
-          <h4 style="margin: 0 0 15px 0;">📝 درجات الاختبارات الشهرية</h4>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
-      `;
-      
-      examReports.forEach(exam => {
-        const hijriDate = gregorianToHijriDisplay(exam.dateId);
-        const passIcon = exam.isPassed ? '✅' : '❌';
-        const passText = exam.isPassed ? 'ناجح' : 'راسب';
-        const passColor = exam.isPassed ? '#4caf50' : '#f44336';
-        
-        examHTML += `
-          <div style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; color: #333;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <span style="font-weight: bold; color: #667eea;">📅 ${hijriDate}</span>
-              <span style="background: ${passColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">${passIcon} ${passText}</span>
-            </div>
-            <div style="font-size: 28px; font-weight: bold; color: #764ba2; text-align: center; margin: 10px 0;">
-              ${exam.finalScore.toFixed(1)} / ${exam.maxScore}
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px; margin-top: 10px;">
-              <div>تنبيه: <strong>${exam.errorCounts?.tanbih || 0}</strong></div>
-              <div>خطأ: <strong>${exam.errorCounts?.khata || 0}</strong></div>
-              <div>تجويد: <strong>${exam.errorCounts?.tajweed || 0}</strong></div>
-              <div>لحن: <strong>${exam.errorCounts?.lahn || 0}</strong></div>
-            </div>
-            <div style="text-align: center; margin-top: 10px; font-size: 11px; color: #666;">
-              عدد الأسئلة: ${exam.questionsCount} | نسبة النجاح: ${exam.passPercent}%
-            </div>
-          </div>
-        `;
-      });
-      
-      examHTML += `
-          </div>
-        </div>
-      `;
-    }
-    
-    // Check if we have any reports for the selected month
-    if (completeReports.length === 0) {
-      reportsContainer.innerHTML = '<p class="small">لا توجد أيام دراسية في هذا الشهر</p>';
-      document.getElementById('studentStatsSummary').style.display = 'none';
-      return;
-    }
-    
-    // Filter reports by selected day if not "all-days"
-    let filteredReports = completeReports;
-    if (selectedDayFilter !== 'all-days') {
-      filteredReports = completeReports.filter(r => r.dateId === selectedDayFilter);
-    }
-    
-    let tableHTML = `
-      <h4 style="margin: 20px 0 15px 0;">تقارير المتابعة (${filteredReports.length} يوم دراسي)</h4>
-      <table class="compact-reports-table" style="width: 100%; border-collapse: collapse;">
-        <thead>
-          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-            <th style="padding: 12px; text-align: right; border-radius: 8px 0 0 0;">التاريخ</th>
-            <th style="padding: 12px; text-align: center;">اليوم</th>
-            <th style="padding: 12px; text-align: center; border-radius: 0 8px 0 0;">الحالة</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-    
-    filteredReports.forEach((report, index) => {
-      // dateId is already in Hijri format YYYY-MM-DD
-      const [year, month, day] = report.dateId.split('-');
-      const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-      const monthName = hijriMonths[parseInt(month) - 1];
-      const fullHijriDate = `${parseInt(day)} ${monthName} ${year} هـ`;
-      
-      // Get accurate day name from stored Gregorian date or convert
-      let dayName = 'غير محدد';
-      if (report.gregorianDate) {
-        const gregorianDate = new Date(report.gregorianDate + 'T12:00:00');
-        dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
-      } else {
-        // Convert Hijri date to get day name
-        const [y, m, d] = report.dateId.split('-').map(Number);
-        const gregorianDate = convertHijriToGregorian(y, m, d);
-        dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
-      }
-      
-      const uniqueId = `admin-report-${report.dateId}-${index}`;
-      const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-      
-      // Check report status and build details
-      let statusHTML = '';
-      let detailsHTML = '';
-      
-      if (!report.hasReport) {
-        // Not assessed yet
-        statusHTML = '<span style="color: #856404; font-weight: bold;">⏳ لم يُقيّم</span>';
-        detailsHTML = `
-          <div style="text-align: center; color: #856404; padding: 20px;">
-            <p style="font-size: 18px; font-weight: bold;">⏳ هذا اليوم لم يُقيّم بعد</p>
-            <p>لا توجد تفاصيل متاحة</p>
-          </div>
-        `;
-      } else if (report.status === 'absent') {
-        // Absent
-        const excuseText = report.excuseType === 'withExcuse' ? 'بعذر' : 'بدون عذر';
-        const excuseIcon = report.excuseType === 'withExcuse' ? '📄' : '⚠️';
-        statusHTML = `<span style="color: #dc3545; font-weight: bold;">❌ غائب (${excuseText})</span>`;
-        detailsHTML = `
-          <div style="padding: 20px;">
-            <div style="text-align: center; color: #dc3545; font-size: 18px; font-weight: bold; margin-bottom: 15px;">
-              ${excuseIcon} غائب ${excuseText}
-            </div>
-            ${report.excuseReason ? `<div style="background: #ffe5e5; padding: 12px; border-radius: 8px; margin-bottom: 10px;"><strong>سبب العذر:</strong> ${report.excuseReason}</div>` : ''}
-            ${report.notes ? `<div style="background: #fff3cd; padding: 12px; border-radius: 8px;"><strong>ملاحظات:</strong> ${report.notes}</div>` : ''}
-          </div>
-        `;
-      } else {
-        // Present with scores
-        statusHTML = `<span style="color: #28a745; font-weight: bold;">✅ حاضر (${report.totalScore || 0})</span>`;
-        detailsHTML = `
-          <div style="padding: 15px;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 15px;">
-              <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; text-align: center;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📊 المجموع</div>
-                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${report.totalScore || 0}</div>
-              </div>
-              <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; text-align: center;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">🕌 صلاة العصر</div>
-                <div style="font-size: 24px; font-weight: bold; color: #2196f3;">${report.asrPrayerScore || 0}</div>
-              </div>
-              <div style="background: #fff3e0; padding: 12px; border-radius: 8px; text-align: center;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📖 الدرس</div>
-                <div style="font-size: 24px; font-weight: bold; color: #ff9800;">${report.lessonScore || 0}</div>
-              </div>
-              <div style="background: #f3e5f5; padding: 12px; border-radius: 8px; text-align: center;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📝 جنب الدرس</div>
-                <div style="font-size: 24px; font-weight: bold; color: #9c27b0;">${report.lessonSideScore || 0}</div>
-              </div>
-              <div style="background: #fce4ec; padding: 12px; border-radius: 8px; text-align: center;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📄 المراجعة</div>
-                <div style="font-size: 24px; font-weight: bold; color: #e91e63;">${report.revisionScore || 0}</div>
-              </div>
-              <div style="background: #e0f2f1; padding: 12px; border-radius: 8px; text-align: center;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📚 القراءة</div>
-                <div style="font-size: 24px; font-weight: bold; color: #009688;">${report.readingScore || 0}</div>
-              </div>
-              <div style="background: #ede7f6; padding: 12px; border-radius: 8px; text-align: center;">
-                <div style="font-size: 11px; color: #666; margin-bottom: 4px;">⭐ السلوك</div>
-                <div style="font-size: 24px; font-weight: bold; color: #673ab7;">${report.behaviorScore || 0}</div>
-              </div>
-            </div>
-            ${report.lessonFrom || report.lessonTo ? `<div style="background: #fff8e1; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px;"><strong>📖 الدرس:</strong> من ${report.lessonFrom || '-'} إلى ${report.lessonTo || '-'}</div>` : ''}
-            ${report.revisionFrom || report.revisionTo ? `<div style="background: #f1f8e9; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 13px;"><strong>📄 المراجعة:</strong> من ${report.revisionFrom || '-'} إلى ${report.revisionTo || '-'}</div>` : ''}
-            ${report.notes ? `<div style="background: #e1f5fe; padding: 10px; border-radius: 6px; font-size: 13px;"><strong>📝 ملاحظات:</strong> ${report.notes}</div>` : ''}
-          </div>
-        `;
-      }
-      
-      // Build row with expandable details
-      tableHTML += `
-        <tr class="clickable-row" onclick="toggleAdminReportDetails('${uniqueId}')" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;">
-          <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${fullHijriDate}</td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">${dayName}</td>
-          <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">${statusHTML}</td>
-        </tr>
-        <tr id="${uniqueId}" class="details-row" style="display: none;">
-          <td colspan="3" style="padding: 0; background: #f8f9fa; border: 1px solid #ddd;">
-            <div style="background: white; margin: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-              ${detailsHTML}
-            </div>
-          </td>
-        </tr>
-      `;
-    });
-    
-    tableHTML += '</tbody></table>';
-    reportsContainer.innerHTML = transferHistoryHTML + tableHTML + examHTML;
-  } catch (error) {
-    console.error('Error loading reports:', error);
-    reportsContainer.innerHTML = '<p style="color:red;">خطأ في تحميل التقارير: ' + error.message + '</p>';
+    // Hide harvest card and reports initially - show only after applying filter
     document.getElementById('studentStatsSummary').style.display = 'none';
+    reportsContainer.innerHTML = '<div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 12px; margin-top: 20px;"><p style="font-size: 16px; color: #6c757d; margin: 0;">⚡ اختر فترة زمنية واضغط "🔍 تطبيق الفلتر" لعرض التقارير</p></div>';
+    
+    // Don't calculate statistics on initial load
+    // const reportsForStats = completeReports.filter(r => r.hasReport);
+    // calculateStudentStatistics(reportsForStats);
+    
+    // Don't show any reports or exams on initial load - user must apply filter first
+    
+  } catch (error) {
+    console.error('Error loading reports for student:', error);
+    reportsContainer.innerHTML = '<p style="color: #dc3545;">❌ حدث خطأ في تحميل البيانات</p>';
   }
-}
+};
 
 // Calculate student statistics (weekly from Sunday-Thursday, monthly) based on Hijri calendar
 function calculateStudentStatistics(reports) {
@@ -1215,27 +1039,27 @@ function calculateStudentStatistics(reports) {
   
   // Update UI
   document.getElementById('studentStatsSummary').style.display = 'block';
-  document.getElementById('weeklyLessonsCount').textContent = weeklyLessons;
-  document.getElementById('weeklyRevisionPages').textContent = weeklyRevisionPages;
-  document.getElementById('monthlyLessonsCount').textContent = monthlyLessons;
-  document.getElementById('monthlyRevisionPages').textContent = monthlyRevisionPages;
+  document.getElementById('harvestPeriodTitle').textContent = '📊 الحصاد الأسبوعي';
+  document.getElementById('harvestPeriodSubtitle').textContent = 'من الأحد إلى الخميس';
+  document.getElementById('periodLessonsCount').textContent = weeklyLessons;
+  document.getElementById('periodRevisionPages').textContent = weeklyRevisionPages;
 }
 
 // Apply date range filter
 window.applyAdminDateRangeFilter = async function() {
-  const startDateInput = document.getElementById('adminReportsStartDate');
-  const endDateInput = document.getElementById('adminReportsEndDate');
+  const startDateSelect = document.getElementById('adminReportsStartDateHijri');
+  const endDateSelect = document.getElementById('adminReportsEndDateHijri');
   const displayDiv = document.getElementById('dateRangeDisplay');
   
-  const startDate = startDateInput.value;
-  const endDate = endDateInput.value;
+  const startDateHijri = startDateSelect.value; // Format: "1447-06-02"
+  const endDateHijri = endDateSelect.value;
   
-  if (!startDate || !endDate) {
+  if (!startDateHijri || !endDateHijri) {
     alert('⚠️ يرجى اختيار تاريخ البداية والنهاية');
     return;
   }
   
-  if (startDate > endDate) {
+  if (startDateHijri > endDateHijri) {
     alert('⚠️ تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
     return;
   }
@@ -1246,25 +1070,124 @@ window.applyAdminDateRangeFilter = async function() {
     return;
   }
   
-  // Convert Gregorian dates to Hijri for display
-  const startHijri = gregorianToHijriDisplay(startDate);
-  const endHijri = gregorianToHijriDisplay(endDate);
+  // Get display text from selected options
+  const startDisplayText = startDateSelect.options[startDateSelect.selectedIndex].text;
+  const endDisplayText = endDateSelect.options[endDateSelect.selectedIndex].text;
   
-  displayDiv.innerHTML = `📅 الفترة: من ${startHijri} إلى ${endHijri}`;
+  displayDiv.innerHTML = `📅 الفترة: من ${startDisplayText} إلى ${endDisplayText}`;
   
-  // Load reports with custom date range
-  await loadReportsForStudentCustomRange(studentId, startDate, endDate);
+  // Load reports with custom date range (using Hijri dates)
+  await loadReportsForStudentCustomRange(studentId, startDateHijri, endDateHijri);
 };
 
+// Populate Hijri date range filters from accurate calendar
+async function populateHijriDateRangeFilters() {
+  try {
+    // Import accurate Hijri dates
+    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
+    
+    const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    
+    const startDateSelect = document.getElementById('adminReportsStartDateHijri');
+    const endDateSelect = document.getElementById('adminReportsEndDateHijri');
+    
+    // Clear existing options
+    startDateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
+    endDateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
+    
+    // Add all available dates from accurate calendar
+    accurateHijriDates.forEach(dateEntry => {
+      const [year, month, day] = dateEntry.hijri.split('-').map(Number);
+      const monthName = hijriMonths[month - 1];
+      
+      // Get day of week
+      const gregorianDate = new Date(dateEntry.gregorian + 'T12:00:00');
+      const dayOfWeek = gregorianDate.getDay();
+      const dayName = dayNames[dayOfWeek];
+      
+      const displayText = `${dayName} ${day} ${monthName} ${year} هـ`;
+      
+      // Create option for start date
+      const startOption = document.createElement('option');
+      startOption.value = dateEntry.hijri;
+      startOption.textContent = displayText;
+      startDateSelect.appendChild(startOption);
+      
+      // Create option for end date
+      const endOption = document.createElement('option');
+      endOption.value = dateEntry.hijri;
+      endOption.textContent = displayText;
+      endDateSelect.appendChild(endOption);
+    });
+    
+  } catch (error) {
+    console.error('Error populating Hijri date filters:', error);
+  }
+}
+
+// Set default date range (from start of current month to today)
+async function setDefaultDateRange() {
+  try {
+    const { accurateHijriDates, getTodayAccurateHijri } = await import('./accurate-hijri-dates.js');
+    
+    const today = getTodayAccurateHijri();
+    const currentHijri = today.hijri; // Format: "1447-06-13"
+    
+    // Get current month start
+    const [currentYear, currentMonth] = currentHijri.split('-');
+    const monthStart = `${currentYear}-${currentMonth}-01`;
+    
+    // Find the first available date in current month
+    let firstDateInMonth = null;
+    for (const dateEntry of accurateHijriDates) {
+      if (dateEntry.hijri.startsWith(`${currentYear}-${currentMonth}`)) {
+        firstDateInMonth = dateEntry.hijri;
+        break;
+      }
+    }
+    
+    // Set default values
+    const startDateSelect = document.getElementById('adminReportsStartDateHijri');
+    const endDateSelect = document.getElementById('adminReportsEndDateHijri');
+    
+    if (firstDateInMonth && startDateSelect && endDateSelect) {
+      // Set start date to beginning of month
+      startDateSelect.value = firstDateInMonth;
+      
+      // Set end date to today (or closest available date)
+      let closestToToday = firstDateInMonth;
+      for (const dateEntry of accurateHijriDates) {
+        if (dateEntry.hijri <= currentHijri) {
+          closestToToday = dateEntry.hijri;
+        } else {
+          break;
+        }
+      }
+      endDateSelect.value = closestToToday;
+      
+      // Update display
+      const startOption = startDateSelect.options[startDateSelect.selectedIndex];
+      const endOption = endDateSelect.options[endDateSelect.selectedIndex];
+      if (startOption && endOption) {
+        const displayDiv = document.getElementById('dateRangeDisplay');
+        displayDiv.innerHTML = `📅 الفترة الافتراضية: من ${startOption.text} إلى ${endOption.text}`;
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error setting default date range:', error);
+  }
+}
+
 // Load reports for custom date range
-async function loadReportsForStudentCustomRange(studentId, startDateGregorian, endDateGregorian) {
+async function loadReportsForStudentCustomRange(studentId, startDateHijri, endDateHijri) {
   const reportsContainer = document.getElementById('reportsContainer');
   reportsContainer.innerHTML = '<p>جاري تحميل التقارير...</p>';
   
   try {
-    // Convert Gregorian dates to Hijri for filtering
-    const startDateObj = new Date(startDateGregorian + 'T12:00:00');
-    const endDateObj = new Date(endDateGregorian + 'T12:00:00');
+    // Import accurate Hijri dates
+    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
     
     // Get all reports from database
     const reportsSnap = await getDocs(collection(db, 'studentProgress', studentId, 'dailyReports'));
@@ -1274,32 +1197,21 @@ async function loadReportsForStudentCustomRange(studentId, startDateGregorian, e
       actualReports.set(d.id, d.data());
     });
     
-    // Get all study days in the date range
+    // Get all study days in the date range using accurate dates
     const allStudyDays = [];
-    let currentDate = new Date(startDateObj);
     
-    while (currentDate <= endDateObj) {
-      const dayOfWeek = currentDate.getDay();
-      
-      // Only include Sunday-Thursday (0,1,2,3,4)
-      if (dayOfWeek >= 0 && dayOfWeek <= 4) {
-        // Convert to Hijri date ID
-        const hijriDateStr = currentDate.toLocaleDateString('en-SA-u-ca-islamic', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          timeZone: 'Asia/Riyadh'
-        });
+    for (const dateEntry of accurateHijriDates) {
+      // Check if date is within range
+      if (dateEntry.hijri >= startDateHijri && dateEntry.hijri <= endDateHijri) {
+        // Check if it's a study day (Sunday to Thursday)
+        const gregorianDate = new Date(dateEntry.gregorian + 'T12:00:00');
+        const dayOfWeek = gregorianDate.getDay();
         
-        // Parse the date parts
-        const parts = hijriDateStr.split('/');
-        const hijriDateId = `${parts[2]}-${parts[0]}-${parts[1]}`; // YYYY-MM-DD
-        
-        allStudyDays.push(hijriDateId);
+        // Only include Sunday-Thursday (0,1,2,3,4)
+        if (dayOfWeek >= 0 && dayOfWeek <= 4) {
+          allStudyDays.push(dateEntry.hijri);
+        }
       }
-      
-      // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
     }
     
     // Create complete list of reports
@@ -1328,28 +1240,10 @@ async function loadReportsForStudentCustomRange(studentId, startDateGregorian, e
     const reportsForStats = completeReports.filter(r => r.hasReport);
     calculateCustomPeriodStatistics(reportsForStats, allStudyDays.length);
     
-    // Get exam reports in this range
-    const examReportsSnap = await getDocs(collection(db, 'studentProgress', studentId, 'examReports'));
-    const examReports = [];
-    examReportsSnap.forEach(d => {
-      const examDate = d.id; // Hijri format YYYY-MM-DD
-      // Check if exam is in range
-      if (examDate >= allStudyDays[0] && examDate <= allStudyDays[allStudyDays.length - 1]) {
-        examReports.push({ dateId: d.id, ...d.data() });
-      }
-    });
-    examReports.sort((a, b) => b.dateId.localeCompare(a.dateId));
-    
-    // Display exam reports
-    let examHTML = '';
-    if (examReports.length > 0) {
-      examHTML = generateExamReportsHTML(examReports);
-    }
-    
-    // Generate reports table
+    // Generate reports table (without exam reports)
     const tableHTML = generateReportsTable(completeReports, allStudyDays.length);
     
-    reportsContainer.innerHTML = examHTML + tableHTML;
+    reportsContainer.innerHTML = tableHTML;
     
   } catch (error) {
     console.error('Error loading custom range reports:', error);
@@ -1375,12 +1269,20 @@ function calculateCustomPeriodStatistics(reports, totalDays) {
     totalRevisionPages += revisionPages;
   });
   
-  // Update UI with custom period stats
+  // Update UI with custom period stats and show harvest card
   document.getElementById('studentStatsSummary').style.display = 'block';
-  document.getElementById('weeklyLessonsCount').textContent = `${totalLessons} (${totalDays} أيام)`;
-  document.getElementById('weeklyRevisionPages').textContent = totalRevisionPages;
-  document.getElementById('monthlyLessonsCount').textContent = '---';
-  document.getElementById('monthlyRevisionPages').textContent = '---';
+  
+  // Get selected date range text from filter display
+  const dateRangeDisplay = document.getElementById('dateRangeDisplay');
+  const dateRangeText = dateRangeDisplay ? dateRangeDisplay.textContent.replace('📅 الفترة: ', '').replace('📅 الفترة الافتراضية: ', '') : '';
+  
+  // Update card title and subtitle
+  document.getElementById('harvestPeriodTitle').textContent = '📊 حصاد الفترة المختارة';
+  document.getElementById('harvestPeriodSubtitle').textContent = dateRangeText || `${totalDays} يوم دراسي`;
+  
+  // Update stats
+  document.getElementById('periodLessonsCount').textContent = totalLessons;
+  document.getElementById('periodRevisionPages').textContent = totalRevisionPages;
 }
 
 // Generate exam reports HTML
