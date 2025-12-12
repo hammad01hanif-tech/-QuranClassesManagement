@@ -260,35 +260,9 @@
         
         <!-- Export PDF Button -->
         <div style="text-align: center; margin: 20px 0;">
-          <button onclick="window.showTeacherSelectionForPDF()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(40,167,69,0.3); transition: all 0.3s;">
+          <button onclick="window.exportComprehensiveReportPDF()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(40,167,69,0.3); transition: all 0.3s;">
             📄 تصدير التقرير الشامل PDF
           </button>
-        </div>
-        
-        <!-- Teacher Selection Modal (Hidden by default) -->
-        <div id="teacherSelectionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
-          <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-            <h3 style="margin: 0 0 20px 0; color: #667eea; text-align: center;">👨‍🏫 اختر اسم المعلم</h3>
-            <p style="margin: 0 0 15px 0; color: #666; text-align: center;">اختر معلم الطالب ليظهر في التقرير</p>
-            
-            <select id="teacherSelectForPDF" onchange="window.toggleCustomTeacherInput()" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 15px;">
-              <option value="">جاري تحميل المعلمين...</option>
-            </select>
-            
-            <div id="customTeacherInputDiv" style="display: none; margin-bottom: 15px;">
-              <label style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">أو أدخل اسم المعلم يدوياً:</label>
-              <input type="text" id="customTeacherInput" placeholder="مثال: أحمد" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">
-            </div>
-            
-            <div style="display: flex; gap: 10px; justify-content: center;">
-              <button onclick="window.confirmTeacherAndExportPDF()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;">
-                ✅ تصدير
-              </button>
-              <button onclick="window.closeTeacherSelectionModal()" style="background: #dc3545; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;">
-                ❌ إلغاء
-              </button>
-            </div>
-          </div>
         </div>
       </div>
       
@@ -299,8 +273,16 @@
 
     <!-- Classes Management Tab -->
     <div id="classesTab" class="tab-content">
-      <h3>إدارة الحلقات</h3>
-      <p class="small">قريباً: إضافة وتعديل الحلقات</p>
+      <h3>📚 إدارة الحلقات وأسماء المعلمين</h3>
+      
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0;">👨‍🏫 تحديث أسماء المعلمين للحلقات</h4>
+        <p style="margin: 0; font-size: 14px; opacity: 0.9;">قم بتحديث أسماء المعلمين لكل حلقة لتظهر تلقائياً في التقارير</p>
+      </div>
+      
+      <div id="classesManagementContainer">
+        <p>جاري تحميل الحلقات...</p>
+      </div>
     </div>
 
     <!-- Struggling Students Tab -->

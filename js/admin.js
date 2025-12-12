@@ -17,6 +17,7 @@ import {
 
 import { calculateRevisionPages } from './quran-juz-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getHijriWeekAgo, getHijriMonthAgo, getStudyDaysInCurrentHijriMonth, getStudyDaysForHijriMonth, getTodayForStorage, getCurrentHijriDate, gregorianToHijri, hijriToGregorian as convertHijriToGregorian } from './hijri-date.js';
+import { accurateHijriDates } from './accurate-hijri-dates.js';
 
 // DOM Elements - will be initialized in initAdmin()
 let classSelectAdd;
@@ -48,6 +49,7 @@ export function initAdmin() {
   
   loadClasses();
   loadAdminNotifications(); // Load notifications on init
+  loadClassesManagement(); // Load classes management section
   if (!listenersInitialized) {
     setupEventListeners();
     listenersInitialized = true;
@@ -1234,18 +1236,25 @@ async function loadReportsForStudentCustomRange(studentId, startDateHijri, endDa
       }
       seenDates.add(dateId);
       
+      // Find gregorianDate from accurate calendar
+      const dateEntry = accurateHijriDates.find(d => d.hijri === dateId);
+      const gregorianDate = dateEntry ? dateEntry.gregorian : null;
+      
       if (actualReports.has(dateId)) {
+        const reportData = actualReports.get(dateId);
         completeReports.push({ 
           dateId: dateId, 
           hasReport: true,
-          ...actualReports.get(dateId) 
+          gregorianDate: reportData.gregorianDate || gregorianDate, // Use from report or accurate calendar
+          ...reportData 
         });
         console.log('📊 Report found for:', dateId);
       } else {
         completeReports.push({ 
           dateId: dateId, 
           hasReport: false,
-          status: 'not-assessed'
+          status: 'not-assessed',
+          gregorianDate: gregorianDate // Add gregorian date for accurate day name
         });
         console.log('⏳ No report for:', dateId);
       }
@@ -1383,14 +1392,32 @@ function generateReportsTable(completeReports, totalDays) {
     const monthName = hijriMonths[parseInt(month) - 1];
     const fullHijriDate = `${parseInt(day)} ${monthName} ${year} هـ`;
     
+    // Get day name - ALWAYS use accurate calendar first
     let dayName = 'غير محدد';
-    if (report.gregorianDate) {
-      const gregorianDate = new Date(report.gregorianDate + 'T12:00:00');
+    
+    // PRIORITY 1: Look up in accurate-hijri-dates.js (most accurate)
+    const dateEntry = accurateHijriDates.find(d => d.hijri === report.dateId);
+    let correctGregorianDate = dateEntry ? dateEntry.gregorian : report.gregorianDate;
+    
+    if (correctGregorianDate) {
+      // Parse gregorianDate correctly (format: "YYYY-MM-DD")
+      const [gYear, gMonth, gDay] = correctGregorianDate.split('-').map(Number);
+      // Month is 0-indexed in JavaScript Date
+      const gregorianDate = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
       dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
+      
+      // Debug log - show if database was wrong
+      if (dateEntry && report.gregorianDate !== dateEntry.gregorian) {
+        console.log(`🔧 Fixed date: ${report.dateId} → DB:${report.gregorianDate} → Correct:${correctGregorianDate} → ${dayName}`);
+      } else {
+        console.log(`📅 ${report.dateId} → ${correctGregorianDate} → ${dayName} (Day: ${gregorianDate.getDay()})`);
+      }
     } else {
+      // Fallback: convert from Hijri
       const [y, m, d] = report.dateId.split('-').map(Number);
       const gregorianDate = convertHijriToGregorian(y, m, d);
       dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
+      console.log(`⚠️ No date found for ${report.dateId}, using conversion`);
     }
     
     const uniqueId = `admin-report-${report.dateId}-${index}`;
@@ -2263,117 +2290,8 @@ window.filterAdminReportsByDate = async function() {
   }
 };
 
-// Show teacher selection modal and load all teachers
-window.showTeacherSelectionForPDF = async function() {
-  const studentId = window.currentAdminReportStudentId;
-  if (!studentId) {
-    alert('⚠️ لم يتم اختيار طالب');
-    return;
-  }
-  
-  if (!window.currentFilteredReports || window.currentFilteredReports.length === 0) {
-    alert('⚠️ لا توجد بيانات للتصدير. يرجى تطبيق الفلتر أولاً');
-    return;
-  }
-  
-  console.log('👨‍🏫 Loading all teachers from database...');
-  
-  try {
-    // Get all users with role 'teacher'
-    const usersSnap = await getDocs(collection(db, 'users'));
-    const teachers = [];
-    
-    usersSnap.forEach(doc => {
-      const userData = doc.data();
-      if (userData.role === 'teacher') {
-        teachers.push({
-          id: doc.id,
-          name: userData.name || 'غير محدد'
-        });
-      }
-    });
-    
-    console.log('✅ Found teachers:', teachers);
-    
-    // Populate select dropdown
-    const select = document.getElementById('teacherSelectForPDF');
-    select.innerHTML = '<option value="">-- اختر معلماً من القائمة --</option>';
-    
-    teachers.forEach(teacher => {
-      const option = document.createElement('option');
-      option.value = teacher.name;
-      option.textContent = `الأستاذ ${teacher.name}`;
-      select.appendChild(option);
-    });
-    
-    // Add option for custom input
-    const customOption = document.createElement('option');
-    customOption.value = 'CUSTOM';
-    customOption.textContent = '✏️ إدخال اسم آخر يدوياً';
-    select.appendChild(customOption);
-    
-    // Show modal
-    const modal = document.getElementById('teacherSelectionModal');
-    modal.style.display = 'flex';
-    
-  } catch (error) {
-    console.error('❌ Error loading teachers:', error);
-    alert('❌ حدث خطأ في تحميل قائمة المعلمين');
-  }
-};
-
-// Toggle custom teacher input
-window.toggleCustomTeacherInput = function() {
-  const select = document.getElementById('teacherSelectForPDF');
-  const customDiv = document.getElementById('customTeacherInputDiv');
-  
-  if (select.value === 'CUSTOM') {
-    customDiv.style.display = 'block';
-  } else {
-    customDiv.style.display = 'none';
-  }
-};
-
-// Close teacher selection modal
-window.closeTeacherSelectionModal = function() {
-  const modal = document.getElementById('teacherSelectionModal');
-  modal.style.display = 'none';
-  
-  // Reset custom input
-  document.getElementById('customTeacherInput').value = '';
-  document.getElementById('customTeacherInputDiv').style.display = 'none';
-};
-
-// Confirm teacher selection and export PDF
-window.confirmTeacherAndExportPDF = async function() {
-  let selectedTeacher = document.getElementById('teacherSelectForPDF').value;
-  
-  // Check if custom input is selected
-  if (selectedTeacher === 'CUSTOM') {
-    const customInput = document.getElementById('customTeacherInput').value.trim();
-    if (!customInput) {
-      alert('⚠️ يرجى إدخال اسم المعلم');
-      return;
-    }
-    selectedTeacher = customInput;
-  }
-  
-  if (!selectedTeacher || selectedTeacher === '') {
-    alert('⚠️ يرجى اختيار أو إدخال اسم المعلم');
-    return;
-  }
-  
-  console.log('✅ Selected teacher:', selectedTeacher);
-  
-  // Close modal
-  window.closeTeacherSelectionModal();
-  
-  // Export PDF with selected teacher
-  await window.exportComprehensiveReportPDF(selectedTeacher);
-};
-
 // Export comprehensive report as PDF
-window.exportComprehensiveReportPDF = async function(teacherNameParam = null) {
+window.exportComprehensiveReportPDF = async function() {
   try {
     const studentId = window.currentAdminReportStudentId;
     if (!studentId) {
@@ -2394,15 +2312,72 @@ window.exportComprehensiveReportPDF = async function(teacherNameParam = null) {
     
     console.log('📋 Student data:', studentData);
     
-    // Get teacher name from parameter (selected by user) or try to find it
+    // Find teacher automatically - PRIORITY ORDER
     let teacherName = 'غير محدد';
+    let teacherId = null;
     
-    if (teacherNameParam) {
-      // Use the teacher selected by user
-      teacherName = `الأستاذ ${teacherNameParam}`;
-      console.log('✅ Using selected teacher:', teacherName);
-    } else {
-      console.log('⚠️ No teacher selected, using default: غير محدد');
+    // Method 1 (HIGHEST PRIORITY): Get from class.teacherName
+    if (studentData.classId) {
+      console.log('🔍 Method 1 (Priority): Finding teacher from class:', studentData.classId);
+      try {
+        const classDocRef = firestoreDoc(db, 'classes', studentData.classId);
+        const classDocSnap = await getDoc(classDocRef);
+        if (classDocSnap.exists()) {
+          const classData = classDocSnap.data();
+          console.log('  📚 Class data:', classData);
+          
+          if (classData.teacherName) {
+            teacherName = `الأستاذ ${classData.teacherName}`;
+            console.log('  ✅ Found teacherName in class:', teacherName);
+          } else if (classData.teacherId) {
+            teacherId = classData.teacherId;
+            console.log('  ✅ Found teacherId in class:', teacherId);
+          }
+        } else {
+          console.log('  ⚠️ Class document not found');
+        }
+      } catch (error) {
+        console.error('  ❌ Error finding teacher from class:', error);
+      }
+    }
+    
+    // Method 2: Get from student's teacherId
+    if (teacherName === 'غير محدد' && studentData.teacherId) {
+      teacherId = studentData.teacherId;
+      console.log('🔍 Method 2: Using student.teacherId:', teacherId);
+    }
+    
+    // Method 3: Get from filtered reports
+    if (teacherName === 'غير محدد' && !teacherId) {
+      console.log('🔍 Method 3: Finding teacher from reports...');
+      const reportsWithTeacher = window.currentFilteredReports.filter(r => r.teacherId || r.teacherName);
+      if (reportsWithTeacher.length > 0) {
+        if (reportsWithTeacher[0].teacherName) {
+          teacherName = `الأستاذ ${reportsWithTeacher[0].teacherName}`;
+          console.log('  ✅ Found teacher name in report:', teacherName);
+        } else if (reportsWithTeacher[0].teacherId) {
+          teacherId = reportsWithTeacher[0].teacherId;
+          console.log('  ✅ Found teacherId in report:', teacherId);
+        }
+      }
+    }
+    
+    // If we have teacherId, fetch teacher name
+    if (teacherName === 'غير محدد' && teacherId) {
+      console.log('🔍 Fetching teacher name from teacherId:', teacherId);
+      try {
+        const teacherDocRef = firestoreDoc(db, 'users', teacherId);
+        const teacherDocSnap = await getDoc(teacherDocRef);
+        if (teacherDocSnap.exists()) {
+          const rawName = teacherDocSnap.data().name;
+          if (rawName) {
+            teacherName = `الأستاذ ${rawName}`;
+            console.log('✅ Teacher name fetched:', teacherName);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Error fetching teacher:', error);
+      }
     }
     
     console.log('👨‍🏫 Final teacher name:', teacherName);
@@ -2601,6 +2576,102 @@ window.exportComprehensiveReportPDF = async function(teacherNameParam = null) {
     console.error('❌ Error exporting PDF:', error);
     console.error('Error stack:', error.stack);
     alert('❌ حدث خطأ في تصدير التقرير: ' + error.message);
+  }
+};
+
+// ============================================
+// Classes Management - Teacher Names
+// ============================================
+
+// Load classes management section
+async function loadClassesManagement() {
+  const container = document.getElementById('classesManagementContainer');
+  if (!container) return;
+  
+  try {
+    container.innerHTML = '<p>جاري تحميل الحلقات...</p>';
+    
+    const classesSnap = await getDocs(collection(db, 'classes'));
+    
+    if (classesSnap.empty) {
+      container.innerHTML = '<p style="color: #999;">لا توجد حلقات مسجلة</p>';
+      return;
+    }
+    
+    let html = '<div style="display: grid; gap: 15px;">';
+    
+    classesSnap.forEach(doc => {
+      const classData = doc.data();
+      const classId = classData.classId || doc.id;
+      const className = classData.className || classId;
+      const teacherName = classData.teacherName || '';
+      
+      html += `
+        <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <div style="display: grid; grid-template-columns: 1fr 2fr auto; gap: 15px; align-items: center;">
+            <div>
+              <label style="display: block; font-weight: bold; color: #667eea; margin-bottom: 5px;">اسم الحلقة:</label>
+              <div style="color: #333; font-size: 16px;">${className}</div>
+            </div>
+            
+            <div>
+              <label style="display: block; font-weight: bold; color: #555; margin-bottom: 5px;">اسم المعلم:</label>
+              <input 
+                type="text" 
+                id="teacher-${classId}" 
+                value="${teacherName}"
+                placeholder="مثال: أنس أو عامر"
+                style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px;"
+              />
+            </div>
+            
+            <button 
+              onclick="window.updateClassTeacherName('${classId}')"
+              style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; white-space: nowrap;">
+              💾 حفظ
+            </button>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error loading classes management:', error);
+    container.innerHTML = '<p style="color: #dc3545;">❌ حدث خطأ في تحميل الحلقات</p>';
+  }
+}
+
+// Update class teacher name
+window.updateClassTeacherName = async function(classId) {
+  const input = document.getElementById(`teacher-${classId}`);
+  const teacherName = input.value.trim();
+  
+  if (!teacherName) {
+    alert('⚠️ يرجى إدخال اسم المعلم');
+    return;
+  }
+  
+  try {
+    console.log(`💾 Updating teacher name for class ${classId}:`, teacherName);
+    
+    const classDocRef = firestoreDoc(db, 'classes', classId);
+    await updateDoc(classDocRef, {
+      teacherName: teacherName,
+      updatedAt: serverTimestamp()
+    });
+    
+    console.log('✅ Teacher name updated successfully');
+    alert(`✅ تم حفظ اسم المعلم: ${teacherName}`);
+    
+    // Reload classes to refresh dropdowns
+    await loadClasses();
+    
+  } catch (error) {
+    console.error('❌ Error updating teacher name:', error);
+    alert('❌ حدث خطأ في حفظ اسم المعلم: ' + error.message);
   }
 };
 
