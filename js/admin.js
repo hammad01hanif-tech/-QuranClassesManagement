@@ -4,7 +4,7 @@ import {
   collection, 
   getDocs,
   getDoc,
-  doc, 
+  doc as firestoreDoc, 
   query, 
   where, 
   setDoc, 
@@ -186,10 +186,10 @@ window.addStudent = async function() {
     }
 
     // Save to Firestore
-    await setDoc(doc(db, "users", userId), studentData);
+    await setDoc(firestoreDoc(db, "users", userId), studentData);
 
     // Update class document with new student
-    const classDocRef = doc(db, "classes", classId);
+    const classDocRef = firestoreDoc(db, "classes", classId);
     await updateDoc(classDocRef, {
       studentIds: arrayUnion(userId)
     });
@@ -335,10 +335,10 @@ async function loadStudentsForClass(classId) {
 // Delete student
 async function deleteStudent(studentId, studentName) {
   try {
-    await deleteDoc(doc(db, 'users', studentId));
+    await deleteDoc(firestoreDoc(db, 'users', studentId));
     
     if (selectedClassId) {
-      const classDocRef = doc(db, 'classes', selectedClassId);
+      const classDocRef = firestoreDoc(db, 'classes', selectedClassId);
       await updateDoc(classDocRef, {
         studentIds: arrayRemove(studentId)
       });
@@ -508,7 +508,7 @@ window.saveStudentEdit = async function(studentId) {
       updateData.studentPhone = deleteField();
     }
     
-    await updateDoc(doc(db, 'users', studentId), updateData);
+    await updateDoc(firestoreDoc(db, 'users', studentId), updateData);
     
     result.innerText = "✅ تم حفظ التعديلات بنجاح!";
     result.style.color = '#51cf66';
@@ -547,7 +547,7 @@ async function showTransferDialog(studentId, studentName) {
     }
     
     // Get student's current class
-    const studentDoc = await getDoc(doc(db, 'users', studentId));
+    const studentDoc = await getDoc(firestoreDoc(db, 'users', studentId));
     const currentClassId = studentDoc.data().classId;
     
     // Build classes list (exclude current class)
@@ -632,7 +632,7 @@ window.executeTransfer = async function(studentId, studentName) {
     const gregorianDate = today.toISOString().split('T')[0];
     
     // Get student data
-    const studentRef = doc(db, 'users', studentId);
+    const studentRef = firestoreDoc(db, 'users', studentId);
     const studentSnap = await getDoc(studentRef);
     
     if (!studentSnap.exists()) {
@@ -649,8 +649,8 @@ window.executeTransfer = async function(studentId, studentName) {
     }
     
     // Get class names for history
-    const oldClassSnap = await getDoc(doc(db, 'classes', oldClassId));
-    const newClassSnap = await getDoc(doc(db, 'classes', targetClassId));
+    const oldClassSnap = await getDoc(firestoreDoc(db, 'classes', oldClassId));
+    const newClassSnap = await getDoc(firestoreDoc(db, 'classes', targetClassId));
     const oldClassName = oldClassSnap.exists() ? (oldClassSnap.data().name || oldClassId) : oldClassId;
     const newClassName = newClassSnap.exists() ? (newClassSnap.data().name || targetClassId) : targetClassId;
     
@@ -710,13 +710,13 @@ window.executeTransfer = async function(studentId, studentName) {
     await updateDoc(studentRef, updateData);
     
     // Update old class (remove student)
-    const oldClassRef = doc(db, 'classes', oldClassId);
+    const oldClassRef = firestoreDoc(db, 'classes', oldClassId);
     await updateDoc(oldClassRef, {
       studentIds: arrayRemove(studentId)
     });
     
     // Update new class (add student)
-    const newClassRef = doc(db, 'classes', targetClassId);
+    const newClassRef = firestoreDoc(db, 'classes', targetClassId);
     await updateDoc(newClassRef, {
       studentIds: arrayUnion(studentId)
     });
@@ -781,7 +781,7 @@ window.loadReportsForStudent = async function(studentId, selectedMonthFilter = '
   
   try {
     // Get student data to check for transfer history
-    const studentDoc = await getDoc(doc(db, 'users', studentId));
+    const studentDoc = await getDoc(firestoreDoc(db, 'users', studentId));
     const studentData = studentDoc.data();
     
     // Load daily reports from database
@@ -1198,7 +1198,9 @@ async function loadReportsForStudentCustomRange(studentId, startDateHijri, endDa
     });
     
     // Get all study days in the date range using accurate dates
-    const allStudyDays = [];
+    const allStudyDaysSet = new Set(); // Use Set to prevent duplicates
+    
+    console.log('📅 Loading reports from', startDateHijri, 'to', endDateHijri);
     
     for (const dateEntry of accurateHijriDates) {
       // Check if date is within range
@@ -1209,32 +1211,53 @@ async function loadReportsForStudentCustomRange(studentId, startDateHijri, endDa
         
         // Only include Sunday-Thursday (0,1,2,3,4)
         if (dayOfWeek >= 0 && dayOfWeek <= 4) {
-          allStudyDays.push(dateEntry.hijri);
+          allStudyDaysSet.add(dateEntry.hijri);
+          console.log('  ✅ Study day:', dateEntry.hijri, '(Day:', dayOfWeek + ')');
+        } else {
+          console.log('  ❌ Weekend:', dateEntry.hijri, '(Day:', dayOfWeek + ')');
         }
       }
     }
     
+    // Convert Set to Array and sort
+    const allStudyDays = Array.from(allStudyDaysSet).sort();
+    console.log('✅ Total unique study days:', allStudyDays.length);
+    
     // Create complete list of reports
     const completeReports = [];
+    const seenDates = new Set(); // Track seen dates to prevent duplicates
     
     allStudyDays.forEach(dateId => {
+      if (seenDates.has(dateId)) {
+        console.warn('⚠️ Duplicate date detected:', dateId);
+        return; // Skip duplicates
+      }
+      seenDates.add(dateId);
+      
       if (actualReports.has(dateId)) {
         completeReports.push({ 
           dateId: dateId, 
           hasReport: true,
           ...actualReports.get(dateId) 
         });
+        console.log('📊 Report found for:', dateId);
       } else {
         completeReports.push({ 
           dateId: dateId, 
           hasReport: false,
           status: 'not-assessed'
         });
+        console.log('⏳ No report for:', dateId);
       }
     });
     
     // Sort by date
     completeReports.sort((a, b) => a.dateId.localeCompare(b.dateId));
+    
+    console.log('✅ Complete reports generated:', completeReports.length);
+    
+    // Store filtered reports globally for PDF export
+    window.currentFilteredReports = completeReports;
     
     // Calculate statistics for this period
     const reportsForStats = completeReports.filter(r => r.hasReport);
@@ -1256,18 +1279,30 @@ function calculateCustomPeriodStatistics(reports, totalDays) {
   let totalLessons = 0;
   let totalRevisionPages = 0;
   
+  console.log('🔍 Calculating custom period statistics for', reports.length, 'reports');
+  
   reports.forEach(report => {
-    // Count lessons (lesson + lesson side)
+    // Count lessons based on score (every 5 points = 1 lesson) - SAME as calculateHarvestStatistics
     const lessonScore = report.lessonScore || 0;
-    const lessonSideScore = report.lessonSideScore || 0;
-    const totalLessonsForDay = (lessonScore >= 5 ? 1 : 0) + (lessonSideScore >= 5 ? 1 : 0);
+    const lessonsFromScore = Math.floor(lessonScore / 5);
     
-    // Count revision pages
-    const revisionPages = report.revisionPages || 0;
+    // Also add extraLessonCount if it exists (for backward compatibility)
+    const extraLessons = report.extraLessonCount || 0;
+    const totalLessonsForDay = lessonsFromScore + extraLessons;
+    
+    // Count revision pages - calculate from revisionFrom and revisionTo
+    let revisionPages = 0;
+    if (report.revisionScore > 0 && report.revisionFrom && report.revisionTo) {
+      revisionPages = calculateRevisionPages(report.revisionFrom, report.revisionTo);
+    }
+    
+    console.log(`  📊 ${report.dateId}: Lessons=${totalLessonsForDay} (score=${lessonScore}/5=${lessonsFromScore}, extra=${extraLessons}), Pages=${revisionPages}`);
     
     totalLessons += totalLessonsForDay;
     totalRevisionPages += revisionPages;
   });
+  
+  console.log('✅ Total: Lessons=' + totalLessons + ', Pages=' + totalRevisionPages);
   
   // Update UI with custom period stats and show harvest card
   document.getElementById('studentStatsSummary').style.display = 'block';
@@ -1419,6 +1454,21 @@ window.viewReportDetails = function(dateId, report) {
   }
   
   // Show normal assessment details
+  const lessonScore = report.lessonScore || 0;
+  const lessonsFromScore = Math.floor(lessonScore / 5);
+  const extraLessons = report.extraLessonCount || 0;
+  const totalLessonsForDay = lessonsFromScore + extraLessons;
+  
+  // Calculate revision pages
+  let revisionPages = 0;
+  if (report.revisionScore > 0 && report.revisionFrom && report.revisionTo) {
+    try {
+      revisionPages = calculateRevisionPages(report.revisionFrom, report.revisionTo);
+    } catch (e) {
+      console.error('Error calculating revision pages:', e);
+    }
+  }
+  
   const details = `
 التاريخ الهجري: ${hijriDate}
 اليوم: ${dayName}
@@ -1428,12 +1478,12 @@ window.viewReportDetails = function(dateId, report) {
 === الدرجات ===
 صلاة العصر: ${report.asrPrayerScore || 0}/5
 الدرس: ${report.lessonScore || 0}/25 (من ${report.lessonFrom || '-'} إلى ${report.lessonTo || '-'})
+  └─ عدد الدروس المنجزة: ${totalLessonsForDay} (${lessonsFromScore} من الدرجة + ${extraLessons} إضافية)
 جنب الدرس: ${report.lessonSideScore || 0}/5 (${report.lessonSideText || '-'})
 المراجعة: ${report.revisionScore || 0}/5 (من ${report.revisionFrom || '-'} إلى ${report.revisionTo || '-'})
+  └─ عدد صفحات المراجعة: ${revisionPages}
 القراءة بالنظر: ${report.readingScore || 0}/5
 السلوك: ${report.behaviorScore || 0}/10
-${report.extraLessonCount ? `
-دروس إضافية: ${report.extraLessonCount}` : ''}
 
 المجموع الكلي: ${report.totalScore || 0}
   `;
@@ -2104,7 +2154,7 @@ window.markAllAdminNotificationsAsRead = async function() {
 // Delete admin notification
 window.deleteAdminNotification = async function(notificationId) {
   try {
-    await deleteDoc(doc(db, 'adminNotifications', notificationId));
+    await deleteDoc(firestoreDoc(db, 'adminNotifications', notificationId));
     loadAdminNotifications();
   } catch (error) {
     console.error('Error deleting notification:', error);
@@ -2118,7 +2168,7 @@ window.deleteStrugglingReport = async function(reportId) {
   }
   
   try {
-    await deleteDoc(doc(db, 'strugglingReports', reportId));
+    await deleteDoc(firestoreDoc(db, 'strugglingReports', reportId));
     alert('✅ تم حذف التقرير بنجاح');
     
     // Reload reports
@@ -2212,3 +2262,345 @@ window.filterAdminReportsByDate = async function() {
     await window.loadReportsForStudent(studentId, monthValue, dayValue);
   }
 };
+
+// Show teacher selection modal and load all teachers
+window.showTeacherSelectionForPDF = async function() {
+  const studentId = window.currentAdminReportStudentId;
+  if (!studentId) {
+    alert('⚠️ لم يتم اختيار طالب');
+    return;
+  }
+  
+  if (!window.currentFilteredReports || window.currentFilteredReports.length === 0) {
+    alert('⚠️ لا توجد بيانات للتصدير. يرجى تطبيق الفلتر أولاً');
+    return;
+  }
+  
+  console.log('👨‍🏫 Loading all teachers from database...');
+  
+  try {
+    // Get all users with role 'teacher'
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const teachers = [];
+    
+    usersSnap.forEach(doc => {
+      const userData = doc.data();
+      if (userData.role === 'teacher') {
+        teachers.push({
+          id: doc.id,
+          name: userData.name || 'غير محدد'
+        });
+      }
+    });
+    
+    console.log('✅ Found teachers:', teachers);
+    
+    // Populate select dropdown
+    const select = document.getElementById('teacherSelectForPDF');
+    select.innerHTML = '<option value="">-- اختر معلماً من القائمة --</option>';
+    
+    teachers.forEach(teacher => {
+      const option = document.createElement('option');
+      option.value = teacher.name;
+      option.textContent = `الأستاذ ${teacher.name}`;
+      select.appendChild(option);
+    });
+    
+    // Add option for custom input
+    const customOption = document.createElement('option');
+    customOption.value = 'CUSTOM';
+    customOption.textContent = '✏️ إدخال اسم آخر يدوياً';
+    select.appendChild(customOption);
+    
+    // Show modal
+    const modal = document.getElementById('teacherSelectionModal');
+    modal.style.display = 'flex';
+    
+  } catch (error) {
+    console.error('❌ Error loading teachers:', error);
+    alert('❌ حدث خطأ في تحميل قائمة المعلمين');
+  }
+};
+
+// Toggle custom teacher input
+window.toggleCustomTeacherInput = function() {
+  const select = document.getElementById('teacherSelectForPDF');
+  const customDiv = document.getElementById('customTeacherInputDiv');
+  
+  if (select.value === 'CUSTOM') {
+    customDiv.style.display = 'block';
+  } else {
+    customDiv.style.display = 'none';
+  }
+};
+
+// Close teacher selection modal
+window.closeTeacherSelectionModal = function() {
+  const modal = document.getElementById('teacherSelectionModal');
+  modal.style.display = 'none';
+  
+  // Reset custom input
+  document.getElementById('customTeacherInput').value = '';
+  document.getElementById('customTeacherInputDiv').style.display = 'none';
+};
+
+// Confirm teacher selection and export PDF
+window.confirmTeacherAndExportPDF = async function() {
+  let selectedTeacher = document.getElementById('teacherSelectForPDF').value;
+  
+  // Check if custom input is selected
+  if (selectedTeacher === 'CUSTOM') {
+    const customInput = document.getElementById('customTeacherInput').value.trim();
+    if (!customInput) {
+      alert('⚠️ يرجى إدخال اسم المعلم');
+      return;
+    }
+    selectedTeacher = customInput;
+  }
+  
+  if (!selectedTeacher || selectedTeacher === '') {
+    alert('⚠️ يرجى اختيار أو إدخال اسم المعلم');
+    return;
+  }
+  
+  console.log('✅ Selected teacher:', selectedTeacher);
+  
+  // Close modal
+  window.closeTeacherSelectionModal();
+  
+  // Export PDF with selected teacher
+  await window.exportComprehensiveReportPDF(selectedTeacher);
+};
+
+// Export comprehensive report as PDF
+window.exportComprehensiveReportPDF = async function(teacherNameParam = null) {
+  try {
+    const studentId = window.currentAdminReportStudentId;
+    if (!studentId) {
+      alert('⚠️ لم يتم اختيار طالب');
+      return;
+    }
+    
+    // Get stored report data from last filter
+    if (!window.currentFilteredReports || window.currentFilteredReports.length === 0) {
+      alert('⚠️ لا توجد بيانات للتصدير. يرجى تطبيق الفلتر أولاً');
+      return;
+    }
+    
+    // Get student data
+    const studentDocRef = firestoreDoc(db, 'users', studentId);
+    const studentDocSnap = await getDoc(studentDocRef);
+    const studentData = studentDocSnap.data();
+    
+    console.log('📋 Student data:', studentData);
+    
+    // Get teacher name from parameter (selected by user) or try to find it
+    let teacherName = 'غير محدد';
+    
+    if (teacherNameParam) {
+      // Use the teacher selected by user
+      teacherName = `الأستاذ ${teacherNameParam}`;
+      console.log('✅ Using selected teacher:', teacherName);
+    } else {
+      console.log('⚠️ No teacher selected, using default: غير محدد');
+    }
+    
+    console.log('👨‍🏫 Final teacher name:', teacherName);
+    
+    // Get period from display
+    const periodText = document.getElementById('harvestPeriodSubtitle').textContent;
+    
+    // Calculate statistics
+    const reports = window.currentFilteredReports.filter(r => r.hasReport);
+    let totalLessons = 0;
+    let totalRevisionPages = 0;
+    let firstLesson = null;
+    let lastLesson = null;
+    let firstRevision = null;
+    let lastRevision = null;
+    let absenceWithExcuse = 0;
+    let absenceWithoutExcuse = 0;
+    
+    reports.forEach(report => {
+      if (report.status === 'absent') {
+        if (report.excuseType === 'withExcuse') {
+          absenceWithExcuse++;
+        } else {
+          absenceWithoutExcuse++;
+        }
+      } else {
+        // Count lessons - SAME method as calculateCustomPeriodStatistics
+        const lessonScore = report.lessonScore || 0;
+        const lessonsFromScore = Math.floor(lessonScore / 5);
+        const extraLessons = report.extraLessonCount || 0;
+        totalLessons += lessonsFromScore + extraLessons;
+        
+        console.log(`📊 PDF: ${report.dateId} - Lessons: ${lessonsFromScore + extraLessons} (score=${lessonScore})`);
+        
+        // Track first and last lesson
+        if (lessonScore >= 5 && report.lessonFrom && report.lessonTo) {
+          const lessonInfo = {
+            from: report.lessonFrom,
+            to: report.lessonTo,
+            date: report.dateId
+          };
+          if (!firstLesson) firstLesson = lessonInfo;
+          lastLesson = lessonInfo;
+        }
+        
+        // Count revision pages
+        if (report.revisionScore > 0 && report.revisionFrom && report.revisionTo) {
+          const pages = calculateRevisionPages(report.revisionFrom, report.revisionTo);
+          totalRevisionPages += pages;
+          
+          console.log(`📖 PDF: ${report.dateId} - Revision pages: ${pages} (${report.revisionFrom}-${report.revisionTo})`);
+          
+          const revisionInfo = {
+            from: report.revisionFrom,
+            to: report.revisionTo,
+            date: report.dateId
+          };
+          if (!firstRevision) firstRevision = revisionInfo;
+          lastRevision = revisionInfo;
+        }
+      }
+    });
+    
+    console.log('✅ PDF Statistics calculated:');
+    console.log('  Total Lessons:', totalLessons);
+    console.log('  Total Revision Pages:', totalRevisionPages);
+    console.log('  Absences (with excuse):', absenceWithExcuse);
+    console.log('  Absences (without excuse):', absenceWithoutExcuse);
+    
+    // 🚀 INNOVATIVE SOLUTION: Create HTML content and convert to PDF using html2canvas
+    console.log('🎨 Creating HTML content for PDF...');
+    
+    // Create temporary container
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 800px;
+      background: white;
+      padding: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    const levelMap = {
+      'memorization': 'حفظ',
+      'consolidation': 'ضبط',
+      'noorani': 'القاعدة النورانية'
+    };
+    const levelText = levelMap[studentData.level] || studentData.level || 'غير محدد';
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #667eea; margin: 0 0 10px 0; font-size: 28px;">تقرير شامل - حلقات حمدة آل ثاني</h1>
+        <p style="color: #666; font-size: 16px; margin: 0;">الفترة: ${periodText}</p>
+      </div>
+      
+      <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+        <h3 style="color: #667eea; margin: 0 0 15px 0; font-size: 20px;">معلومات الطالب</h3>
+        <p style="margin: 5px 0; font-size: 16px;"><strong>الاسم:</strong> ${studentData.name || 'غير محدد'}</p>
+        <p style="margin: 5px 0; font-size: 16px;"><strong>المعلم:</strong> ${teacherName}</p>
+        <p style="margin: 5px 0; font-size: 16px;"><strong>المستوى:</strong> ${levelText}</p>
+      </div>
+      
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+        <thead>
+          <tr>
+            <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; text-align: right; border: none; font-size: 16px;">البيان</th>
+            <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; text-align: center; border: none; font-size: 16px;">التفاصيل</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; font-size: 15px;">عدد الدروس المنجزة</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px;">${totalLessons}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; font-size: 15px;">أول درس</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px;">${firstLesson ? `${firstLesson.from} - ${firstLesson.to}` : 'لا يوجد'}</td>
+          </tr>
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; font-size: 15px;">آخر درس</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px;">${lastLesson ? `${lastLesson.from} - ${lastLesson.to}` : 'لا يوجد'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; font-size: 15px;">عدد صفحات المراجعة</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px;">${totalRevisionPages}</td>
+          </tr>
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; font-size: 15px;">أول مراجعة</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px;">${firstRevision ? `من ${firstRevision.from} إلى ${firstRevision.to}` : 'لا يوجد'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; font-size: 15px;">آخر مراجعة</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px;">${lastRevision ? `من ${lastRevision.from} إلى ${lastRevision.to}` : 'لا يوجد'}</td>
+          </tr>
+          <tr style="background: #f8f9fa;">
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; font-size: 15px;">عدد أيام الغياب (بعذر)</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px;">${absenceWithExcuse}</td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold; font-size: 15px;">عدد أيام الغياب (بدون عذر)</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px;">${absenceWithoutExcuse}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #667eea;">
+        <p style="margin: 5px 0; color: #667eea; font-size: 14px; font-style: italic;">إدارة حلقات حمدة آل ثاني</p>
+        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    console.log('📸 Converting HTML to canvas...');
+    
+    // Convert HTML to canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: true,
+      backgroundColor: '#ffffff'
+    });
+    
+    console.log('✅ Canvas created successfully');
+    
+    // Remove temporary container
+    document.body.removeChild(container);
+    
+    // Create PDF from canvas
+    console.log('📄 Creating PDF from canvas...');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    doc.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    console.log('✅ PDF generated successfully');
+    
+    // Save PDF
+    const fileName = `تقرير_${studentData.name || 'طالب'}_${Date.now()}.pdf`;
+    doc.save(fileName);
+    
+    console.log('🎉 PDF saved successfully:', fileName);
+    alert('✅ تم تصدير التقرير بنجاح!');
+    
+  } catch (error) {
+    console.error('❌ Error exporting PDF:', error);
+    console.error('Error stack:', error.stack);
+    alert('❌ حدث خطأ في تصدير التقرير: ' + error.message);
+  }
+};
+

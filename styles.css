@@ -1958,6 +1958,20 @@ button[onclick*="applyAdminDateRangeFilter"]:active {
   transform: translateY(0);
 }
 
+/* Export PDF Button */
+button[onclick*="exportComprehensiveReportPDF"] {
+  transition: all 0.3s ease;
+}
+
+button[onclick*="exportComprehensiveReportPDF"]:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(40,167,69,0.4);
+}
+
+button[onclick*="exportComprehensiveReportPDF"]:active {
+  transform: translateY(0);
+}
+
 /* Advanced filters collapsible */
 details > summary {
   cursor: pointer;
