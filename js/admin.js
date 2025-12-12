@@ -31,6 +31,9 @@ let strugglingReportsContainer;
 let selectedClassId = null;
 let listenersInitialized = false;
 
+// Global variable to store current student ID for date range filter
+window.currentAdminReportStudentId = null;
+
 // Initialize admin section
 export function initAdmin() {
   // Initialize DOM elements
@@ -1216,6 +1219,272 @@ function calculateStudentStatistics(reports) {
   document.getElementById('weeklyRevisionPages').textContent = weeklyRevisionPages;
   document.getElementById('monthlyLessonsCount').textContent = monthlyLessons;
   document.getElementById('monthlyRevisionPages').textContent = monthlyRevisionPages;
+}
+
+// Apply date range filter
+window.applyAdminDateRangeFilter = async function() {
+  const startDateInput = document.getElementById('adminReportsStartDate');
+  const endDateInput = document.getElementById('adminReportsEndDate');
+  const displayDiv = document.getElementById('dateRangeDisplay');
+  
+  const startDate = startDateInput.value;
+  const endDate = endDateInput.value;
+  
+  if (!startDate || !endDate) {
+    alert('⚠️ يرجى اختيار تاريخ البداية والنهاية');
+    return;
+  }
+  
+  if (startDate > endDate) {
+    alert('⚠️ تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+    return;
+  }
+  
+  const studentId = window.currentAdminReportStudentId;
+  if (!studentId) {
+    alert('⚠️ لم يتم اختيار طالب');
+    return;
+  }
+  
+  // Convert Gregorian dates to Hijri for display
+  const startHijri = gregorianToHijriDisplay(startDate);
+  const endHijri = gregorianToHijriDisplay(endDate);
+  
+  displayDiv.innerHTML = `📅 الفترة: من ${startHijri} إلى ${endHijri}`;
+  
+  // Load reports with custom date range
+  await loadReportsForStudentCustomRange(studentId, startDate, endDate);
+};
+
+// Load reports for custom date range
+async function loadReportsForStudentCustomRange(studentId, startDateGregorian, endDateGregorian) {
+  const reportsContainer = document.getElementById('reportsContainer');
+  reportsContainer.innerHTML = '<p>جاري تحميل التقارير...</p>';
+  
+  try {
+    // Convert Gregorian dates to Hijri for filtering
+    const startDateObj = new Date(startDateGregorian + 'T12:00:00');
+    const endDateObj = new Date(endDateGregorian + 'T12:00:00');
+    
+    // Get all reports from database
+    const reportsSnap = await getDocs(collection(db, 'studentProgress', studentId, 'dailyReports'));
+    
+    const actualReports = new Map();
+    reportsSnap.forEach(d => {
+      actualReports.set(d.id, d.data());
+    });
+    
+    // Get all study days in the date range
+    const allStudyDays = [];
+    let currentDate = new Date(startDateObj);
+    
+    while (currentDate <= endDateObj) {
+      const dayOfWeek = currentDate.getDay();
+      
+      // Only include Sunday-Thursday (0,1,2,3,4)
+      if (dayOfWeek >= 0 && dayOfWeek <= 4) {
+        // Convert to Hijri date ID
+        const hijriDateStr = currentDate.toLocaleDateString('en-SA-u-ca-islamic', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          timeZone: 'Asia/Riyadh'
+        });
+        
+        // Parse the date parts
+        const parts = hijriDateStr.split('/');
+        const hijriDateId = `${parts[2]}-${parts[0]}-${parts[1]}`; // YYYY-MM-DD
+        
+        allStudyDays.push(hijriDateId);
+      }
+      
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Create complete list of reports
+    const completeReports = [];
+    
+    allStudyDays.forEach(dateId => {
+      if (actualReports.has(dateId)) {
+        completeReports.push({ 
+          dateId: dateId, 
+          hasReport: true,
+          ...actualReports.get(dateId) 
+        });
+      } else {
+        completeReports.push({ 
+          dateId: dateId, 
+          hasReport: false,
+          status: 'not-assessed'
+        });
+      }
+    });
+    
+    // Sort by date
+    completeReports.sort((a, b) => a.dateId.localeCompare(b.dateId));
+    
+    // Calculate statistics for this period
+    const reportsForStats = completeReports.filter(r => r.hasReport);
+    calculateCustomPeriodStatistics(reportsForStats, allStudyDays.length);
+    
+    // Get exam reports in this range
+    const examReportsSnap = await getDocs(collection(db, 'studentProgress', studentId, 'examReports'));
+    const examReports = [];
+    examReportsSnap.forEach(d => {
+      const examDate = d.id; // Hijri format YYYY-MM-DD
+      // Check if exam is in range
+      if (examDate >= allStudyDays[0] && examDate <= allStudyDays[allStudyDays.length - 1]) {
+        examReports.push({ dateId: d.id, ...d.data() });
+      }
+    });
+    examReports.sort((a, b) => b.dateId.localeCompare(a.dateId));
+    
+    // Display exam reports
+    let examHTML = '';
+    if (examReports.length > 0) {
+      examHTML = generateExamReportsHTML(examReports);
+    }
+    
+    // Generate reports table
+    const tableHTML = generateReportsTable(completeReports, allStudyDays.length);
+    
+    reportsContainer.innerHTML = examHTML + tableHTML;
+    
+  } catch (error) {
+    console.error('Error loading custom range reports:', error);
+    reportsContainer.innerHTML = '<p style="color: #dc3545;">❌ حدث خطأ في تحميل التقارير</p>';
+  }
+}
+
+// Calculate statistics for custom period
+function calculateCustomPeriodStatistics(reports, totalDays) {
+  let totalLessons = 0;
+  let totalRevisionPages = 0;
+  
+  reports.forEach(report => {
+    // Count lessons (lesson + lesson side)
+    const lessonScore = report.lessonScore || 0;
+    const lessonSideScore = report.lessonSideScore || 0;
+    const totalLessonsForDay = (lessonScore >= 5 ? 1 : 0) + (lessonSideScore >= 5 ? 1 : 0);
+    
+    // Count revision pages
+    const revisionPages = report.revisionPages || 0;
+    
+    totalLessons += totalLessonsForDay;
+    totalRevisionPages += revisionPages;
+  });
+  
+  // Update UI with custom period stats
+  document.getElementById('studentStatsSummary').style.display = 'block';
+  document.getElementById('weeklyLessonsCount').textContent = `${totalLessons} (${totalDays} أيام)`;
+  document.getElementById('weeklyRevisionPages').textContent = totalRevisionPages;
+  document.getElementById('monthlyLessonsCount').textContent = '---';
+  document.getElementById('monthlyRevisionPages').textContent = '---';
+}
+
+// Generate exam reports HTML
+function generateExamReportsHTML(examReports) {
+  const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  let html = `
+    <div style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+      <h4 style="margin: 0 0 15px 0;">📝 درجات الاختبارات الشهرية</h4>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
+  `;
+  
+  examReports.forEach(exam => {
+    const [year, month, day] = exam.dateId.split('-');
+    const monthName = hijriMonths[parseInt(month) - 1];
+    const hijriDate = `${parseInt(day)} ${monthName} ${year} هـ`;
+    const passIcon = exam.isPassed ? '✅' : '❌';
+    const passText = exam.isPassed ? 'ناجح' : 'راسب';
+    const passColor = exam.isPassed ? '#4caf50' : '#f44336';
+    
+    html += `
+      <div style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; color: #333;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span style="font-weight: bold; color: #667eea;">📅 ${hijriDate}</span>
+          <span style="background: ${passColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">${passIcon} ${passText}</span>
+        </div>
+        <div style="font-size: 28px; font-weight: bold; color: #764ba2; text-align: center; margin: 10px 0;">
+          ${exam.finalScore.toFixed(1)} / ${exam.maxScore}
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 12px; margin-top: 10px;">
+          <div>تنبيه: <strong>${exam.errorCounts?.tanbih || 0}</strong></div>
+          <div>خطأ: <strong>${exam.errorCounts?.khata || 0}</strong></div>
+          <div>تجويد: <strong>${exam.errorCounts?.tajweed || 0}</strong></div>
+          <div>لحن: <strong>${exam.errorCounts?.lahn || 0}</strong></div>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += '</div></div>';
+  return html;
+}
+
+// Generate reports table HTML
+function generateReportsTable(completeReports, totalDays) {
+  const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  let tableHTML = `
+    <h4 style="margin: 20px 0 15px 0;">تقارير المتابعة (${totalDays} يوم دراسي)</h4>
+    <table class="compact-reports-table" style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+          <th style="padding: 12px; text-align: right; border-radius: 8px 0 0 0;">التاريخ</th>
+          <th style="padding: 12px; text-align: center;">اليوم</th>
+          <th style="padding: 12px; text-align: center; border-radius: 0 8px 0 0;">الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  
+  completeReports.forEach((report, index) => {
+    const [year, month, day] = report.dateId.split('-');
+    const monthName = hijriMonths[parseInt(month) - 1];
+    const fullHijriDate = `${parseInt(day)} ${monthName} ${year} هـ`;
+    
+    let dayName = 'غير محدد';
+    if (report.gregorianDate) {
+      const gregorianDate = new Date(report.gregorianDate + 'T12:00:00');
+      dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
+    } else {
+      const [y, m, d] = report.dateId.split('-').map(Number);
+      const gregorianDate = convertHijriToGregorian(y, m, d);
+      dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
+    }
+    
+    const uniqueId = `admin-report-${report.dateId}-${index}`;
+    const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+    
+    let statusHTML = '';
+    let clickHandler = '';
+    
+    if (!report.hasReport) {
+      statusHTML = '<span style="color: #856404; font-weight: bold;">⏳ لم يُقيّم</span>';
+    } else if (report.status === 'absent') {
+      statusHTML = '<span style="color: #dc3545; font-weight: bold;">❌ غائب</span>';
+      clickHandler = `onclick="viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})"`;
+    } else {
+      const totalScore = report.totalScore || 0;
+      const statusColor = totalScore >= 25 ? '#28a745' : (totalScore >= 15 ? '#ffc107' : '#dc3545');
+      statusHTML = `<span style="color: ${statusColor}; font-weight: bold;">✅ ${totalScore}/30</span>`;
+      clickHandler = `onclick="viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})"`;
+    }
+    
+    tableHTML += `
+      <tr style="background: ${rowColor}; ${report.hasReport ? 'cursor: pointer;' : ''}" ${clickHandler}>
+        <td style="padding: 12px;">${fullHijriDate}</td>
+        <td style="padding: 12px; text-align: center;">${dayName}</td>
+        <td style="padding: 12px; text-align: center;">${statusHTML}</td>
+      </tr>
+    `;
+  });
+  
+  tableHTML += '</tbody></table>';
+  return tableHTML;
 }
 
 // View report details

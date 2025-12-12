@@ -1876,6 +1876,84 @@ label:has(input[type="radio"][name="recitationType"][value="dabt"]:checked) span
   transform: translateY(0);
 }
 
+/* Date Range Filter Styles */
+#adminReportsStartDate,
+#adminReportsEndDate {
+  padding: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-family: 'Arial', sans-serif;
+  color: #333;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#adminReportsStartDate:focus,
+#adminReportsEndDate:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.6);
+  background: white;
+}
+
+#dateRangeDisplay {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: white;
+  font-weight: bold;
+  text-align: center;
+  min-height: 20px;
+}
+
+/* Date range filter button */
+button[onclick*="applyAdminDateRangeFilter"] {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #667eea;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 10px;
+}
+
+button[onclick*="applyAdminDateRangeFilter"]:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+button[onclick*="applyAdminDateRangeFilter"]:active {
+  transform: translateY(0);
+}
+
+/* Advanced filters collapsible */
+details > summary {
+  cursor: pointer;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-top: 15px;
+  font-weight: bold;
+  color: white;
+  transition: all 0.2s;
+}
+
+details > summary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+details[open] > summary {
+  margin-bottom: 15px;
+  border-radius: 8px 8px 0 0;
+}
+
 
 
 
