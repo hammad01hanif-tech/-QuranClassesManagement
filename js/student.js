@@ -124,8 +124,63 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
       </div>
     `;
     
+    // Calculate statistics for current month reports
+    let completeLessonsCount = 0;
+    let firstLesson = null;
+    let lastLesson = null;
+    
+    completeReports.forEach(report => {
+      if (report.hasReport) {
+        // Count complete lessons (score >= 5 for all three parts)
+        if (report.lessonScore >= 5 && report.lessonSideScore >= 5 && report.revisionScore >= 5) {
+          completeLessonsCount++;
+        }
+        
+        // Track first lesson
+        if (!firstLesson) {
+          firstLesson = {
+            surah: report.lessonSurah || 'غير مسجل',
+            ayat: report.lessonAyat || 'غير محدد',
+            date: report.dateId
+          };
+        }
+        
+        // Always update last lesson (since reports are sorted by date)
+        lastLesson = {
+          surah: report.lessonSurah || 'غير مسجل',
+          ayat: report.lessonAyat || 'غير محدد',
+          date: report.dateId
+        };
+      }
+    });
+    
+    // Create statistics summary table
+    let statsHTML = `
+      <div style="background: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <h4 style="margin: 0 0 15px 0; color: #667eea; font-size: 16px; text-align: center;">📊 إحصائيات الشهر</h4>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr style="border-bottom: 2px solid #f0f0f0;">
+            <td style="padding: 12px; font-weight: bold; color: #555; width: 40%;">عدد الدروس المكتملة:</td>
+            <td style="padding: 12px; color: #28a745; font-weight: bold; font-size: 18px;">${completeLessonsCount} ${completeLessonsCount === 1 ? 'درس' : 'دروس'}</td>
+          </tr>
+          <tr style="border-bottom: 2px solid #f0f0f0;">
+            <td style="padding: 12px; font-weight: bold; color: #555;">أول درس في الشهر:</td>
+            <td style="padding: 12px; color: #667eea;">
+              ${firstLesson ? `${firstLesson.surah}${firstLesson.ayat !== 'غير محدد' ? ` (${firstLesson.ayat})` : ''}` : 'لا يوجد'}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px; font-weight: bold; color: #555;">آخر درس حتى الآن:</td>
+            <td style="padding: 12px; color: #764ba2;">
+              ${lastLesson ? `${lastLesson.surah}${lastLesson.ayat !== 'غير محدد' ? ` (${lastLesson.ayat})` : ''}` : 'لا يوجد'}
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
+    
     if (completeReports.length === 0) {
-      container.innerHTML = filterHTML + `
+      container.innerHTML = filterHTML + statsHTML + `
         <div style="text-align: center; padding: 60px; color: #999; background: white; border-radius: 12px;">
           <div style="font-size: 60px; margin-bottom: 15px;">📝</div>
           <p style="font-size: 18px;">لا توجد أيام دراسية في هذا الشهر</p>
@@ -326,7 +381,7 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
     
     tableHTML += '</tbody></table>';
     
-    container.innerHTML = filterHTML + `<h4 style="margin: 20px 0;">تقارير الشهر: ${completeReports.length} يوم دراسي</h4>` + tableHTML;
+    container.innerHTML = filterHTML + statsHTML + `<h4 style="margin: 20px 0;">تقارير الشهر: ${completeReports.length} يوم دراسي</h4>` + tableHTML;
     
     // Start notifications listener after loading
     startStudentNotificationsListener(studentId);
