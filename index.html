@@ -1134,34 +1134,37 @@
     <!-- Viewer Dashboard (hidden until login) -->
     <div id="viewerDashboard" style="display:none;">
       <div class="admin-header">
-        <h2>🕌 لوحة عارض الأجزاء</h2>
-        <div class="date-time-display" id="viewerDateTime"></div>
-        <button class="logout-btn" onclick="window.logout()">تسجيل الخروج</button>
+        <div class="admin-header-title">
+          <h2>لوحة العارض</h2>
+          <div class="date-time-display" id="viewerDateTime"></div>
+        </div>
+        <div class="admin-header-actions">
+          <button class="notification-btn" onclick="window.toggleViewerInbox()">
+            🔔
+            <span id="viewerInboxBadge" class="notification-badge" style="display: none;">0</span>
+          </button>
+          <button class="logout-btn" onclick="window.logout()">خروج</button>
+        </div>
+      </div>
+
+      <!-- Viewer Inbox Modal -->
+      <div id="viewerInboxModal" class="notifications-modal" style="display: none;">
+        <div class="notifications-modal-overlay" onclick="window.toggleViewerInbox()"></div>
+        <div class="notifications-modal-content">
+          <div class="notifications-modal-header">
+            <h3>🔔 صندوق الإشعارات</h3>
+            <button onclick="window.toggleViewerInbox()" class="close-modal-btn">✖</button>
+          </div>
+          <div id="viewerInboxNotificationsList" class="notifications-list">
+            <p style="text-align: center; color: #999; padding: 20px;">لا توجد إشعارات جديدة</p>
+          </div>
+        </div>
       </div>
 
       <div style="padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; color: white; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative;">
-          <!-- Inbox Button for Viewer -->
-          <button id="viewerInboxBtn" onclick="window.toggleViewerInbox()" style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.25); color: white; padding: 10px 20px; font-size: 14px; border: 2px solid rgba(255,255,255,0.5); border-radius: 8px; cursor: pointer; transition: all 0.3s; font-weight: bold;">
-            📬 صندوق الإشعارات
-            <span id="viewerInboxBadge" style="display: none; position: absolute; top: -8px; right: -8px; background: #dc3545; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 12px; font-weight: bold; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(220,53,69,0.5); animation: pulse 1.5s infinite;">0</span>
-          </button>
-          
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; color: white; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
           <h2 style="margin: 0 0 10px 0; font-size: 28px; text-align: center;">📊 عرض الأجزاء القرآنية</h2>
           <p style="margin: 0; font-size: 16px; opacity: 0.9; text-align: center;">مرحباً بك - مازن البلوشي</p>
-        </div>
-        
-        <!-- Viewer Inbox Modal -->
-        <div id="viewerInboxModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-          <div style="background: white; width: 90%; max-width: 700px; max-height: 80vh; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
-              <h3 style="margin: 0; font-size: 22px;">📬 صندوق الإشعارات</h3>
-              <button onclick="window.toggleViewerInbox()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 24px; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">×</button>
-            </div>
-            <div id="viewerInboxNotificationsList" style="padding: 20px; max-height: 60vh; overflow-y: auto;">
-              <p style="text-align: center; color: #999; padding: 40px;">لا توجد إشعارات جديدة</p>
-            </div>
-          </div>
         </div>
 
         <!-- Tabs Navigation -->

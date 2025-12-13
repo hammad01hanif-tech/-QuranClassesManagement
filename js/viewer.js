@@ -798,12 +798,12 @@ function updateViewerInboxBadge(count) {
 // Toggle viewer inbox modal
 window.toggleViewerInbox = async function() {
   const modal = document.getElementById('viewerInboxModal');
-  const isVisible = modal.style.display === 'flex';
+  const isVisible = modal.style.display === 'block';
   
   if (isVisible) {
     modal.style.display = 'none';
   } else {
-    modal.style.display = 'flex';
+    modal.style.display = 'block';
     await loadViewerNotifications();
   }
 };
