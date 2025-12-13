@@ -28,6 +28,9 @@ window.selectRole = function(role) {
       return;
     }
     
+    // Save admin session
+    sessionStorage.setItem('loggedInAdmin', 'true');
+    
     document.getElementById('adminSection').style.display = 'block';
     updateDateTime();
     initAdmin();
@@ -302,13 +305,142 @@ window.switchTab = function(tabName) {
   
   document.getElementById(tabName + 'Tab').classList.add('active');
   event.target.classList.add('active');
+  
+  // Save active tab to sessionStorage
+  sessionStorage.setItem('activeTab', tabName);
 };
+
+// Restore active tab
+function restoreActiveTab() {
+  const activeTab = sessionStorage.getItem('activeTab');
+  if (activeTab) {
+    console.log('🔄 Restoring active tab:', activeTab);
+    
+    // Remove active class from all tabs and contents
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    
+    // Activate saved tab
+    const tabContent = document.getElementById(activeTab + 'Tab');
+    if (tabContent) {
+      tabContent.classList.add('active');
+    }
+    
+    // Activate corresponding button
+    document.querySelectorAll('.tab').forEach(tab => {
+      if (tab.getAttribute('onclick')?.includes(`'${activeTab}'`)) {
+        tab.classList.add('active');
+      }
+    });
+  }
+}
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
   updateDateTime();
   console.log('Main.js loaded successfully');
+  
+  // Check if user is already logged in and restore their session
+  restoreUserSession();
 });
+
+// Restore user session on page reload
+function restoreUserSession() {
+  // Check for Admin session
+  const loggedInAdmin = sessionStorage.getItem('loggedInAdmin');
+  
+  if (loggedInAdmin === 'true') {
+    console.log('🔄 Restoring admin session');
+    
+    // Hide role selection and show admin section
+    document.getElementById('roleSelection').style.display = 'none';
+    document.getElementById('adminSection').style.display = 'block';
+    
+    // Initialize admin dashboard
+    updateDateTime();
+    initAdmin();
+    
+    // Restore active tab after a small delay to ensure DOM is ready
+    setTimeout(() => restoreActiveTab(), 100);
+    
+    return; // Exit early
+  }
+  
+  // Check for Teacher session
+  const loggedInTeacher = sessionStorage.getItem('loggedInTeacher');
+  const loggedInTeacherName = sessionStorage.getItem('loggedInTeacherName');
+  
+  if (loggedInTeacher && loggedInTeacherName) {
+    console.log('🔄 Restoring teacher session:', loggedInTeacher);
+    
+    // Hide role selection and show teacher dashboard
+    document.getElementById('roleSelection').style.display = 'none';
+    document.getElementById('teacherSection').style.display = 'block';
+    document.getElementById('teacherLogin').style.display = 'none';
+    document.getElementById('teacherDashboard').style.display = 'block';
+    
+    // Restore teacher info display
+    document.getElementById('teacherClassDisplay').textContent = loggedInTeacher;
+    document.getElementById('teacherNameDisplay').textContent = loggedInTeacherName;
+    
+    // Initialize teacher dashboard
+    updateDateTime();
+    initTeacher(loggedInTeacher);
+    
+    if (typeof window.checkCleanupButton === 'function') {
+      window.checkCleanupButton();
+    }
+    
+    // Restore active tab after a small delay to ensure DOM is ready
+    setTimeout(() => restoreActiveTab(), 100);
+    
+    return; // Exit early
+  }
+  
+  // Check for Student session
+  const loggedInStudent = sessionStorage.getItem('loggedInStudent');
+  const loggedInStudentName = sessionStorage.getItem('loggedInStudentName');
+  
+  if (loggedInStudent && loggedInStudentName) {
+    console.log('🔄 Restoring student session:', loggedInStudent);
+    
+    // Hide role selection and show student dashboard
+    document.getElementById('roleSelection').style.display = 'none';
+    document.getElementById('studentSection').style.display = 'block';
+    document.getElementById('studentLogin').style.display = 'none';
+    document.getElementById('studentDashboard').style.display = 'block';
+    
+    // Initialize student dashboard
+    updateDateTime();
+    initStudent();
+    
+    return; // Exit early
+  }
+  
+  // Check for Viewer session
+  const loggedInViewer = sessionStorage.getItem('loggedInViewer');
+  const loggedInViewerName = sessionStorage.getItem('loggedInViewerName');
+  
+  if (loggedInViewer && loggedInViewerName) {
+    console.log('🔄 Restoring viewer session:', loggedInViewer);
+    
+    // Hide role selection and show viewer dashboard
+    document.getElementById('roleSelection').style.display = 'none';
+    document.getElementById('viewerSection').style.display = 'block';
+    document.getElementById('viewerLogin').style.display = 'none';
+    document.getElementById('viewerDashboard').style.display = 'block';
+    
+    // Initialize viewer dashboard
+    updateDateTime();
+    initViewer();
+    
+    return; // Exit early
+  }
+  
+  // No session found - show role selection
+  console.log('👤 No active session - showing role selection');
+  document.getElementById('roleSelection').style.display = 'flex';
+}
 
 // ===== Viewer Functions =====
 

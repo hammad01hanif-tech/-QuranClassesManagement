@@ -293,14 +293,14 @@ async function loadStudentsForClass(classId) {
           </div>
         </div>
         <div class="student-card-actions">
-          <button data-id="${student.id}" data-name="${student.name}" class="action-btn edit-btn">
-            ✏️ تعديل
+          <button data-id="${student.id}" data-name="${student.name}" class="action-btn edit-btn" title="تعديل بيانات الطالب">
+            ✏️
           </button>
-          <button data-id="${student.id}" data-name="${student.name}" class="action-btn transfer-btn">
-            🔄 نقل
+          <button data-id="${student.id}" data-name="${student.name}" class="action-btn transfer-btn" title="نقل لحلقة أخرى">
+            🔄
           </button>
-          <button data-id="${student.id}" data-name="${student.name}" class="action-btn delete-btn">
-            🗑️ حذف
+          <button data-id="${student.id}" data-name="${student.name}" class="action-btn delete-btn" title="حذف الطالب">
+            🗑️
           </button>
         </div>
       `;
@@ -2092,12 +2092,12 @@ window.toggleAdminAbsenceDetails = function(uniqueId) {
 
 // Toggle admin notifications panel
 window.toggleAdminNotifications = function() {
-  const panel = document.getElementById('adminNotificationsPanel');
-  if (panel.style.display === 'none' || panel.style.display === '') {
-    panel.style.display = 'block';
+  const modal = document.getElementById('adminNotificationsModal');
+  if (modal.style.display === 'none' || modal.style.display === '') {
+    modal.style.display = 'block';
     loadAdminNotifications();
   } else {
-    panel.style.display = 'none';
+    modal.style.display = 'none';
   }
 };
 

@@ -181,22 +181,237 @@ button {
 
 /* Admin/Teacher Header */
 .admin-header { 
-  background: #2d7a44; 
+  background: linear-gradient(135deg, #2d7a44 0%, #1e5a30 100%);
   color: white; 
-  padding: 15px; 
+  padding: 12px 15px; 
   margin: -18px -18px 20px -18px; 
   display: flex; 
   justify-content: space-between; 
-  align-items: center; 
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-header-title h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.admin-header-title .date-time-display {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification-btn {
+  background: #ffd700;
+  color: #2d7a44;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  position: relative;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.notification-btn:hover {
+  background: #ffed4e;
+  transform: scale(1.05);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  line-height: 20px;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Notifications Modal */
+.notifications-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+}
+
+.notifications-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+}
+
+.notifications-modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.notifications-modal-header {
+  background: linear-gradient(135deg, #2d7a44 0%, #1e5a30 100%);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 15px 15px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.notifications-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  flex: 1;
+}
+
+.mark-read-btn {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background 0.3s ease;
+}
+
+.mark-read-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.close-modal-btn {
+  background: rgba(255,255,255,0.2);
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  line-height: 1;
+}
+
+.close-modal-btn:hover {
+  background: rgba(255,255,255,0.3);
+  transform: rotate(90deg);
+}
+
+.notifications-list {
+  padding: 15px;
+  overflow-y: auto;
+  max-height: calc(80vh - 70px);
 }
 
 .logout-btn { 
   background: #dc3545; 
   color: white; 
   border: none; 
-  padding: 8px 15px; 
+  padding: 8px 12px; 
   border-radius: 5px; 
-  cursor: pointer; 
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.logout-btn:hover {
+  background: #c82333;
+  transform: scale(1.05);
+}
+
+/* Mobile responsive for admin header */
+@media (max-width: 600px) {
+  .admin-header {
+    padding: 10px 12px;
+  }
+  
+  .admin-header-title h2 {
+    font-size: 15px;
+  }
+  
+  .admin-header-title .date-time-display {
+    font-size: 10px;
+  }
+  
+  .notification-btn {
+    padding: 6px 10px;
+    font-size: 16px;
+  }
+  
+  .logout-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  .notifications-modal-content {
+    width: 95%;
+    max-height: 85vh;
+  }
+  
+  .notifications-modal-header h3 {
+    font-size: 14px;
+  }
+  
+  .mark-read-btn {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+  
+  .notifications-panel-header h3 {
+    font-size: 12px;
+  }
+  
+  .mark-read-btn {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
 }
 
 /* Tabs */
@@ -284,22 +499,25 @@ button {
 
 .student-card-actions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 100px;
+  flex-direction: row;
+  gap: 6px;
+  min-width: 120px;
+  flex-shrink: 0;
 }
 
 .action-btn {
-  padding: 10px 15px;
+  padding: 8px 12px;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s;
   font-family: inherit;
   text-align: center;
   white-space: nowrap;
+  flex: 1;
+  min-width: 35px;
 }
 
 .edit-btn {
@@ -339,18 +557,46 @@ button {
 @media (max-width: 768px) {
   .student-card-header {
     flex-direction: column;
+    gap: 10px;
   }
   
   .student-card-actions {
-    flex-direction: row;
     width: 100%;
-    margin-top: 15px;
+    justify-content: space-between;
+    gap: 8px;
   }
   
   .action-btn {
-    flex: 1;
-    padding: 12px 10px;
-    font-size: 13px;
+    padding: 10px 8px;
+    font-size: 20px;
+    min-width: 45px;
+  }
+}
+
+@media (max-width: 480px) {
+  .student-card-item {
+    padding: 12px;
+  }
+  
+  .student-card-info {
+    width: 100%;
+  }
+  
+  .student-card-name {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .student-card-details {
+    flex-direction: column;
+    gap: 6px !important;
+  }
+  
+  .action-btn {
+    padding: 12px 6px;
+    font-size: 18px;
+    min-width: 40px;
   }
 }
 
