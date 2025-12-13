@@ -18,20 +18,32 @@
   
   <!-- Role Selection Page -->
   <div id="roleSelection" class="role-selection">
-    <h1>نظام إدارة حلقات القرآن الكريم</h1>
-    <p style="margin-bottom: 30px;">اختر دورك للدخول إلى النظام</p>
-    <button class="role-button" onclick="window.selectRole('admin')">
-      👨‍💼<br>مدير<br>Admin
-    </button>
-    <button class="role-button" onclick="window.selectRole('teacher')">
-      👨‍🏫<br>معلم<br>Teacher
-    </button>
-    <button class="role-button" onclick="window.selectRole('student')">
-      👨‍🎓<br>طالب<br>Student
-    </button>
-    <button class="role-button" onclick="window.selectRole('viewer')">
-      📊<br>عارض الأجزاء<br>Parts Viewer
-    </button>
+    <div class="role-selection-header">
+      <h1>نظام إدارة حلقات القرآن</h1>
+      <p>اختر دورك للدخول</p>
+    </div>
+    <div class="role-buttons-grid">
+      <button class="role-button" onclick="window.selectRole('admin')">
+        <div class="role-icon">👨‍💼</div>
+        <div class="role-name">مدير</div>
+        <div class="role-name-en">Admin</div>
+      </button>
+      <button class="role-button" onclick="window.selectRole('teacher')">
+        <div class="role-icon">👨‍🏫</div>
+        <div class="role-name">معلم</div>
+        <div class="role-name-en">Teacher</div>
+      </button>
+      <button class="role-button" onclick="window.selectRole('student')">
+        <div class="role-icon">👨‍🎓</div>
+        <div class="role-name">طالب</div>
+        <div class="role-name-en">Student</div>
+      </button>
+      <button class="role-button" onclick="window.selectRole('viewer')">
+        <div class="role-icon">📊</div>
+        <div class="role-name">عارض</div>
+        <div class="role-name-en">Viewer</div>
+      </button>
+    </div>
   </div>
 
   <!-- Admin Section -->
