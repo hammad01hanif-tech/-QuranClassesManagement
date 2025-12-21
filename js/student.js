@@ -403,35 +403,99 @@ window.showStudentAttendance = async function() {
   
   if (!studentId) return;
   
-  const panel = document.getElementById('studentAttendancePanel');
-  panel.style.display = 'block';
+  const modal = document.getElementById('studentAttendancePanel');
+  modal.style.display = 'block';
+  
+  // Populate month filter with months from Rajab to Dhul Hijjah
+  populateStudentAttendanceMonthFilter();
+  
+  // Load attendance for current month by default
+  await loadStudentAttendanceByMonth();
+};
+
+// Populate month filter dropdown
+function populateStudentAttendanceMonthFilter() {
+  const filterSelect = document.getElementById('studentAttendanceMonthFilter');
+  
+  // Get current Hijri year
+  const today = new Date();
+  const hijriFormatter = new Intl.DateTimeFormat('en-SA-u-ca-islamic', {
+    year: 'numeric',
+    month: '2-digit',
+    timeZone: 'Asia/Riyadh'
+  });
+  const parts = hijriFormatter.formatToParts(today);
+  const currentHijriYear = parts.find(p => p.type === 'year').value;
+  
+  // Hijri months from Rajab (7) to Dhul Hijjah (12)
+  const hijriMonths = [
+    { number: 7, name: 'رجب' },
+    { number: 8, name: 'شعبان' },
+    { number: 9, name: 'رمضان' },
+    { number: 10, name: 'شوال' },
+    { number: 11, name: 'ذو القعدة' },
+    { number: 12, name: 'ذو الحجة' }
+  ];
+  
+  // Clear and rebuild options
+  filterSelect.innerHTML = '<option value="current-month">الشهر الحالي</option>';
+  
+  hijriMonths.forEach(month => {
+    const monthKey = `${currentHijriYear}-${String(month.number).padStart(2, '0')}`;
+    const option = document.createElement('option');
+    option.value = monthKey;
+    option.textContent = `${month.name} ${currentHijriYear}هـ`;
+    filterSelect.appendChild(option);
+  });
+}
+
+// Load student attendance by selected month
+window.loadStudentAttendanceByMonth = async function() {
+  const studentId = sessionStorage.getItem('loggedInStudent');
+  if (!studentId) return;
+  
+  const selectedMonth = document.getElementById('studentAttendanceMonthFilter').value;
   
   try {
-    // Get current Hijri month using accurate calendar
-    const currentHijri = getCurrentHijriDate();
-    const currentMonth = formatHijriDate(new Date());
-    document.getElementById('studentAttendanceMonth').textContent = currentMonth;
+    // Get study days for selected month
+    let studyDays = [];
+    if (selectedMonth === 'current-month') {
+      studyDays = getAccurateStudyDaysCurrentMonth();
+    } else {
+      studyDays = getAccurateStudyDaysForMonth(selectedMonth);
+    }
     
-    // Get all study days in current Hijri month (Sun-Thu only, excludes Fri-Sat)
-    const studyDays = getAccurateStudyDaysCurrentMonth();
-    const totalStudyDays = studyDays.length;
-    
-    // Get student reports
+    // Get student reports for this month
     const reportsSnap = await getDocs(collection(db, 'studentProgress', studentId, 'dailyReports'));
     
-    // Count present days
-    let presentCount = 0;
-    studyDays.forEach(studyDay => {
-      const hasReport = reportsSnap.docs.some(doc => doc.id === studyDay);
-      if (hasReport) {
-        presentCount++;
+    // Count absent days
+    let absentWithExcuse = 0;
+    let absentWithoutExcuse = 0;
+    
+    studyDays.forEach(dateId => {
+      const reportDoc = reportsSnap.docs.find(doc => doc.id === dateId);
+      
+      if (reportDoc) {
+        const data = reportDoc.data();
+        
+        // Check if student was absent
+        if (data.status === 'absent') {
+          // Check excuse type: 'withExcuse' or 'withoutExcuse'
+          if (data.excuseType === 'withExcuse') {
+            absentWithExcuse++;
+          } else {
+            absentWithoutExcuse++;
+          }
+        }
       }
     });
     
-    const absentCount = totalStudyDays - presentCount;
+    const totalAbsent = absentWithExcuse + absentWithoutExcuse;
     
-    document.getElementById('studentPresentCount').textContent = presentCount;
-    document.getElementById('studentAbsentCount').textContent = absentCount;
+    // Update UI
+    document.getElementById('studentTotalAbsentCount').textContent = totalAbsent;
+    document.getElementById('studentAbsentWithExcuseCount').textContent = absentWithExcuse;
+    document.getElementById('studentAbsentWithoutExcuseCount').textContent = absentWithoutExcuse;
     
   } catch (error) {
     console.error('Error loading attendance:', error);
@@ -444,8 +508,8 @@ window.hideStudentAttendance = function() {
 
 // Toggle inbox
 window.toggleStudentInbox = function() {
-  const panel = document.getElementById('studentInboxPanel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  const modal = document.getElementById('studentInboxPanel');
+  modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
 };
 
 // Start notifications listener

@@ -20,6 +20,7 @@ import {
 import { quranSurahs } from './quran-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, gregorianToHijri, isTodayAStudyDay } from './hijri-date.js';
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
+import { accurateHijriDates } from './accurate-hijri-dates.js';
 
 // DOM Elements
 const teacherStudentSelect = document.getElementById('teacherStudentSelect');
@@ -1188,6 +1189,9 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
               <div style="text-align: center; color: #856404; padding: 20px;">
                 <p style="font-size: 18px; font-weight: bold;">⏳ هذا اليوم لم يُقيّم بعد</p>
                 <p>لا توجد تفاصيل متاحة</p>
+                <button onclick="event.stopPropagation(); window.addMissingAssessment('${report.dateId}', '${fullHijriDate}')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 15px; box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3); transition: all 0.3s;">
+                  ➕ إضافة تقييم لهذا اليوم
+                </button>
               </div>
             </td>
           </tr>
@@ -1221,14 +1225,24 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
         const statusColor = report.totalScore >= 25 ? '#28a745' : report.totalScore >= 20 ? '#ffc107' : '#dc3545';
         const statusIcon = report.totalScore >= 25 ? '✅' : report.totalScore >= 20 ? '⚠️' : '❌';
         
-        // Format lesson and revision details
-        const lessonDetails = report.lessonSurahFrom && report.lessonVerseFrom 
-          ? `من ${report.lessonSurahFrom}:${report.lessonVerseFrom} إلى ${report.lessonSurahTo}:${report.lessonVerseTo}`
-          : 'غير محدد';
+        // Format lesson and revision details - support both old and new format
+        let lessonDetails = 'غير محدد';
+        if (report.lessonFrom && report.lessonTo) {
+          // New format: "البقرة 5" to "البقرة 10"
+          lessonDetails = `من ${report.lessonFrom} إلى ${report.lessonTo}`;
+        } else if (report.lessonSurahFrom && report.lessonVerseFrom) {
+          // Old format: separate surah and verse
+          lessonDetails = `من ${report.lessonSurahFrom}:${report.lessonVerseFrom} إلى ${report.lessonSurahTo}:${report.lessonVerseTo}`;
+        }
         
-        const revisionDetails = report.revisionSurahFrom && report.revisionVerseFrom
-          ? `من ${report.revisionSurahFrom}:${report.revisionVerseFrom} إلى ${report.revisionSurahTo}:${report.revisionVerseTo}`
-          : 'غير محدد';
+        let revisionDetails = 'غير محدد';
+        if (report.revisionFrom && report.revisionTo) {
+          // New format: "آل عمران 10" to "آل عمران 20"
+          revisionDetails = `من ${report.revisionFrom} إلى ${report.revisionTo}`;
+        } else if (report.revisionSurahFrom && report.revisionVerseFrom) {
+          // Old format: separate surah and verse
+          revisionDetails = `من ${report.revisionSurahFrom}:${report.revisionVerseFrom} إلى ${report.revisionSurahTo}:${report.revisionVerseTo}`;
+        }
         
         tableHTML += `
           <tr class="report-row clickable-row" onclick="toggleReportDetails('${uniqueId}')" style="cursor: pointer;">
@@ -5011,5 +5025,265 @@ function hideAllSections() {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
+}
+
+// Add missing assessment for a specific date
+window.addMissingAssessment = async function(dateId, fullHijriDate) {
+  console.log('📝 Adding assessment for missing date:', dateId, fullHijriDate);
+  
+  // Store the target date for saving
+  window.targetAssessmentDate = dateId;
+  window.targetAssessmentHijriDate = fullHijriDate;
+  
+  // Show assessment form
+  document.getElementById('pastReportsSection').style.display = 'none';
+  
+  // Check student level and show appropriate form
+  const studentLevel = currentTeacherStudentData?.level || 'hifz';
+  
+  // Hide all forms first
+  document.getElementById('newAssessmentForm').style.display = 'none';
+  document.getElementById('dabtAssessmentForm').style.display = 'none';
+  document.getElementById('nooraniAssessmentForm').style.display = 'none';
+  
+  // Show the appropriate form based on student level
+  if (studentLevel === 'hifz') {
+    document.getElementById('newAssessmentForm').style.display = 'block';
+    
+    // Reset scores
+    scores = {
+      asrPrayer: 5,
+      lesson: 5,
+      lessonSide: 5,
+      revision: 5,
+      reading: 5,
+      behavior: 5
+    };
+    
+    updateScoreDisplays();
+    populateSurahSelects();
+    restoreStudentFormData();
+    
+    document.getElementById('teacherStatus').textContent = '';
+    document.getElementById('teacherStatus').style.cssText = 'text-align: center; padding: 15px; background: #fffbf0; border: 2px solid #ffc107; border-radius: 8px; margin-top: 15px; font-size: 16px; font-weight: bold; color: #856404;';
+    document.getElementById('teacherStatus').innerHTML = `📅 <strong>تنبيه:</strong> أنت الآن تضيف تقييماً لليوم: <strong>${fullHijriDate}</strong><br><span style="font-size: 14px; opacity: 0.9;">سيتم حفظ التقييم على هذا التاريخ تلقائياً</span>`;
+    updateStruggleIndicator();
+    
+    // Scroll to form
+    document.getElementById('newAssessmentForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+  } else if (studentLevel === 'dabt') {
+    const dabtForm = document.getElementById('dabtAssessmentForm');
+    if (dabtForm) {
+      dabtForm.style.display = 'block';
+      console.log('📝 Dabt form opened for past date');
+    } else {
+      alert('⚠️ نموذج الضبط قيد التطوير');
+      document.getElementById('newAssessmentForm').style.display = 'block';
+    }
+  } else if (studentLevel === 'noorani') {
+    const nooraniForm = document.getElementById('nooraniAssessmentForm');
+    if (nooraniForm) {
+      nooraniForm.style.display = 'block';
+      console.log('📝 Noorani form opened for past date');
+    } else {
+      alert('⚠️ نموذج القاعدة النورانية قيد التطوير');
+      document.getElementById('newAssessmentForm').style.display = 'block';
+    }
+  }
+  
+  // Override the save function to use the target date
+  const originalSave = window.saveTeacherAssessment;
+  window.saveTeacherAssessment = async function() {
+    if (!window.targetAssessmentDate) {
+      // No target date, use original save function
+      return originalSave();
+    }
+    
+    // Use the target date instead of today
+    const targetDateId = window.targetAssessmentDate;
+    const targetHijriDate = window.targetAssessmentHijriDate;
+    
+    console.log('💾 Saving assessment for date:', targetDateId, targetHijriDate);
+    
+    if (!currentTeacherStudentId) {
+      alert('الرجاء اختيار طالب');
+      return;
+    }
+    
+    const statusDiv = document.getElementById('teacherStatus');
+    statusDiv.textContent = `جاري حفظ التقييم لتاريخ ${targetHijriDate}...`;
+    statusDiv.style.color = 'white';
+    statusDiv.style.background = '#667eea';
+    statusDiv.style.border = '2px solid #667eea';
+    
+    // Check student status
+    const studentStatus = document.querySelector('input[name="studentStatus"]:checked').value;
+    
+    // If absent
+    if (studentStatus === 'absent') {
+      await saveAbsentRecordForDate(targetDateId, targetHijriDate);
+      return;
+    }
+    
+    // Get form data (same as original save)
+    const lessonSurahFrom = document.getElementById('lessonSurahFrom');
+    const lessonVerseFrom = document.getElementById('lessonVerseFrom');
+    const lessonSurahTo = document.getElementById('lessonSurahTo');
+    const lessonVerseTo = document.getElementById('lessonVerseTo');
+    
+    const revisionSurahFrom = document.getElementById('revisionSurahFrom');
+    const revisionVerseFrom = document.getElementById('revisionVerseFrom');
+    const revisionSurahTo = document.getElementById('revisionSurahTo');
+    const revisionVerseTo = document.getElementById('revisionVerseTo');
+    
+    const lessonFrom = lessonSurahFrom.value && lessonVerseFrom.value 
+      ? `${lessonSurahFrom.options[lessonSurahFrom.selectedIndex].text.split('. ')[1]} ${lessonVerseFrom.value}`
+      : '';
+      
+    const lessonTo = lessonSurahTo.value && lessonVerseTo.value 
+      ? `${lessonSurahTo.options[lessonSurahTo.selectedIndex].text.split('. ')[1]} ${lessonVerseTo.value}`
+      : '';
+      
+    const revisionFrom = revisionSurahFrom.value && revisionVerseFrom.value 
+      ? `${revisionSurahFrom.options[revisionSurahFrom.selectedIndex].text.split('. ')[1]} ${revisionVerseFrom.value}`
+      : '';
+      
+    const revisionTo = revisionSurahTo.value && revisionVerseTo.value 
+      ? `${revisionSurahTo.options[revisionSurahTo.selectedIndex].text.split('. ')[1]} ${revisionVerseTo.value}`
+      : '';
+    
+    const data = {
+      studentId: currentTeacherStudentId,
+      studentName: currentTeacherStudentName,
+      asrPrayerScore: scores.asrPrayer,
+      lessonScore: scores.lesson,
+      lessonFrom: lessonFrom,
+      lessonTo: lessonTo,
+      lessonSideScore: scores.lessonSide,
+      lessonSideText: (document.getElementById('teacherLessonSideText').value || '').trim(),
+      revisionScore: scores.revision,
+      revisionFrom: revisionFrom,
+      revisionTo: revisionTo,
+      readingScore: scores.reading,
+      behaviorScore: scores.behavior,
+      extraLessonCount: parseInt(document.getElementById('teacherExtraLessons').value) || 0,
+      status: 'present',
+      date: serverTimestamp()
+    };
+    
+    data.totalScore = data.asrPrayerScore + data.lessonScore + data.lessonSideScore
+                    + data.revisionScore + data.readingScore + data.behaviorScore;
+    
+    const missing = [];
+    if (!data.lessonFrom || !data.lessonTo) missing.push('lesson');
+    if (!data.revisionFrom || !data.revisionTo) missing.push('revision');
+    if (!data.lessonSideText) missing.push('lessonSide');
+    data.missingFields = missing;
+    data.isComplete = missing.length === 0;
+    
+    // Get gregorian date from targetDateId
+    const dateEntry = accurateHijriDates.find(d => d.hijri === targetDateId);
+    const gregorianDate = dateEntry ? dateEntry.gregorian : null;
+    
+    if (gregorianDate) {
+      data.gregorianDate = gregorianDate;
+      console.log('✅ Found gregorian date:', gregorianDate);
+    } else {
+      console.warn('⚠️ No gregorian date found for', targetDateId);
+    }
+    
+    try {
+      const targetDoc = doc(db, 'studentProgress', currentTeacherStudentId, 'dailyReports', targetDateId);
+      await setDoc(targetDoc, data);
+      
+      const maxScore = 30 + (data.lessonScore > 5 ? data.lessonScore - 5 : 0);
+      statusDiv.textContent = `✅ تم حفظ التقييم بنجاح لتاريخ ${targetHijriDate} — المجموع: ${data.totalScore}/${maxScore}`;
+      statusDiv.style.color = '#28a745';
+      statusDiv.style.background = '#d4edda';
+      statusDiv.style.border = '2px solid #28a745';
+      
+      // Clear target date
+      window.targetAssessmentDate = null;
+      window.targetAssessmentHijriDate = null;
+      
+      // Restore original save function
+      window.saveTeacherAssessment = originalSave;
+      
+      // Reload monthly scores and student list
+      await loadMonthlyScores(currentTeacherClassId);
+      updateStudentScoreDisplay(currentTeacherStudentId);
+      await loadTeacherStudents(currentTeacherClassId);
+      
+      // Go back to reports after 2 seconds
+      setTimeout(() => {
+        alert('✅ تم حفظ التقييم بنجاح!\n\nسيتم تحديث التقارير الآن...');
+        window.showPastReports();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error saving past assessment:', error);
+      statusDiv.textContent = '❌ خطأ في حفظ التقييم: ' + error.message;
+      statusDiv.style.color = '#dc3545';
+      statusDiv.style.background = '#f8d7da';
+      statusDiv.style.border = '2px solid #dc3545';
+      
+      // Clear target date on error
+      window.targetAssessmentDate = null;
+      window.targetAssessmentHijriDate = null;
+      window.saveTeacherAssessment = originalSave;
+    }
+  };
+};
+
+// Save absent record for specific date
+async function saveAbsentRecordForDate(dateId, fullHijriDate) {
+  const excuseType = document.querySelector('input[name="absenceExcuse"]:checked').value;
+  const excuseText = excuseType === 'withExcuse' ? 'بعذر' : 'بدون عذر';
+  
+  const statusDiv = document.getElementById('teacherStatus');
+  
+  const data = {
+    studentId: currentTeacherStudentId,
+    studentName: currentTeacherStudentName,
+    status: 'absent',
+    excuseType: excuseType,
+    date: serverTimestamp()
+  };
+  
+  // Get gregorian date from dateId
+  const dateEntry = accurateHijriDates.find(d => d.hijri === dateId);
+  const gregorianDate = dateEntry ? dateEntry.gregorian : null;
+  
+  if (gregorianDate) {
+    data.gregorianDate = gregorianDate;
+  }
+  
+  try {
+    const targetDoc = doc(db, 'studentProgress', currentTeacherStudentId, 'dailyReports', dateId);
+    await setDoc(targetDoc, data);
+    
+    statusDiv.textContent = `✅ تم تسجيل غياب الطالب لتاريخ ${fullHijriDate} (${excuseText})`;
+    statusDiv.style.color = '#28a745';
+    statusDiv.style.background = '#d4edda';
+    statusDiv.style.border = '2px solid #28a745';
+    
+    // Clear target date
+    window.targetAssessmentDate = null;
+    window.targetAssessmentHijriDate = null;
+    
+    // Reload
+    await loadTeacherStudents(currentTeacherClassId);
+    
+    setTimeout(() => {
+      alert('✅ تم تسجيل الغياب بنجاح!\n\nسيتم تحديث التقارير الآن...');
+      window.showPastReports();
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Error saving absent record:', error);
+    statusDiv.textContent = '❌ خطأ في حفظ السجل: ' + error.message;
+    statusDiv.style.color = '#dc3545';
+  }
 }
 

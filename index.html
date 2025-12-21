@@ -25,7 +25,7 @@
     <div class="role-buttons-grid">
       <button class="role-button" onclick="window.selectRole('admin')">
         <div class="role-icon">👨‍💼</div>
-        <div class="role-name">مدير</div>
+        <div class="role-name">الإدارة</div>
         <div class="role-name-en">Admin</div>
       </button>
       <button class="role-button" onclick="window.selectRole('teacher')">
@@ -40,7 +40,7 @@
       </button>
       <button class="role-button" onclick="window.selectRole('viewer')">
         <div class="role-icon">📊</div>
-        <div class="role-name">عارض</div>
+        <div class="role-name">عارض الأجزاء</div>
         <div class="role-name-en">Viewer</div>
       </button>
     </div>
@@ -1061,35 +1061,59 @@
         </div>
       </div>
 
-      <!-- Inbox Panel -->
-      <div id="studentInboxPanel" style="display: none; position: fixed; top: 80px; right: 30px; width: 400px; max-height: 500px; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 1000; overflow: hidden;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; color: white; display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin: 0; font-size: 18px;">📬 الإشعارات</h3>
-          <button onclick="window.toggleStudentInbox()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">×</button>
+      <!-- Inbox Modal -->
+      <div id="studentInboxPanel" class="notifications-modal" style="display: none;">
+        <div class="notifications-modal-overlay" onclick="window.toggleStudentInbox()"></div>
+        <div class="notifications-modal-content" style="width: 90%; max-width: 500px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; color: white; display: flex; justify-content: space-between; align-items: center; border-radius: 12px 12px 0 0;">
+            <h3 style="margin: 0; font-size: 18px;">📬 الإشعارات</h3>
+            <button onclick="window.toggleStudentInbox()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">×</button>
+          </div>
+          <div id="studentInboxMessages" style="max-height: 400px; overflow-y: auto; padding: 15px; background: white;"></div>
         </div>
-        <div id="studentInboxMessages" style="max-height: 400px; overflow-y: auto; padding: 15px;"></div>
       </div>
 
-      <!-- Attendance Panel -->
-      <div id="studentAttendancePanel" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: white; border-radius: 15px; box-shadow: 0 4px 30px rgba(0,0,0,0.3); z-index: 1000; overflow: hidden;">
-        <div style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); padding: 20px; color: white;">
-          <h3 style="margin: 0; font-size: 20px;">📅 تقرير الحضور والغياب</h3>
-          <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;" id="studentAttendanceMonth"></p>
-        </div>
-        <div style="padding: 25px;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 20px; border-radius: 10px; text-align: center; color: white;">
-              <div style="font-size: 14px; margin-bottom: 5px;">✅ أيام الحضور</div>
-              <div id="studentPresentCount" style="font-size: 36px; font-weight: bold;">0</div>
-            </div>
-            <div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 20px; border-radius: 10px; text-align: center; color: white;">
-              <div style="font-size: 14px; margin-bottom: 5px;">❌ أيام الغياب</div>
-              <div id="studentAbsentCount" style="font-size: 36px; font-weight: bold;">0</div>
+      <!-- Attendance Modal -->
+      <div id="studentAttendancePanel" class="notifications-modal" style="display: none;">
+        <div class="notifications-modal-overlay" onclick="window.hideStudentAttendance()"></div>
+        <div class="notifications-modal-content" style="width: 90%; max-width: 450px;">
+          <div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 15px 20px; color: white; border-radius: 12px 12px 0 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h3 style="margin: 0; font-size: 18px;">📅 تقرير الغياب</h3>
+              <button onclick="window.hideStudentAttendance()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">×</button>
             </div>
           </div>
-          <button onclick="window.hideStudentAttendance()" style="width: 100%; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 16px;">
-            إغلاق
-          </button>
+          <div style="padding: 20px; background: white;">
+            <!-- Month Filter -->
+            <div style="margin-bottom: 20px;">
+              <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #555; font-weight: bold;">📆 اختر الشهر</label>
+              <select id="studentAttendanceMonthFilter" onchange="window.loadStudentAttendanceByMonth()" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; background: white;">
+                <option value="current-month">الشهر الحالي</option>
+              </select>
+            </div>
+            
+            <!-- Absent Days Summary -->
+            <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); padding: 15px; border-radius: 10px; text-align: center; color: white; margin-bottom: 15px;">
+              <div style="font-size: 13px; margin-bottom: 5px; opacity: 0.9;">❌ مجموع أيام الغياب</div>
+              <div id="studentTotalAbsentCount" style="font-size: 32px; font-weight: bold;">0</div>
+            </div>
+            
+            <!-- Breakdown -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+              <div style="background: #fff3cd; padding: 12px; border-radius: 8px; text-align: center; border: 2px solid #ffc107;">
+                <div style="font-size: 12px; margin-bottom: 3px; color: #856404;">📋 غياب بعذر</div>
+                <div id="studentAbsentWithExcuseCount" style="font-size: 24px; font-weight: bold; color: #856404;">0</div>
+              </div>
+              <div style="background: #f8d7da; padding: 12px; border-radius: 8px; text-align: center; border: 2px solid #dc3545;">
+                <div style="font-size: 12px; margin-bottom: 3px; color: #721c24;">⚠️ غياب بدون عذر</div>
+                <div id="studentAbsentWithoutExcuseCount" style="font-size: 24px; font-weight: bold; color: #721c24;">0</div>
+              </div>
+            </div>
+            
+            <button onclick="window.hideStudentAttendance()" style="width: 100%; padding: 10px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 14px;">
+              إغلاق
+            </button>
+          </div>
         </div>
       </div>
 
