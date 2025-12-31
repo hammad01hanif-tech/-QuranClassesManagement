@@ -320,6 +320,9 @@ async function selectStudent(studentId, studentName) {
   currentTeacherStudentId = studentId;
   currentTeacherStudentName = studentName;
   
+  // Reset assessment form for new student
+  resetAssessmentForm();
+  
   // Load full student data including level
   try {
     const studentDoc = await getDoc(doc(db, 'users', studentId));
@@ -886,13 +889,27 @@ window.saveTeacherAssessment = async function() {
     revisionFrom: revisionFrom,
     revisionTo: revisionTo,
     readingScore: scores.reading,
-    behaviorScore: scores.behavior,
-    extraLessonCount: parseInt(document.getElementById('teacherExtraLessons').value) || 0
+    behaviorScore: scores.behavior
   };
   
-  // Calculate total
+  // Get extra lesson data (if enabled)
+  const extraLessonData = getExtraLessonData();
+  if (extraLessonData) {
+    data.extraLessonFrom = extraLessonData.extraLessonFrom;
+    data.extraLessonTo = extraLessonData.extraLessonTo;
+    data.extraLessonScore = extraLessonData.extraLessonScore;
+    data.extraLessonCount = extraLessonData.extraLessonCount;
+    data.hasExtraLesson = true;
+  } else {
+    data.hasExtraLesson = false;
+    data.extraLessonScore = 0;
+    data.extraLessonCount = 0;
+  }
+  
+  // Calculate total (including extra lesson score)
   data.totalScore = data.asrPrayerScore + data.lessonScore + data.lessonSideScore
-                  + data.revisionScore + data.readingScore + data.behaviorScore;
+                  + data.revisionScore + data.readingScore + data.behaviorScore
+                  + data.extraLessonScore;
   
   // Add status field to mark as present (not absent)
   data.status = 'present';
@@ -921,9 +938,22 @@ window.saveTeacherAssessment = async function() {
   try {
     const targetDoc = doc(db, 'studentProgress', currentTeacherStudentId, 'dailyReports', dateId);
     await setDoc(targetDoc, data);
-    const maxScore = 30 + (data.lessonScore > 5 ? data.lessonScore - 5 : 0);
-    statusDiv.textContent = `✅ تم حفظ التقييم بنجاح — المجموع: ${data.totalScore}/${maxScore}`;
+    
+    // Calculate max score (30 base + extra lesson + any bonus from main lesson)
+    const mainLessonBonus = data.lessonScore > 5 ? data.lessonScore - 5 : 0;
+    const maxScore = 30 + mainLessonBonus + data.extraLessonScore;
+    
+    let successMessage = `✅ تم حفظ التقييم بنجاح — المجموع: ${data.totalScore}/${maxScore}`;
+    if (data.hasExtraLesson) {
+      successMessage += `\n⭐ يحتوي على درس إضافي (+${data.extraLessonScore} درجة)`;
+    }
+    
+    statusDiv.textContent = successMessage;
     statusDiv.style.color = '#51cf66';
+    statusDiv.style.whiteSpace = 'pre-line';
+    
+    // Reset assessment form for next student
+    resetAssessmentForm();
     
     // Reload attendance report if visible to update counts
     if (document.getElementById('classAttendanceReportSection')?.style.display !== 'none') {
@@ -1288,6 +1318,12 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
                     <div style="font-size: 16px; font-weight: bold; color: #00bcd4;">${report.behaviorScore || 0}</div>
                     <div style="font-size: 10px; color: #666;">السلوك</div>
                   </div>
+                  ${report.hasExtraLesson ? `
+                  <div style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); padding: 8px; border-radius: 6px; text-align: center; grid-column: span 3;">
+                    <div style="font-size: 16px; font-weight: bold; color: white;">⭐ +${report.extraLessonScore || 0}</div>
+                    <div style="font-size: 10px; color: white;">الدرس الإضافي</div>
+                  </div>
+                  ` : ''}
                 </div>
                 
                 <!-- Recitation Details -->
@@ -1296,6 +1332,13 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
                     <strong style="color: #2196f3;">📖 الدرس:</strong>
                     <div style="color: #666; margin-top: 2px; margin-right: 20px;">${lessonDetails}</div>
                   </div>
+                  ${report.hasExtraLesson ? `
+                  <div style="margin-bottom: 6px; padding: 10px; background: linear-gradient(135deg, rgba(255,107,107,0.1) 0%, rgba(254,202,87,0.1) 100%); border-right: 3px solid #ff6b6b; border-radius: 4px;">
+                    <strong style="color: #ff6b6b;">⭐ الدرس الإضافي (+${report.extraLessonScore}):</strong>
+                    <div style="color: #666; margin-top: 2px; margin-right: 20px;">من ${report.extraLessonFrom || 'غير محدد'} إلى ${report.extraLessonTo || 'غير محدد'}</div>
+                    <small style="color: #999; font-size: 11px;">${report.extraLessonCount || 0} درس إضافي</small>
+                  </div>
+                  ` : ''}
                   <div>
                     <strong style="color: #ff9800;">🔄 المراجعة:</strong>
                     <div style="color: #666; margin-top: 2px; margin-right: 20px;">${revisionDetails}</div>
@@ -1460,6 +1503,9 @@ function setupEventListeners() {
       
       currentTeacherStudentId = studentId;
       currentTeacherStudentName = studentText.split(' — ')[1] || studentId;
+      
+      // Reset assessment form for new student
+      resetAssessmentForm();
       
       selectedTeacherStudentSpan.textContent = studentText;
       teacherStudentActions.style.display = 'block';
@@ -3015,9 +3061,20 @@ window.viewReportDetails = function(dateId, reportData) {
           <strong>السلوك:</strong> ${report.behaviorScore || 0}/10
         </div>
         
+        ${report.hasExtraLesson ? `
+        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; border: 3px solid rgba(255,255,255,0.3);">
+          <div style="font-size: 24px; margin-bottom: 10px;">⭐</div>
+          <h3 style="margin: 0; font-size: 20px;">الدرس الإضافي</h3>
+          <p style="margin: 10px 0 5px 0; font-size: 28px; font-weight: bold;">+${report.extraLessonScore || 0} درجة</p>
+          <small style="opacity: 0.9; font-size: 13px; display: block; margin-top: 8px;">من: ${report.extraLessonFrom || '-'}</small>
+          <small style="opacity: 0.9; font-size: 13px; display: block;">إلى: ${report.extraLessonTo || '-'}</small>
+          <small style="opacity: 0.9; font-size: 12px; display: block; margin-top: 8px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 5px;">${report.extraLessonCount || 0} درس إضافي</small>
+        </div>
+        ` : ''}
+        
         <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; margin-top: 10px;">
-          <h3 style="margin: 0; font-size: 24px;">المجموع: ${report.totalScore || 0}/30</h3>
-          ${report.extraLessonCount > 0 ? `<p style="margin: 5px 0 0 0; font-size: 14px;">⭐ يحتوي على ${report.extraLessonCount} درس إضافي</p>` : ''}
+          <h3 style="margin: 0; font-size: 24px;">المجموع الكلي: ${report.totalScore || 0}/${30 + (report.extraLessonScore || 0)}</h3>
+          ${report.hasExtraLesson ? `<p style="margin: 8px 0 0 0; font-size: 13px; opacity: 0.9;">يشمل ${report.extraLessonScore} درجة من الدرس الإضافي</p>` : ''}
         </div>
       </div>
     `;
@@ -3160,18 +3217,39 @@ window.editReportDetails = function(dateId, reportData) {
             </div>
           </div>
           
-          <!-- Extra Lessons -->
-          <div style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; padding: 15px; border-radius: 8px;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">⭐ دروس إضافية (اختياري)</label>
-            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; align-items: center;">
-              <div>
-                <label style="font-size: 12px;">عدد الدروس الإضافية</label>
-                <input type="number" id="edit_extraLessonCount" value="${report.extraLessonCount || 0}" min="0" max="5" style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.9);">
+          <!-- Extra Lesson - الدرس الإضافي -->
+          <div style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; padding: 15px; border-radius: 8px; margin-top: 15px;">
+            <label style="font-weight: bold; display: block; margin-bottom: 10px; font-size: 16px;">⭐ الدرس الإضافي (اختياري)</label>
+            
+            <!-- Check if has extra lesson -->
+            <div style="margin-bottom: 10px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="edit_hasExtraLesson" ${report.hasExtraLesson ? 'checked' : ''} onchange="toggleEditExtraLesson()" style="width: 18px; height: 18px;">
+                <span>تفعيل الدرس الإضافي</span>
+              </label>
+            </div>
+            
+            <div id="editExtraLessonFields" style="display: ${report.hasExtraLesson ? 'block' : 'none'};">
+              <!-- Extra Lesson Range -->
+              <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+                <label style="font-size: 13px; display: block; margin-bottom: 8px;">📖 نطاق الدرس</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                  <div>
+                    <label style="font-size: 11px; opacity: 0.9;">من</label>
+                    <input type="text" id="edit_extraLessonFrom" value="${report.extraLessonFrom || ''}" placeholder="البقرة 1" style="width: 100%; padding: 6px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.95); font-size: 13px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; opacity: 0.9;">إلى</label>
+                    <input type="text" id="edit_extraLessonTo" value="${report.extraLessonTo || ''}" placeholder="البقرة 10" style="width: 100%; padding: 6px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.95); font-size: 13px;">
+                  </div>
+                </div>
               </div>
-              <div>
-                <small style="font-size: 11px; display: block; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;">
-                  💡 إذا سمّع الطالب درسين في نفس اليوم، ضع 1 هنا. سيُحتسب تلقائياً في التقارير.
-                </small>
+              
+              <!-- Extra Lesson Score -->
+              <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+                <label style="font-size: 13px; display: block; margin-bottom: 8px;">⭐ الدرجة (5-20)</label>
+                <input type="number" id="edit_extraLessonScore" value="${report.extraLessonScore || 5}" min="5" max="20" step="5" style="width: 100%; padding: 8px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: rgba(255,255,255,0.95); font-size: 14px;">
+                <small style="display: block; margin-top: 5px; font-size: 11px; opacity: 0.9;">💡 5 = درس واحد | 10 = درسين | 15 = ثلاثة | 20 = أربعة</small>
               </div>
             </div>
           </div>
@@ -3192,6 +3270,13 @@ window.editReportDetails = function(dateId, reportData) {
   document.body.insertAdjacentHTML('beforeend', modalHTML);
 };
 
+// Toggle extra lesson fields in edit modal
+window.toggleEditExtraLesson = function() {
+  const checkbox = document.getElementById('edit_hasExtraLesson');
+  const fields = document.getElementById('editExtraLessonFields');
+  fields.style.display = checkbox.checked ? 'block' : 'none';
+};
+
 // Save edited report
 window.saveEditedReport = async function(originalDateId) {
   try {
@@ -3201,9 +3286,22 @@ window.saveEditedReport = async function(originalDateId) {
     const asrPrayerScore = parseInt(document.getElementById('edit_asrPrayerScore').value) || 0;
     const readingScore = parseInt(document.getElementById('edit_readingScore').value) || 0;
     const behaviorScore = parseInt(document.getElementById('edit_behaviorScore').value) || 0;
-    const extraLessonCount = parseInt(document.getElementById('edit_extraLessonCount').value) || 0;
     
-    const totalScore = lessonScore + lessonSideScore + revisionScore + asrPrayerScore + readingScore + behaviorScore;
+    // Get extra lesson data
+    const hasExtraLesson = document.getElementById('edit_hasExtraLesson').checked;
+    let extraLessonScore = 0;
+    let extraLessonCount = 0;
+    let extraLessonFrom = '';
+    let extraLessonTo = '';
+    
+    if (hasExtraLesson) {
+      extraLessonScore = parseInt(document.getElementById('edit_extraLessonScore').value) || 0;
+      extraLessonCount = Math.floor(extraLessonScore / 5);
+      extraLessonFrom = document.getElementById('edit_extraLessonFrom').value.trim();
+      extraLessonTo = document.getElementById('edit_extraLessonTo').value.trim();
+    }
+    
+    const totalScore = lessonScore + lessonSideScore + revisionScore + asrPrayerScore + readingScore + behaviorScore + extraLessonScore;
     
     // Check if date was changed
     const newHijriDateInput = document.getElementById('edit_hijriDate').value.trim();
@@ -3252,7 +3350,11 @@ window.saveEditedReport = async function(originalDateId) {
       asrPrayerScore: asrPrayerScore,
       readingScore: readingScore,
       behaviorScore: behaviorScore,
+      hasExtraLesson: hasExtraLesson,
+      extraLessonScore: extraLessonScore,
       extraLessonCount: extraLessonCount,
+      extraLessonFrom: extraLessonFrom,
+      extraLessonTo: extraLessonTo,
       totalScore: totalScore,
       gregorianDate: newGregorianDate,
       lastModified: serverTimestamp()
@@ -5285,5 +5387,183 @@ async function saveAbsentRecordForDate(dateId, fullHijriDate) {
     statusDiv.textContent = '❌ خطأ في حفظ السجل: ' + error.message;
     statusDiv.style.color = '#dc3545';
   }
+}
+
+// ============================================
+// EXTRA LESSON MANAGEMENT - إدارة الدرس الإضافي
+// ============================================
+
+// Extra lesson score
+let extraLessonScore = 5;
+
+// Toggle extra lesson fields
+window.toggleExtraLessonFields = function() {
+  const checkbox = document.getElementById('enableExtraLesson');
+  const fields = document.getElementById('extraLessonFields');
+  
+  if (checkbox.checked) {
+    fields.style.display = 'block';
+    // Populate Surah dropdowns
+    populateExtraLessonSurahs();
+  } else {
+    fields.style.display = 'none';
+    // Reset fields
+    resetExtraLessonFields();
+  }
+};
+
+// Populate surah dropdowns for extra lesson
+function populateExtraLessonSurahs() {
+  const surahFromSelect = document.getElementById('extraLessonSurahFrom');
+  const surahToSelect = document.getElementById('extraLessonSurahTo');
+  
+  // Clear existing options except the first one
+  surahFromSelect.innerHTML = '<option value="">اختر السورة</option>';
+  surahToSelect.innerHTML = '<option value="">اختر السورة</option>';
+  
+  // Add all surahs
+  quranSurahs.forEach((surah, index) => {
+    const optionFrom = document.createElement('option');
+    optionFrom.value = index + 1;
+    optionFrom.textContent = `${index + 1}. ${surah.name}`;
+    surahFromSelect.appendChild(optionFrom);
+    
+    const optionTo = document.createElement('option');
+    optionTo.value = index + 1;
+    optionTo.textContent = `${index + 1}. ${surah.name}`;
+    surahToSelect.appendChild(optionTo);
+  });
+}
+
+// Update verse range for extra lesson
+window.updateExtraLessonVerses = function(type) {
+  const surahSelect = document.getElementById(`extraLessonSurah${type}`);
+  const verseInput = document.getElementById(`extraLessonVerse${type}`);
+  
+  if (surahSelect.value) {
+    const surahIndex = parseInt(surahSelect.value) - 1;
+    const maxVerses = quranSurahs[surahIndex].verses;
+    verseInput.max = maxVerses;
+    verseInput.placeholder = `من 1 إلى ${maxVerses}`;
+  }
+};
+
+// Change extra lesson score
+window.changeExtraLessonScore = function(delta) {
+  extraLessonScore = Math.max(5, Math.min(20, extraLessonScore + delta));
+  document.getElementById('extraLessonScoreDisplay').textContent = extraLessonScore;
+};
+
+// Reset extra lesson fields
+function resetExtraLessonFields() {
+  document.getElementById('extraLessonSurahFrom').value = '';
+  document.getElementById('extraLessonVerseFrom').value = '';
+  document.getElementById('extraLessonSurahTo').value = '';
+  document.getElementById('extraLessonVerseTo').value = '';
+  extraLessonScore = 5;
+  document.getElementById('extraLessonScoreDisplay').textContent = '5';
+}
+
+// Reset entire assessment form
+function resetAssessmentForm() {
+  // Reset extra lesson checkbox and fields
+  const extraLessonCheckbox = document.getElementById('enableExtraLesson');
+  if (extraLessonCheckbox) {
+    extraLessonCheckbox.checked = false;
+  }
+  
+  const extraLessonFields = document.getElementById('extraLessonFields');
+  if (extraLessonFields) {
+    extraLessonFields.style.display = 'none';
+  }
+  
+  // Reset extra lesson data
+  resetExtraLessonFields();
+  
+  // Reset main form fields
+  const formFields = [
+    'teacherAsrPrayer',
+    'teacherLesson',
+    'teacherLessonSideText',
+    'teacherRevision',
+    'teacherReading',
+    'teacherBehavior'
+  ];
+  
+  formFields.forEach(fieldId => {
+    const field = document.getElementById(fieldId);
+    if (field && field.type === 'range') {
+      field.value = '5';
+      const display = document.getElementById(fieldId + 'Display');
+      if (display) display.textContent = '5';
+    }
+  });
+  
+  // Reset surah and verse selects
+  const selectFields = [
+    'lessonSurahFrom', 'lessonSurahTo',
+    'revisionSurahFrom', 'revisionSurahTo'
+  ];
+  
+  selectFields.forEach(fieldId => {
+    const field = document.getElementById(fieldId);
+    if (field) field.value = '';
+  });
+  
+  const verseFields = [
+    'lessonVerseFrom', 'lessonVerseTo',
+    'revisionVerseFrom', 'revisionVerseTo'
+  ];
+  
+  verseFields.forEach(fieldId => {
+    const field = document.getElementById(fieldId);
+    if (field) field.value = '';
+  });
+  
+  // Reset lesson side text
+  const lessonSideText = document.getElementById('teacherLessonSideText');
+  if (lessonSideText) lessonSideText.value = '';
+  
+  // Reset recitation type to hifz
+  const hifzRadio = document.querySelector('input[name="recitationType"][value="hifz"]');
+  if (hifzRadio) hifzRadio.checked = true;
+  
+  // Clear status message
+  const statusDiv = document.getElementById('teacherAssessmentStatus');
+  if (statusDiv) statusDiv.textContent = '';
+}
+
+// Get extra lesson data
+function getExtraLessonData() {
+  const checkbox = document.getElementById('enableExtraLesson');
+  
+  if (!checkbox.checked) {
+    return null; // No extra lesson
+  }
+  
+  const surahFromSelect = document.getElementById('extraLessonSurahFrom');
+  const verseFrom = document.getElementById('extraLessonVerseFrom');
+  const surahToSelect = document.getElementById('extraLessonSurahTo');
+  const verseTo = document.getElementById('extraLessonVerseTo');
+  
+  // Validate
+  if (!surahFromSelect.value || !verseFrom.value || !surahToSelect.value || !verseTo.value) {
+    return null; // Incomplete data
+  }
+  
+  const extraLessonFrom = surahFromSelect.value && verseFrom.value 
+    ? `${surahFromSelect.options[surahFromSelect.selectedIndex].text.split('. ')[1]} ${verseFrom.value}`
+    : '';
+    
+  const extraLessonTo = surahToSelect.value && verseTo.value 
+    ? `${surahToSelect.options[surahToSelect.selectedIndex].text.split('. ')[1]} ${verseTo.value}`
+    : '';
+  
+  return {
+    extraLessonFrom,
+    extraLessonTo,
+    extraLessonScore,
+    extraLessonCount: Math.floor(extraLessonScore / 5) // حساب عدد الدروس
+  };
 }
 

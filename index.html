@@ -271,12 +271,16 @@
               <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
                 <p style="margin: 0; font-size: 14px;">📖 الدروس المنجزة</p>
                 <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold;" id="periodLessonsCount">0</p>
+                <p style="margin: 5px 0 0 0; font-size: 11px; opacity: 0.85;">يشمل الدروس الأساسية والإضافية</p>
               </div>
               <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; text-align: center;">
                 <p style="margin: 0; font-size: 14px;">📄 صفحات المراجعة</p>
                 <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: bold;" id="periodRevisionPages">0</p>
               </div>
             </div>
+            <p style="margin: 15px 0 0 0; font-size: 12px; text-align: center; opacity: 0.9;">
+              💡 الدروس المنجزة = الدروس من التقييم (5 درجات = درس واحد) + الدروس الإضافية
+            </p>
           </div>
         </div>
         
@@ -799,20 +803,63 @@
             </div>
           </div>
 
-          <!-- Extra Lessons (Optional) -->
-          <div class="form-group" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); padding: 15px; border-radius: 10px; margin-top: 20px;">
-            <label style="color: white; font-weight: bold; display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
-              ⭐ دروس إضافية (اختياري)
-              <span style="font-size: 11px; font-weight: normal; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px;">
-                💡 إذا سمّع درسين في نفس اليوم
-              </span>
-            </label>
-            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; align-items: center;">
-              <input type="number" id="teacherExtraLessons" min="0" max="5" value="0" placeholder="0" 
-                style="padding: 10px; border: 2px solid rgba(255,255,255,0.3); border-radius: 8px; font-size: 16px; text-align: center; background: rgba(255,255,255,0.9);">
-              <small style="color: white; font-size: 12px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px;">
-                سيُحتسب تلقائياً في التقارير (مثال: 1 = درسين، 2 = ثلاثة دروس)
-              </small>
+          <!-- Extra Lesson (Optional) - الدرس الإضافي -->
+          <div class="form-group" style="background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); padding: 20px; border-radius: 12px; margin-top: 20px; border: 3px solid rgba(255,255,255,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+              <label style="color: white; font-weight: bold; display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px;">
+                ⭐ الدرس الإضافي (اختياري)
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 20px; cursor: pointer;">
+                <input type="checkbox" id="enableExtraLesson" onchange="toggleExtraLessonFields()" style="width: 18px; height: 18px; cursor: pointer;">
+                <span style="color: white; font-weight: bold; font-size: 14px;">تفعيل</span>
+              </label>
+            </div>
+            
+            <div id="extraLessonFields" style="display: none;">
+              <!-- Extra Lesson Range -->
+              <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; margin-bottom: 12px;">
+                <label style="color: white; font-weight: bold; display: block; margin-bottom: 10px; font-size: 15px;">📖 نطاق الدرس الإضافي</label>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                  <div>
+                    <label style="color: rgba(255,255,255,0.9); font-size: 12px; display: block; margin-bottom: 5px;">من - السورة</label>
+                    <select id="extraLessonSurahFrom" onchange="updateExtraLessonVerses('From')" style="width: 100%; padding: 10px; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; background: rgba(255,255,255,0.95); font-size: 14px;">
+                      <option value="">اختر السورة</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="color: rgba(255,255,255,0.9); font-size: 12px; display: block; margin-bottom: 5px;">من - الآية</label>
+                    <input type="number" id="extraLessonVerseFrom" min="1" placeholder="رقم الآية" style="width: 100%; padding: 10px; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; background: rgba(255,255,255,0.95); font-size: 14px;">
+                  </div>
+                  <div>
+                    <label style="color: rgba(255,255,255,0.9); font-size: 12px; display: block; margin-bottom: 5px;">إلى - السورة</label>
+                    <select id="extraLessonSurahTo" onchange="updateExtraLessonVerses('To')" style="width: 100%; padding: 10px; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; background: rgba(255,255,255,0.95); font-size: 14px;">
+                      <option value="">اختر السورة</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="color: rgba(255,255,255,0.9); font-size: 12px; display: block; margin-bottom: 5px;">إلى - الآية</label>
+                    <input type="number" id="extraLessonVerseTo" min="1" placeholder="رقم الآية" style="width: 100%; padding: 10px; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; background: rgba(255,255,255,0.95); font-size: 14px;">
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Extra Lesson Score -->
+              <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px;">
+                <label style="color: white; font-weight: bold; display: block; margin-bottom: 10px; font-size: 15px;">⭐ تقييم الدرس الإضافي</label>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                  <button class="score-btn" onclick="changeExtraLessonScore(-5)" style="background: rgba(255,255,255,0.3); color: white; border: 2px solid white;">-</button>
+                  <div style="flex: 1; text-align: center;">
+                    <div id="extraLessonScoreDisplay" style="font-size: 36px; font-weight: bold; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">5</div>
+                    <small style="color: rgba(255,255,255,0.9); font-size: 12px; display: block; margin-top: 5px;">من 5 إلى 20 درجة</small>
+                  </div>
+                  <button class="score-btn" onclick="changeExtraLessonScore(5)" style="background: rgba(255,255,255,0.3); color: white; border: 2px solid white;">+</button>
+                </div>
+                <div style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; text-align: center;">
+                  <small style="color: white; font-size: 13px;">
+                    💡 <strong>5 درجات = درس واحد</strong> | 10 = درسين | 15 = ثلاثة | 20 = أربعة دروس
+                  </small>
+                </div>
+              </div>
             </div>
           </div>
 

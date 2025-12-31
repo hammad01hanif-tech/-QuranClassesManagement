@@ -1014,6 +1014,11 @@ function calculateStudentStatistics(reports) {
     const extraLessons = report.extraLessonCount || 0;
     const totalLessonsForDay = lessonsFromScore + extraLessons;
     
+    // Log extra lesson details if available
+    if (report.hasExtraLesson && extraLessons > 0) {
+      console.log(`  ⭐ Extra Lesson: ${report.extraLessonFrom || ''} → ${report.extraLessonTo || ''}, Score: ${report.extraLessonScore || 0}, Count: ${extraLessons}`);
+    }
+    
     // Calculate revision pages
     let revisionPages = 0;
     if (report.revisionScore > 0 && report.revisionFrom && report.revisionTo) {
@@ -1024,14 +1029,14 @@ function calculateStudentStatistics(reports) {
     if (isStudyDay && reportDateId >= weekStartHijriDate && reportDateId <= currentHijriDate) {
       weeklyLessons += totalLessonsForDay;
       weeklyRevisionPages += revisionPages;
-      console.log('📊 Weekly report:', reportDateId, '(Day:', reportDayOfWeek + ')', 'Lessons:', totalLessonsForDay, 'Pages:', revisionPages);
+      console.log('📊 Weekly report:', reportDateId, '(Day:', reportDayOfWeek + ')', 'Lessons:', totalLessonsForDay, `(${lessonsFromScore}+${extraLessons})`, 'Pages:', revisionPages);
     }
     
     // Monthly stats (last 30 days, only study days)
     if (isStudyDay && reportDateId >= monthAgoHijriDate && reportDateId <= currentHijriDate) {
       monthlyLessons += totalLessonsForDay;
       monthlyRevisionPages += revisionPages;
-      console.log('📈 Monthly report:', reportDateId, '(Day:', reportDayOfWeek + ')', 'Lessons:', totalLessonsForDay, 'Pages:', revisionPages);
+      console.log('📈 Monthly report:', reportDateId, '(Day:', reportDayOfWeek + ')', 'Lessons:', totalLessonsForDay, `(${lessonsFromScore}+${extraLessons})`, 'Pages:', revisionPages);
     }
   });
   
@@ -1299,6 +1304,11 @@ function calculateCustomPeriodStatistics(reports, totalDays) {
     const extraLessons = report.extraLessonCount || 0;
     const totalLessonsForDay = lessonsFromScore + extraLessons;
     
+    // Log details for debugging
+    if (extraLessons > 0) {
+      console.log(`  ⭐ ${report.dateId}: Extra Lesson Score=${report.extraLessonScore || 0}, Count=${extraLessons}, Range: ${report.extraLessonFrom || ''} → ${report.extraLessonTo || ''}`);
+    }
+    
     // Count revision pages - calculate from revisionFrom and revisionTo
     let revisionPages = 0;
     if (report.revisionScore > 0 && report.revisionFrom && report.revisionTo) {
@@ -1433,8 +1443,14 @@ function generateReportsTable(completeReports, totalDays) {
       clickHandler = `onclick="viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})"`;
     } else {
       const totalScore = report.totalScore || 0;
-      const statusColor = totalScore >= 25 ? '#28a745' : (totalScore >= 15 ? '#ffc107' : '#dc3545');
-      statusHTML = `<span style="color: ${statusColor}; font-weight: bold;">✅ ${totalScore}/30</span>`;
+      // Calculate max score dynamically
+      const lessonScore = report.lessonScore || 0;
+      const mainLessonBonus = lessonScore > 5 ? lessonScore - 5 : 0;
+      const extraLessonScore = report.extraLessonScore || 0;
+      const maxScore = 30 + mainLessonBonus + extraLessonScore;
+      const scorePercentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+      const statusColor = scorePercentage >= 80 ? '#28a745' : (scorePercentage >= 50 ? '#ffc107' : '#dc3545');
+      statusHTML = `<span style="color: ${statusColor}; font-weight: bold;">✅ ${totalScore}/${maxScore}</span>`;
       clickHandler = `onclick="viewReportDetails('${report.dateId}', ${JSON.stringify(report).replace(/"/g, '&quot;')})"`;
     }
     
@@ -1486,6 +1502,12 @@ window.viewReportDetails = function(dateId, report) {
   const extraLessons = report.extraLessonCount || 0;
   const totalLessonsForDay = lessonsFromScore + extraLessons;
   
+  // Get extra lesson details
+  const hasExtraLesson = report.hasExtraLesson || false;
+  const extraLessonScore = report.extraLessonScore || 0;
+  const extraLessonFrom = report.extraLessonFrom || '';
+  const extraLessonTo = report.extraLessonTo || '';
+  
   // Calculate revision pages
   let revisionPages = 0;
   if (report.revisionScore > 0 && report.revisionFrom && report.revisionTo) {
@@ -1496,6 +1518,18 @@ window.viewReportDetails = function(dateId, report) {
     }
   }
   
+  // Calculate max score (base 30 + main lesson bonus + extra lesson)
+  const mainLessonBonus = lessonScore > 5 ? lessonScore - 5 : 0;
+  const maxScore = 30 + mainLessonBonus + extraLessonScore;
+  
+  // Build extra lesson section
+  let extraLessonSection = '';
+  if (hasExtraLesson && extraLessonScore > 0) {
+    extraLessonSection = `
+الدرس الإضافي: ${extraLessonScore}/20 (من ${extraLessonFrom || '-'} إلى ${extraLessonTo || '-'})
+  └─ عدد الدروس الإضافية: ${extraLessons}`;
+  }
+  
   const details = `
 التاريخ الهجري: ${hijriDate}
 اليوم: ${dayName}
@@ -1504,15 +1538,17 @@ window.viewReportDetails = function(dateId, report) {
 
 === الدرجات ===
 صلاة العصر: ${report.asrPrayerScore || 0}/5
-الدرس: ${report.lessonScore || 0}/25 (من ${report.lessonFrom || '-'} إلى ${report.lessonTo || '-'})
-  └─ عدد الدروس المنجزة: ${totalLessonsForDay} (${lessonsFromScore} من الدرجة + ${extraLessons} إضافية)
+الدرس: ${lessonScore}/25 (من ${report.lessonFrom || '-'} إلى ${report.lessonTo || '-'})
+  └─ عدد الدروس من التقييم: ${lessonsFromScore}${extraLessonSection}
 جنب الدرس: ${report.lessonSideScore || 0}/5 (${report.lessonSideText || '-'})
 المراجعة: ${report.revisionScore || 0}/5 (من ${report.revisionFrom || '-'} إلى ${report.revisionTo || '-'})
   └─ عدد صفحات المراجعة: ${revisionPages}
 القراءة بالنظر: ${report.readingScore || 0}/5
 السلوك: ${report.behaviorScore || 0}/10
 
-المجموع الكلي: ${report.totalScore || 0}
+════════════════════
+إجمالي عدد الدروس المنجزة: ${totalLessonsForDay} (${lessonsFromScore} أساسي + ${extraLessons} إضافي)
+المجموع الكلي: ${report.totalScore || 0}/${maxScore}
   `;
   alert(details);
 };
@@ -2410,7 +2446,12 @@ window.exportComprehensiveReportPDF = async function() {
         const extraLessons = report.extraLessonCount || 0;
         totalLessons += lessonsFromScore + extraLessons;
         
-        console.log(`📊 PDF: ${report.dateId} - Lessons: ${lessonsFromScore + extraLessons} (score=${lessonScore})`);
+        console.log(`📊 PDF: ${report.dateId} - Lessons: ${lessonsFromScore + extraLessons} (main=${lessonsFromScore}, extra=${extraLessons}, score=${lessonScore})`);
+        
+        // Log extra lesson details if available
+        if (report.hasExtraLesson && extraLessons > 0) {
+          console.log(`  ⭐ Extra Lesson Details: ${report.extraLessonFrom || ''} → ${report.extraLessonTo || ''}, Score: ${report.extraLessonScore || 0}`);
+        }
         
         // Track first and last lesson
         if (lessonScore >= 5 && report.lessonFrom && report.lessonTo) {
