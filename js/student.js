@@ -518,6 +518,8 @@ function startStudentNotificationsListener(studentId) {
     studentNotificationsListener();
   }
   
+  console.log('🔔 Starting notifications listener for student:', studentId);
+  
   try {
     const q = query(
       collection(db, 'studentNotifications'),
@@ -527,6 +529,8 @@ function startStudentNotificationsListener(studentId) {
     
     studentNotificationsListener = onSnapshot(q, (snapshot) => {
       const unreadCount = snapshot.size;
+      console.log('📬 Unread notifications count:', unreadCount);
+      
       const badge = document.getElementById('studentInboxBadge');
       
       if (unreadCount > 0) {
@@ -549,31 +553,58 @@ function startStudentNotificationsListener(studentId) {
 async function loadStudentNotifications(studentId) {
   const container = document.getElementById('studentInboxMessages');
   
+  console.log('📥 Loading notifications for student:', studentId);
+  
   try {
     const q = query(
       collection(db, 'studentNotifications'),
-      where('studentId', '==', studentId),
-      orderBy('timestamp', 'desc')
+      where('studentId', '==', studentId)
     );
     
     const snapshot = await getDocs(q);
+    
+    console.log('📊 Total notifications found:', snapshot.size);
     
     if (snapshot.empty) {
       container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">لا توجد إشعارات</p>';
       return;
     }
     
-    let html = '';
+    // Convert to array and sort manually by createdAt
+    const notifications = [];
     snapshot.forEach(doc => {
-      const notification = doc.data();
+      const data = doc.data();
+      console.log('📬 Notification:', {
+        id: doc.id,
+        type: data.type,
+        teacherName: data.teacherName,
+        message: data.message?.substring(0, 50) + '...'
+      });
+      
+      notifications.push({
+        id: doc.id,
+        ...data
+      });
+    });
+    
+    // Sort by createdAt descending (newest first)
+    notifications.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return timeB - timeA;
+    });
+    
+    let html = '';
+    notifications.forEach(notification => {
       const isRead = notification.read;
+      const timestamp = notification.createdAt?.toDate ? notification.createdAt.toDate() : new Date();
       
       html += `
         <div style="background: ${isRead ? '#f8f9fa' : '#fff3cd'}; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 2px solid ${isRead ? '#e9ecef' : '#ffc107'};">
-          <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #333;">${notification.title || 'إشعار'}</div>
-          <div style="font-size: 13px; color: #666; margin-bottom: 8px;">${notification.message || ''}</div>
-          <div style="font-size: 12px; color: #999;">${new Date(notification.timestamp?.toDate()).toLocaleString('ar-SA')}</div>
-          ${!isRead ? `<button onclick="window.markStudentNotificationRead('${doc.id}')" style="margin-top: 10px; padding: 5px 15px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">تم القراءة</button>` : ''}
+          <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px; color: #333;">${notification.type === 'juz_passed' ? '🎉 رسالة اجتياز' : notification.type === 'juz_shared' ? '📝 تقرير مشارك' : 'إشعار'}</div>
+          <div style="font-size: 13px; color: #666; margin-bottom: 8px; white-space: pre-line;">${notification.message || ''}</div>
+          <div style="font-size: 12px; color: #999;">${timestamp.toLocaleString('ar-SA')}</div>
+          ${!isRead ? `<button onclick="window.markStudentNotificationRead('${notification.id}')" style="margin-top: 10px; padding: 5px 15px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">تم القراءة</button>` : ''}
         </div>
       `;
     });

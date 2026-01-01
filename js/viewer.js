@@ -234,6 +234,10 @@ window.saveNewJuzDisplay = async function() {
   const studentId = studentSelect.value;
   const studentName = studentSelect.options[studentSelect.selectedIndex].text;
   
+  // Get teacher name from select
+  const teacherSelect = document.getElementById('viewerTeacherSelect');
+  const teacherName = teacherSelect.options[teacherSelect.selectedIndex].text.split(' - ')[1] || 'غير محدد';
+  
   try {
     // Generate unique ID
     const reportId = `JUZ_${studentId}_${juzNumber}_${Date.now()}`;
@@ -243,6 +247,7 @@ window.saveNewJuzDisplay = async function() {
       studentId: studentId,
       studentName: studentName,
       teacherId: teacherId,
+      teacherName: teacherName,
       juzNumber: parseInt(juzNumber),
       lastLessonDate: normalizedLastLessonDate, // Stored in YYYY-MM-DD format
       displayDate: normalizedDisplayDate || null,
@@ -282,76 +287,83 @@ window.loadViewerStudentsByTeacher = async function() {
   const teacherId = document.getElementById('viewerReportTeacherSelect').value;
   const studentSelect = document.getElementById('viewerReportStudentSelect');
   
-  studentSelect.innerHTML = '<option value="">-- اختر الطالب --</option>';
+  studentSelect.innerHTML = '<option value="">-- جاري التحميل... --</option>';
   document.getElementById('viewerReportsContainer').innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">اختر الطالب لعرض التقارير</p>';
   
   if (!teacherId) return;
   
   try {
+    console.log('🔍 Loading students for teacher:', teacherId);
+    const startTime = performance.now();
+    
     // Get students from users collection where classId matches teacherId
-    const q = query(
+    const studentsQuery = query(
       collection(db, 'users'), 
       where('role', '==', 'student'),
       where('classId', '==', teacherId)
     );
-    const studentsSnap = await getDocs(q);
+    const studentsSnap = await getDocs(studentsQuery);
     
     if (studentsSnap.empty) {
       studentSelect.innerHTML = '<option value="">-- لا يوجد طلاب لهذا المعلم --</option>';
       return;
     }
     
+    // Get ALL juzDisplays for this teacher in ONE query (much faster!)
+    const juzQuery = query(
+      collection(db, 'juzDisplays'),
+      where('teacherId', '==', teacherId)
+    );
+    const allJuzSnap = await getDocs(juzQuery);
+    
+    // Create a map of studentId -> juz reports for quick lookup
+    const studentJuzMap = new Map();
+    allJuzSnap.forEach(doc => {
+      const data = doc.data();
+      const studentId = data.studentId;
+      
+      if (!studentJuzMap.has(studentId)) {
+        studentJuzMap.set(studentId, []);
+      }
+      
+      studentJuzMap.get(studentId).push({
+        juzNumber: data.juzNumber,
+        status: data.status,
+        displayDate: data.displayDate
+      });
+    });
+    
+    console.log(`📊 Total juzDisplays loaded: ${allJuzSnap.size}`);
+    
+    // Process students
     const students = [];
-    
-    console.log('🔍 Loading students for teacher:', teacherId);
-    
-    // For each student, check if they have incomplete Juz displays
-    for (const studentDoc of studentsSnap.docs) {
+    studentsSnap.forEach(studentDoc => {
       const student = studentDoc.data();
       const studentId = studentDoc.id;
       
-      // First, check ALL juzDisplays for this student to debug
-      const allJuzQuery = query(
-        collection(db, 'juzDisplays'),
-        where('teacherId', '==', teacherId),
-        where('studentId', '==', studentId)
-      );
-      const allJuzSnap = await getDocs(allJuzQuery);
-      
-      console.log(`📊 Student ${studentId}: Total juzDisplays = ${allJuzSnap.size}`);
-      allJuzSnap.forEach(doc => {
-        const data = doc.data();
-        console.log(`  - Juz ${data.juzNumber}: status = "${data.status}", displayDate = "${data.displayDate || 'empty'}"`);
-      });
-      
-      // Check if student has incomplete Juz displays (status = 'incomplete' OR displayDate is empty)
-      const juzQuery = query(
-        collection(db, 'juzDisplays'),
-        where('teacherId', '==', teacherId),
-        where('studentId', '==', studentId)
-      );
-      const juzSnap = await getDocs(juzQuery);
-      
-      // Check if any Juz has no displayDate or status is incomplete
+      // Check if student has incomplete Juz displays
       let hasIncomplete = false;
-      juzSnap.forEach(doc => {
-        const data = doc.data();
-        if (!data.displayDate || data.displayDate === '' || data.status === 'incomplete') {
-          hasIncomplete = true;
-        }
-      });
+      const studentJuzReports = studentJuzMap.get(studentId) || [];
       
-      console.log(`✅ Student ${studentId}: hasIncomplete = ${hasIncomplete}`);
+      for (const report of studentJuzReports) {
+        if (!report.displayDate || report.displayDate === '' || report.status === 'incomplete') {
+          hasIncomplete = true;
+          break;
+        }
+      }
       
       students.push({
         id: studentId,
         name: student.name || '(بدون اسم)',
         hasIncomplete: hasIncomplete
       });
-    }
+    });
     
     // Sort by student ID
     students.sort((a, b) => a.id.localeCompare(b.id));
+    
+    // Clear and repopulate select
+    studentSelect.innerHTML = '<option value="">-- اختر الطالب --</option>';
     
     // Add students to select with indicator for incomplete Juz
     students.forEach(student => {
@@ -371,6 +383,10 @@ window.loadViewerStudentsByTeacher = async function() {
       studentSelect.appendChild(option);
     });
     
+    const endTime = performance.now();
+    console.log(`✅ Students loaded in ${Math.round(endTime - startTime)}ms`);
+    console.log(`📊 Total students: ${students.length}`);
+    
   } catch (error) {
     console.error('Error loading students:', error);
     studentSelect.innerHTML = '<option value="">-- خطأ في تحميل الطلاب --</option>';
@@ -385,13 +401,21 @@ window.loadViewerJuzReports = async function() {
   
   if (!teacherId || !studentId) return;
   
+  // Show loading
+  container.innerHTML = '<p style="text-align: center; color: #667eea; padding: 40px;"><span style="font-size: 40px;">⏳</span><br>جاري تحميل التقارير...</p>';
+  
   try {
+    const startTime = performance.now();
+    
     const q = query(
       collection(db, 'juzDisplays'),
       where('teacherId', '==', teacherId),
       where('studentId', '==', studentId)
     );
     const snapshot = await getDocs(q);
+    
+    const endTime = performance.now();
+    console.log(`✅ Reports loaded in ${Math.round(endTime - startTime)}ms`);
     
     if (snapshot.empty) {
       container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">لا توجد تقارير لهذا الطالب</p>';
@@ -663,9 +687,19 @@ window.sendReportToTeacher = async function(reportId) {
     const durationText = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
     
     // Create notification message
+    const notificationMessage = `🎉 رسالة اجتياز\n\n✅ الطالب: ${data.studentName}\n👨‍🏫 المعلم: ${data.teacherName || 'غير محدد'}\n📖 الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${data.displayDate}\n⏱️ المدة المستغرقة: ${durationText}\n👤 العارض: ${data.viewerName}`;
+    
+    console.log('📤 Sending notification:', {
+      teacherId: data.teacherId,
+      studentId: data.studentId,
+      teacherName: data.teacherName,
+      message: notificationMessage
+    });
+    
     const notificationData = {
       type: 'juz_passed',
       teacherId: data.teacherId,
+      studentId: data.studentId,
       studentName: data.studentName,
       teacherName: data.teacherName || 'غير محدد',
       juzNumber: data.juzNumber,
@@ -673,13 +707,21 @@ window.sendReportToTeacher = async function(reportId) {
       duration: durationText,
       viewerName: data.viewerName,
       viewerId: data.viewerId || 'MZNBL01',
-      message: `🎉 رسالة اجتياز\n\n✅ الطالب: ${data.studentName}\n👨‍🏫 المعلم: ${data.teacherName || 'غير محدد'}\n📖 الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${data.displayDate}\n⏱️ المدة المستغرقة: ${durationText}\n👤 العارض: ${data.viewerName}`,
+      message: notificationMessage,
       createdAt: serverTimestamp(),
       read: false
     };
     
     // Save to teacherNotifications collection
     await setDoc(doc(collection(db, 'teacherNotifications')), notificationData);
+    console.log('✅ Teacher notification saved');
+    
+    // Save to studentNotifications collection (for the student)
+    await setDoc(doc(collection(db, 'studentNotifications')), {
+      ...notificationData,
+      studentId: data.studentId
+    });
+    console.log('✅ Student notification saved for studentId:', data.studentId);
     
     // Show success message
     const messageDiv = document.getElementById(`reportMessage_${reportId}`);
@@ -687,7 +729,7 @@ window.sendReportToTeacher = async function(reportId) {
     messageDiv.style.background = '#d4edda';
     messageDiv.style.color = '#155724';
     messageDiv.style.border = '1px solid #c3e6cb';
-    messageDiv.innerHTML = '✅ تم إرسال التقرير للمعلم بنجاح!';
+    messageDiv.innerHTML = '✅ تم إرسال التقرير للمعلم والطالب بنجاح!';
     
     setTimeout(() => {
       messageDiv.style.display = 'none';
@@ -737,6 +779,38 @@ window.shareReport = async function(reportId) {
 📱 مركز متون لتحفيظ القرآن
 ━━━━━━━━━━━━━━━━━━━━`;
     
+    // Save notification for teacher
+    await setDoc(doc(collection(db, 'teacherNotifications')), {
+      type: 'juz_shared',
+      teacherId: data.teacherId,
+      studentId: data.studentId,
+      studentName: data.studentName,
+      teacherName: data.teacherName || 'غير محدد',
+      juzNumber: data.juzNumber,
+      displayDate: data.displayDate,
+      duration: durationText,
+      viewerName: data.viewerName,
+      message: shareText,
+      createdAt: serverTimestamp(),
+      read: false
+    });
+    
+    // Save notification for student
+    await setDoc(doc(collection(db, 'studentNotifications')), {
+      type: 'juz_shared',
+      studentId: data.studentId,
+      teacherId: data.teacherId,
+      studentName: data.studentName,
+      teacherName: data.teacherName || 'غير محدد',
+      juzNumber: data.juzNumber,
+      displayDate: data.displayDate,
+      duration: durationText,
+      viewerName: data.viewerName,
+      message: shareText,
+      createdAt: serverTimestamp(),
+      read: false
+    });
+    
     // Copy to clipboard
     await navigator.clipboard.writeText(shareText);
     
@@ -746,7 +820,7 @@ window.shareReport = async function(reportId) {
     messageDiv.style.background = '#d1ecf1';
     messageDiv.style.color = '#0c5460';
     messageDiv.style.border = '1px solid #bee5eb';
-    messageDiv.innerHTML = '📋 تم نسخ التقرير! يمكنك الآن لصقه في واتساب';
+    messageDiv.innerHTML = '📋 تم نسخ التقرير وإرساله للمعلم والطالب!';
     
     setTimeout(() => {
       messageDiv.style.display = 'none';
