@@ -56,6 +56,7 @@ export async function initViewer() {
   await loadViewerTeachers();
   populateJuzNumbers();
   startViewerNotificationsListener();
+  await loadDailyQueue(); // Load daily queue on init
 }
 
 // Populate Juz numbers (1-30)
@@ -261,6 +262,9 @@ window.saveNewJuzDisplay = async function() {
     messageDiv.style.background = '#e8f5e9';
     messageDiv.style.color = '#2e7d32';
     messageDiv.textContent = '✅ تم حفظ التسجيل بنجاح!';
+    
+    // Reload daily queue
+    await loadDailyQueue();
     
     // Clear form
     document.getElementById('viewerStudentSelect').value = '';
@@ -652,6 +656,10 @@ window.updateJuzDisplayDate = async function(reportId) {
     });
     
     alert('✅ تم تحديث التاريخ بنجاح!');
+    
+    // Reload daily queue (student removed from queue)
+    await loadDailyQueue();
+    
     // Reload reports to show updated duration
     const teacherId = document.getElementById('viewerReportTeacherSelect').value;
     const studentId = document.getElementById('viewerReportStudentSelect').value;
@@ -1251,3 +1259,167 @@ function hijriToGregorianApprox(hijriYear, hijriMonth, hijriDay) {
   const daysFromEpoch = (hijriYear - 1) * 354.36 + (hijriMonth - 1) * 29.53 + hijriDay;
   return new Date(hijriEpoch.getTime() + daysFromEpoch * 24 * 60 * 60 * 1000);
 }
+
+// ============================================
+// DAILY QUEUE SYSTEM - جدول الطلاب الجاهزين
+// ============================================
+
+// Load daily queue of students ready for display
+window.loadDailyQueue = async function() {
+  const container = document.getElementById('dailyQueueContainer');
+  
+  if (!container) return;
+  
+  container.innerHTML = '<p style="text-align: center; color: #667eea; padding: 20px;">⏳ جاري التحميل...</p>';
+  
+  try {
+    console.log('📋 Loading daily queue...');
+    const startTime = performance.now();
+    
+    // Get today's Hijri date
+    const todayHijri = getTodayForStorage(); // Returns YYYY-MM-DD
+    
+    // Get all juzDisplays that don't have displayDate yet (pending displays)
+    const q = query(
+      collection(db, 'juzDisplays'),
+      where('status', '==', 'incomplete')
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">✅ لا توجد طلاب في قائمة الانتظار</p>';
+      return;
+    }
+    
+    // Process students
+    const queue = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const reportId = doc.id;
+      
+      // Only include if displayDate is empty or null
+      if (!data.displayDate || data.displayDate === '') {
+        // Calculate days since last lesson using accurate Hijri calendar
+        const daysSince = calculateHijriDaysDifference(data.lastLessonDate, todayHijri);
+        
+        queue.push({
+          reportId: reportId,
+          studentId: data.studentId,
+          studentName: data.studentName,
+          teacherId: data.teacherId,
+          teacherName: data.teacherName || 'غير محدد',
+          juzNumber: data.juzNumber,
+          lastLessonDate: data.lastLessonDate,
+          daysSince: daysSince
+        });
+      }
+    });
+    
+    // Sort by daysSince (descending - oldest first = highest priority)
+    queue.sort((a, b) => b.daysSince - a.daysSince);
+    
+    const endTime = performance.now();
+    console.log(`✅ Queue loaded in ${Math.round(endTime - startTime)}ms`);
+    console.log(`📊 Total students in queue: ${queue.length}`);
+    
+    // Build table HTML
+    if (queue.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">✅ لا توجد طلاب في قائمة الانتظار</p>';
+      return;
+    }
+    
+    let tableHTML = `
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <th style="padding: 12px; text-align: right; border-radius: 8px 0 0 0;">#</th>
+            <th style="padding: 12px; text-align: right;">اسم الطالب</th>
+            <th style="padding: 12px; text-align: right;">اسم المعلم</th>
+            <th style="padding: 12px; text-align: center;">الجزء</th>
+            <th style="padding: 12px; text-align: center; border-radius: 0 8px 0 0;">منذ</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    queue.forEach((student, index) => {
+      const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      const priorityColor = student.daysSince >= 7 ? '#dc3545' : student.daysSince >= 5 ? '#ffc107' : '#28a745';
+      const daysText = student.daysSince === 1 ? 'يوم واحد' : student.daysSince === 2 ? 'يومان' : `${student.daysSince} أيام`;
+      
+      tableHTML += `
+        <tr onclick="window.openQueueReport('${student.reportId}')" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
+          <td style="padding: 12px; font-weight: bold; color: #667eea;">${index + 1}</td>
+          <td style="padding: 12px; font-weight: bold;">${student.studentName}</td>
+          <td style="padding: 12px; color: #666;">${student.teacherName}</td>
+          <td style="padding: 12px; text-align: center; font-weight: bold; color: #764ba2;">الجزء ${student.juzNumber}</td>
+          <td style="padding: 12px; text-align: center;">
+            <span style="padding: 5px 12px; background: ${priorityColor}; color: white; border-radius: 15px; font-weight: bold; font-size: 13px;">
+              ${daysText}
+            </span>
+          </td>
+        </tr>
+      `;
+    });
+    
+    tableHTML += '</tbody></table>';
+    
+    container.innerHTML = tableHTML;
+    
+  } catch (error) {
+    console.error('Error loading daily queue:', error);
+    container.innerHTML = '<p style="text-align: center; color: #dc3545; padding: 20px;">❌ حدث خطأ في تحميل الجدول</p>';
+  }
+};
+
+// Open report from queue
+window.openQueueReport = async function(reportId) {
+  try {
+    console.log('📂 Opening report:', reportId);
+    
+    // Switch to reports tab
+    window.showViewerTab('reports');
+    
+    // Get report data
+    const reportDoc = await getDoc(doc(db, 'juzDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const data = reportDoc.data();
+    
+    // Set teacher select
+    const teacherSelect = document.getElementById('viewerReportTeacherSelect');
+    teacherSelect.value = data.teacherId;
+    
+    // Load students for this teacher
+    await loadViewerStudentsByTeacher();
+    
+    // Set student select
+    const studentSelect = document.getElementById('viewerReportStudentSelect');
+    studentSelect.value = data.studentId;
+    
+    // Load reports for this student
+    await loadViewerJuzReports();
+    
+    // Scroll to the specific report
+    setTimeout(() => {
+      const reportElement = document.getElementById(`displayDate_${reportId}`);
+      if (reportElement) {
+        reportElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        reportElement.focus();
+        reportElement.style.border = '3px solid #667eea';
+        setTimeout(() => {
+          reportElement.style.border = '1px solid #ddd';
+        }, 2000);
+      }
+    }, 500);
+    
+  } catch (error) {
+    console.error('Error opening report:', error);
+    alert('❌ حدث خطأ في فتح التقرير');
+  }
+};
