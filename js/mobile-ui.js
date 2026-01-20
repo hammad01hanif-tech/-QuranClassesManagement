@@ -69,13 +69,17 @@ function initCollapsibleCards() {
   });
 }
 
-window.toggleCollapse = function(header) {
+// Define toggleCollapse as a regular function first
+function toggleCollapse(header) {
   const content = header.nextElementSibling;
   const icon = header.querySelector('.collapse-icon');
   
   content.classList.toggle('active');
   icon.classList.toggle('active');
-};
+}
+
+// Make it available globally for inline onclick handlers
+window.toggleCollapse = toggleCollapse;
 
 // ============================================
 // TABLE TO MOBILE CARDS CONVERSION

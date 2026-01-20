@@ -823,9 +823,9 @@ function updateStruggleIndicator() {
 };
 
 // Save teacher assessment
-window.saveTeacherAssessment = async function() {
-  // Check if today is a study day
-  if (!isTodayAStudyDay()) {
+window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
+  // Check if today is a study day (skip this check when saving for past dates)
+  if (!skipWeekendCheck && !isTodayAStudyDay()) {
     alert('⚠️ لا يمكن حفظ التقييمات في أيام الإجازة (الجمعة والسبت)');
     return;
   }
@@ -842,9 +842,9 @@ window.saveTeacherAssessment = async function() {
   // Check student status (present or absent)
   const studentStatus = document.querySelector('input[name="studentStatus"]:checked').value;
   
-  // If student is absent, save absent record directly
+  // If student is absent, save absent record directly (pass skipWeekendCheck parameter)
   if (studentStatus === 'absent') {
-    await saveAbsentRecord();
+    await saveAbsentRecord(skipWeekendCheck);
     return;
   }
   
@@ -961,11 +961,17 @@ window.saveTeacherAssessment = async function() {
     }
     
     // Get recitation type from form (hifz or dabt)
-    const recitationType = document.querySelector('input[name="recitationType"]:checked').value;
+    let recitationType = document.querySelector('input[name="recitationType"]:checked')?.value;
     
     // Check if student completed a Juz based on STUDENT LEVEL AND recitation type
     let completedJuzNumber = null;
     const studentLevel = currentTeacherStudentData?.level || 'hifz';
+    
+    // If recitation type not found, use student level as default
+    if (!recitationType) {
+      recitationType = studentLevel;
+      console.warn('⚠️ recitationType not found in form, using student level:', studentLevel);
+    }
     
     // Debug log
     console.log('🔍 Juz Completion Check:', {
@@ -1060,9 +1066,8 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
   document.getElementById('monthlyExamSection').style.display = 'none';
   document.getElementById('attendanceReportSection').style.display = 'none';
   
-  // Show close button
-  const closeBtn = document.getElementById('closeSectionBtn');
-  if (closeBtn) closeBtn.style.display = 'block';
+  // Scroll to past reports section
+  document.getElementById('pastReportsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
   
   const container = document.getElementById('pastReportsContainer');
   container.innerHTML = '<p>جاري تحميل التقارير...</p>';
@@ -1147,11 +1152,36 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
       });
     }
     
+    // Create compact student info card with monthly score
+    const { rank, score } = getStudentRankAndScore(currentTeacherStudentId);
+    
+    let studentCardHTML = `
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 12px 15px; border-radius: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 3px 10px rgba(0,0,0,0.2);">
+        <div style="display: flex; gap: 20px; align-items: center;">
+          <div>
+            <div style="color: rgba(255,255,255,0.9); font-size: 11px; margin-bottom: 2px;">الطالب</div>
+            <div style="color: white; font-size: 14px; font-weight: bold;">${currentTeacherStudentName}</div>
+          </div>
+          <div style="border-left: 2px solid rgba(255,255,255,0.3); padding-left: 20px;">
+            <div style="color: rgba(255,255,255,0.9); font-size: 11px; margin-bottom: 2px;">الدرجة الشهرية</div>
+            <div style="color: white; font-size: 14px; font-weight: bold;">${score} نقطة</div>
+          </div>
+          <div>
+            <div style="color: rgba(255,255,255,0.9); font-size: 11px; margin-bottom: 2px;">الترتيب</div>
+            <div style="color: #ffd700; font-size: 14px; font-weight: bold;">#${rank}</div>
+          </div>
+        </div>
+        <button onclick="window.closeStudentReports()" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+          ✖ إغلاق
+        </button>
+      </div>
+    `;
+    
     // Create month filter dropdown
     let filterHTML = `
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
-        <label style="color: white; font-weight: bold; margin-left: 10px; font-size: 16px;">📅 فلترة حسب الشهر:</label>
-        <select id="monthFilter" onchange="window.showPastReports(this.value)" style="padding: 8px 15px; border-radius: 6px; border: 2px solid white; font-size: 14px; font-weight: bold; cursor: pointer; min-width: 200px;">
+      <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 2px solid #667eea;">
+        <label style="color: #667eea; font-weight: bold; margin-left: 10px; font-size: 14px;">📅 فلترة حسب الشهر:</label>
+        <select id="monthFilter" onchange="window.showPastReports(this.value)" style="padding: 8px 12px; border-radius: 6px; border: 2px solid #667eea; font-size: 14px; font-weight: bold; cursor: pointer; min-width: 180px; background: white; color: #667eea;">
           <option value="current-month" ${!selectedMonthFilter || selectedMonthFilter === 'current-month' ? 'selected' : ''}>الشهر الحالي</option>
     `;
     
@@ -1169,11 +1199,11 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
     const filteredReports = completeReports;
     
     if (filteredReports.length === 0) {
-      container.innerHTML = filterHTML + '<p class="small">لا توجد تقارير لهذا الشهر</p>';
+      container.innerHTML = studentCardHTML + filterHTML + '<p style="text-align: center; color: #999; padding: 20px;">لا توجد تقارير لهذا الشهر</p>';
       return;
     }
     
-    let tableHTML = `
+    let tableHTML = studentCardHTML + filterHTML + `
       <table class="reports-table compact-reports-table">
         <thead>
           <tr>
@@ -2924,6 +2954,8 @@ export function stopNotificationsListener() {
 
 // Send notification when student completes a Juz
 async function sendJuzCompletionNotification(studentId, studentName, teacherId, juzNumber, completionDate, recitationType = 'hifz') {
+  console.log('🎯 sendJuzCompletionNotification called:', { studentId, studentName, teacherId, juzNumber, completionDate, recitationType });
+  
   try {
     // Get Juz details based on recitation type
     const juzDetails = recitationType === 'hifz' 
@@ -2978,9 +3010,11 @@ async function sendJuzCompletionNotification(studentId, studentName, teacherId, 
     
     // Save to teacherNotifications collection
     await setDoc(doc(collection(db, 'teacherNotifications')), notificationData);
+    console.log('✅ Saved to teacherNotifications');
     
     // Save to viewerNotifications collection (for Parts Viewer)
     await setDoc(doc(collection(db, 'viewerNotifications')), notificationData);
+    console.log('✅ Saved to viewerNotifications');
     
     console.log(`✅ Juz ${juzNumber} completion notification (${typeText}) sent for student ${studentName}`);
     
@@ -3626,9 +3660,9 @@ async function addToTodayStrugglingReport(studentId, studentName, assessmentData
 }
 
 // Save absent record
-async function saveAbsentRecord() {
-  // Check if today is a study day
-  if (!isTodayAStudyDay()) {
+async function saveAbsentRecord(skipWeekendCheck = false) {
+  // Check if today is a study day (skip this check when saving for past dates)
+  if (!skipWeekendCheck && !isTodayAStudyDay()) {
     alert('⚠️ لا يمكن تسجيل الغياب في أيام الإجازة (الجمعة والسبت)');
     return;
   }
@@ -5198,15 +5232,16 @@ window.addMissingAssessment = async function(dateId, fullHijriDate) {
   const originalSave = window.saveTeacherAssessment;
   window.saveTeacherAssessment = async function() {
     if (!window.targetAssessmentDate) {
-      // No target date, use original save function
-      return originalSave();
+      // No target date, use original save function (with weekend check)
+      return originalSave(false);
     }
     
+    // Save for past date - SKIP weekend check
     // Use the target date instead of today
     const targetDateId = window.targetAssessmentDate;
     const targetHijriDate = window.targetAssessmentHijriDate;
     
-    console.log('💾 Saving assessment for date:', targetDateId, targetHijriDate);
+    console.log('💾 Saving assessment for past date:', targetDateId, targetHijriDate);
     
     if (!currentTeacherStudentId) {
       alert('الرجاء اختيار طالب');
@@ -5268,14 +5303,31 @@ window.addMissingAssessment = async function(dateId, fullHijriDate) {
       revisionFrom: revisionFrom,
       revisionTo: revisionTo,
       readingScore: scores.reading,
-      behaviorScore: scores.behavior,
-      extraLessonCount: parseInt(document.getElementById('teacherExtraLessons').value) || 0,
-      status: 'present',
-      date: serverTimestamp()
+      behaviorScore: scores.behavior
     };
     
+    // Get extra lesson data (if enabled)
+    const extraLessonData = getExtraLessonData();
+    if (extraLessonData) {
+      data.extraLessonFrom = extraLessonData.extraLessonFrom;
+      data.extraLessonTo = extraLessonData.extraLessonTo;
+      data.extraLessonScore = extraLessonData.extraLessonScore;
+      data.extraLessonCount = extraLessonData.extraLessonCount;
+      data.hasExtraLesson = true;
+    } else {
+      data.hasExtraLesson = false;
+      data.extraLessonScore = 0;
+      data.extraLessonCount = 0;
+    }
+    
+    // Add status field
+    data.status = 'present';
+    data.date = serverTimestamp();
+    
+    // Calculate total (including extra lesson score)
     data.totalScore = data.asrPrayerScore + data.lessonScore + data.lessonSideScore
-                    + data.revisionScore + data.readingScore + data.behaviorScore;
+                    + data.revisionScore + data.readingScore + data.behaviorScore
+                    + data.extraLessonScore;
     
     const missing = [];
     if (!data.lessonFrom || !data.lessonTo) missing.push('lesson');
@@ -5299,11 +5351,79 @@ window.addMissingAssessment = async function(dateId, fullHijriDate) {
       const targetDoc = doc(db, 'studentProgress', currentTeacherStudentId, 'dailyReports', targetDateId);
       await setDoc(targetDoc, data);
       
-      const maxScore = 30 + (data.lessonScore > 5 ? data.lessonScore - 5 : 0);
-      statusDiv.textContent = `✅ تم حفظ التقييم بنجاح لتاريخ ${targetHijriDate} — المجموع: ${data.totalScore}/${maxScore}`;
+      // Calculate max score (30 base + extra lesson + any bonus from main lesson)
+      const mainLessonBonus = data.lessonScore > 5 ? data.lessonScore - 5 : 0;
+      const maxScore = 30 + mainLessonBonus + data.extraLessonScore;
+      
+      let successMessage = `✅ تم حفظ التقييم بنجاح لتاريخ ${targetHijriDate} — المجموع: ${data.totalScore}/${maxScore}`;
+      if (data.hasExtraLesson) {
+        successMessage += `\n⭐ يحتوي على درس إضافي (+${data.extraLessonScore} درجة)`;
+      }
+      
+      // Check if student completed a Juz (same logic as original save function)
+      let completedJuzNumber = null;
+      const studentLevel = currentTeacherStudentData?.level || 'hifz';
+      
+      // Get recitation type - if not found, use student level as default
+      let recitationType = document.querySelector('input[name="recitationType"]:checked')?.value;
+      if (!recitationType) {
+        recitationType = studentLevel; // Default to student level
+        console.warn('⚠️ recitationType not found, using student level:', studentLevel);
+      }
+      
+      console.log('🔍 Juz Completion Check (Past Date):', {
+        recitationType,
+        studentLevel,
+        targetDate: targetDateId,
+        surahFrom: lessonSurahFrom.value,
+        ayahFrom: lessonVerseFrom.value,
+        surahTo: lessonSurahTo.value,
+        ayahTo: lessonVerseTo.value
+      });
+      
+      // Only check for students with matching level
+      if (recitationType === 'hifz' && studentLevel === 'hifz') {
+        if (lessonSurahFrom.value && lessonVerseFrom.value) {
+          const surahNumber = parseInt(lessonSurahFrom.value);
+          const startAyah = parseInt(lessonVerseFrom.value);
+          completedJuzNumber = isLastLessonInJuz(surahNumber, startAyah);
+          
+          if (completedJuzNumber) {
+            console.log(`✅ Hifz student completed Juz ${completedJuzNumber} on past date`);
+          }
+        }
+      } else if (recitationType === 'dabt' && studentLevel === 'dabt') {
+        if (lessonSurahTo.value && lessonVerseTo.value) {
+          const surahNumber = parseInt(lessonSurahTo.value);
+          const endAyah = parseInt(lessonVerseTo.value);
+          completedJuzNumber = isLastLessonInJuzDabt(surahNumber, endAyah);
+          
+          if (completedJuzNumber) {
+            console.log(`✅ Dabt student completed Juz ${completedJuzNumber} on past date`);
+          }
+        }
+      }
+      
+      // Send notification if Juz completed
+      if (completedJuzNumber) {
+        await sendJuzCompletionNotification(
+          currentTeacherStudentId,
+          currentTeacherStudentName,
+          currentTeacherClassId,
+          completedJuzNumber,
+          targetDateId,
+          recitationType
+        );
+        
+        const typeText = recitationType === 'hifz' ? 'حفظ' : 'ضبط';
+        successMessage += `\n🎉 تنبيه: أتم الطالب الجزء ${completedJuzNumber} (${typeText})!`;
+      }
+      
+      statusDiv.textContent = successMessage;
       statusDiv.style.color = '#28a745';
       statusDiv.style.background = '#d4edda';
       statusDiv.style.border = '2px solid #28a745';
+      statusDiv.style.whiteSpace = 'pre-line';
       
       // Clear target date
       window.targetAssessmentDate = null;
@@ -5567,3 +5687,48 @@ function getExtraLessonData() {
   };
 }
 
+// Return to teacher dashboard home
+window.showTeacherDashboard = function() {
+  // Hide all sections
+  document.getElementById('newAssessmentForm').style.display = 'none';
+  document.getElementById('pastReportsSection').style.display = 'none';
+  document.getElementById('strugglesSection').style.display = 'none';
+  document.getElementById('monthlyExamSection').style.display = 'none';
+  document.getElementById('classAttendanceReportSection').style.display = 'none';
+  document.getElementById('monthlyExamsManagementSection').style.display = 'none';
+  
+  // Show student list if a class is selected
+  if (currentTeacherClassId) {
+    loadTeacherStudents(currentTeacherClassId);
+  }
+};
+
+// Close student reports and return to student list
+window.closeStudentReports = function() {
+  // Hide past reports section
+  document.getElementById('pastReportsSection').style.display = 'none';
+  
+  // Clear current student selection
+  currentTeacherStudentId = null;
+  currentTeacherStudentName = null;
+  currentTeacherStudentData = null;
+  
+  // Hide student-specific sections
+  document.getElementById('teacherStudentActions').style.display = 'none';
+  document.getElementById('newAssessmentForm').style.display = 'none';
+  document.getElementById('strugglesSection').style.display = 'none';
+  document.getElementById('monthlyExamSection').style.display = 'none';
+  
+  // Reload student list and scroll to it
+  if (currentTeacherClassId) {
+    loadTeacherStudents(currentTeacherClassId);
+    
+    // Scroll to students grid
+    setTimeout(() => {
+      const studentsGrid = document.getElementById('studentsGridContainer');
+      if (studentsGrid) {
+        studentsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  }
+};

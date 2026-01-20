@@ -6,6 +6,8 @@ import { initStudent, stopStudentNotificationsListener } from './student.js';
 import { db, collection, getDocs, getDoc, doc, query, where } from '../firebase-config.js';
 import { formatAccurateHijriDate, getTodayAccurateHijri } from './accurate-hijri-dates.js';
 
+console.log('✅ Main.js is loading - defining window.selectRole');
+
 // Global role selection function - defined immediately
 window.selectRole = function(role) {
   console.log('Selected role:', role);

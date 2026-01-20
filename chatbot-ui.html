@@ -1,0 +1,464 @@
+<!-- Chatbot UI - واجهة المساعد الذكي -->
+<style>
+/* Chatbot Container */
+#chatbotContainer {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Chatbot Button */
+#chatbotToggleBtn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#chatbotToggleBtn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 30px rgba(102, 126, 234, 0.6);
+}
+
+#chatbotToggleBtn.active {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+/* Chatbot Window */
+#chatbotWindow {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 400px;
+  max-width: calc(100vw - 40px);
+  height: 600px;
+  max-height: calc(100vh - 120px);
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Chatbot Header */
+#chatbotHeader {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#chatbotHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+#chatbotHeader .user-info {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-top: 5px;
+}
+
+#chatbotCloseBtn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.3s;
+}
+
+#chatbotCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+/* Suggestions */
+#chatbotSuggestions {
+  padding: 15px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.suggestion-chip {
+  display: inline-block;
+  background: white;
+  border: 1px solid #667eea;
+  color: #667eea;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 13px;
+  margin-left: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.suggestion-chip:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Messages Container */
+#chatbotMessages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background: #fafafa;
+}
+
+/* Message Bubble */
+.message-bubble {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.message-bubble.user {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.message-bubble.bot {
+  background: white;
+  color: #333;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.message-bubble.bot .bot-icon {
+  display: inline-block;
+  margin-left: 5px;
+  font-size: 16px;
+}
+
+/* Typing Indicator */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  background: #667eea;
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Input Area */
+#chatbotInputArea {
+  padding: 15px;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+#chatbotInput {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 25px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s;
+}
+
+#chatbotInput:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+#chatbotSendBtn {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#chatbotSendBtn:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+#chatbotSendBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  #chatbotWindow {
+    width: calc(100vw - 20px);
+    height: calc(100vh - 100px);
+    right: 10px;
+    bottom: 80px;
+  }
+  
+  #chatbotToggleBtn {
+    width: 55px;
+    height: 55px;
+    font-size: 24px;
+  }
+}
+
+/* Scrollbar Styling */
+#chatbotMessages::-webkit-scrollbar {
+  width: 6px;
+}
+
+#chatbotMessages::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+#chatbotMessages::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 10px;
+}
+
+#chatbotMessages::-webkit-scrollbar-thumb:hover {
+  background: #764ba2;
+}
+</style>
+
+<!-- Chatbot HTML -->
+<div id="chatbotContainer">
+  <!-- Toggle Button -->
+  <button id="chatbotToggleBtn" onclick="toggleChatbot()" title="المساعد الذكي">
+    🤖
+  </button>
+  
+  <!-- Chatbot Window -->
+  <div id="chatbotWindow">
+    <!-- Header -->
+    <div id="chatbotHeader">
+      <div>
+        <h3>🤖 المساعد الذكي</h3>
+        <div class="user-info" id="chatbotUserInfo">مرحباً، كيف يمكنني مساعدتك؟</div>
+      </div>
+      <button id="chatbotCloseBtn" onclick="toggleChatbot()">×</button>
+    </div>
+    
+    <!-- Smart Suggestions -->
+    <div id="chatbotSuggestions">
+      <!-- سيتم ملؤها ديناميكياً -->
+    </div>
+    
+    <!-- Messages -->
+    <div id="chatbotMessages">
+      <div class="message-bubble bot">
+        <span class="bot-icon">🤖</span>
+        مرحباً! أنا المساعد الذكي لنظام إدارة الحلقات القرآنية. كيف يمكنني مساعدتك اليوم؟
+      </div>
+    </div>
+    
+    <!-- Input Area -->
+    <div id="chatbotInputArea">
+      <input 
+        type="text" 
+        id="chatbotInput" 
+        placeholder="اكتب سؤالك هنا..." 
+        onkeypress="if(event.key === 'Enter') sendChatbotMessage()"
+      />
+      <button id="chatbotSendBtn" onclick="sendChatbotMessage()">
+        ➤
+      </button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initChatbot, processChatbotQuery, getSmartSuggestions, currentUserContext } from './js/chatbot.js';
+
+// Global functions
+window.toggleChatbot = function() {
+  const window = document.getElementById('chatbotWindow');
+  const btn = document.getElementById('chatbotToggleBtn');
+  
+  if (window.style.display === 'none' || window.style.display === '') {
+    window.style.display = 'flex';
+    btn.classList.add('active');
+  } else {
+    window.style.display = 'none';
+    btn.classList.remove('active');
+  }
+};
+
+window.sendChatbotMessage = async function() {
+  const input = document.getElementById('chatbotInput');
+  const message = input.value.trim();
+  
+  if (!message) return;
+  
+  // Add user message to chat
+  addMessageToChat(message, 'user');
+  
+  // Clear input
+  input.value = '';
+  
+  // Show typing indicator
+  showTypingIndicator();
+  
+  try {
+    // Send to chatbot
+    const response = await processChatbotQuery(message);
+    
+    // Remove typing indicator
+    removeTypingIndicator();
+    
+    // Add bot response
+    addMessageToChat(response, 'bot');
+    
+  } catch (error) {
+    removeTypingIndicator();
+    addMessageToChat('عذراً، حدث خطأ في معالجة السؤال. يرجى المحاولة مرة أخرى.', 'bot');
+    console.error('Chatbot error:', error);
+  }
+};
+
+window.selectSuggestion = function(suggestion) {
+  document.getElementById('chatbotInput').value = suggestion;
+  sendChatbotMessage();
+};
+
+function addMessageToChat(message, type) {
+  const messagesContainer = document.getElementById('chatbotMessages');
+  const messageBubble = document.createElement('div');
+  messageBubble.className = `message-bubble ${type}`;
+  
+  if (type === 'bot') {
+    messageBubble.innerHTML = `<span class="bot-icon">🤖</span> ${message}`;
+  } else {
+    messageBubble.textContent = message;
+  }
+  
+  messagesContainer.appendChild(messageBubble);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function showTypingIndicator() {
+  const messagesContainer = document.getElementById('chatbotMessages');
+  const indicator = document.createElement('div');
+  indicator.className = 'message-bubble bot typing-indicator';
+  indicator.id = 'typingIndicator';
+  indicator.innerHTML = '<span></span><span></span><span></span>';
+  messagesContainer.appendChild(indicator);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function removeTypingIndicator() {
+  const indicator = document.getElementById('typingIndicator');
+  if (indicator) indicator.remove();
+}
+
+// Initialize chatbot when user logs in
+window.initializeChatbotForUser = function(userId, role, additionalContext) {
+  initChatbot(userId, role, additionalContext);
+  
+  // Update user info in header
+  const userInfo = document.getElementById('chatbotUserInfo');
+  userInfo.textContent = `${additionalContext.userName} - ${getRoleNameInArabic(role)}`;
+  
+  // Load suggestions
+  loadSuggestions();
+};
+
+function loadSuggestions() {
+  const suggestions = getSmartSuggestions();
+  const container = document.getElementById('chatbotSuggestions');
+  
+  container.innerHTML = suggestions
+    .map(s => `<span class="suggestion-chip" onclick="selectSuggestion('${s}')">${s}</span>`)
+    .join('');
+}
+
+function getRoleNameInArabic(role) {
+  const roles = {
+    'admin': 'إدارة',
+    'teacher': 'معلم',
+    'student': 'طالب',
+    'viewer': 'ولي أمر'
+  };
+  return roles[role] || 'مستخدم';
+}
+</script>
