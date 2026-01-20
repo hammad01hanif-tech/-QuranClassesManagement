@@ -1172,7 +1172,7 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
           </div>
         </div>
         <button onclick="window.closeStudentReports()" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-          ✖ إغلاق
+          ✖ إغلاق [v3.0]
         </button>
       </div>
     `;
