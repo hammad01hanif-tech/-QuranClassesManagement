@@ -1203,7 +1203,7 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
       return;
     }
     
-    let tableHTML = studentCardHTML + filterHTML + `
+    let tableHTML = `
       <table class="reports-table compact-reports-table keep-table" style="display: table !important;">
         <thead>
           <tr>
@@ -1401,7 +1401,7 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
       ? `<h4>إجمالي التقارير: ${filteredReports.length} من ${completeReports.length}</h4>`
       : `<h4>تقارير الشهر المحدد: ${filteredReports.length}</h4>`;
     
-    container.innerHTML = filterHTML + summaryText + tableHTML;
+    container.innerHTML = studentCardHTML + filterHTML + summaryText + tableHTML;
   } catch (error) {
     console.error('Error loading reports:', error);
     container.innerHTML = '<p style="color:red;">خطأ في تحميل التقارير</p>';
