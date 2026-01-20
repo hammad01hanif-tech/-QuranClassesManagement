@@ -219,3 +219,6 @@ function debounce(func, wait) {
 
 // Export for use in other modules
 export { initMobileUI, convertTablesToMobileCards, toggleCollapse };
+
+// Make convertTablesToMobileCards globally available
+window.convertTablesToMobileCards = convertTablesToMobileCards;
