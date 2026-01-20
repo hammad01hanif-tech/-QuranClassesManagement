@@ -1204,7 +1204,7 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
     }
     
     let tableHTML = studentCardHTML + filterHTML + `
-      <table class="reports-table compact-reports-table keep-table">
+      <table class="reports-table compact-reports-table keep-table" style="display: table !important;">
         <thead>
           <tr>
             <th>التاريخ</th>

@@ -1902,6 +1902,11 @@ label:has(input[type="radio"][name="recitationType"][value="dabt"]:checked) span
     display: none !important;
   }
   
+  /* Keep tables that should not be converted */
+  table.keep-table {
+    display: table !important;
+  }
+  
   /* Show Mobile Cards */
   .mobile-only {
     display: block !important;
