@@ -18,7 +18,6 @@ import {
 } from '../firebase-config.js';
 
 import { quranSurahs } from './quran-data.js';
-import { convertTablesToMobileCards } from './mobile-ui.js';
 import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, gregorianToHijri, isTodayAStudyDay } from './hijri-date.js';
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
 import { accurateHijriDates } from './accurate-hijri-dates.js';
@@ -1205,7 +1204,7 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
     }
     
     let tableHTML = studentCardHTML + filterHTML + `
-      <table class="reports-table compact-reports-table">
+      <table class="reports-table compact-reports-table keep-table">
         <thead>
           <tr>
             <th>التاريخ</th>
@@ -1403,13 +1402,6 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
       : `<h4>تقارير الشهر المحدد: ${filteredReports.length}</h4>`;
     
     container.innerHTML = filterHTML + summaryText + tableHTML;
-    
-    // Convert table to mobile cards immediately if on mobile
-    if (window.innerWidth <= 768) {
-      setTimeout(() => {
-        convertTablesToMobileCards();
-      }, 100);
-    }
   } catch (error) {
     console.error('Error loading reports:', error);
     container.innerHTML = '<p style="color:red;">خطأ في تحميل التقارير</p>';
