@@ -1401,6 +1401,7 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
       ? `<h4>إجمالي التقارير: ${filteredReports.length} من ${completeReports.length}</h4>`
       : `<h4>تقارير الشهر المحدد: ${filteredReports.length}</h4>`;
     
+    console.log('📊 Building reports HTML - Version 2.0');
     container.innerHTML = studentCardHTML + filterHTML + summaryText + tableHTML;
   } catch (error) {
     console.error('Error loading reports:', error);
