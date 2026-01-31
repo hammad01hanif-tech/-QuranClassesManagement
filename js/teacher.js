@@ -2,6 +2,7 @@
 import { 
   db, 
   collection, 
+  collectionGroup,
   getDocs, 
   getDoc,
   doc, 
@@ -78,6 +79,7 @@ export function initTeacher(teacherClassId) {
 
 // Load students for specific teacher's class
 async function loadTeacherStudents(classId) {
+  const startTime = performance.now();
   const studentsGridContainer = document.getElementById('studentsGridContainer');
   studentsGridContainer.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">⏳ جاري تحميل الطلاب...</p>';
   
@@ -92,6 +94,7 @@ async function loadTeacherStudents(classId) {
     console.log('📅 Today Hijri:', todayHijri);
     console.log('📅 Today Hijri ID:', todayHijriId);
     
+    const queryStartTime = performance.now();
     // Get students who belong to this teacher's class
     let q = query(
       collection(db, 'users'), 
@@ -99,37 +102,58 @@ async function loadTeacherStudents(classId) {
       where('classId', '==', classId)
     );
     let snap = await getDocs(q);
+    const queryEndTime = performance.now();
+    console.log(`⏱️ استعلام الطلاب: ${(queryEndTime - queryStartTime).toFixed(0)}ms`);
     
     if (snap.empty) {
       studentsGridContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 40px; font-size: 18px;">😔 لا يوجد طلاب في حلقتك</p>';
       return;
     }
     
-    const students = [];
+    // Get all student IDs first
+    const studentIds = snap.docs.map(d => d.id);
     
-    // Check each student for today's assessment
-    for (const d of snap.docs) {
+    // Fetch all today's assessments in ONE query using collectionGroup
+    const assessmentQueryStart = performance.now();
+    const assessedStudentsSet = new Set();
+    try {
+      const reportsQuery = query(
+        collectionGroup(db, 'dailyReports'),
+        where('__name__', '==', todayHijriId)
+      );
+      const reportsSnap = await getDocs(reportsQuery);
+      const assessmentQueryEnd = performance.now();
+      console.log(`⏱️ استعلام التقييمات: ${(assessmentQueryEnd - assessmentQueryStart).toFixed(0)}ms - عدد التقييمات: ${reportsSnap.size}`);
+      
+      // Extract student IDs from the paths
+      reportsSnap.forEach(doc => {
+        const pathParts = doc.ref.path.split('/');
+        // Path format: studentProgress/{studentId}/dailyReports/{dateId}
+        if (pathParts.length >= 2) {
+          const studentId = pathParts[1];
+          // Only add if student belongs to this class
+          if (studentIds.includes(studentId)) {
+            assessedStudentsSet.add(studentId);
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('Could not fetch today assessments:', err);
+    }
+    
+    // Build students array with assessment status
+    const students = snap.docs.map(d => {
       const dt = d.data();
       const studentId = d.id;
       
-      // Check if student has been assessed today
-      let assessedToday = false;
-      try {
-        const reportRef = doc(db, 'studentProgress', studentId, 'dailyReports', todayHijriId);
-        const reportSnap = await getDoc(reportRef);
-        assessedToday = reportSnap.exists();
-      } catch (err) {
-        console.warn(`Could not check assessment for ${studentId}:`, err);
-      }
-      
-      students.push({ 
+      return { 
         id: studentId, 
         name: dt.name || '(بدون اسم)',
         monthlyScore: dt.monthlyScore || 0,
         rank: dt.rank || 0,
-        assessedToday: assessedToday
-      });
-    }
+        assessedToday: assessedStudentsSet.has(studentId)
+      };
+    });
     
     students.sort((a, b) => a.id.localeCompare(b.id));
     
@@ -205,6 +229,10 @@ async function loadTeacherStudents(classId) {
       `;
       studentsGridContainer.appendChild(card);
     });
+    
+    const endTime = performance.now();
+    const totalTime = (endTime - startTime).toFixed(0);
+    console.log(`✅ تم تحميل ${students.length} طالب في ${totalTime}ms (${(totalTime/1000).toFixed(2)} ثانية)`);
     
   } catch (error) {
     console.error('Error loading students:', error);
