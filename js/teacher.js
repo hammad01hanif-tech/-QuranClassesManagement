@@ -337,7 +337,8 @@ async function selectStudent(studentId, studentName) {
   
   // Show student actions section
   document.getElementById('teacherStudentActions').style.display = 'block';
-  document.getElementById('selectedTeacherStudent').textContent = `${studentId} — ${studentName}`;
+  
+  // Student name and scores now shown in individual sections (like past reports card)
   
   // Load student data
   loadStudentMonthlyScore(studentId);
@@ -1171,8 +1172,8 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
             <div style="color: #ffd700; font-size: 14px; font-weight: bold;">#${rank}</div>
           </div>
         </div>
-        <button onclick="window.closeStudentReports()" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-          ✖ إغلاق [v3.0]
+        <button onclick="window.closeStudentReports()" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; transition: all 0.3s; min-width: 60px;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+          ✖
         </button>
       </div>
     `;
@@ -1918,15 +1919,10 @@ function getStudentRankAndScore(studentId) {
   return student ? { rank: student.rank, score: student.totalScore } : { rank: '-', score: 0 };
 }
 
-// Update student score display
+// Update student score display (kept for compatibility but elements removed from HTML)
 function updateStudentScoreDisplay(studentId) {
-  const { rank, score } = getStudentRankAndScore(studentId);
-  
-  const rankElement = document.getElementById('studentRankValue');
-  const scoreElement = document.getElementById('studentScoreValue');
-  
-  if (rankElement) rankElement.textContent = `#${rank}`;
-  if (scoreElement) scoreElement.textContent = score;
+  // Elements removed from HTML - this function is kept for compatibility
+  // The score and rank are now shown in the compact card in past reports section
 }
 
 // Load student monthly score
@@ -5705,31 +5701,36 @@ window.showTeacherDashboard = function() {
 };
 
 // Close student reports and return to student list
-window.closeStudentReports = function() {
-  // Hide past reports section
-  document.getElementById('pastReportsSection').style.display = 'none';
-  
-  // Clear current student selection
-  currentTeacherStudentId = null;
-  currentTeacherStudentName = null;
-  currentTeacherStudentData = null;
-  
-  // Hide student-specific sections
-  document.getElementById('teacherStudentActions').style.display = 'none';
-  document.getElementById('newAssessmentForm').style.display = 'none';
-  document.getElementById('strugglesSection').style.display = 'none';
-  document.getElementById('monthlyExamSection').style.display = 'none';
-  
-  // Reload student list and scroll to it
-  if (currentTeacherClassId) {
-    loadTeacherStudents(currentTeacherClassId);
+window.closeStudentReports = async function() {
+  try {
+    // Hide past reports section
+    document.getElementById('pastReportsSection').style.display = 'none';
     
-    // Scroll to students grid
-    setTimeout(() => {
-      const studentsGrid = document.getElementById('studentsGridContainer');
-      if (studentsGrid) {
-        studentsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
+    // Clear current student selection
+    currentTeacherStudentId = null;
+    currentTeacherStudentName = null;
+    currentTeacherStudentData = null;
+    
+    // Hide student-specific sections
+    document.getElementById('teacherStudentActions').style.display = 'none';
+    document.getElementById('newAssessmentForm').style.display = 'none';
+    document.getElementById('strugglesSection').style.display = 'none';
+    document.getElementById('monthlyExamSection').style.display = 'none';
+    
+    // Reload student list and scroll to it
+    if (currentTeacherClassId) {
+      await loadTeacherStudents(currentTeacherClassId);
+      
+      // Scroll to students grid after loading
+      setTimeout(() => {
+        const studentsGrid = document.getElementById('studentsGridContainer');
+        if (studentsGrid) {
+          studentsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  } catch (error) {
+    console.error('Error closing student reports:', error);
+    alert('حدث خطأ أثناء الإغلاق. جرب تحديث الصفحة.');
   }
 };
