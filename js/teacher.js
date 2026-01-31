@@ -2650,31 +2650,75 @@ window.saveExamResults = async function() {
     // Reset exam, close section and return to dashboard after 1.5 seconds
     setTimeout(() => {
       // Reset exam data without confirmation
-      document.getElementById('examQuestionsTableBody').innerHTML = '';
-      document.getElementById('examQuestionsContainer').style.display = 'none';
-      document.getElementById('examSaveStatus').textContent = '';
-      document.getElementById('sendExamToAdminBtn').style.display = 'none';
+      const questionsDisplay = document.getElementById('examQuestionsDisplay');
+      if (questionsDisplay) {
+        questionsDisplay.innerHTML = '';
+      }
       
-      // Reset all summary values
-      document.getElementById('examSumTanbih').textContent = '0';
-      document.getElementById('examSumKhata').textContent = '0';
-      document.getElementById('examSumTajweed').textContent = '0';
-      document.getElementById('examSumLahn').textContent = '0';
-      document.getElementById('examSumPoints').textContent = '0';
-      document.getElementById('examFinalScore').textContent = '0';
-      document.getElementById('examResultBadge').style.display = 'none';
+      const questionsContainer = document.getElementById('examQuestionsContainer');
+      if (questionsContainer) {
+        questionsContainer.style.display = 'none';
+      }
       
-      // Reset settings to defaults
-      document.getElementById('examQuestionsCount').value = '6';
-      document.getElementById('examMaxScore').value = '100';
-      document.getElementById('examPassPercent').value = '97';
-      document.getElementById('examWeightTanbih').value = '0.5';
-      document.getElementById('examWeightKhata').value = '1';
-      document.getElementById('examWeightTajweed').value = '2';
-      document.getElementById('examWeightLahn').value = '3';
+      const statusDiv = document.getElementById('examSaveStatus');
+      if (statusDiv) {
+        statusDiv.textContent = '';
+      }
+      
+      const sendBtn = document.getElementById('sendExamToAdminBtn');
+      if (sendBtn) {
+        sendBtn.style.display = 'none';
+      }
+      
+      // Reset all summary values with null checks
+      const tanbihEl = document.getElementById('examSumTanbih');
+      if (tanbihEl) tanbihEl.textContent = '0';
+      
+      const khataEl = document.getElementById('examSumKhata');
+      if (khataEl) khataEl.textContent = '0';
+      
+      const tajweedEl = document.getElementById('examSumTajweed');
+      if (tajweedEl) tajweedEl.textContent = '0';
+      
+      const lahnEl = document.getElementById('examSumLahn');
+      if (lahnEl) lahnEl.textContent = '0';
+      
+      const pointsEl = document.getElementById('examSumPoints');
+      if (pointsEl) pointsEl.textContent = '0';
+      
+      const finalScoreEl = document.getElementById('examFinalScore');
+      if (finalScoreEl) finalScoreEl.textContent = '0';
+      
+      const resultBadge = document.getElementById('examResultBadge');
+      if (resultBadge) resultBadge.style.display = 'none';
+      
+      // Reset settings to defaults with null checks
+      const questionsCount = document.getElementById('examQuestionsCount');
+      if (questionsCount) questionsCount.value = '6';
+      
+      const maxScore = document.getElementById('examMaxScore');
+      if (maxScore) maxScore.value = '100';
+      
+      const passPercent = document.getElementById('examPassPercent');
+      if (passPercent) passPercent.value = '97';
+      
+      const weightTanbih = document.getElementById('examWeightTanbih');
+      if (weightTanbih) weightTanbih.value = '0.5';
+      
+      const weightKhata = document.getElementById('examWeightKhata');
+      if (weightKhata) weightKhata.value = '1';
+      
+      const weightTajweed = document.getElementById('examWeightTajweed');
+      if (weightTajweed) weightTajweed.value = '2';
+      
+      const weightLahn = document.getElementById('examWeightLahn');
+      if (weightLahn) weightLahn.value = '3';
       
       // Close monthly exam section
-      document.getElementById('monthlyExamSection').style.display = 'none';
+      const examSection = document.getElementById('monthlyExamSection');
+      if (examSection) {
+        examSection.style.display = 'none';
+      }
       
       // Return to dashboard
       showTeacherDashboard();
@@ -2755,28 +2799,69 @@ window.sendExamScoreToAdmin = async function() {
 // Reset exam
 window.resetExam = function() {
   if (confirm('هل أنت متأكد من إعادة تعيين الاختبار؟')) {
-    document.getElementById('examQuestionsTableBody').innerHTML = '';
-    document.getElementById('examQuestionsContainer').style.display = 'none';
-    document.getElementById('examSaveStatus').textContent = '';
-    document.getElementById('sendExamToAdminBtn').style.display = 'none';
+    const questionsDisplay = document.getElementById('examQuestionsDisplay');
+    if (questionsDisplay) {
+      questionsDisplay.innerHTML = '';
+    }
     
-    // Reset all summary values
-    document.getElementById('examSumTanbih').textContent = '0';
-    document.getElementById('examSumKhata').textContent = '0';
-    document.getElementById('examSumTajweed').textContent = '0';
-    document.getElementById('examSumLahn').textContent = '0';
-    document.getElementById('examSumPoints').textContent = '0';
-    document.getElementById('examFinalScore').textContent = '0';
-    document.getElementById('examResultBadge').style.display = 'none';
+    const questionsContainer = document.getElementById('examQuestionsContainer');
+    if (questionsContainer) {
+      questionsContainer.style.display = 'none';
+    }
     
-    // Reset settings to defaults
-    document.getElementById('examQuestionsCount').value = '6';
-    document.getElementById('examMaxScore').value = '100';
-    document.getElementById('examPassPercent').value = '97';
-    document.getElementById('examWeightTanbih').value = '0.5';
-    document.getElementById('examWeightKhata').value = '1';
-    document.getElementById('examWeightTajweed').value = '2';
-    document.getElementById('examWeightLahn').value = '3';
+    const statusDiv = document.getElementById('examSaveStatus');
+    if (statusDiv) {
+      statusDiv.textContent = '';
+    }
+    
+    const sendBtn = document.getElementById('sendExamToAdminBtn');
+    if (sendBtn) {
+      sendBtn.style.display = 'none';
+    }
+    
+    // Reset all summary values with null checks
+    const tanbihEl = document.getElementById('examSumTanbih');
+    if (tanbihEl) tanbihEl.textContent = '0';
+    
+    const khataEl = document.getElementById('examSumKhata');
+    if (khataEl) khataEl.textContent = '0';
+    
+    const tajweedEl = document.getElementById('examSumTajweed');
+    if (tajweedEl) tajweedEl.textContent = '0';
+    
+    const lahnEl = document.getElementById('examSumLahn');
+    if (lahnEl) lahnEl.textContent = '0';
+    
+    const pointsEl = document.getElementById('examSumPoints');
+    if (pointsEl) pointsEl.textContent = '0';
+    
+    const finalScoreEl = document.getElementById('examFinalScore');
+    if (finalScoreEl) finalScoreEl.textContent = '0';
+    
+    const resultBadge = document.getElementById('examResultBadge');
+    if (resultBadge) resultBadge.style.display = 'none';
+    
+    // Reset settings to defaults with null checks
+    const questionsCount = document.getElementById('examQuestionsCount');
+    if (questionsCount) questionsCount.value = '6';
+    
+    const maxScore = document.getElementById('examMaxScore');
+    if (maxScore) maxScore.value = '100';
+    
+    const passPercent = document.getElementById('examPassPercent');
+    if (passPercent) passPercent.value = '97';
+    
+    const weightTanbih = document.getElementById('examWeightTanbih');
+    if (weightTanbih) weightTanbih.value = '0.5';
+    
+    const weightKhata = document.getElementById('examWeightKhata');
+    if (weightKhata) weightKhata.value = '1';
+    
+    const weightTajweed = document.getElementById('examWeightTajweed');
+    if (weightTajweed) weightTajweed.value = '2';
+    
+    const weightLahn = document.getElementById('examWeightLahn');
+    if (weightLahn) weightLahn.value = '3';
   }
 };
 
