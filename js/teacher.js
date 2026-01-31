@@ -1077,9 +1077,11 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     // Reload student list to update assessment indicators
     await loadTeacherStudents(currentTeacherClassId);
     
+    // Close form and return to dashboard after 1.5 seconds
     setTimeout(() => {
-      showNewAssessment();
-    }, 2000);
+      document.getElementById('newAssessmentForm').style.display = 'none';
+      showTeacherDashboard();
+    }, 1500);
   } catch (error) {
     console.error('Error saving assessment:', error);
     statusDiv.textContent = '❌ خطأ في حفظ التقييم: ' + error.message;
@@ -3752,12 +3754,15 @@ async function saveAbsentRecord(skipWeekendCheck = false) {
       await loadClassAttendanceReport(currentTeacherClassId);
     }
     
+    // Close form and return to dashboard after 1.5 seconds
     setTimeout(() => {
-      showNewAssessment();
       // Reset to present
       document.querySelector('input[name="studentStatus"][value="present"]').checked = true;
       toggleAbsentMode();
-    }, 2000);
+      // Close form
+      document.getElementById('newAssessmentForm').style.display = 'none';
+      showTeacherDashboard();
+    }, 1500);
     
   } catch (error) {
     console.error('Error saving absent record:', error);
