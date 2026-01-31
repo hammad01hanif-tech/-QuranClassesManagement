@@ -5227,11 +5227,15 @@ window.addMissingAssessment = async function(dateId, fullHijriDate) {
   }
   
   // Override the save function to use the target date
-  const originalSave = window.saveTeacherAssessment;
+  // Store original if not already stored
+  if (!window.originalSaveTeacherAssessment) {
+    window.originalSaveTeacherAssessment = window.saveTeacherAssessment;
+  }
+  
   window.saveTeacherAssessment = async function() {
     if (!window.targetAssessmentDate) {
       // No target date, use original save function (with weekend check)
-      return originalSave(false);
+      return window.originalSaveTeacherAssessment(false);
     }
     
     // Save for past date - SKIP weekend check
@@ -5427,8 +5431,8 @@ window.addMissingAssessment = async function(dateId, fullHijriDate) {
       window.targetAssessmentDate = null;
       window.targetAssessmentHijriDate = null;
       
-      // Restore original save function
-      window.saveTeacherAssessment = originalSave;
+      // Don't restore - keep override active for next time
+      // Original function stored in window.originalSaveTeacherAssessment
       
       // Reload monthly scores and student list
       await loadMonthlyScores(currentTeacherClassId);
@@ -5451,7 +5455,7 @@ window.addMissingAssessment = async function(dateId, fullHijriDate) {
       // Clear target date on error
       window.targetAssessmentDate = null;
       window.targetAssessmentHijriDate = null;
-      window.saveTeacherAssessment = originalSave;
+      // Don't restore - keep override active
     }
   };
 };
