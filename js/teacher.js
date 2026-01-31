@@ -1731,6 +1731,7 @@ window.sendStrugglingToAdmin = async function() {
 
 // Load monthly scores for all students in the class
 async function loadMonthlyScores(classId) {
+  const startTime = performance.now();
   try {
     // Get current Hijri month and year
     const now = new Date();
@@ -1750,72 +1751,98 @@ async function loadMonthlyScores(classId) {
     // Create Hijri month prefix (e.g., "1447-06" for all dates in Jumada al-Akhirah 1447)
     const hijriMonthPrefix = `${currentHijriYear}-${currentHijriMonth}`;
     
-    // Get all students in this class
+    // Step 1: Get all students in this class
+    const studentsQueryStart = performance.now();
     const studentsQuery = query(
       collection(db, 'users'),
       where('role', '==', 'student'),
       where('classId', '==', classId)
     );
     const studentsSnap = await getDocs(studentsQuery);
+    console.log(`⏱️ استعلام الطلاب: ${(performance.now() - studentsQueryStart).toFixed(0)}ms - عدد الطلاب: ${studentsSnap.size}`);
     
-    const studentsScores = [];
+    // Create student IDs set for filtering
+    const studentIds = new Set(studentsSnap.docs.map(doc => doc.id));
+    const studentNames = {};
+    studentsSnap.docs.forEach(doc => {
+      studentNames[doc.id] = doc.data().name || doc.id;
+    });
     
-    // Calculate scores for each student
-    for (const studentDoc of studentsSnap.docs) {
-      const studentId = studentDoc.id;
-      const studentData = studentDoc.data();
-      const studentName = studentData.name || studentId;
-      
-      // Get all daily reports for this student in current Hijri month
-      const reportsSnap = await getDocs(
-        collection(db, 'studentProgress', studentId, 'dailyReports')
-      );
-      
-      let totalScore = 0;
-      let daysCount = 0;
-      
-      reportsSnap.forEach(reportDoc => {
-        const reportDateId = reportDoc.id; // This is in Hijri format: YYYY-MM-DD
+    // Step 2: Fetch ALL daily reports for current month using collectionGroup
+    const reportsQueryStart = performance.now();
+    const allReportsQuery = query(
+      collectionGroup(db, 'dailyReports')
+    );
+    const allReportsSnap = await getDocs(allReportsQuery);
+    console.log(`⏱️ استعلام التقارير: ${(performance.now() - reportsQueryStart).toFixed(0)}ms - عدد التقارير: ${allReportsSnap.size}`);
+    
+    // Step 3: Process reports in memory and filter by month and class
+    const studentScoresMap = new Map();
+    
+    // Initialize all students with 0 scores
+    studentIds.forEach(id => {
+      studentScoresMap.set(id, {
+        id,
+        name: studentNames[id],
+        totalScore: 0,
+        daysCount: 0,
+        examScore: 0,
+        average: 0
+      });
+    });
+    
+    // Process daily reports
+    allReportsSnap.forEach(reportDoc => {
+      const pathParts = reportDoc.ref.path.split('/');
+      // Path format: studentProgress/{studentId}/dailyReports/{dateId}
+      if (pathParts.length >= 2) {
+        const studentId = pathParts[1];
+        const reportDateId = reportDoc.id;
         
-        // Check if report is from current Hijri month (compare YYYY-MM prefix)
-        if (reportDateId.startsWith(hijriMonthPrefix)) {
+        // Only process if student belongs to this class and report is from current month
+        if (studentIds.has(studentId) && reportDateId.startsWith(hijriMonthPrefix)) {
           const reportData = reportDoc.data();
-          totalScore += reportData.totalScore || 0;
-          daysCount++;
-        }
-      });
-      
-      // Get exam score from actual exam reports (not from user data)
-      let examScore = 0;
-      try {
-        const examReportsSnap = await getDocs(
-          collection(db, 'studentProgress', studentId, 'examReports')
-        );
-        
-        // Check if there's an exam report for current month
-        examReportsSnap.forEach(examDoc => {
-          const examDateId = examDoc.id;
-          // Check if exam is from current Hijri month
-          if (examDateId.startsWith(hijriMonthPrefix)) {
-            const examData = examDoc.data();
-            examScore = examData.finalScore || 0;
+          const studentData = studentScoresMap.get(studentId);
+          if (studentData) {
+            studentData.totalScore += reportData.totalScore || 0;
+            studentData.daysCount++;
           }
-        });
-      } catch (error) {
-        console.warn(`Could not load exam reports for ${studentId}:`, error);
+        }
       }
-      
-      const average = (examScore > 0) ? ((totalScore + examScore) / 2) : 0;
-      
-      studentsScores.push({
-        id: studentId,
-        name: studentName,
-        totalScore: totalScore,
-        daysCount: daysCount,
-        examScore: examScore,
-        average: average // Average = 0 if no exam
-      });
-    }
+    });
+    
+    // Step 4: Fetch ALL exam reports using collectionGroup
+    const examsQueryStart = performance.now();
+    const allExamsQuery = query(
+      collectionGroup(db, 'examReports')
+    );
+    const allExamsSnap = await getDocs(allExamsQuery);
+    console.log(`⏱️ استعلام الاختبارات: ${(performance.now() - examsQueryStart).toFixed(0)}ms - عدد الاختبارات: ${allExamsSnap.size}`);
+    
+    // Process exam reports
+    allExamsSnap.forEach(examDoc => {
+      const pathParts = examDoc.ref.path.split('/');
+      // Path format: studentProgress/{studentId}/examReports/{dateId}
+      if (pathParts.length >= 2) {
+        const studentId = pathParts[1];
+        const examDateId = examDoc.id;
+        
+        // Only process if student belongs to this class and exam is from current month
+        if (studentIds.has(studentId) && examDateId.startsWith(hijriMonthPrefix)) {
+          const examData = examDoc.data();
+          const studentData = studentScoresMap.get(studentId);
+          if (studentData) {
+            studentData.examScore = examData.finalScore || 0;
+          }
+        }
+      }
+    });
+    
+    // Step 5: Calculate averages and convert to array
+    const studentsScores = Array.from(studentScoresMap.values());
+    studentsScores.forEach(student => {
+      student.average = (student.examScore > 0) ? ((student.totalScore + student.examScore) / 2) : 0;
+    });
     
     // Sort by average (descending)
     studentsScores.sort((a, b) => b.average - a.average);
@@ -1827,6 +1854,9 @@ async function loadMonthlyScores(classId) {
     
     // Store for later use
     window.currentClassScores = studentsScores;
+    
+    const endTime = performance.now();
+    console.log(`✅ تم تحميل ترتيب ${studentsScores.length} طالب في ${(endTime - startTime).toFixed(0)}ms (${((endTime - startTime)/1000).toFixed(2)} ثانية)`);
     
     // Display the scores
     displayMonthlyScores(studentsScores);
@@ -1882,6 +1912,12 @@ function displayMonthlyScores(studentsScores) {
       </div>
     `;
   }).join('');
+  
+  // Show the monthly scores section
+  const monthlyScoresSection = document.getElementById('monthlyScoresSection');
+  if (monthlyScoresSection) {
+    monthlyScoresSection.style.display = 'block';
+  }
 }
 
 // Edit student exam score manually
