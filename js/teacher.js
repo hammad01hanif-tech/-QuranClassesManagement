@@ -5462,8 +5462,11 @@ window.addMissingAssessment = async function(dateId, fullHijriDate) {
 
 // Save absent record for specific date
 async function saveAbsentRecordForDate(dateId, fullHijriDate) {
+  console.log('🔧 saveAbsentRecordForDate v3.1 - معالجة حفظ الغياب');
   const excuseTypeElement = document.querySelector('input[name="excuseType"]:checked');
+  console.log('📝 excuseTypeElement:', excuseTypeElement);
   const excuseType = excuseTypeElement ? excuseTypeElement.value : 'withoutExcuse';
+  console.log('✅ excuseType:', excuseType);
   const excuseText = excuseType === 'withExcuse' ? 'بعذر' : 'بدون عذر';
   
   const statusDiv = document.getElementById('teacherStatus');
