@@ -25,7 +25,7 @@ import { accurateHijriDates } from './accurate-hijri-dates.js';
 // DOM Elements
 const teacherStudentSelect = document.getElementById('teacherStudentSelect');
 const teacherStudentActions = document.getElementById('teacherStudentActions');
-const selectedTeacherStudentSpan = document.getElementById('selectedTeacherStudent');
+// selectedTeacherStudentSpan removed - element no longer exists in HTML
 
 let currentTeacherStudentId = null;
 let currentTeacherStudentName = null;
@@ -1539,10 +1539,11 @@ function setupEventListeners() {
       // Reset assessment form for new student
       resetAssessmentForm();
       
-      selectedTeacherStudentSpan.textContent = studentText;
+      // selectedTeacherStudentSpan element removed from HTML
+      // Student name now shown in individual section cards
       teacherStudentActions.style.display = 'block';
       
-      // Update student score and rank display
+      // Update student score and rank display (kept for compatibility)
       updateStudentScoreDisplay(studentId);
       
       // Hide all sections
