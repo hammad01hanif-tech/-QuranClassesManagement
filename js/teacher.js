@@ -2644,9 +2644,41 @@ window.saveExamResults = async function() {
       sendBtn.style.display = 'none';
     }
     
+    // Reload student list to update data
+    await loadTeacherStudents(currentTeacherClassId);
+    
+    // Reset exam, close section and return to dashboard after 1.5 seconds
     setTimeout(() => {
-      statusDiv.textContent = '';
-    }, 3000);
+      // Reset exam data without confirmation
+      document.getElementById('examQuestionsTableBody').innerHTML = '';
+      document.getElementById('examQuestionsContainer').style.display = 'none';
+      document.getElementById('examSaveStatus').textContent = '';
+      document.getElementById('sendExamToAdminBtn').style.display = 'none';
+      
+      // Reset all summary values
+      document.getElementById('examSumTanbih').textContent = '0';
+      document.getElementById('examSumKhata').textContent = '0';
+      document.getElementById('examSumTajweed').textContent = '0';
+      document.getElementById('examSumLahn').textContent = '0';
+      document.getElementById('examSumPoints').textContent = '0';
+      document.getElementById('examFinalScore').textContent = '0';
+      document.getElementById('examResultBadge').style.display = 'none';
+      
+      // Reset settings to defaults
+      document.getElementById('examQuestionsCount').value = '6';
+      document.getElementById('examMaxScore').value = '100';
+      document.getElementById('examPassPercent').value = '97';
+      document.getElementById('examWeightTanbih').value = '0.5';
+      document.getElementById('examWeightKhata').value = '1';
+      document.getElementById('examWeightTajweed').value = '2';
+      document.getElementById('examWeightLahn').value = '3';
+      
+      // Close monthly exam section
+      document.getElementById('monthlyExamSection').style.display = 'none';
+      
+      // Return to dashboard
+      showTeacherDashboard();
+    }, 1500);
     
   } catch (error) {
     console.error('Error saving exam score:', error);
