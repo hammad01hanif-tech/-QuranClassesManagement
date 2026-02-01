@@ -912,11 +912,19 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     lessonScore: scores.lesson,
     lessonFrom: lessonFrom,
     lessonTo: lessonTo,
+    lessonSurahFrom: lessonSurahFrom.value || '',
+    lessonVerseFrom: lessonVerseFrom.value || '',
+    lessonSurahTo: lessonSurahTo.value || '',
+    lessonVerseTo: lessonVerseTo.value || '',
     lessonSideScore: scores.lessonSide,
     lessonSideText: (document.getElementById('teacherLessonSideText').value || '').trim(),
     revisionScore: scores.revision,
     revisionFrom: revisionFrom,
     revisionTo: revisionTo,
+    revisionSurahFrom: revisionSurahFrom.value || '',
+    revisionVerseFrom: revisionVerseFrom.value || '',
+    revisionSurahTo: revisionSurahTo.value || '',
+    revisionVerseTo: revisionVerseTo.value || '',
     readingScore: scores.reading,
     behaviorScore: scores.behavior
   };
@@ -928,6 +936,10 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     data.extraLessonTo = extraLessonData.extraLessonTo;
     data.extraLessonScore = extraLessonData.extraLessonScore;
     data.extraLessonCount = extraLessonData.extraLessonCount;
+    data.additionalLessonSurahFrom = extraLessonData.additionalLessonSurahFrom;
+    data.additionalLessonVerseFrom = extraLessonData.additionalLessonVerseFrom;
+    data.additionalLessonSurahTo = extraLessonData.additionalLessonSurahTo;
+    data.additionalLessonVerseTo = extraLessonData.additionalLessonVerseTo;
     data.hasExtraLesson = true;
   } else {
     data.hasExtraLesson = false;
@@ -5900,7 +5912,11 @@ function getExtraLessonData() {
     extraLessonFrom,
     extraLessonTo,
     extraLessonScore,
-    extraLessonCount: Math.floor(extraLessonScore / 5) // حساب عدد الدروس
+    extraLessonCount: Math.floor(extraLessonScore / 5), // حساب عدد الدروس
+    additionalLessonSurahFrom: surahFromSelect.value,
+    additionalLessonVerseFrom: verseFrom.value,
+    additionalLessonSurahTo: surahToSelect.value,
+    additionalLessonVerseTo: verseTo.value
   };
 }
 
