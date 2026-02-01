@@ -1386,7 +1386,7 @@ function generateReportsTable(completeReports, totalDays) {
   
   let tableHTML = `
     <h4 style="margin: 20px 0 15px 0;">تقارير المتابعة (${totalDays} يوم دراسي)</h4>
-    <table class="compact-reports-table" style="width: 100%; border-collapse: collapse;">
+    <table class="compact-reports-table keep-table" style="width: 100%; border-collapse: collapse;">
       <thead>
         <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
           <th style="padding: 12px; text-align: right; border-radius: 8px 0 0 0;">التاريخ</th>
