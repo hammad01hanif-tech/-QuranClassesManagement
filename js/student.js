@@ -191,7 +191,7 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
     
     // Create table (compact version with expandable details)
     let tableHTML = `
-      <table class="reports-table compact-reports-table">
+      <table class="reports-table compact-reports-table keep-table">
         <thead>
           <tr>
             <th>التاريخ</th>
