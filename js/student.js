@@ -359,10 +359,16 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
                     <strong style="color: #667eea;">📖 الدرس:</strong>
                     <div style="color: #666; margin-top: 3px;">${lessonDetails}</div>
                   </div>
-                  <div>
+                  <div style="margin-bottom: 8px;">
                     <strong style="color: #667eea;">🔄 المراجعة:</strong>
                     <div style="color: #666; margin-top: 3px;">${revisionDetails}</div>
                   </div>
+                  ${report.additionalLessonSurahFrom && report.additionalLessonVerseFrom ? `
+                  <div>
+                    <strong style="color: #28a745;">➕ الدرس الإضافي:</strong>
+                    <div style="color: #666; margin-top: 3px;">من ${report.additionalLessonSurahFrom}:${report.additionalLessonVerseFrom} إلى ${report.additionalLessonSurahTo}:${report.additionalLessonVerseTo}</div>
+                  </div>
+                  ` : ''}
                 </div>
                 
                 <!-- Notes Section -->
