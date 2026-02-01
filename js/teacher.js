@@ -118,27 +118,33 @@ async function loadTeacherStudents(classId) {
     const assessedStudentsSet = new Set();
     try {
       const reportsQuery = query(
-        collectionGroup(db, 'dailyReports'),
-        where('__name__', '==', todayHijriId)
+        collectionGroup(db, 'dailyReports')
       );
       const reportsSnap = await getDocs(reportsQuery);
       const assessmentQueryEnd = performance.now();
-      console.log(`⏱️ استعلام التقييمات: ${(assessmentQueryEnd - assessmentQueryStart).toFixed(0)}ms - عدد التقييمات: ${reportsSnap.size}`);
+      console.log(`⏱️ استعلام التقييمات الكلي: ${(assessmentQueryEnd - assessmentQueryStart).toFixed(0)}ms - عدد كل التقييمات: ${reportsSnap.size}`);
       
-      // Extract student IDs from the paths
+      // Extract student IDs from the paths for today's date
+      let todayReportsCount = 0;
       reportsSnap.forEach(doc => {
-        const pathParts = doc.ref.path.split('/');
-        // Path format: studentProgress/{studentId}/dailyReports/{dateId}
-        if (pathParts.length >= 2) {
-          const studentId = pathParts[1];
-          // Only add if student belongs to this class
-          if (studentIds.includes(studentId)) {
-            assessedStudentsSet.add(studentId);
+        // Check if document ID matches today's date
+        if (doc.id === todayHijriId) {
+          const pathParts = doc.ref.path.split('/');
+          // Path format: studentProgress/{studentId}/dailyReports/{dateId}
+          // Index 0: studentProgress, Index 1: studentId, Index 2: dailyReports, Index 3: dateId
+          if (pathParts.length >= 4 && pathParts[0] === 'studentProgress') {
+            const studentId = pathParts[1];
+            // Only add if student belongs to this class
+            if (studentIds.includes(studentId)) {
+              assessedStudentsSet.add(studentId);
+              todayReportsCount++;
+            }
           }
         }
       });
+      console.log(`✅ عدد التقييمات اليوم: ${todayReportsCount} من ${studentIds.length} طالب`);
     } catch (err) {
-      console.warn('Could not fetch today assessments:', err);
+      console.warn('⚠️ خطأ في جلب التقييمات:', err);
     }
     
     // Build students array with assessment status
