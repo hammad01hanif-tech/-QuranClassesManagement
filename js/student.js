@@ -130,27 +130,29 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
     let lastLesson = null;
     
     completeReports.forEach(report => {
-      if (report.hasReport) {
+      if (report.hasReport && report.status === 'present') {
         // Count complete lessons (score >= 5 for all three parts)
         if (report.lessonScore >= 5 && report.lessonSideScore >= 5 && report.revisionScore >= 5) {
           completeLessonsCount++;
         }
         
         // Track first lesson
-        if (!firstLesson) {
+        if (!firstLesson && report.lessonSurahFromName && report.lessonVerseFrom) {
           firstLesson = {
-            surah: report.lessonSurah || 'غير مسجل',
-            ayat: report.lessonAyat || 'غير محدد',
+            from: `${report.lessonSurahFromName}:${report.lessonVerseFrom}`,
+            to: `${report.lessonSurahToName}:${report.lessonVerseTo}`,
             date: report.dateId
           };
         }
         
         // Always update last lesson (since reports are sorted by date)
-        lastLesson = {
-          surah: report.lessonSurah || 'غير مسجل',
-          ayat: report.lessonAyat || 'غير محدد',
-          date: report.dateId
-        };
+        if (report.lessonSurahFromName && report.lessonVerseFrom) {
+          lastLesson = {
+            from: `${report.lessonSurahFromName}:${report.lessonVerseFrom}`,
+            to: `${report.lessonSurahToName}:${report.lessonVerseTo}`,
+            date: report.dateId
+          };
+        }
       }
     });
     
@@ -165,14 +167,14 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
           </tr>
           <tr style="border-bottom: 2px solid #f0f0f0;">
             <td style="padding: 12px; font-weight: bold; color: #555;">أول درس في الشهر:</td>
-            <td style="padding: 12px; color: #667eea;">
-              ${firstLesson ? `${firstLesson.surah}${firstLesson.ayat !== 'غير محدد' ? ` (${firstLesson.ayat})` : ''}` : 'لا يوجد'}
+            <td style="padding: 12px; color: #667eea; font-size: 13px;">
+              ${firstLesson ? `من ${firstLesson.from} إلى ${firstLesson.to}` : 'لا يوجد'}
             </td>
           </tr>
           <tr>
             <td style="padding: 12px; font-weight: bold; color: #555;">آخر درس حتى الآن:</td>
-            <td style="padding: 12px; color: #764ba2;">
-              ${lastLesson ? `${lastLesson.surah}${lastLesson.ayat !== 'غير محدد' ? ` (${lastLesson.ayat})` : ''}` : 'لا يوجد'}
+            <td style="padding: 12px; color: #764ba2; font-size: 13px;">
+              ${lastLesson ? `من ${lastLesson.from} إلى ${lastLesson.to}` : 'لا يوجد'}
             </td>
           </tr>
         </table>
@@ -302,11 +304,11 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
         const rowStyle = isStruggling ? 'background: #ffebee; border-right: 4px solid #dc3545;' : '';
         
         // Format lesson and revision details
-        const lessonDetails = report.lessonSurahFrom && report.lessonVerseFrom 
-          ? `من ${report.lessonSurahFrom}:${report.lessonVerseFrom} إلى ${report.lessonSurahTo}:${report.lessonVerseTo}`
+        const lessonDetails = report.lessonSurahFromName && report.lessonVerseFrom 
+          ? `من ${report.lessonSurahFromName}:${report.lessonVerseFrom} إلى ${report.lessonSurahToName}:${report.lessonVerseTo}`
           : 'غير محدد';
-        const revisionDetails = report.revisionSurahFrom && report.revisionVerseFrom 
-          ? `من ${report.revisionSurahFrom}:${report.revisionVerseFrom} إلى ${report.revisionSurahTo}:${report.revisionVerseTo}`
+        const revisionDetails = report.revisionSurahFromName && report.revisionVerseFrom 
+          ? `من ${report.revisionSurahFromName}:${report.revisionVerseFrom} إلى ${report.revisionSurahToName}:${report.revisionVerseTo}`
           : 'غير محدد';
         
         tableHTML += `
@@ -363,10 +365,10 @@ window.loadStudentAssessments = async function(studentId, selectedMonthFilter = 
                     <strong style="color: #667eea;">🔄 المراجعة:</strong>
                     <div style="color: #666; margin-top: 3px;">${revisionDetails}</div>
                   </div>
-                  ${report.additionalLessonSurahFrom && report.additionalLessonVerseFrom ? `
+                  ${report.additionalLessonSurahFromName && report.additionalLessonVerseFrom ? `
                   <div>
                     <strong style="color: #28a745;">➕ الدرس الإضافي:</strong>
-                    <div style="color: #666; margin-top: 3px;">من ${report.additionalLessonSurahFrom}:${report.additionalLessonVerseFrom} إلى ${report.additionalLessonSurahTo}:${report.additionalLessonVerseTo}</div>
+                    <div style="color: #666; margin-top: 3px;">من ${report.additionalLessonSurahFromName}:${report.additionalLessonVerseFrom} إلى ${report.additionalLessonSurahToName}:${report.additionalLessonVerseTo}</div>
                   </div>
                   ` : ''}
                 </div>

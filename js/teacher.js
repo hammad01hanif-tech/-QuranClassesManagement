@@ -905,6 +905,20 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     ? `${revisionSurahTo.options[revisionSurahTo.selectedIndex].text.split('. ')[1]} ${revisionVerseTo.value}`
     : '';
   
+  // Get Surah names
+  const lessonSurahFromName = lessonSurahFrom.value 
+    ? lessonSurahFrom.options[lessonSurahFrom.selectedIndex].text.split('. ')[1] 
+    : '';
+  const lessonSurahToName = lessonSurahTo.value 
+    ? lessonSurahTo.options[lessonSurahTo.selectedIndex].text.split('. ')[1] 
+    : '';
+  const revisionSurahFromName = revisionSurahFrom.value 
+    ? revisionSurahFrom.options[revisionSurahFrom.selectedIndex].text.split('. ')[1] 
+    : '';
+  const revisionSurahToName = revisionSurahTo.value 
+    ? revisionSurahTo.options[revisionSurahTo.selectedIndex].text.split('. ')[1] 
+    : '';
+  
   const data = {
     studentId: currentTeacherStudentId,
     studentName: currentTeacherStudentName,
@@ -913,8 +927,10 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     lessonFrom: lessonFrom,
     lessonTo: lessonTo,
     lessonSurahFrom: lessonSurahFrom.value || '',
+    lessonSurahFromName: lessonSurahFromName,
     lessonVerseFrom: lessonVerseFrom.value || '',
     lessonSurahTo: lessonSurahTo.value || '',
+    lessonSurahToName: lessonSurahToName,
     lessonVerseTo: lessonVerseTo.value || '',
     lessonSideScore: scores.lessonSide,
     lessonSideText: (document.getElementById('teacherLessonSideText').value || '').trim(),
@@ -922,8 +938,10 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     revisionFrom: revisionFrom,
     revisionTo: revisionTo,
     revisionSurahFrom: revisionSurahFrom.value || '',
+    revisionSurahFromName: revisionSurahFromName,
     revisionVerseFrom: revisionVerseFrom.value || '',
     revisionSurahTo: revisionSurahTo.value || '',
+    revisionSurahToName: revisionSurahToName,
     revisionVerseTo: revisionVerseTo.value || '',
     readingScore: scores.reading,
     behaviorScore: scores.behavior
@@ -937,8 +955,10 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     data.extraLessonScore = extraLessonData.extraLessonScore;
     data.extraLessonCount = extraLessonData.extraLessonCount;
     data.additionalLessonSurahFrom = extraLessonData.additionalLessonSurahFrom;
+    data.additionalLessonSurahFromName = extraLessonData.additionalLessonSurahFromName;
     data.additionalLessonVerseFrom = extraLessonData.additionalLessonVerseFrom;
     data.additionalLessonSurahTo = extraLessonData.additionalLessonSurahTo;
+    data.additionalLessonSurahToName = extraLessonData.additionalLessonSurahToName;
     data.additionalLessonVerseTo = extraLessonData.additionalLessonVerseTo;
     data.hasExtraLesson = true;
   } else {
@@ -5908,14 +5928,23 @@ function getExtraLessonData() {
     ? `${surahToSelect.options[surahToSelect.selectedIndex].text.split('. ')[1]} ${verseTo.value}`
     : '';
   
+  const additionalSurahFromName = surahFromSelect.value 
+    ? surahFromSelect.options[surahFromSelect.selectedIndex].text.split('. ')[1] 
+    : '';
+  const additionalSurahToName = surahToSelect.value 
+    ? surahToSelect.options[surahToSelect.selectedIndex].text.split('. ')[1] 
+    : '';
+  
   return {
     extraLessonFrom,
     extraLessonTo,
     extraLessonScore,
     extraLessonCount: Math.floor(extraLessonScore / 5), // حساب عدد الدروس
     additionalLessonSurahFrom: surahFromSelect.value,
+    additionalLessonSurahFromName: additionalSurahFromName,
     additionalLessonVerseFrom: verseFrom.value,
     additionalLessonSurahTo: surahToSelect.value,
+    additionalLessonSurahToName: additionalSurahToName,
     additionalLessonVerseTo: verseTo.value
   };
 }
