@@ -2139,7 +2139,11 @@ window.filterAdminAbsenceReport = async function() {
     
     console.log('🔵 Table HTML length:', tableHTML.length, 'characters');
     console.log('🔵 First 200 chars:', tableHTML.substring(0, 200));
+    console.log('🔵 tbody element before update:', tbody);
+    console.log('🔵 tbody.innerHTML length before:', tbody.innerHTML.length);
     tbody.innerHTML = tableHTML;
+    console.log('🔵 tbody.innerHTML length after:', tbody.innerHTML.length);
+    console.log('🔵 tbody child rows count:', tbody.children.length);
     
     console.log('✅ Table generated for', absenceArray.length, 'students');
     console.log('✅ filterAdminAbsenceReport: Complete');
