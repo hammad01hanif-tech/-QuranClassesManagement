@@ -1811,20 +1811,18 @@ window.loadAdminAttendanceReport = async function() {
       const teacherId = classData.teacherId;
       
       if (teacherId) {
-        const teacherDoc = await getDocs(query(collection(db, 'users'), where('teacherId', '==', teacherId)));
-        if (!teacherDoc.empty) {
-          teacherName = teacherDoc.docs[0].data().name || teacherId;
+        const teacherDocRef = firestoreDoc(db, 'users', teacherId);
+        const teacherDocSnap = await getDoc(teacherDocRef);
+        if (teacherDocSnap.exists()) {
+          teacherName = teacherDocSnap.data().name || teacherId;
         }
       }
     }
     
     document.getElementById('adminAttendanceTeacherName').textContent = teacherName;
-    console.log('✅ Teacher name set:', teacherName);
     
     // Populate month filter
-    console.log('🔵 Calling populateAdminMonthFilter...');
     await populateAdminMonthFilter();
-    console.log('✅ loadAdminAttendanceReport: Complete');
     
   } catch (error) {
     console.error('❌ Error loading attendance report:', error);
@@ -1935,18 +1933,12 @@ function getStudyDaysInHijriMonth(year, month) {
 
 // Filter admin absence report
 window.filterAdminAbsenceReport = async function() {
-  console.log('🔵 filterAdminAbsenceReport: Start');
   const classId = document.getElementById('classSelectAttendance').value;
-  console.log('🔵 classId:', classId);
   const filterValue = document.getElementById('adminAbsenceDateFilter').value;
-  console.log('🔵 filterValue:', filterValue);
   const tbody = document.getElementById('adminAttendanceTableBody');
-  console.log('🔵 tbody element:', tbody);
   const statsContainer = document.getElementById('absenceStatsContainer');
-  console.log('🔵 statsContainer:', statsContainer);
   
   if (!classId) {
-    console.log('⚠️ No classId, returning');
     return;
   }
   
@@ -1955,12 +1947,9 @@ window.filterAdminAbsenceReport = async function() {
   
   try {
     // Get all students in the class with their guardian phone
-    console.log('🔵 Fetching students for class:', classId);
     const studentsSnap = await getDocs(query(collection(db, 'users'), where('classId', '==', classId), where('role', '==', 'student')));
-    console.log('🔵 Students found:', studentsSnap.size);
     
     if (studentsSnap.empty) {
-      console.log('⚠️ No students found');
       tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #999;">لا يوجد طلاب في هذه الحلقة</td></tr>';
       return;
     }
@@ -1971,15 +1960,12 @@ window.filterAdminAbsenceReport = async function() {
     if (filterValue === 'all-days') {
       // All study days in selected month
       const monthValue = document.getElementById('adminAbsenceMonthFilter').value;
-      console.log('🔵 Getting all days for month:', monthValue);
       const [year, month] = monthValue.split('-').map(Number);
       dateIds = getStudyDaysInHijriMonth(year, month);
     } else {
       // Specific date selected
-      console.log('🔵 Using specific date:', filterValue);
       dateIds = [filterValue];
     }
-    console.log('🔵 Date IDs to check:', dateIds);
     
     // Collect absence data
     const absenceData = new Map(); // studentId -> {name, guardianPhone, withExcuse, withoutExcuse}
@@ -1997,18 +1983,8 @@ window.filterAdminAbsenceReport = async function() {
       });
     });
     
-    console.log('🔵 Student map created:', studentMap.size, 'students');
-    
     // Get ALL daily reports using collectionGroup (more efficient)
-    console.log('🔵 Fetching all daily reports...');
     const allReportsSnap = await getDocs(collectionGroup(db, 'dailyReports'));
-    console.log('🔵 Total reports fetched:', allReportsSnap.size);
-    
-    // Filter reports by class students and date range
-    allReportsSnap.forEach(doc => {
-      const reportData = doc.data();
-      const dateId = doc.id;
-      
       // Check if this report is in our date range
       if (!dateIds.includes(dateId)) {
         return;
@@ -2049,26 +2025,19 @@ window.filterAdminAbsenceReport = async function() {
       }
     });
     
-    console.log('🔵 Absence data processed:', absenceData.size, 'students with absences');
-    console.log('🔵 Total stats - Present:', totalPresent, 'WithExcuse:', totalWithExcuse, 'WithoutExcuse:', totalWithoutExcuse);
-    
     // Show statistics
     if (statsContainer) {
       statsContainer.style.display = 'block';
       document.getElementById('totalPresentCount').textContent = totalPresent;
       document.getElementById('totalWithExcuseCount').textContent = totalWithExcuse;
       document.getElementById('totalWithoutExcuseCount').textContent = totalWithoutExcuse;
-      console.log('✅ Statistics displayed');
     }
     
     // Display list
     if (absenceData.size === 0) {
-      console.log('ℹ️ No absences found');
       tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #51cf66; font-weight: bold;">✅ لا يوجد طلاب غائبين في هذه الفترة</td></tr>';
       return;
     }
-    
-    console.log('🔵 Building table for', absenceData.size, 'absent students...');
     
     // Convert to array and filter students with actual absences, then sort by total absences
     const absenceArray = Array.from(absenceData.entries())
@@ -2080,11 +2049,8 @@ window.filterAdminAbsenceReport = async function() {
       .filter(student => student.totalAbsence > 0) // Only students with absences
       .sort((a, b) => b.totalAbsence - a.totalAbsence);
     
-    console.log('🔵 Students with absences after filter:', absenceArray.length);
-    
     // Check again after filter
     if (absenceArray.length === 0) {
-      console.log('ℹ️ No students with absences after filter');
       tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #51cf66; font-weight: bold;">✅ لا يوجد طلاب غائبين في هذه الفترة</td></tr>';
       return;
     }
@@ -2137,16 +2103,7 @@ window.filterAdminAbsenceReport = async function() {
       `;
     }).join('');
     
-    console.log('🔵 Table HTML length:', tableHTML.length, 'characters');
-    console.log('🔵 First 200 chars:', tableHTML.substring(0, 200));
-    console.log('🔵 tbody element before update:', tbody);
-    console.log('🔵 tbody.innerHTML length before:', tbody.innerHTML.length);
     tbody.innerHTML = tableHTML;
-    console.log('🔵 tbody.innerHTML length after:', tbody.innerHTML.length);
-    console.log('🔵 tbody child rows count:', tbody.children.length);
-    
-    console.log('✅ Table generated for', absenceArray.length, 'students');
-    console.log('✅ filterAdminAbsenceReport: Complete');
     
   } catch (error) {
     console.error('❌ Error filtering absence report:', error);
