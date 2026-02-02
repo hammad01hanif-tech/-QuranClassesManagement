@@ -2090,7 +2090,7 @@ window.filterAdminAbsenceReport = async function() {
     }
     
     // Build 3-column table with expandable details
-    tbody.innerHTML = absenceArray.map((student, index) => {
+    const tableHTML = absenceArray.map((student, index) => {
       const uniqueId = `admin-absence-${student.id}`;
       const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
       
@@ -2136,6 +2136,10 @@ window.filterAdminAbsenceReport = async function() {
         </tr>
       `;
     }).join('');
+    
+    console.log('🔵 Table HTML length:', tableHTML.length, 'characters');
+    console.log('🔵 First 200 chars:', tableHTML.substring(0, 200));
+    tbody.innerHTML = tableHTML;
     
     console.log('✅ Table generated for', absenceArray.length, 'students');
     console.log('✅ filterAdminAbsenceReport: Complete');
