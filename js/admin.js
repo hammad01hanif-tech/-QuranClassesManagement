@@ -1986,52 +1986,69 @@ window.filterAdminAbsenceReport = async function() {
     let totalWithExcuse = 0;
     let totalWithoutExcuse = 0;
     
-    for (const studentDoc of studentsSnap.docs) {
-      const studentId = studentDoc.id;
-      const studentData = studentDoc.data();
-      const studentName = studentData.name || 'غير محدد';
-      const guardianPhone = studentData.guardianPhone || '';
-      
-      let withExcuseCount = 0;
-      let withoutExcuseCount = 0;
-      let presentCount = 0;
-      
-      // Get daily reports for the date range
-      const reportsSnap = await getDocs(collection(db, 'studentProgress', studentId, 'dailyReports'));
-      
-      dateIds.forEach(dateId => {
-        const reportDoc = reportsSnap.docs.find(doc => doc.id === dateId);
-        
-        if (reportDoc) {
-          const reportData = reportDoc.data();
-          
-          if (reportData.status === 'absent') {
-            if (reportData.excuseType === 'withExcuse') {
-              withExcuseCount++;
-              totalWithExcuse++;
-            } else {
-              withoutExcuseCount++;
-              totalWithoutExcuse++;
-            }
-          } else {
-            presentCount++;
-            totalPresent++;
-          }
-        }
+    // Create student map for quick lookup
+    const studentMap = new Map();
+    studentsSnap.docs.forEach(doc => {
+      const data = doc.data();
+      studentMap.set(doc.id, {
+        name: data.name || 'غير محدد',
+        guardianPhone: data.guardianPhone || ''
       });
-      
-      // Only add students who have absence records
-      if (withExcuseCount > 0 || withoutExcuseCount > 0) {
-        absenceData.set(studentId, {
-          name: studentName,
-          guardianPhone: guardianPhone,
-          withExcuse: withExcuseCount,
-          withoutExcuse: withoutExcuseCount
-        });
-      }
-    }
+    });
     
-    console.log('🔵 Absence data collected:', absenceData.size, 'students with absences');
+    console.log('🔵 Student map created:', studentMap.size, 'students');
+    
+    // Get ALL daily reports using collectionGroup (more efficient)
+    console.log('🔵 Fetching all daily reports...');
+    const allReportsSnap = await getDocs(collectionGroup(db, 'dailyReports'));
+    console.log('🔵 Total reports fetched:', allReportsSnap.size);
+    
+    // Filter reports by class students and date range
+    allReportsSnap.forEach(doc => {
+      const reportData = doc.data();
+      const dateId = doc.id;
+      
+      // Check if this report is in our date range
+      if (!dateIds.includes(dateId)) {
+        return;
+      }
+      
+      // Extract student ID from path: studentProgress/{studentId}/dailyReports/{dateId}
+      const pathParts = doc.ref.path.split('/');
+      if (pathParts.length >= 4 && pathParts[0] === 'studentProgress') {
+        const studentId = pathParts[1];
+        
+        // Check if student belongs to this class
+        if (!studentMap.has(studentId)) {
+          return;
+        }
+        
+        // Initialize student in absenceData if not exists
+        if (!absenceData.has(studentId)) {
+          absenceData.set(studentId, {
+            name: studentMap.get(studentId).name,
+            guardianPhone: studentMap.get(studentId).guardianPhone,
+            withExcuse: 0,
+            withoutExcuse: 0
+          });
+        }
+        
+        // Count by status
+        if (reportData.status === 'absent') {
+          if (reportData.excuseType === 'withExcuse') {
+            absenceData.get(studentId).withExcuse++;
+            totalWithExcuse++;
+          } else {
+            absenceData.get(studentId).withoutExcuse++;
+            totalWithoutExcuse++;
+          }
+        } else if (reportData.status === 'present') {
+          totalPresent++;
+        }
+      }
+    });
+    
+    console.log('🔵 Absence data processed:', absenceData.size, 'students with absences');
     console.log('🔵 Total stats - Present:', totalPresent, 'WithExcuse:', totalWithExcuse, 'WithoutExcuse:', totalWithoutExcuse);
     
     // Show statistics
@@ -2052,12 +2069,24 @@ window.filterAdminAbsenceReport = async function() {
     
     console.log('🔵 Building table for', absenceData.size, 'absent students...');
     
-    // Convert to array and sort by total absences
-    const absenceArray = Array.from(absenceData.entries()).map(([id, data]) => ({
-      id,
-      ...data,
-      totalAbsence: data.withExcuse + data.withoutExcuse
-    })).sort((a, b) => b.totalAbsence - a.totalAbsence);
+    // Convert to array and filter students with actual absences, then sort by total absences
+    const absenceArray = Array.from(absenceData.entries())
+      .map(([id, data]) => ({
+        id,
+        ...data,
+        totalAbsence: data.withExcuse + data.withoutExcuse
+      }))
+      .filter(student => student.totalAbsence > 0) // Only students with absences
+      .sort((a, b) => b.totalAbsence - a.totalAbsence);
+    
+    console.log('🔵 Students with absences after filter:', absenceArray.length);
+    
+    // Check again after filter
+    if (absenceArray.length === 0) {
+      console.log('ℹ️ No students with absences after filter');
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #51cf66; font-weight: bold;">✅ لا يوجد طلاب غائبين في هذه الفترة</td></tr>';
+      return;
+    }
     
     // Build 3-column table with expandable details
     tbody.innerHTML = absenceArray.map((student, index) => {
