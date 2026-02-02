@@ -1803,18 +1803,24 @@ window.loadAdminAttendanceReport = async function() {
   
   // Get teacher name
   try {
-    const classDoc = await getDocs(query(collection(db, 'classes'), where('classId', '==', classId)));
+    const classDocRef = firestoreDoc(db, 'classes', classId);
+    const classDocSnap = await getDoc(classDocRef);
     let teacherName = 'غير محدد';
     
-    if (!classDoc.empty) {
-      const classData = classDoc.docs[0].data();
-      const teacherId = classData.teacherId;
+    if (classDocSnap.exists()) {
+      const classData = classDocSnap.data();
       
-      if (teacherId) {
-        const teacherDocRef = firestoreDoc(db, 'users', teacherId);
+      // Priority 1: Use teacherName if available
+      if (classData.teacherName) {
+        teacherName = `الأستاذ ${classData.teacherName}`;
+      }
+      // Priority 2: Use teacherId to fetch name
+      else if (classData.teacherId) {
+        const teacherDocRef = firestoreDoc(db, 'users', classData.teacherId);
         const teacherDocSnap = await getDoc(teacherDocRef);
         if (teacherDocSnap.exists()) {
-          teacherName = teacherDocSnap.data().name || teacherId;
+          const rawName = teacherDocSnap.data().name;
+          teacherName = rawName ? `الأستاذ ${rawName}` : classData.teacherId;
         }
       }
     }
@@ -1985,6 +1991,11 @@ window.filterAdminAbsenceReport = async function() {
     
     // Get ALL daily reports using collectionGroup (more efficient)
     const allReportsSnap = await getDocs(collectionGroup(db, 'dailyReports'));
+    
+    allReportsSnap.docs.forEach(doc => {
+      const reportData = doc.data();
+      const dateId = doc.id;
+      
       // Check if this report is in our date range
       if (!dateIds.includes(dateId)) {
         return;
