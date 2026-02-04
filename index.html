@@ -648,12 +648,12 @@
             <div id="excuseTypeContainer" style="display: none; margin-top: 15px; padding: 15px; background: #f8d7da; border-radius: 8px; border: 2px solid #dc3545;">
               <label style="font-size: 15px; font-weight: bold; color: #721c24; margin-bottom: 10px; display: block;">📝 نوع الغياب</label>
               <div style="display: flex; gap: 12px; justify-content: center;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 16px; background: white; border: 2px solid #dc3545; border-radius: 8px;">
-                  <input type="radio" name="excuseType" value="withExcuse" checked>
-                  <span style="font-size: 14px; color: #dc3545; font-weight: bold;">📄 بعذر</span>
+                <label id="withExcuseLabel" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 16px; background: #28a745; border: 2px solid #dc3545; border-radius: 8px; transition: all 0.3s;">
+                  <input type="radio" name="excuseType" value="withExcuse" checked onchange="updateExcuseTypeSelection()">
+                  <span style="font-size: 14px; color: white; font-weight: bold;">📄 بعذر</span>
                 </label>
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 16px; background: white; border: 2px solid #dc3545; border-radius: 8px;">
-                  <input type="radio" name="excuseType" value="withoutExcuse">
+                <label id="withoutExcuseLabel" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 16px; background: white; border: 2px solid #dc3545; border-radius: 8px; transition: all 0.3s;">
+                  <input type="radio" name="excuseType" value="withoutExcuse" onchange="updateExcuseTypeSelection()">
                   <span style="font-size: 14px; color: #dc3545; font-weight: bold;">⚠️ بدون عذر</span>
                 </label>
               </div>
@@ -661,7 +661,7 @@
           </div>
 
           <!-- Recitation Type (Hifz/Dabt) -->
-          <div class="form-group" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+          <div id="recitationTypeContainer" class="form-group" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
             <label style="font-size: 16px; font-weight: bold; color: white; margin-bottom: 10px; display: block;">📖 نوع التسميع</label>
             <div style="display: flex; gap: 15px; justify-content: center;">
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 24px; background: rgba(255,255,255,0.95); border: 3px solid #667eea; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: all 0.3s;">

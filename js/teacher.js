@@ -569,13 +569,53 @@ window.toggleAbsentMode = function() {
   const studentStatus = document.querySelector('input[name="studentStatus"]:checked').value;
   const fieldsContainer = document.getElementById('assessmentFieldsContainer');
   const excuseTypeContainer = document.getElementById('excuseTypeContainer');
+  const recitationTypeContainer = document.getElementById('recitationTypeContainer');
   
   if (studentStatus === 'absent') {
     fieldsContainer.style.display = 'none';
     excuseTypeContainer.style.display = 'block';
+    if (recitationTypeContainer) {
+      recitationTypeContainer.style.display = 'none';
+    }
+    // Reset excuse type selection to default (withExcuse)
+    const withExcuseRadio = document.querySelector('input[name="excuseType"][value="withExcuse"]');
+    if (withExcuseRadio) {
+      withExcuseRadio.checked = true;
+      updateExcuseTypeSelection();
+    }
   } else {
     fieldsContainer.style.display = 'block';
     excuseTypeContainer.style.display = 'none';
+    if (recitationTypeContainer) {
+      recitationTypeContainer.style.display = 'block';
+    }
+  }
+};
+
+// Update excuse type selection appearance
+window.updateExcuseTypeSelection = function() {
+  const selectedValue = document.querySelector('input[name="excuseType"]:checked')?.value;
+  const withExcuseLabel = document.getElementById('withExcuseLabel');
+  const withoutExcuseLabel = document.getElementById('withoutExcuseLabel');
+  
+  if (!withExcuseLabel || !withoutExcuseLabel) return;
+  
+  if (selectedValue === 'withExcuse') {
+    // بعذر محدد - خلفية خضراء
+    withExcuseLabel.style.background = '#28a745';
+    withExcuseLabel.querySelector('span').style.color = 'white';
+    
+    // بدون عذر غير محدد - خلفية بيضاء
+    withoutExcuseLabel.style.background = 'white';
+    withoutExcuseLabel.querySelector('span').style.color = '#dc3545';
+  } else {
+    // بدون عذر محدد - خلفية حمراء
+    withoutExcuseLabel.style.background = '#dc3545';
+    withoutExcuseLabel.querySelector('span').style.color = 'white';
+    
+    // بعذر غير محدد - خلفية بيضاء
+    withExcuseLabel.style.background = 'white';
+    withExcuseLabel.querySelector('span').style.color = '#dc3545';
   }
 };
 
