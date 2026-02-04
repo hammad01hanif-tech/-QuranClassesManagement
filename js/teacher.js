@@ -620,7 +620,7 @@ window.updateExcuseTypeSelection = function() {
 };
 
 // Show new assessment form
-window.showNewAssessment = function() {
+window.showNewAssessment = async function() {
   // Check if today is Friday (5) or Saturday (6) - Weekend days
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0=Sunday, 5=Friday, 6=Saturday
@@ -663,8 +663,8 @@ window.showNewAssessment = function() {
     updateScoreDisplays();
     populateSurahSelects();
     
-    // Restore last form data for this student
-    restoreStudentFormData();
+    // Restore last form data for this student (with await since it's async now)
+    await restoreStudentFormData();
     
     document.getElementById('teacherStatus').textContent = '';
     updateStruggleIndicator();
@@ -756,17 +756,114 @@ window.updateVerseOptions = function(surahSelectId, verseSelectId) {
   }
 };
 
-// Storage for each student's last form data (per session)
+// Storage for each student's last form data (persistent in localStorage)
 const studentFormDataCache = {};
 
+// Load student's last assessment data from database
+async function loadLastAssessmentData(studentId) {
+  try {
+    // Get the most recent assessment for this student
+    const reportsRef = collection(db, 'studentProgress', studentId, 'dailyReports');
+    const q = query(reportsRef, orderBy('date', 'desc'), limit(1));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const lastReport = querySnapshot.docs[0].data();
+      console.log('📖 Last assessment found:', lastReport);
+      
+      // Extract the data we need
+      return {
+        // Lesson data
+        lessonSurahFrom: lastReport.lessonSurahFrom,
+        lessonVerseFrom: lastReport.lessonVerseFrom,
+        lessonSurahTo: lastReport.lessonSurahTo,
+        lessonVerseTo: lastReport.lessonVerseTo,
+        lessonSurahFromName: lastReport.lessonSurahFromName,
+        lessonSurahToName: lastReport.lessonSurahToName,
+        
+        // Revision data
+        revisionSurahFrom: lastReport.revisionSurahFrom,
+        revisionVerseFrom: lastReport.revisionVerseFrom,
+        revisionSurahTo: lastReport.revisionSurahTo,
+        revisionVerseTo: lastReport.revisionVerseTo,
+        revisionSurahFromName: lastReport.revisionSurahFromName,
+        revisionSurahToName: lastReport.revisionSurahToName,
+        
+        // Lesson side
+        lessonSideText: lastReport.lessonSideText,
+        
+        // Reading data
+        readingSurahFrom: lastReport.readingSurahFrom,
+        readingVerseFrom: lastReport.readingVerseFrom,
+        readingSurahTo: lastReport.readingSurahTo,
+        readingVerseTo: lastReport.readingVerseTo,
+        readingSurahFromName: lastReport.readingSurahFromName,
+        readingSurahToName: lastReport.readingSurahToName,
+        
+        // Date of last assessment
+        lastAssessmentDate: lastReport.gregorianDate || lastReport.dateId
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('❌ Error loading last assessment:', error);
+    return null;
+  }
+}
+
 // Restore form data for current student
-function restoreStudentFormData() {
+async function restoreStudentFormData() {
   if (!currentTeacherStudentId) return;
   
-  const cachedData = studentFormDataCache[currentTeacherStudentId];
+  // First, try to get from cache (in-session data)
+  let cachedData = studentFormDataCache[currentTeacherStudentId];
+  
+  // If not in cache, try localStorage
+  if (!cachedData) {
+    const storageKey = `lastAssessment_${currentTeacherStudentId}`;
+    const storedData = localStorage.getItem(storageKey);
+    if (storedData) {
+      try {
+        cachedData = JSON.parse(storedData);
+        console.log('💾 Loaded from localStorage:', cachedData);
+      } catch (e) {
+        console.error('❌ Error parsing localStorage data:', e);
+      }
+    }
+  }
+  
+  // If still no data, load from database
+  if (!cachedData) {
+    cachedData = await loadLastAssessmentData(currentTeacherStudentId);
+    if (cachedData) {
+      // Save to localStorage for faster access next time
+      const storageKey = `lastAssessment_${currentTeacherStudentId}`;
+      localStorage.setItem(storageKey, JSON.stringify(cachedData));
+      console.log('📥 Loaded from database and saved to localStorage');
+    }
+  }
   
   if (cachedData) {
     console.log('✅ Restoring cached data for student:', currentTeacherStudentId, cachedData);
+    
+    // Show last assessment info if available
+    if (cachedData.lastAssessmentDate) {
+      const lastDateElement = document.getElementById('lastAssessmentInfo');
+      if (lastDateElement) {
+        const dateObj = new Date(cachedData.lastAssessmentDate);
+        const formattedDate = dateObj.toLocaleDateString('ar-SA');
+        lastDateElement.textContent = `📅 آخر تقييم: ${formattedDate}`;
+        lastDateElement.style.display = 'block';
+        lastDateElement.style.color = '#666';
+        lastDateElement.style.fontSize = '13px';
+        lastDateElement.style.marginTop = '10px';
+        lastDateElement.style.padding = '8px';
+        lastDateElement.style.background = '#f0f7ff';
+        lastDateElement.style.borderRadius = '6px';
+        lastDateElement.style.border = '1px solid #b3d9ff';
+      }
+    }
     
     // Use setTimeout to ensure dropdowns are populated first
     setTimeout(() => {
@@ -821,10 +918,46 @@ function restoreStudentFormData() {
       if (cachedData.lessonSideText) {
         document.getElementById('teacherLessonSideText').value = cachedData.lessonSideText;
       }
+      
+      // Restore reading data if exists
+      if (cachedData.readingSurahFrom) {
+        const readingSurahFromEl = document.getElementById('readingSurahFrom');
+        if (readingSurahFromEl) {
+          readingSurahFromEl.value = cachedData.readingSurahFrom;
+          updateVerseOptions('readingSurahFrom', 'readingVerseFrom');
+          
+          setTimeout(() => {
+            if (cachedData.readingVerseFrom) {
+              document.getElementById('readingVerseFrom').value = cachedData.readingVerseFrom;
+            }
+          }, 50);
+        }
+      }
+      
+      if (cachedData.readingSurahTo) {
+        const readingSurahToEl = document.getElementById('readingSurahTo');
+        if (readingSurahToEl) {
+          readingSurahToEl.value = cachedData.readingSurahTo;
+          updateVerseOptions('readingSurahTo', 'readingVerseTo');
+          
+          setTimeout(() => {
+            if (cachedData.readingVerseTo) {
+              document.getElementById('readingVerseTo').value = cachedData.readingVerseTo;
+            }
+          }, 50);
+        }
+      }
     }, 100);
   } else {
     // Clear form if no cached data for this student
     console.log('🆕 No cached data for student:', currentTeacherStudentId);
+    
+    // Hide last assessment info
+    const lastDateElement = document.getElementById('lastAssessmentInfo');
+    if (lastDateElement) {
+      lastDateElement.style.display = 'none';
+    }
+    
     document.getElementById('lessonSurahFrom').value = '';
     document.getElementById('lessonVerseFrom').innerHTML = '<option value="">-- رقم الآية --</option>';
     document.getElementById('lessonSurahTo').value = '';
@@ -837,10 +970,11 @@ function restoreStudentFormData() {
   }
 }
 
-// Save current form data for this student
+// Save current form data for this student (both in memory and localStorage)
 window.saveStudentFormData = function() {
   if (!currentTeacherStudentId) return;
   
+  const today = new Date();
   const formData = {
     lessonSurahFrom: document.getElementById('lessonSurahFrom').value,
     lessonVerseFrom: document.getElementById('lessonVerseFrom').value,
@@ -850,10 +984,17 @@ window.saveStudentFormData = function() {
     revisionVerseFrom: document.getElementById('revisionVerseFrom').value,
     revisionSurahTo: document.getElementById('revisionSurahTo').value,
     revisionVerseTo: document.getElementById('revisionVerseTo').value,
-    lessonSideText: document.getElementById('teacherLessonSideText').value
+    lessonSideText: document.getElementById('teacherLessonSideText').value,
+    lastAssessmentDate: today.toISOString().split('T')[0] // Save current date
   };
   
+  // Save in session cache
   studentFormDataCache[currentTeacherStudentId] = formData;
+  
+  // Save in localStorage for persistence
+  const storageKey = `lastAssessment_${currentTeacherStudentId}`;
+  localStorage.setItem(storageKey, JSON.stringify(formData));
+  
   console.log('💾 Saved form data for student:', currentTeacherStudentId, formData);
 };
 
@@ -5387,7 +5528,7 @@ window.addMissingAssessment = async function(dateId, fullHijriDate) {
     
     updateScoreDisplays();
     populateSurahSelects();
-    restoreStudentFormData();
+    await restoreStudentFormData();
     
     document.getElementById('teacherStatus').textContent = '';
     document.getElementById('teacherStatus').style.cssText = 'text-align: center; padding: 15px; background: #fffbf0; border: 2px solid #ffc107; border-radius: 8px; margin-top: 15px; font-size: 16px; font-weight: bold; color: #856404;';
