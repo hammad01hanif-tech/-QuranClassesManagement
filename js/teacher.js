@@ -851,9 +851,24 @@ async function restoreStudentFormData() {
     if (cachedData.lastAssessmentDate) {
       const lastDateElement = document.getElementById('lastAssessmentInfo');
       if (lastDateElement) {
+        // Convert Gregorian date to Hijri
         const dateObj = new Date(cachedData.lastAssessmentDate);
-        const formattedDate = dateObj.toLocaleDateString('ar-SA');
-        lastDateElement.textContent = `📅 آخر تقييم: ${formattedDate}`;
+        const year = dateObj.getFullYear();
+        const month = dateObj.getMonth() + 1;
+        const day = dateObj.getDate();
+        
+        // Get Hijri date using the accurate conversion function
+        const hijriDate = gregorianToHijri(year, month, day);
+        let formattedHijriDate = '';
+        
+        if (hijriDate) {
+          formattedHijriDate = formatHijriDate(hijriDate.year, hijriDate.month, hijriDate.day);
+        } else {
+          // Fallback to Gregorian if Hijri conversion fails
+          formattedHijriDate = dateObj.toLocaleDateString('ar-SA');
+        }
+        
+        lastDateElement.textContent = `📅 آخر تقييم: ${formattedHijriDate}`;
         lastDateElement.style.display = 'block';
         lastDateElement.style.color = '#666';
         lastDateElement.style.fontSize = '13px';
