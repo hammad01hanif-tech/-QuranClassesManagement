@@ -684,6 +684,14 @@
           </div>
 
           <div id="assessmentFieldsContainer">
+          
+          <!-- Quick Access to Past Reports Button -->
+          <div style="text-align: center; margin-bottom: 15px;">
+            <button onclick="goToPastReportsFromForm()" style="padding: 6px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: all 0.3s;">
+              📋 التقييمات السابقة
+            </button>
+          </div>
+          
           <!-- Asr Prayer Score -->
           <div class="form-group">
             <label>🕌 صلاة العصر</label>
@@ -877,6 +885,12 @@
 
         <!-- Past Reports -->
         <div id="pastReportsSection" style="display:none; margin-top: 30px;">
+          <!-- Back to Form Button -->
+          <div id="backToFormButton" style="text-align: center; margin-bottom: 15px; display: none;">
+            <button onclick="returnToAssessmentForm()" style="padding: 6px 12px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: all 0.3s;">
+              ← العودة للنموذج
+            </button>
+          </div>
           <div id="pastReportsContainer"></div>
         </div>
 

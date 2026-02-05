@@ -6103,3 +6103,50 @@ window.closeStudentReports = async function() {
     alert('حدث خطأ أثناء الإغلاق. جرب تحديث الصفحة.');
   }
 };
+
+// Go to past reports from assessment form
+window.goToPastReportsFromForm = async function() {
+  if (!currentTeacherStudentId) {
+    alert('⚠️ الرجاء اختيار طالب أولاً');
+    return;
+  }
+  
+  // Hide assessment form
+  document.getElementById('newAssessmentForm').style.display = 'none';
+  
+  // Show past reports section
+  document.getElementById('pastReportsSection').style.display = 'block';
+  
+  // Show back button
+  document.getElementById('backToFormButton').style.display = 'block';
+  
+  // Load past reports for this student
+  await window.showPastReports('current-month');
+  
+  // Scroll to past reports section
+  setTimeout(() => {
+    document.getElementById('pastReportsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+};
+
+// Return to assessment form from past reports
+window.returnToAssessmentForm = async function() {
+  if (!currentTeacherStudentId) {
+    alert('⚠️ الرجاء اختيار طالب أولاً');
+    return;
+  }
+  
+  // Hide past reports section
+  document.getElementById('pastReportsSection').style.display = 'none';
+  
+  // Hide back button
+  document.getElementById('backToFormButton').style.display = 'none';
+  
+  // Show assessment form again
+  await window.showNewAssessment();
+  
+  // Scroll to assessment form
+  setTimeout(() => {
+    document.getElementById('newAssessmentForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+};
