@@ -666,6 +666,12 @@ window.showNewAssessment = async function() {
     // Restore last form data for this student (with await since it's async now)
     await restoreStudentFormData();
     
+    // 🎯 Load smart revision tracking data
+    await loadSmartRevisionTracking();
+    
+    // 🔒 Check and apply lesson field lock if needed
+    await checkAndApplyLessonLock();
+    
     document.getElementById('teacherStatus').textContent = '';
     updateStruggleIndicator();
     
@@ -1013,6 +1019,839 @@ window.saveStudentFormData = function() {
   console.log('💾 Saved form data for student:', currentTeacherStudentId, formData);
 };
 
+// ==========================================
+// نظام تتبع المراجعة الذكي (Smart Revision Tracking System)
+// ==========================================
+
+/**
+ * حساب نطاق المراجعة بناءً على درس الطالب الحالي ومستواه
+ * @param {number} lessonSurahNumber - رقم سورة الدرس الحالي
+ * @param {string} studentLevel - مستوى الطالب ('hifz' أو 'dabt')
+ * @returns {object} نطاق المراجعة {start, end, totalSurahs}
+ */
+function calculateRevisionRange(lessonSurahNumber, studentLevel = 'hifz') {
+  if (studentLevel === 'hifz') {
+    // حفظ عكسي: من الدرس → الناس (نزولاً)
+    return {
+      start: lessonSurahNumber,
+      end: 114, // الناس
+      totalSurahs: (114 - lessonSurahNumber + 1),
+      direction: 'reverse' // عكسي
+    };
+  } else {
+    // ضبط ترتيبي: من الفاتحة → الدرس (صعوداً)
+    return {
+      start: 1, // الفاتحة
+      end: lessonSurahNumber,
+      totalSurahs: lessonSurahNumber,
+      direction: 'forward' // ترتيبي
+    };
+  }
+}
+
+/**
+ * حساب السور المكتملة من نقطة بداية لنقطة نهاية
+ * @param {number} fromSurah - السورة البداية
+ * @param {number} fromAyah - الآية البداية
+ * @param {number} toSurah - السورة النهاية
+ * @param {number} toAyah - الآية النهاية
+ * @returns {array} قائمة أرقام السور المكتملة
+ */
+function getCompletedSurahs(fromSurah, fromAyah, toSurah, toAyah) {
+  const completedSurahs = [];
+  
+  // إذا كانت نفس السورة
+  if (fromSurah === toSurah) {
+    const surahData = quranSurahs.find(s => s.number === fromSurah);
+    if (surahData && fromAyah === 1 && toAyah === surahData.verses) {
+      completedSurahs.push(fromSurah);
+    }
+    return completedSurahs;
+  }
+  
+  // السورة الأولى
+  const firstSurahData = quranSurahs.find(s => s.number === fromSurah);
+  if (firstSurahData && fromAyah === 1) {
+    completedSurahs.push(fromSurah);
+  }
+  
+  // السور بينهما
+  for (let i = fromSurah + 1; i < toSurah; i++) {
+    completedSurahs.push(i);
+  }
+  
+  // السورة الأخيرة
+  const lastSurahData = quranSurahs.find(s => s.number === toSurah);
+  if (lastSurahData && toAyah === lastSurahData.verses) {
+    completedSurahs.push(toSurah);
+  }
+  
+  return completedSurahs;
+}
+
+/**
+ * جمع كل السور المراجعة من تقارير متعددة
+ * @param {array} reports - قائمة التقارير اليومية
+ * @returns {Set} مجموعة فريدة من أرقام السور المكتملة
+ */
+function aggregateCompletedSurahs(reports) {
+  const allCompletedSurahs = new Set();
+  
+  for (const report of reports) {
+    if (report.revisionCompletedSurahs && Array.isArray(report.revisionCompletedSurahs)) {
+      report.revisionCompletedSurahs.forEach(s => allCompletedSurahs.add(s));
+    }
+  }
+  
+  return allCompletedSurahs;
+}
+
+/**
+ * حساب نسبة التقدم في المراجعة
+ * @param {Set} completedSurahs - السور المكتملة
+ * @param {object} revisionRange - نطاق المراجعة
+ * @returns {number} النسبة المئوية (0-100)
+ */
+function calculateRevisionProgress(completedSurahs, revisionRange) {
+  const completedCount = completedSurahs.size;
+  const totalRequired = revisionRange.totalSurahs;
+  
+  if (totalRequired === 0) return 100; // لا يوجد مراجعة مطلوبة
+  
+  return Math.round((completedCount / totalRequired) * 100);
+}
+
+/**
+ * كشف ما إذا بدأت لفة جديدة
+ * @param {array} reports - التقارير مرتبة حسب التاريخ
+ * @param {object} revisionRange - نطاق المراجعة
+ * @returns {number} رقم اللفة الحالية
+ */
+function detectRevisionLoop(reports, revisionRange) {
+  if (!reports || reports.length === 0) return 1;
+  
+  let currentLoop = 1;
+  const completedInLoop = new Set();
+  
+  for (const report of reports) {
+    if (!report.revisionCompletedSurahs) continue;
+    
+    // جمع السور في اللفة الحالية
+    report.revisionCompletedSurahs.forEach(s => completedInLoop.add(s));
+    
+    // إذا اكتملت اللفة (100%)
+    if (completedInLoop.size >= revisionRange.totalSurahs) {
+      currentLoop++;
+      completedInLoop.clear(); // بداية لفة جديدة
+    }
+  }
+  
+  return currentLoop;
+}
+
+/**
+ * تحديد آخر نقطة توقف في المراجعة
+ * @param {object} lastReport - آخر تقرير مسجل
+ * @returns {object} {surah, ayah} أو null
+ */
+function getLastRevisionPoint(lastReport) {
+  if (!lastReport || !lastReport.revisionSurahTo || !lastReport.revisionVerseTo) {
+    return null;
+  }
+  
+  return {
+    surah: parseInt(lastReport.revisionSurahTo),
+    ayah: parseInt(lastReport.revisionVerseTo)
+  };
+}
+
+/**
+ * تحديد النقطة التالية المطلوبة للمراجعة
+ * @param {object} lastPoint - آخر نقطة توقف {surah, ayah}
+ * @param {string} direction - الاتجاه ('reverse' أو 'forward')
+ * @returns {object} {surah, ayah} النقطة التالية
+ */
+function getNextRevisionPoint(lastPoint, direction) {
+  if (!lastPoint) return null;
+  
+  const surahData = quranSurahs.find(s => s.number === lastPoint.surah);
+  if (!surahData) return null;
+  
+  // إذا انتهت السورة، ننتقل للسورة التالية
+  if (lastPoint.ayah === surahData.verses) {
+    if (direction === 'reverse') {
+      // عكسي: ننزل للسورة التالية (رقم أكبر)
+      const nextSurah = lastPoint.surah + 1;
+      if (nextSurah > 114) return null; // انتهت المراجعة
+      return { surah: nextSurah, ayah: 1 };
+    } else {
+      // ترتيبي: نصعد للسورة التالية (رقم أصغر)
+      const nextSurah = lastPoint.surah - 1;
+      if (nextSurah < 1) return null; // انتهت المراجعة
+      return { surah: nextSurah, ayah: 1 };
+    }
+  } else {
+    // لم تنته السورة، نكمل في نفس السورة
+    return { surah: lastPoint.surah, ayah: lastPoint.ayah + 1 };
+  }
+}
+
+/**
+ * التحقق من شروط فتح الجزء الجديد
+ * @param {string} studentId - معرّف الطالب
+ * @param {number} completedJuzNumber - رقم الجزء المكتمل
+ * @returns {Promise<object>} {canProceed, revisionComplete, displayComplete, revisionProgress, missingDisplay}
+ */
+async function checkJuzCompletionRequirements(studentId, completedJuzNumber) {
+  try {
+    const studentLevel = currentTeacherStudentData?.level || 'hifz';
+    
+    // الشرط 1: فحص نسبة المراجعة
+    const reportsRef = collection(db, 'studentProgress', studentId, 'dailyReports');
+    const reportsQuery = query(reportsRef, orderBy('date', 'desc'), limit(50));
+    const reportsSnap = await getDocs(reportsQuery);
+    
+    const reports = [];
+    reportsSnap.forEach(doc => {
+      const data = doc.data();
+      reports.push(data);
+    });
+    
+    // حساب نطاق المراجعة من آخر تقرير
+    let revisionRange = null;
+    let allCompletedSurahs = new Set();
+    let firstRevisionSurah = null; // أول سورة مراجعة مسجلة
+    
+    if (reports.length > 0 && reports[0].revisionRange) {
+      revisionRange = reports[0].revisionRange;
+      
+      // تحديد اللفة الحالية أولاً
+      const currentLoop = detectRevisionLoop(reports, revisionRange);
+      
+      // 🎯 للفة الأولى: نحتاج معرفة أول مراجعة مسجلة
+      if (currentLoop === 1) {
+        // نبحث عن أول تقرير يحتوي على مراجعة
+        for (let i = reports.length - 1; i >= 0; i--) {
+          if (reports[i].revisionSurahFrom) {
+            firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+            break;
+          }
+        }
+        
+        // إعادة حساب النطاق من أول مراجعة مسجلة
+        if (firstRevisionSurah) {
+          const lessonSurah = parseInt(reports[0].lessonSurahFrom || reports[0].lessonSurahTo);
+          const studentLevel = currentTeacherStudentData?.level || 'hifz';
+          
+          if (studentLevel === 'hifz') {
+            // من أول مراجعة → الناس
+            revisionRange = {
+              start: firstRevisionSurah,
+              end: 114,
+              totalSurahs: (114 - firstRevisionSurah + 1),
+              direction: 'reverse'
+            };
+          } else {
+            // من الفاتحة → أول مراجعة
+            revisionRange = {
+              start: 1,
+              end: firstRevisionSurah,
+              totalSurahs: firstRevisionSurah,
+              direction: 'forward'
+            };
+          }
+          
+          console.log('🔄 اللفة الأولى - النطاق المعدل:', revisionRange);
+        }
+      }
+      
+      // جمع كل السور المكتملة
+      for (const report of reports) {
+        if (report.revisionCompletedSurahs && Array.isArray(report.revisionCompletedSurahs)) {
+          report.revisionCompletedSurahs.forEach(s => allCompletedSurahs.add(s));
+        }
+        
+        // إذا اكتملت اللفة (وصلنا 100%)، نتوقف عن العد
+        if (allCompletedSurahs.size >= revisionRange.totalSurahs) {
+          break;
+        }
+      }
+    }
+    
+    const revisionProgress = revisionRange ? 
+      calculateRevisionProgress(allCompletedSurahs, revisionRange) : 100;
+    
+    // تحديد النسبة المطلوبة حسب اللفة (currentLoop تم حسابه أعلاه):
+    // اللفة الأولى: 100% (مرونة كاملة)
+    // اللفة الثانية وما بعد: 80%
+    const currentLoop = detectRevisionLoop(reports, revisionRange);
+    const requiredProgress = currentLoop === 1 ? 100 : 80;
+    const revisionComplete = revisionProgress >= requiredProgress;
+    
+    console.log('📊 Revision check:', {
+      progress: revisionProgress,
+      completed: allCompletedSurahs.size,
+      required: revisionRange?.totalSurahs,
+      currentLoop: currentLoop,
+      requiredProgress: requiredProgress,
+      isComplete: revisionComplete
+    });
+    
+    // الشرط 2: فحص تسجيل العارض
+    const juzDisplaysQuery = query(
+      collection(db, 'juzDisplays'),
+      where('studentId', '==', studentId),
+      where('juzNumber', '==', completedJuzNumber),
+      where('status', '==', 'completed')
+    );
+    const displaySnap = await getDocs(juzDisplaysQuery);
+    
+    const displayComplete = !displaySnap.empty && 
+      displaySnap.docs[0].data().displayDate !== null;
+    
+    console.log('👁️ Display check:', {
+      found: !displaySnap.empty,
+      hasDate: displayComplete
+    });
+    
+    return {
+      canProceedToNextJuz: revisionComplete && displayComplete,
+      revisionMet: revisionComplete,
+      viewerDisplayMet: displayComplete,
+      revisionProgress: revisionProgress,
+      currentLoop: currentLoop,
+      requiredProgress: requiredProgress,
+      missingRevision: revisionRange ? (revisionRange.totalSurahs - allCompletedSurahs.size) : 0,
+      completedSurahs: Array.from(allCompletedSurahs),
+      displayDate: displayComplete ? displaySnap.docs[0].data().displayDate : null
+    };
+    
+  } catch (error) {
+    console.error('❌ Error checking juz completion requirements:', error);
+    return {
+      canProceed: false,
+      revisionComplete: false,
+      displayComplete: false,
+      revisionProgress: 0,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * تحميل بيانات المراجعة الذكية وتحديد النقطة التالية تلقائياً
+ * يتم استدعاؤها عند فتح نموذج التقييم
+ */
+async function loadSmartRevisionTracking() {
+  try {
+    console.log('🎯 Loading smart revision tracking...');
+    
+    if (!currentTeacherStudentId) {
+      console.warn('⚠️ No student selected');
+      return;
+    }
+    
+    const studentLevel = currentTeacherStudentData?.level || 'hifz';
+    
+    // جلب آخر 10 تقارير
+    const reportsQuery = query(
+      collection(db, 'studentProgress', currentTeacherStudentId, 'dailyReports'),
+      orderBy('date', 'desc'),
+      limit(10)
+    );
+    const reportsSnap = await getDocs(reportsQuery);
+    
+    if (reportsSnap.empty) {
+      console.log('📋 No previous reports - new student');
+      return;
+    }
+    
+    const reports = reportsSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    // الحصول على آخر تقرير
+    const lastReport = reports[0];
+    console.log('📄 Last report:', lastReport);
+    
+    // الحصول على نقطة المراجعة الأخيرة
+    const lastPoint = getLastRevisionPoint(lastReport);
+    
+    if (!lastPoint) {
+      console.log('⚠️ No revision data in last report');
+      return;
+    }
+    
+    console.log('📍 Last revision point:', lastPoint);
+    
+    // حساب النقطة التالية
+    const nextPoint = getNextRevisionPoint(lastPoint, studentLevel === 'hifz' ? 'reverse' : 'forward');
+    
+    if (!nextPoint) {
+      console.log('✅ Revision cycle complete!');
+      return;
+    }
+    
+    console.log('➡️ Next revision point:', nextPoint);
+    
+    // 🎯 تصفية خيارات السور في قوائم المراجعة بناءً على النطاق
+    await filterRevisionSurahOptions(reports);
+    
+    // تعبئة الحقول تلقائياً
+    const revSurahFrom = document.getElementById('revisionSurahFrom');
+    const revVerseFrom = document.getElementById('revisionVerseFrom');
+    
+    if (revSurahFrom && revVerseFrom) {
+      revSurahFrom.value = nextPoint.surah;
+      updateVerseOptions('revisionSurahFrom', 'revisionVerseFrom');
+      
+      setTimeout(() => {
+        revVerseFrom.value = nextPoint.ayah;
+        console.log(`✅ Auto-filled revision start: ${nextPoint.surah}:${nextPoint.ayah}`);
+      }, 100);
+    }
+    
+    // عرض رسالة توجيهية
+    const statusDiv = document.getElementById('teacherStatus');
+    if (statusDiv) {
+      statusDiv.innerHTML = `
+        <div style="background: #e7f5ff; border: 1px solid #74c0fc; padding: 12px; border-radius: 8px; margin: 10px 0;">
+          <div style="font-weight: bold; color: #1971c2; margin-bottom: 5px;">📘 نقطة المراجعة التالية</div>
+          <div style="color: #495057; font-size: 14px;">
+            ابدأ من: ${quranSurahs[nextPoint.surah - 1].name} آية ${nextPoint.ayah}
+          </div>
+        </div>
+      `;
+    }
+    
+    // 📊 عرض شريط تقدم المراجعة
+    await displayRevisionProgress();
+    
+  } catch (error) {
+    console.error('❌ Error loading smart revision tracking:', error);
+  }
+}
+
+/**
+ * تصفية خيارات السور في قوائم المراجعة بناءً على نطاق المراجعة
+ * @param {Array} reports - التقارير السابقة
+ */
+async function filterRevisionSurahOptions(reports) {
+  try {
+    if (!currentTeacherStudentId || !reports || reports.length === 0) {
+      return;
+    }
+    
+    const studentLevel = currentTeacherStudentData?.level || 'hifz';
+    const lastReport = reports[0];
+    
+    // حساب نطاق المراجعة
+    let revisionRange = lastReport.revisionRange;
+    
+    // تحديد اللفة الحالية
+    const currentLoop = revisionRange ? detectRevisionLoop(reports, revisionRange) : 1;
+    
+    if (currentLoop === 1) {
+      // اللفة الأولى: من أول مراجعة مسجلة
+      let firstRevisionSurah = null;
+      for (let i = reports.length - 1; i >= 0; i--) {
+        if (reports[i].revisionSurahFrom) {
+          firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+          break;
+        }
+      }
+      
+      if (firstRevisionSurah) {
+        if (studentLevel === 'hifz') {
+          revisionRange = { start: firstRevisionSurah, end: 114 };
+        } else {
+          revisionRange = { start: 1, end: firstRevisionSurah };
+        }
+      }
+    } else {
+      // اللفة الثانية وما بعد: من الدرس
+      const lessonSurah = parseInt(lastReport.lessonSurahFrom || lastReport.lessonSurahTo);
+      if (lessonSurah) {
+        if (studentLevel === 'hifz') {
+          revisionRange = { start: lessonSurah, end: 114 };
+        } else {
+          revisionRange = { start: 1, end: lessonSurah };
+        }
+      }
+    }
+    
+    if (!revisionRange) {
+      console.log('⚠️ Could not determine revision range');
+      return;
+    }
+    
+    console.log('🎯 Filtering revision surahs:', revisionRange);
+    
+    // تصفية قوائم المراجعة
+    const revisionSelects = ['revisionSurahFrom', 'revisionSurahTo'];
+    
+    revisionSelects.forEach(selectId => {
+      const select = document.getElementById(selectId);
+      if (select) {
+        // حفظ القيمة الحالية
+        const currentValue = select.value;
+        
+        // مسح الخيارات
+        select.innerHTML = '<option value="">-- اختر السورة --</option>';
+        
+        // إضافة السور في النطاق فقط
+        quranSurahs.forEach(surah => {
+          if (surah.number >= revisionRange.start && surah.number <= revisionRange.end) {
+            const opt = document.createElement('option');
+            opt.value = surah.number;
+            opt.textContent = `${surah.number}. ${surah.name}`;
+            opt.dataset.verses = surah.verses;
+            select.appendChild(opt);
+          }
+        });
+        
+        // استرجاع القيمة إذا كانت في النطاق
+        if (currentValue && parseInt(currentValue) >= revisionRange.start && parseInt(currentValue) <= revisionRange.end) {
+          select.value = currentValue;
+        }
+      }
+    });
+    
+    console.log('✅ Revision options filtered');
+    
+  } catch (error) {
+    console.error('❌ Error filtering revision options:', error);
+  }
+}
+
+/**
+ * التحقق من صحة تسلسل المراجعة (منع القفز)
+ * @param {number} newSurah - رقم السورة الجديدة
+ * @param {number} newAyah - رقم الآية الجديدة
+ * @param {string} studentLevel - مستوى الطالب
+ * @returns {object} {valid: boolean, message: string}
+ */
+async function validateRevisionSequence(newSurah, newAyah, studentLevel = 'hifz') {
+  try {
+    // جلب آخر تقرير
+    const reportsQuery = query(
+      collection(db, 'studentProgress', currentTeacherStudentId, 'dailyReports'),
+      orderBy('date', 'desc'),
+      limit(1)
+    );
+    const reportsSnap = await getDocs(reportsQuery);
+    
+    if (reportsSnap.empty) {
+      // طالب جديد - يمكنه البدء من أي نقطة
+      return { valid: true };
+    }
+    
+    const lastReport = reportsSnap.docs[0].data();
+    const lastPoint = getLastRevisionPoint(lastReport);
+    
+    if (!lastPoint) {
+      // لا توجد بيانات مراجعة سابقة
+      return { valid: true };
+    }
+    
+    console.log('🔍 Validating sequence:', {
+      last: lastPoint,
+      new: { surah: newSurah, ayah: newAyah },
+      level: studentLevel
+    });
+    
+    // حساب النقطة التالية المتوقعة
+    const expectedNext = getNextRevisionPoint(lastPoint, studentLevel === 'hifz' ? 'reverse' : 'forward');
+    
+    if (!expectedNext) {
+      // انتهت اللفة - يمكن البدء من البداية
+      return { valid: true };
+    }
+    
+    // التحقق من التطابق
+    if (newSurah === expectedNext.surah && newAyah === expectedNext.ayah) {
+      console.log('✅ Sequence valid - matches expected next point');
+      return { valid: true };
+    }
+    
+    // السماح بالتقدم داخل نفس السورة
+    if (newSurah === expectedNext.surah && newAyah > expectedNext.ayah) {
+      console.log('✅ Sequence valid - advancing within same surah');
+      return { valid: true };
+    }
+    
+    // السماح بالانتقال للسورة التالية في الاتجاه الصحيح
+    if (studentLevel === 'hifz' && newSurah === expectedNext.surah + 1) {
+      console.log('✅ Sequence valid - moving to next surah (hifz)');
+      return { valid: true };
+    }
+    
+    if (studentLevel === 'dabt' && newSurah === expectedNext.surah + 1) {
+      console.log('✅ Sequence valid - moving to next surah (dabt)');
+      return { valid: true };
+    }
+    
+    // قفز غير مسموح
+    const surahName = quranSurahs[expectedNext.surah - 1].name;
+    return {
+      valid: false,
+      message: `يجب المتابعة من: ${surahName} آية ${expectedNext.ayah}\n(لا يمكن القفز في المراجعة)`
+    };
+    
+  } catch (error) {
+    console.error('❌ Error validating revision sequence:', error);
+    // في حالة الخطأ، نسمح بالحفظ
+    return { valid: true };
+  }
+}
+
+/**
+ * فحص وتطبيق قفل حقول الدرس بناءً على شروط إتمام الجزء
+ * يتم تنفيذها عند فتح نموذج التقييم
+ */
+async function checkAndApplyLessonLock() {
+  try {
+    console.log('🔒 Checking lesson lock requirements...');
+    
+    if (!currentTeacherStudentId) {
+      return;
+    }
+    
+    const studentLevel = currentTeacherStudentData?.level || 'hifz';
+    
+    // جلب آخر تقرير للتحقق من رقم الجزء الحالي
+    const reportsQuery = query(
+      collection(db, 'studentProgress', currentTeacherStudentId, 'dailyReports'),
+      orderBy('date', 'desc'),
+      limit(1)
+    );
+    const reportsSnap = await getDocs(reportsQuery);
+    
+    if (reportsSnap.empty) {
+      console.log('📋 New student - no lock needed');
+      return;
+    }
+    
+    const lastReport = reportsSnap.docs[0].data();
+    
+    // التحقق من رقم الدرس الأخير
+    const lastLessonSurah = parseInt(lastReport.lessonSurahFrom || lastReport.lessonSurahTo);
+    
+    if (!lastLessonSurah) {
+      console.log('⚠️ No lesson data in last report');
+      return;
+    }
+    
+    // حساب رقم الجزء الحالي
+    let currentJuzNumber = null;
+    
+    if (studentLevel === 'hifz') {
+      // للحفظ العكسي: نحدد الجزء بناءً على السورة الأولى
+      for (let i = 0; i < juzData.length; i++) {
+        if (lastLessonSurah <= juzData[i].firstSurahNumber) {
+          currentJuzNumber = i + 1;
+          break;
+        }
+      }
+    } else {
+      // للضبط الترتيبي: نحدد الجزء بناءً على السورة الأخيرة
+      for (let i = 0; i < juzDataDabt.length; i++) {
+        if (lastLessonSurah >= juzDataDabt[i].lastSurahNumber) {
+          currentJuzNumber = i + 1;
+        }
+      }
+    }
+    
+    if (!currentJuzNumber) {
+      console.log('⚠️ Could not determine current juz');
+      return;
+    }
+    
+    console.log(`📖 Current Juz: ${currentJuzNumber}`);
+    
+    // التحقق من الشروط
+    const requirements = await checkJuzCompletionRequirements(currentTeacherStudentId, currentJuzNumber);
+    
+    console.log('📊 Lock Requirements:', requirements);
+    
+    // تطبيق القفل إذا لم تستوف الشروط
+    const lessonFields = [
+      'lessonSurahFrom',
+      'lessonVerseFrom',
+      'lessonSurahTo',
+      'lessonVerseTo'
+    ];
+    
+    const shouldLock = !requirements.canProceedToNextJuz;
+    
+    lessonFields.forEach(fieldId => {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        if (shouldLock) {
+          field.disabled = true;
+          field.style.background = '#f8f9fa';
+          field.style.cursor = 'not-allowed';
+          field.style.border = '2px solid #dee2e6';
+        } else {
+          field.disabled = false;
+          field.style.background = '';
+          field.style.cursor = '';
+          field.style.border = '';
+        }
+      }
+    });
+    
+    // عرض رسالة القفل
+    if (shouldLock) {
+      const statusDiv = document.getElementById('teacherStatus');
+      if (statusDiv) {
+        const loopText = requirements.currentLoop === 1 ? 'اللفة الأولى' : `اللفة ${requirements.currentLoop}`;
+        
+        let lockMessage = `
+          <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <div style="font-weight: bold; color: #856404; margin-bottom: 10px; font-size: 16px;">
+              🔒 حقل الدرس مقفل - لم تستوف الشروط
+            </div>
+            <div style="color: #495057; font-size: 14px; line-height: 1.8;">
+              <strong>الشروط المطلوبة للانتقال للجزء التالي (${loopText}):</strong><br>
+        `;
+        
+        if (!requirements.revisionMet) {
+          lockMessage += `
+              ❌ <strong>المراجعة:</strong> ${requirements.revisionProgress}% 
+              (المطلوب ≥${requirements.requiredProgress}% - باقي ${requirements.missingRevision} سورة)<br>
+          `;
+        } else {
+          lockMessage += `
+              ✅ <strong>المراجعة:</strong> ${requirements.revisionProgress}% مكتملة<br>
+          `;
+        }
+        
+        if (!requirements.viewerDisplayMet) {
+          lockMessage += `
+              ❌ <strong>العرض:</strong> لم يتم تسجيل العرض من قبل المشرف<br>
+          `;
+        } else {
+          lockMessage += `
+              ✅ <strong>العرض:</strong> تم التسجيل بتاريخ ${requirements.displayDate}<br>
+          `;
+        }
+        
+        lockMessage += `
+            </div>
+          </div>
+        `;
+        
+        statusDiv.innerHTML = lockMessage;
+      }
+    } else {
+      console.log('✅ All requirements met - lesson fields unlocked');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error checking lesson lock:', error);
+    // في حالة الخطأ، لا نطبق القفل
+  }
+}
+
+/**
+ * عرض شريط تقدم المراجعة بشكل بصري
+ */
+async function displayRevisionProgress() {
+  try {
+    const progressContainer = document.getElementById('revisionProgressContainer');
+    const progressBar = document.getElementById('revisionProgressBar');
+    const progressPercent = document.getElementById('revisionProgressPercent');
+    const progressDetails = document.getElementById('revisionProgressDetails');
+    
+    if (!progressContainer || !progressBar || !progressPercent || !progressDetails) {
+      return;
+    }
+    
+    if (!currentTeacherStudentId) {
+      progressContainer.style.display = 'none';
+      return;
+    }
+    
+    const studentLevel = currentTeacherStudentData?.level || 'hifz';
+    
+    // جلب آخر 50 تقرير
+    const reportsQuery = query(
+      collection(db, 'studentProgress', currentTeacherStudentId, 'dailyReports'),
+      orderBy('date', 'desc'),
+      limit(50)
+    );
+    const reportsSnap = await getDocs(reportsQuery);
+    
+    if (reportsSnap.empty) {
+      progressContainer.style.display = 'none';
+      return;
+    }
+    
+    const reports = reportsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const lastReport = reports[0];
+    
+    // حساب نطاق المراجعة
+    const lessonSurahNumber = parseInt(lastReport.lessonSurahFrom || lastReport.lessonSurahTo);
+    
+    if (!lessonSurahNumber) {
+      progressContainer.style.display = 'none';
+      return;
+    }
+    
+    const revisionRange = calculateRevisionRange(lessonSurahNumber, studentLevel);
+    
+    // تجميع السور المكتملة
+    const allCompletedSurahs = aggregateCompletedSurahs(reports);
+    
+    // حساب النسبة
+    const progress = calculateRevisionProgress(allCompletedSurahs, revisionRange);
+    
+    // عرض البيانات
+    progressContainer.style.display = 'block';
+    progressPercent.textContent = `${progress}%`;
+    progressBar.style.width = `${progress}%`;
+    
+    // تغيير اللون بناءً على النسبة
+    if (progress >= 80) {
+      progressBar.style.background = 'linear-gradient(90deg, #51cf66, #40c057)';
+    } else if (progress >= 50) {
+      progressBar.style.background = 'linear-gradient(90deg, #ffd43b, #fab005)';
+    } else {
+      progressBar.style.background = 'linear-gradient(90deg, #ff8787, #fa5252)';
+    }
+    
+    // إضافة النص داخل الشريط إذا كان عريضاً بما يكفي
+    if (progress >= 15) {
+      progressBar.textContent = `${progress}%`;
+    } else {
+      progressBar.textContent = '';
+    }
+    
+    // تفاصيل إضافية
+    const completedCount = allCompletedSurahs.size;
+    const totalCount = revisionRange.totalSurahs;
+    const remaining = totalCount - completedCount;
+    
+    let detailsText = `مكتمل: ${completedCount} من ${totalCount} سورة`;
+    if (remaining > 0) {
+      detailsText += ` • المتبقي: ${remaining} سورة`;
+    }
+    
+    progressDetails.textContent = detailsText;
+    
+    console.log('📊 Revision Progress Display:', {
+      progress,
+      completed: completedCount,
+      total: totalCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Error displaying revision progress:', error);
+  }
+}
+
 // Update score displays
 function updateScoreDisplays() {
   document.getElementById('asrPrayerDisplay').textContent = scores.asrPrayer;
@@ -1077,6 +1916,32 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
   if (studentStatus === 'absent') {
     await saveAbsentRecord(skipWeekendCheck);
     return;
+  }
+  
+  // 🎯 التحقق من التسلسل الصحيح للمراجعة (منع القفز)
+  const revSurahFrom = document.getElementById('revisionSurahFrom');
+  const revVerseFrom = document.getElementById('revisionVerseFrom');
+  
+  if (revSurahFrom.value && revVerseFrom.value) {
+    const studentLevel = currentTeacherStudentData?.level || 'hifz';
+    const validationResult = await validateRevisionSequence(
+      parseInt(revSurahFrom.value),
+      parseInt(revVerseFrom.value),
+      studentLevel
+    );
+    
+    if (!validationResult.valid) {
+      statusDiv.innerHTML = `
+        <div style="background: #ffe0e0; border: 1px solid #ff6b6b; padding: 12px; border-radius: 8px;">
+          <div style="font-weight: bold; color: #c92a2a; margin-bottom: 5px;">❌ خطأ في تسلسل المراجعة</div>
+          <div style="color: #495057; font-size: 14px;">
+            ${validationResult.message}
+          </div>
+        </div>
+      `;
+      statusDiv.style.color = '#c92a2a';
+      return; // إيقاف الحفظ
+    }
   }
   
   // Continue with normal assessment for present students
@@ -1186,6 +2051,32 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
   data.isComplete = missing.length === 0;
   data.date = serverTimestamp();
   
+  // ==========================================
+  // حساب بيانات المراجعة الذكية
+  // ==========================================
+  
+  // حساب السور المكتملة في هذا التقييم
+  if (data.revisionSurahFrom && data.revisionVerseFrom && data.revisionSurahTo && data.revisionVerseTo) {
+    const completedSurahs = getCompletedSurahs(
+      parseInt(data.revisionSurahFrom),
+      parseInt(data.revisionVerseFrom),
+      parseInt(data.revisionSurahTo),
+      parseInt(data.revisionVerseTo)
+    );
+    data.revisionCompletedSurahs = completedSurahs;
+    console.log('📊 Completed surahs in this revision:', completedSurahs);
+  } else {
+    data.revisionCompletedSurahs = [];
+  }
+  
+  // حساب نطاق المراجعة بناءً على الدرس
+  const studentLevel = currentTeacherStudentData?.level || 'hifz';
+  if (data.lessonSurahFrom) {
+    const revisionRange = calculateRevisionRange(parseInt(data.lessonSurahFrom), studentLevel);
+    data.revisionRange = revisionRange;
+    console.log('📐 Revision range:', revisionRange);
+  }
+  
   // Get today's date in both Hijri and Gregorian formats using accurate calendar
   const today = new Date();
   today.setHours(12, 0, 0, 0); // Set to noon to ensure correct date
@@ -1282,7 +2173,14 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     }
     
     if (completedJuzNumber) {
-      // Student completed a Juz! Send notification to teacher
+      // ✅ Student completed a Juz! Check both requirements before progression
+      console.log(`🎯 Checking Juz ${completedJuzNumber} completion requirements...`);
+      
+      const requirements = await checkJuzCompletionRequirements(currentTeacherStudentId, completedJuzNumber);
+      
+      console.log('📊 Requirements Status:', requirements);
+      
+      // Send notification to teacher
       await sendJuzCompletionNotification(
         currentTeacherStudentId,
         currentTeacherStudentName,
@@ -1292,9 +2190,29 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
         recitationType
       );
       
-      // Show success message
+      // Show detailed message based on requirements
       const typeText = recitationType === 'hifz' ? 'حفظ' : 'ضبط';
-      statusDiv.textContent += ` 🎉 تنبيه: أتم الطالب الجزء ${completedJuzNumber} (${typeText})!`;
+      const loopText = requirements.currentLoop === 1 ? 'اللفة الأولى' : `اللفة ${requirements.currentLoop}`;
+      
+      let completionMsg = ` 🎉 تنبيه: أتم الطالب الجزء ${completedJuzNumber} (${typeText})!`;
+      
+      if (requirements.canProceedToNextJuz) {
+        completionMsg += '\n✅ الشروط مستوفاة - يمكن الانتقال للجزء التالي';
+      } else {
+        completionMsg += `\n⚠️ في انتظار استيفاء الشروط (${loopText}):`;
+        if (!requirements.revisionMet) {
+          completionMsg += `\n  • المراجعة: ${requirements.revisionProgress}% (المطلوب ≥${requirements.requiredProgress}%)`;
+        } else {
+          completionMsg += `\n  ✓ المراجعة: ${requirements.revisionProgress}%`;
+        }
+        if (!requirements.viewerDisplayMet) {
+          completionMsg += '\n  • العرض: لم يتم التسجيل بعد';
+        } else {
+          completionMsg += `\n  ✓ العرض: ${requirements.displayDate}`;
+        }
+      }
+      
+      statusDiv.textContent += completionMsg;
     }    // Check if student is struggling and send automatic notifications
     const isStruggling = data.lessonScore < 5 || data.lessonSideScore < 5 || data.revisionScore < 5;
     if (isStruggling) {

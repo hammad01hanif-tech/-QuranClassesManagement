@@ -865,6 +865,20 @@
             💾 حفظ التقييم <small style="opacity: 0.6;">(v3.1)</small>
           </button>
           <div id="teacherStatus" class="small" style="margin-top: 10px; text-align: center; font-size: 16px;"></div>
+          
+          <!-- Revision Progress Bar -->
+          <div id="revisionProgressContainer" style="display: none; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #dee2e6;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: bold; color: #495057;">📊 تقدم المراجعة:</span>
+              <span id="revisionProgressPercent" style="font-weight: bold; color: #1971c2; font-size: 18px;">0%</span>
+            </div>
+            <div style="background: #e9ecef; height: 25px; border-radius: 12px; overflow: hidden; position: relative;">
+              <div id="revisionProgressBar" style="background: linear-gradient(90deg, #51cf66, #40c057); height: 100%; width: 0%; transition: width 0.5s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">
+              </div>
+            </div>
+            <div id="revisionProgressDetails" style="margin-top: 8px; font-size: 13px; color: #868e96; text-align: center;">
+            </div>
+          </div>
         </div>
 
         <!-- Dabt Assessment Form (ضبط) -->
