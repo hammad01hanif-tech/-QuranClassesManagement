@@ -1366,12 +1366,18 @@ async function loadSmartRevisionTracking() {
       return;
     }
     
-    const reports = reportsSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    // تصفية التقارير: نستبعد الغيابات (status: 'absent')
+    const reports = reportsSnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(report => report.status !== 'absent'); // تجاهل الغيابات
     
-    // الحصول على آخر تقرير
+    // إذا لا يوجد تقرير حقيقي (كلها غيابات)
+    if (reports.length === 0) {
+      console.log('📋 No real reports - only absences');
+      return;
+    }
+    
+    // الحصول على آخر تقرير حقيقي
     const lastReport = reports[0];
     console.log('📄 Last report:', lastReport);
     
@@ -1635,6 +1641,12 @@ async function checkAndApplyLessonLock() {
     
     const lastReport = reportsSnap.docs[0].data();
     
+    // إذا آخر تقرير غياب، لا نطبق القفل
+    if (lastReport.status === 'absent') {
+      console.log('⚠️ Last report is absence - no lock');
+      return;
+    }
+    
     // التحقق من رقم الدرس الأخير
     const lastLessonSurah = parseInt(lastReport.lessonSurahFrom || lastReport.lessonSurahTo);
     
@@ -1789,7 +1801,17 @@ async function displayRevisionProgress() {
       return;
     }
     
-    const reports = reportsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // تصفية التقارير: نستبعد الغيابات (status: 'absent')
+    const reports = reportsSnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(report => report.status !== 'absent'); // تجاهل الغيابات
+    
+    // إذا لا يوجد تقرير حقيقي (كلها غيابات)
+    if (reports.length === 0) {
+      progressContainer.style.display = 'none';
+      return;
+    }
+    
     const lastReport = reports[0];
     
     // حساب نطاق المراجعة
