@@ -1122,18 +1122,21 @@ function calculateRevisionProgress(completedSurahs, revisionRange) {
 }
 
 /**
- * كشف ما إذا بدأت لفة جديدة
- * @param {array} reports - التقارير مرتبة حسب التاريخ
+ * كشف ما إذا بدأت لفة جديدة وتتبع تاريخ اللفات
+ * @param {array} reports - التقارير مرتبة حسب التاريخ (من الأحدث للأقدم)
  * @param {object} revisionRange - نطاق المراجعة
  * @returns {number} رقم اللفة الحالية
  */
 function detectRevisionLoop(reports, revisionRange) {
-  if (!reports || reports.length === 0) return 1;
+  if (!reports || reports.length === 0 || !revisionRange) return 1;
   
   let currentLoop = 1;
   const completedInLoop = new Set();
+  const loopsHistory = []; // تاريخ اللفات
   
-  for (const report of reports) {
+  // المرور من الأقدم للأحدث
+  for (let i = reports.length - 1; i >= 0; i--) {
+    const report = reports[i];
     if (!report.revisionCompletedSurahs) continue;
     
     // جمع السور في اللفة الحالية
@@ -1141,12 +1144,80 @@ function detectRevisionLoop(reports, revisionRange) {
     
     // إذا اكتملت اللفة (100%)
     if (completedInLoop.size >= revisionRange.totalSurahs) {
+      loopsHistory.push({
+        loopNumber: currentLoop,
+        completedDate: report.date,
+        totalSurahs: completedInLoop.size
+      });
       currentLoop++;
       completedInLoop.clear(); // بداية لفة جديدة
     }
   }
   
+  // حفظ تاريخ اللفات في console للمعلم
+  if (loopsHistory.length > 0) {
+    console.log('📜 تاريخ اللفات المكتملة:', loopsHistory);
+  }
+  
   return currentLoop;
+}
+
+/**
+ * الحصول على تاريخ جميع اللفات المكتملة للطالب
+ * @param {string} studentId - معرف الطالب
+ * @returns {Promise<Array>} قائمة اللفات مع تواريخها
+ */
+async function getStudentLoopsHistory(studentId) {
+  try {
+    const reportsQuery = query(
+      collection(db, 'studentProgress', studentId, 'dailyReports'),
+      orderBy('date', 'asc')
+    );
+    const reportsSnap = await getDocs(reportsQuery);
+    
+    if (reportsSnap.empty) return [];
+    
+    const reports = reportsSnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(report => report.status !== 'absent');
+    
+    if (reports.length === 0) return [];
+    
+    const firstReport = reports[0];
+    const lessonSurah = parseInt(firstReport.lessonSurahFrom || firstReport.lessonSurahTo);
+    const studentLevel = currentTeacherStudentData?.level || 'hifz';
+    const revisionRange = calculateRevisionRange(lessonSurah, studentLevel);
+    
+    let currentLoop = 1;
+    const completedInLoop = new Set();
+    const loopsHistory = [];
+    let loopStartDate = reports[0].date;
+    
+    for (const report of reports) {
+      if (!report.revisionCompletedSurahs) continue;
+      
+      report.revisionCompletedSurahs.forEach(s => completedInLoop.add(s));
+      
+      if (completedInLoop.size >= revisionRange.totalSurahs) {
+        loopsHistory.push({
+          loopNumber: currentLoop,
+          startDate: loopStartDate,
+          completedDate: report.date,
+          totalSurahs: completedInLoop.size,
+          daysCount: Math.ceil((new Date(report.date) - new Date(loopStartDate)) / (1000 * 60 * 60 * 24))
+        });
+        currentLoop++;
+        completedInLoop.clear();
+        loopStartDate = report.date;
+      }
+    }
+    
+    return loopsHistory;
+    
+  } catch (error) {
+    console.error('❌ Error getting loops history:', error);
+    return [];
+  }
 }
 
 /**
@@ -1814,7 +1885,7 @@ async function displayRevisionProgress() {
     
     const lastReport = reports[0];
     
-    // حساب نطاق المراجعة
+    // حساب نطاق المراجعة بناءً على اللفة
     const lessonSurahNumber = parseInt(lastReport.lessonSurahFrom || lastReport.lessonSurahTo);
     
     if (!lessonSurahNumber) {
@@ -1822,10 +1893,61 @@ async function displayRevisionProgress() {
       return;
     }
     
-    const revisionRange = calculateRevisionRange(lessonSurahNumber, studentLevel);
+    // تحديد اللفة الحالية
+    let tempRevisionRange = calculateRevisionRange(lessonSurahNumber, studentLevel);
+    const currentLoop = detectRevisionLoop(reports, tempRevisionRange);
     
-    // تجميع السور المكتملة
-    const allCompletedSurahs = aggregateCompletedSurahs(reports);
+    // حساب النطاق الفعلي بناءً على اللفة
+    let revisionRange;
+    
+    if (currentLoop === 1) {
+      // اللفة الأولى: من أول مراجعة مسجلة
+      let firstRevisionSurah = null;
+      for (let i = reports.length - 1; i >= 0; i--) {
+        if (reports[i].revisionSurahFrom) {
+          firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+          break;
+        }
+      }
+      
+      if (firstRevisionSurah) {
+        if (studentLevel === 'hifz') {
+          revisionRange = {
+            start: firstRevisionSurah,
+            end: 114,
+            totalSurahs: (114 - firstRevisionSurah + 1),
+            direction: 'reverse'
+          };
+        } else {
+          revisionRange = {
+            start: 1,
+            end: firstRevisionSurah,
+            totalSurahs: firstRevisionSurah,
+            direction: 'forward'
+          };
+        }
+        console.log('🔄 اللفة الأولى - النطاق من أول مراجعة:', revisionRange);
+      } else {
+        revisionRange = tempRevisionRange;
+      }
+    } else {
+      // اللفة الثانية وما بعد: من الدرس
+      revisionRange = tempRevisionRange;
+      console.log(`🔄 اللفة ${currentLoop} - النطاق من الدرس:`, revisionRange);
+    }
+    
+    // تجميع السور المكتملة في اللفة الحالية فقط
+    const allCompletedSurahs = new Set();
+    for (const report of reports) {
+      if (report.revisionCompletedSurahs && Array.isArray(report.revisionCompletedSurahs)) {
+        report.revisionCompletedSurahs.forEach(s => allCompletedSurahs.add(s));
+      }
+      
+      // إذا اكتملت اللفة، نتوقف (لا نحسب اللفات السابقة)
+      if (allCompletedSurahs.size >= revisionRange.totalSurahs) {
+        break;
+      }
+    }
     
     // حساب النسبة
     const progress = calculateRevisionProgress(allCompletedSurahs, revisionRange);
@@ -1856,17 +1978,21 @@ async function displayRevisionProgress() {
     const totalCount = revisionRange.totalSurahs;
     const remaining = totalCount - completedCount;
     
-    let detailsText = `مكتمل: ${completedCount} من ${totalCount} سورة`;
+    let detailsText = `اللفة ${currentLoop} • مكتمل: ${completedCount} من ${totalCount} سورة`;
     if (remaining > 0) {
       detailsText += ` • المتبقي: ${remaining} سورة`;
+    } else {
+      detailsText += ` • 🎉 اللفة مكتملة!`;
     }
     
     progressDetails.textContent = detailsText;
     
     console.log('📊 Revision Progress Display:', {
+      currentLoop,
       progress,
       completed: completedCount,
-      total: totalCount
+      total: totalCount,
+      range: revisionRange
     });
     
   } catch (error) {
