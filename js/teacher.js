@@ -1190,6 +1190,14 @@ function detectRevisionLoop(reports, initialRevisionRange, studentLevel) {
   // حفظ تاريخ اللفات في console للمعلم
   if (loopsHistory.length > 0) {
     console.log('📜 تاريخ اللفات المكتملة:', loopsHistory);
+    
+    // عرض تفصيلي بتواريخ واضحة
+    loopsHistory.forEach(loop => {
+      const dateStr = loop.completedDate?.toDate?.() 
+        ? loop.completedDate.toDate().toLocaleDateString('ar-SA')
+        : loop.completedDate;
+      console.log(`  ✅ اللفة ${loop.loopNumber}: ${loop.totalSurahs} سورة - تاريخ الإكمال: ${dateStr}`);
+    });
   }
   
   return currentLoop;
