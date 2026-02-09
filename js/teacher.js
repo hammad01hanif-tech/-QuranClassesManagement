@@ -2040,6 +2040,11 @@ async function displayRevisionProgress() {
     console.log('  - studentLevel:', studentLevel);
     console.log('  - reports.length:', reports.length);
     console.log('  - lastReport:', lastReport);
+    console.log('  - ALL REPORTS (oldest to newest):');
+    for (let i = reports.length - 1; i >= 0; i--) {
+      const r = reports[i];
+      console.log(`    [${i}] ${r.id}: revisionFrom=${r.revisionSurahFrom}, completedSurahs=${r.revisionCompletedSurahs?.length || 0}`);
+    }
     
     if (!lessonSurahNumber) {
       console.warn('⚠️ No lesson surah number found - hiding progress');
