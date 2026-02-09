@@ -1535,27 +1535,84 @@ async function loadSmartRevisionTracking() {
     
     console.log('📍 Last revision point:', lastPoint);
     
+    // التحقق من اكتمال اللفة بناءً على التقدم الفعلي وليس فقط الوصول للنهاية
+    // جلب التقدم الحقيقي
+    const lessonSurah = parseInt(lastReport.lessonSurahFrom || lastReport.lessonSurahTo);
+    if (lessonSurah) {
+      const tempRange = calculateRevisionRange(lessonSurah, studentLevel);
+      const currentLoop = detectRevisionLoop(reports, tempRange, studentLevel);
+      
+      // حساب النطاق الفعلي للفة الحالية
+      let actualRange = tempRange;
+      if (currentLoop === 1) {
+        // اللفة الأولى: من أول مراجعة
+        let firstRevisionSurah = null;
+        for (let i = reports.length - 1; i >= 0; i--) {
+          if (reports[i].revisionSurahFrom) {
+            firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+            break;
+          }
+        }
+        
+        if (firstRevisionSurah) {
+          if (studentLevel === 'hifz') {
+            actualRange = {
+              start: firstRevisionSurah,
+              end: 114,
+              totalSurahs: (114 - firstRevisionSurah + 1),
+              direction: 'reverse'
+            };
+          } else {
+            actualRange = {
+              start: 1,
+              end: firstRevisionSurah,
+              totalSurahs: firstRevisionSurah,
+              direction: 'forward'
+            };
+          }
+        }
+      }
+      
+      // جمع السور المكتملة
+      const completedSurahs = new Set();
+      for (const report of reports) {
+        if (report.revisionCompletedSurahs && Array.isArray(report.revisionCompletedSurahs)) {
+          report.revisionCompletedSurahs.forEach(s => completedSurahs.add(s));
+        }
+      }
+      
+      const progress = calculateRevisionProgress(completedSurahs, actualRange);
+      console.log(`📊 Actual progress: ${progress}% (${completedSurahs.size}/${actualRange.totalSurahs})`);
+      
+      // اكتملت اللفة إذا وصلت 100%
+      if (progress >= 100) {
+        console.log('✅ Revision cycle complete! Starting new loop...');
+        
+        // عرض رسالة توجيهية
+        const statusDiv = document.getElementById('teacherStatus');
+        if (statusDiv) {
+          statusDiv.innerHTML = `
+            <div style="background: #d3f9d8; border: 1px solid #51cf66; padding: 12px; border-radius: 8px; margin: 10px 0;">
+              <div style="font-weight: bold; color: #2f9e44; margin-bottom: 5px;">🎉 اكتملت اللفة!</div>
+              <div style="color: #495057; font-size: 14px;">
+                ابدأ لفة جديدة من نطاق المراجعة
+              </div>
+            </div>
+          `;
+        }
+        
+        // عرض شريط التقدم للفة الجديدة
+        await displayRevisionProgress();
+        return;
+      }
+    }
+    
     // حساب النقطة التالية
     const nextPoint = getNextRevisionPoint(lastPoint, studentLevel === 'hifz' ? 'reverse' : 'forward');
     
     if (!nextPoint) {
-      console.log('✅ Revision cycle complete! Starting new loop...');
-      // لا تخرج! يجب عرض شريط التقدم للفة الجديدة
-      
-      // عرض رسالة توجيهية
-      const statusDiv = document.getElementById('teacherStatus');
-      if (statusDiv) {
-        statusDiv.innerHTML = `
-          <div style="background: #d3f9d8; border: 1px solid #51cf66; padding: 12px; border-radius: 8px; margin: 10px 0;">
-            <div style="font-weight: bold; color: #2f9e44; margin-bottom: 5px;">🎉 اكتملت اللفة!</div>
-            <div style="color: #495057; font-size: 14px;">
-              ابدأ لفة جديدة من نطاق المراجعة
-            </div>
-          </div>
-        `;
-      }
-      
-      // عرض شريط التقدم للفة الجديدة
+      console.log('⚠️ Reached end of Quran but loop not 100% complete - missing surahs in range');
+      // لا تعرض رسالة "اكتملت اللفة"، فقط أعرض شريط التقدم
       await displayRevisionProgress();
       return;
     }
