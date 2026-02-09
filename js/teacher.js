@@ -1122,18 +1122,57 @@ function calculateRevisionProgress(completedSurahs, revisionRange) {
 }
 
 /**
+ * جلب اللفات المكتملة يدوياً من Firebase
+ * @param {string} studentId - معرف الطالب
+ * @returns {Promise<Array>} قائمة اللفات المكتملة يدوياً
+ */
+async function getManualLoopCompletions(studentId) {
+  if (!studentId) return [];
+  
+  try {
+    const completionsRef = collection(db, 'studentProgress', studentId, 'loopCompletions');
+    const completionsSnap = await getDocs(completionsRef);
+    
+    const completions = [];
+    completionsSnap.forEach(doc => {
+      completions.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    return completions.sort((a, b) => a.loopNumber - b.loopNumber);
+  } catch (error) {
+    console.error('❌ Error fetching manual loop completions:', error);
+    return [];
+  }
+}
+
+/**
  * كشف ما إذا بدأت لفة جديدة وتتبع تاريخ اللفات
  * @param {array} reports - التقارير مرتبة حسب التاريخ (من الأحدث للأقدم)
  * @param {object} initialRevisionRange - نطاق المراجعة الأولي
  * @param {string} studentLevel - مستوى الطالب
- * @returns {number} رقم اللفة الحالية
+ * @returns {Promise<number>} رقم اللفة الحالية
  */
-function detectRevisionLoop(reports, initialRevisionRange, studentLevel) {
+async function detectRevisionLoop(reports, initialRevisionRange, studentLevel) {
   if (!reports || reports.length === 0 || !initialRevisionRange) return 1;
   
   let currentLoop = 1;
   const completedInLoop = new Set();
   const loopsHistory = []; // تاريخ اللفات
+  
+  // التحقق من اللفات المكتملة يدوياً
+  const manualCompletions = await getManualLoopCompletions(currentTeacherStudentId);
+  console.log('🔍 Manual loop completions found:', manualCompletions);
+  
+  // إذا كانت هناك لفات مكتملة يدوياً، نبدأ من اللفة التالية
+  if (manualCompletions.length > 0) {
+    const maxManualLoop = Math.max(...manualCompletions.map(c => c.loopNumber));
+    currentLoop = maxManualLoop + 1;
+    console.log(`✅ Starting from loop ${currentLoop} (${maxManualLoop} loops completed manually)`);
+    return currentLoop;
+  }
   
   // حساب النطاق للفة الأولى من أول مراجعة التي تحتوي على سور مكتملة
   let firstLoopRange = initialRevisionRange;
@@ -1375,7 +1414,7 @@ async function checkJuzCompletionRequirements(studentId, completedJuzNumber) {
       revisionRange = reports[0].revisionRange;
       
       // تحديد اللفة الحالية أولاً
-      const currentLoop = detectRevisionLoop(reports, revisionRange, studentLevel);
+      const currentLoop = await detectRevisionLoop(reports, revisionRange, studentLevel);
       
       // 🎯 للفة الأولى: نحتاج معرفة أول مراجعة مسجلة التي تحتوي على سور مكتملة
       if (currentLoop === 1) {
@@ -1548,7 +1587,7 @@ async function loadSmartRevisionTracking() {
     const lessonSurah = parseInt(lastReport.lessonSurahFrom || lastReport.lessonSurahTo);
     if (lessonSurah) {
       const tempRange = calculateRevisionRange(lessonSurah, studentLevel);
-      const currentLoop = detectRevisionLoop(reports, tempRange, studentLevel);
+      const currentLoop = await detectRevisionLoop(reports, tempRange, studentLevel);
       
       // حساب النطاق الفعلي للفة الحالية
       let actualRange = tempRange;
@@ -1685,7 +1724,7 @@ async function filterRevisionSurahOptions(reports) {
     let revisionRange = lastReport.revisionRange;
     
     // تحديد اللفة الحالية
-    const currentLoop = revisionRange ? detectRevisionLoop(reports, revisionRange, studentLevel) : 1;
+    const currentLoop = revisionRange ? await detectRevisionLoop(reports, revisionRange, studentLevel) : 1;
     
     if (currentLoop === 1) {
       // اللفة الأولى: من أول مراجعة مسجلة التي تحتوي على سور مكتملة فعلياً
@@ -2001,6 +2040,184 @@ async function checkAndApplyLessonLock() {
 }
 
 /**
+ * عرض نافذة منبثقة لإكمال اللفة يدوياً
+ */
+function showManualLoopCompletionPopup(currentLoop, progress, completedCount, totalCount) {
+  // إنشاء overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'loopCompletionOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+  `;
+  
+  // إنشاء popup
+  const popup = document.createElement('div');
+  popup.style.cssText = `
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 450px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease;
+  `;
+  
+  popup.innerHTML = `
+    <style>
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    </style>
+    
+    <div style="text-align: center; margin-bottom: 20px;">
+      <div style="font-size: 48px; margin-bottom: 10px;">🎯</div>
+      <h3 style="margin: 0 0 8px 0; color: #1971c2; font-size: 20px;">إكمال اللفة يدوياً</h3>
+      <p style="margin: 0; color: #868e96; font-size: 14px;">اللفة ${currentLoop} • التقدم الحالي: ${progress}%</p>
+    </div>
+    
+    <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+        <span style="color: #495057;">السور المكتملة:</span>
+        <strong style="color: #1971c2;">${completedCount} / ${totalCount}</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="color: #495057;">المتبقي:</span>
+        <strong style="color: ${totalCount - completedCount === 0 ? '#51cf66' : '#fa5252'};">${totalCount - completedCount} سورة</strong>
+      </div>
+    </div>
+    
+    <div style="background: #fff3bf; border: 1px solid #ffd43b; border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 20px;">⚠️</span>
+        <div style="font-size: 13px; color: #856404;">
+          <strong>تنبيه:</strong> سيتم اعتبار هذه اللفة مكتملة والانتقال للفة التالية. لا يمكن التراجع عن هذا الإجراء.
+        </div>
+      </div>
+    </div>
+    
+    <div style="display: flex; gap: 12px;">
+      <button id="confirmLoopBtn" style="
+        flex: 1;
+        background: linear-gradient(135deg, #51cf66, #40c057);
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+      " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(64, 192, 87, 0.3)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+        ✓ تأكيد الإكمال
+      </button>
+      
+      <button id="cancelLoopBtn" style="
+        flex: 1;
+        background: #e9ecef;
+        color: #495057;
+        border: none;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.2s, background 0.2s;
+      " onmouseover="this.style.background='#dee2e6'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#e9ecef'; this.style.transform=''">
+        ✕ إلغاء
+      </button>
+    </div>
+  `;
+  
+  overlay.appendChild(popup);
+  document.body.appendChild(overlay);
+  
+  // زر التأكيد
+  document.getElementById('confirmLoopBtn').onclick = async () => {
+    await completeLoopManually(currentLoop);
+    overlay.remove();
+  };
+  
+  // زر الإلغاء
+  document.getElementById('cancelLoopBtn').onclick = () => {
+    overlay.remove();
+  };
+  
+  // إغلاق عند الضغط على الخلفية
+  overlay.onclick = (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  };
+}
+
+/**
+ * إكمال اللفة يدوياً وحفظ في Firebase
+ */
+async function completeLoopManually(loopNumber) {
+  try {
+    if (!currentTeacherStudentId) {
+      alert('❌ لم يتم تحديد طالب');
+      return;
+    }
+    
+    console.log(`🎯 Manually completing loop ${loopNumber} for student ${currentTeacherStudentId}`);
+    
+    // حفظ سجل إكمال اللفة اليدوي
+    const loopCompletionRef = doc(db, 'studentProgress', currentTeacherStudentId, 'loopCompletions', `loop_${loopNumber}`);
+    await setDoc(loopCompletionRef, {
+      loopNumber: loopNumber,
+      completedDate: serverTimestamp(),
+      completedManually: true,
+      completedBy: 'teacher',
+      studentId: currentTeacherStudentId,
+      studentName: currentTeacherStudentName
+    });
+    
+    // عرض رسالة نجاح
+    const statusDiv = document.getElementById('teacherStatus');
+    if (statusDiv) {
+      statusDiv.innerHTML = `
+        <div style="background: #d3f9d8; border: 1px solid #51cf66; padding: 12px; border-radius: 8px; margin: 10px 0; animation: slideUp 0.3s ease;">
+          <div style="font-weight: bold; color: #2f9e44; margin-bottom: 5px;">✅ تم إكمال اللفة ${loopNumber} بنجاح!</div>
+          <div style="color: #495057; font-size: 14px;">
+            سيتم الآن البدء في اللفة ${loopNumber + 1}
+          </div>
+        </div>
+      `;
+      
+      // إخفاء الرسالة بعد 5 ثواني
+      setTimeout(() => {
+        statusDiv.innerHTML = '';
+      }, 5000);
+    }
+    
+    // تحديث شريط التقدم
+    await displayRevisionProgress();
+    
+    console.log(`✅ Loop ${loopNumber} completed manually and saved to Firebase`);
+    
+  } catch (error) {
+    console.error('❌ Error completing loop manually:', error);
+    alert('❌ حدث خطأ أثناء حفظ إكمال اللفة: ' + error.message);
+  }
+}
+
+/**
  * عرض شريط تقدم المراجعة بشكل بصري
  */
 async function displayRevisionProgress() {
@@ -2071,7 +2288,7 @@ async function displayRevisionProgress() {
     let tempRevisionRange = calculateRevisionRange(lessonSurahNumber, studentLevel);
     console.log('  - tempRevisionRange:', tempRevisionRange);
     
-    const currentLoop = detectRevisionLoop(reports, tempRevisionRange, studentLevel);
+    const currentLoop = await detectRevisionLoop(reports, tempRevisionRange, studentLevel);
     console.log('  - currentLoop detected:', currentLoop);
     
     // حساب النطاق الفعلي بناءً على اللفة
@@ -2198,6 +2415,10 @@ async function displayRevisionProgress() {
     progressContainer.style.display = 'block';
     progressPercent.textContent = `${progress}%`;
     progressBar.style.width = `${progress}%`;
+    
+    // إضافة قابلية النقر على شريط التقدم لإكمال اللفة يدوياً
+    progressBar.style.cursor = 'pointer';
+    progressBar.onclick = () => showManualLoopCompletionPopup(currentLoop, progress, completedCount, totalCount);
     
     // تغيير اللون بناءً على النسبة
     if (progress >= 80) {
