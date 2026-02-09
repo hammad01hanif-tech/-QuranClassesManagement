@@ -1938,14 +1938,31 @@ async function displayRevisionProgress() {
     
     // تجميع السور المكتملة في اللفة الحالية فقط
     const allCompletedSurahs = new Set();
-    for (const report of reports) {
+    let loopCounter = 1;
+    const loopCompletedSurahs = new Set();
+    
+    // المرور من الأقدم للأحدث لتتبع اللفات
+    for (let i = reports.length - 1; i >= 0; i--) {
+      const report = reports[i];
       if (report.revisionCompletedSurahs && Array.isArray(report.revisionCompletedSurahs)) {
-        report.revisionCompletedSurahs.forEach(s => allCompletedSurahs.add(s));
+        report.revisionCompletedSurahs.forEach(s => loopCompletedSurahs.add(s));
       }
       
-      // إذا اكتملت اللفة، نتوقف (لا نحسب اللفات السابقة)
-      if (allCompletedSurahs.size >= revisionRange.totalSurahs) {
-        break;
+      // تحديد نطاق هذه اللفة
+      const loopLessonSurah = parseInt(report.lessonSurahFrom || report.lessonSurahTo);
+      const loopRange = loopLessonSurah ? calculateRevisionRange(loopLessonSurah, studentLevel) : tempRevisionRange;
+      
+      // إذا اكتملت هذه اللفة
+      if (loopCompletedSurahs.size >= loopRange.totalSurahs) {
+        loopCounter++;
+        loopCompletedSurahs.clear(); // بداية لفة جديدة
+      }
+      
+      // إذا وصلنا للفة الحالية، نجمع سورها
+      if (loopCounter === currentLoop) {
+        if (report.revisionCompletedSurahs && Array.isArray(report.revisionCompletedSurahs)) {
+          report.revisionCompletedSurahs.forEach(s => allCompletedSurahs.add(s));
+        }
       }
     }
     
