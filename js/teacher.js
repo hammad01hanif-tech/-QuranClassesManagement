@@ -2177,24 +2177,39 @@ async function completeLoopManually(loopNumber) {
     
     console.log(`🎯 Manually completing loop ${loopNumber} for student ${currentTeacherStudentId}`);
     
+    // الحصول على التاريخ الهجري الدقيق
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const hijriDate = getCurrentHijriDate();
+    const hijriDateString = hijriDate?.hijri || getTodayForStorage();
+    const gregorianDate = today.toISOString().split('T')[0];
+    
+    // تنسيق التاريخ الهجري للعرض
+    const hijriFormatted = hijriDate ? formatHijriDate(hijriDate) : hijriDateString;
+    
     // حفظ سجل إكمال اللفة اليدوي
     const loopCompletionRef = doc(db, 'studentProgress', currentTeacherStudentId, 'loopCompletions', `loop_${loopNumber}`);
     await setDoc(loopCompletionRef, {
       loopNumber: loopNumber,
-      completedDate: serverTimestamp(),
+      completedDateHijri: hijriDateString,  // التاريخ الهجري (YYYY-MM-DD)
+      completedDateGregorian: gregorianDate, // التاريخ الميلادي
+      completedTimestamp: serverTimestamp(), // Timestamp للترتيب
       completedManually: true,
       completedBy: 'teacher',
       studentId: currentTeacherStudentId,
       studentName: currentTeacherStudentName
     });
     
-    // عرض رسالة نجاح
+    // عرض رسالة نجاح مع التاريخ الهجري
     const statusDiv = document.getElementById('teacherStatus');
     if (statusDiv) {
       statusDiv.innerHTML = `
         <div style="background: #d3f9d8; border: 1px solid #51cf66; padding: 12px; border-radius: 8px; margin: 10px 0; animation: slideUp 0.3s ease;">
           <div style="font-weight: bold; color: #2f9e44; margin-bottom: 5px;">✅ تم إكمال اللفة ${loopNumber} بنجاح!</div>
           <div style="color: #495057; font-size: 14px;">
+            تاريخ الإكمال: ${hijriFormatted} هـ (${today.toLocaleDateString('ar-SA')})
+          </div>
+          <div style="color: #495057; font-size: 14px; margin-top: 4px;">
             سيتم الآن البدء في اللفة ${loopNumber + 1}
           </div>
         </div>
@@ -2417,8 +2432,24 @@ async function displayRevisionProgress() {
     progressBar.style.width = `${progress}%`;
     
     // إضافة قابلية النقر على شريط التقدم لإكمال اللفة يدوياً
+    // يعمل مع جميع مستويات التقدم (حتى 0%)
     progressBar.style.cursor = 'pointer';
-    progressBar.onclick = () => showManualLoopCompletionPopup(currentLoop, progress, completedCount, totalCount);
+    progressBar.title = 'اضغط لإكمال اللفة يدوياً';
+    progressBar.onclick = () => {
+      console.log('🖱️ Progress bar clicked - opening manual completion popup');
+      showManualLoopCompletionPopup(currentLoop, progress, completedCount, totalCount);
+    };
+    
+    // إضافة نفس القابلية على progressContainer بأكمله
+    progressContainer.style.cursor = 'pointer';
+    progressContainer.title = 'اضغط لإكمال اللفة يدوياً';
+    progressContainer.onclick = (e) => {
+      // تجنب التكرار إذا تم الضغط على progressBar نفسه
+      if (e.target !== progressBar) {
+        console.log('🖱️ Progress container clicked - opening manual completion popup');
+        showManualLoopCompletionPopup(currentLoop, progress, completedCount, totalCount);
+      }
+    };
     
     // تغيير اللون بناءً على النسبة
     if (progress >= 80) {
