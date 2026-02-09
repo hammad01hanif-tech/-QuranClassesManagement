@@ -2349,12 +2349,89 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     data.revisionCompletedSurahs = [];
   }
   
-  // حساب نطاق المراجعة بناءً على الدرس
+  // حساب نطاق المراجعة - يجب أن يكون من أول مراجعة في اللفة الأولى
   const studentLevel = currentTeacherStudentData?.level || 'hifz';
   if (data.lessonSurahFrom) {
-    const revisionRange = calculateRevisionRange(parseInt(data.lessonSurahFrom), studentLevel);
+    // جلب التقارير السابقة للتحقق من اللفة الحالية
+    const reportsRef = collection(db, 'studentProgress', currentTeacherStudentId, 'dailyReports');
+    const reportsQuery = query(reportsRef, orderBy('date', 'desc'), limit(10));
+    const reportsSnap = await getDocs(reportsQuery);
+    
+    const previousReports = reportsSnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(report => report.status !== 'absent');
+    
+    let revisionRange;
+    
+    // إذا كان هذا أول تقرير أو لم يكتمل اللفة الأولى بعد، احسب النطاق من أول مراجعة
+    if (previousReports.length === 0 || !previousReports.some(r => r.revisionSurahFrom)) {
+      // أول تقرير: النطاق من أول مراجعة في هذا التقرير
+      if (data.revisionSurahFrom) {
+        const firstRevisionSurah = parseInt(data.revisionSurahFrom);
+        if (studentLevel === 'hifz') {
+          revisionRange = {
+            start: firstRevisionSurah,
+            end: 114,
+            totalSurahs: (114 - firstRevisionSurah + 1),
+            direction: 'reverse'
+          };
+        } else {
+          revisionRange = {
+            start: 1,
+            end: firstRevisionSurah,
+            totalSurahs: firstRevisionSurah,
+            direction: 'forward'
+          };
+        }
+        console.log('🆕 First report - range from first revision:', revisionRange);
+      } else {
+        // fallback للنطاق من الدرس
+        revisionRange = calculateRevisionRange(parseInt(data.lessonSurahFrom), studentLevel);
+      }
+    } else {
+      // ليس أول تقرير: تحقق من اللفة
+      const tempRange = calculateRevisionRange(parseInt(data.lessonSurahFrom), studentLevel);
+      const currentLoop = detectRevisionLoop(previousReports, tempRange, studentLevel);
+      
+      if (currentLoop === 1) {
+        // لا يزال في اللفة الأولى: النطاق من أول مراجعة مسجلة
+        let firstRevisionSurah = null;
+        for (let i = previousReports.length - 1; i >= 0; i--) {
+          if (previousReports[i].revisionSurahFrom) {
+            firstRevisionSurah = parseInt(previousReports[i].revisionSurahFrom);
+            break;
+          }
+        }
+        
+        if (firstRevisionSurah) {
+          if (studentLevel === 'hifz') {
+            revisionRange = {
+              start: firstRevisionSurah,
+              end: 114,
+              totalSurahs: (114 - firstRevisionSurah + 1),
+              direction: 'reverse'
+            };
+          } else {
+            revisionRange = {
+              start: 1,
+              end: firstRevisionSurah,
+              totalSurahs: firstRevisionSurah,
+              direction: 'forward'
+            };
+          }
+          console.log('🔄 Loop 1 - range from first revision:', revisionRange);
+        } else {
+          revisionRange = tempRange;
+        }
+      } else {
+        // اللفة الثانية أو أكثر: النطاق من الدرس
+        revisionRange = tempRange;
+        console.log(`🔄 Loop ${currentLoop} - range from lesson:`, revisionRange);
+      }
+    }
+    
     data.revisionRange = revisionRange;
-    console.log('📐 Revision range:', revisionRange);
+    console.log('📐 Final revision range saved:', revisionRange);
   }
   
   // Get today's date in both Hijri and Gregorian formats using accurate calendar
