@@ -1124,15 +1124,45 @@ function calculateRevisionProgress(completedSurahs, revisionRange) {
 /**
  * كشف ما إذا بدأت لفة جديدة وتتبع تاريخ اللفات
  * @param {array} reports - التقارير مرتبة حسب التاريخ (من الأحدث للأقدم)
- * @param {object} revisionRange - نطاق المراجعة
+ * @param {object} initialRevisionRange - نطاق المراجعة الأولي
+ * @param {string} studentLevel - مستوى الطالب
  * @returns {number} رقم اللفة الحالية
  */
-function detectRevisionLoop(reports, revisionRange) {
-  if (!reports || reports.length === 0 || !revisionRange) return 1;
+function detectRevisionLoop(reports, initialRevisionRange, studentLevel) {
+  if (!reports || reports.length === 0 || !initialRevisionRange) return 1;
   
   let currentLoop = 1;
   const completedInLoop = new Set();
   const loopsHistory = []; // تاريخ اللفات
+  
+  // حساب النطاق للفة الأولى من أول مراجعة
+  let firstLoopRange = initialRevisionRange;
+  let firstRevisionSurah = null;
+  
+  for (let i = reports.length - 1; i >= 0; i--) {
+    if (reports[i].revisionSurahFrom) {
+      firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+      break;
+    }
+  }
+  
+  if (firstRevisionSurah) {
+    if (studentLevel === 'hifz') {
+      firstLoopRange = {
+        start: firstRevisionSurah,
+        end: 114,
+        totalSurahs: (114 - firstRevisionSurah + 1),
+        direction: 'reverse'
+      };
+    } else {
+      firstLoopRange = {
+        start: 1,
+        end: firstRevisionSurah,
+        totalSurahs: firstRevisionSurah,
+        direction: 'forward'
+      };
+    }
+  }
   
   // المرور من الأقدم للأحدث
   for (let i = reports.length - 1; i >= 0; i--) {
@@ -1142,8 +1172,11 @@ function detectRevisionLoop(reports, revisionRange) {
     // جمع السور في اللفة الحالية
     report.revisionCompletedSurahs.forEach(s => completedInLoop.add(s));
     
+    // اختيار النطاق المناسب (اللفة الأولى من المراجعة، البقية من الدرس)
+    const loopRange = currentLoop === 1 ? firstLoopRange : initialRevisionRange;
+    
     // إذا اكتملت اللفة (100%)
-    if (completedInLoop.size >= revisionRange.totalSurahs) {
+    if (completedInLoop.size >= loopRange.totalSurahs) {
       loopsHistory.push({
         loopNumber: currentLoop,
         completedDate: report.date,
@@ -1188,6 +1221,35 @@ async function getStudentLoopsHistory(studentId) {
     const studentLevel = currentTeacherStudentData?.level || 'hifz';
     const revisionRange = calculateRevisionRange(lessonSurah, studentLevel);
     
+    // حساب النطاق للفة الأولى من أول مراجعة
+    let firstLoopRange = revisionRange;
+    let firstRevisionSurah = null;
+    
+    for (const report of reports) {
+      if (report.revisionSurahFrom) {
+        firstRevisionSurah = parseInt(report.revisionSurahFrom);
+        break;
+      }
+    }
+    
+    if (firstRevisionSurah) {
+      if (studentLevel === 'hifz') {
+        firstLoopRange = {
+          start: firstRevisionSurah,
+          end: 114,
+          totalSurahs: (114 - firstRevisionSurah + 1),
+          direction: 'reverse'
+        };
+      } else {
+        firstLoopRange = {
+          start: 1,
+          end: firstRevisionSurah,
+          totalSurahs: firstRevisionSurah,
+          direction: 'forward'
+        };
+      }
+    }
+    
     let currentLoop = 1;
     const completedInLoop = new Set();
     const loopsHistory = [];
@@ -1198,7 +1260,10 @@ async function getStudentLoopsHistory(studentId) {
       
       report.revisionCompletedSurahs.forEach(s => completedInLoop.add(s));
       
-      if (completedInLoop.size >= revisionRange.totalSurahs) {
+      // اختيار النطاق المناسب (اللفة الأولى من المراجعة، البقية من الدرس)
+      const loopRange = currentLoop === 1 ? firstLoopRange : revisionRange;
+      
+      if (completedInLoop.size >= loopRange.totalSurahs) {
         loopsHistory.push({
           loopNumber: currentLoop,
           startDate: loopStartDate,
@@ -1297,7 +1362,7 @@ async function checkJuzCompletionRequirements(studentId, completedJuzNumber) {
       revisionRange = reports[0].revisionRange;
       
       // تحديد اللفة الحالية أولاً
-      const currentLoop = detectRevisionLoop(reports, revisionRange);
+      const currentLoop = detectRevisionLoop(reports, revisionRange, studentLevel);
       
       // 🎯 للفة الأولى: نحتاج معرفة أول مراجعة مسجلة
       if (currentLoop === 1) {
@@ -1355,7 +1420,7 @@ async function checkJuzCompletionRequirements(studentId, completedJuzNumber) {
     // تحديد النسبة المطلوبة حسب اللفة (currentLoop تم حسابه أعلاه):
     // اللفة الأولى: 100% (مرونة كاملة)
     // اللفة الثانية وما بعد: 80%
-    const currentLoop = detectRevisionLoop(reports, revisionRange);
+    // currentLoop تم حسابه في السطر 1365، لا حاجة لإعادة الحساب
     const requiredProgress = currentLoop === 1 ? 100 : 80;
     const revisionComplete = revisionProgress >= requiredProgress;
     
@@ -1527,7 +1592,7 @@ async function filterRevisionSurahOptions(reports) {
     let revisionRange = lastReport.revisionRange;
     
     // تحديد اللفة الحالية
-    const currentLoop = revisionRange ? detectRevisionLoop(reports, revisionRange) : 1;
+    const currentLoop = revisionRange ? detectRevisionLoop(reports, revisionRange, studentLevel) : 1;
     
     if (currentLoop === 1) {
       // اللفة الأولى: من أول مراجعة مسجلة
@@ -1888,14 +1953,24 @@ async function displayRevisionProgress() {
     // حساب نطاق المراجعة بناءً على اللفة
     const lessonSurahNumber = parseInt(lastReport.lessonSurahFrom || lastReport.lessonSurahTo);
     
+    console.log('🔍 Debug displayRevisionProgress:');
+    console.log('  - lessonSurahNumber:', lessonSurahNumber);
+    console.log('  - studentLevel:', studentLevel);
+    console.log('  - reports.length:', reports.length);
+    console.log('  - lastReport:', lastReport);
+    
     if (!lessonSurahNumber) {
+      console.warn('⚠️ No lesson surah number found - hiding progress');
       progressContainer.style.display = 'none';
       return;
     }
     
     // تحديد اللفة الحالية
     let tempRevisionRange = calculateRevisionRange(lessonSurahNumber, studentLevel);
-    const currentLoop = detectRevisionLoop(reports, tempRevisionRange);
+    console.log('  - tempRevisionRange:', tempRevisionRange);
+    
+    const currentLoop = detectRevisionLoop(reports, tempRevisionRange, studentLevel);
+    console.log('  - currentLoop detected:', currentLoop);
     
     // حساب النطاق الفعلي بناءً على اللفة
     let revisionRange;
@@ -1941,33 +2016,73 @@ async function displayRevisionProgress() {
     let loopCounter = 1;
     const loopCompletedSurahs = new Set();
     
+    // حساب النطاق للفة الأولى من أول مراجعة (نفس المنطق في detectRevisionLoop)
+    let firstLoopRange = tempRevisionRange;
+    let firstRevisionSurah = null;
+    
+    for (let i = reports.length - 1; i >= 0; i--) {
+      if (reports[i].revisionSurahFrom) {
+        firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+        break;
+      }
+    }
+    
+    if (firstRevisionSurah) {
+      if (studentLevel === 'hifz') {
+        firstLoopRange = {
+          start: firstRevisionSurah,
+          end: 114,
+          totalSurahs: (114 - firstRevisionSurah + 1),
+          direction: 'reverse'
+        };
+      } else {
+        firstLoopRange = {
+          start: 1,
+          end: firstRevisionSurah,
+          totalSurahs: firstRevisionSurah,
+          direction: 'forward'
+        };
+      }
+    }
+    
     // المرور من الأقدم للأحدث لتتبع اللفات
     for (let i = reports.length - 1; i >= 0; i--) {
       const report = reports[i];
-      if (report.revisionCompletedSurahs && Array.isArray(report.revisionCompletedSurahs)) {
-        report.revisionCompletedSurahs.forEach(s => loopCompletedSurahs.add(s));
-      }
       
-      // تحديد نطاق هذه اللفة
-      const loopLessonSurah = parseInt(report.lessonSurahFrom || report.lessonSurahTo);
-      const loopRange = loopLessonSurah ? calculateRevisionRange(loopLessonSurah, studentLevel) : tempRevisionRange;
-      
-      // إذا اكتملت هذه اللفة
-      if (loopCompletedSurahs.size >= loopRange.totalSurahs) {
-        loopCounter++;
-        loopCompletedSurahs.clear(); // بداية لفة جديدة
-      }
-      
-      // إذا وصلنا للفة الحالية، نجمع سورها
+      // إذا وصلنا للفة الحالية، نجمع سورها (قبل التحقق من اكتمال اللفة)
       if (loopCounter === currentLoop) {
         if (report.revisionCompletedSurahs && Array.isArray(report.revisionCompletedSurahs)) {
           report.revisionCompletedSurahs.forEach(s => allCompletedSurahs.add(s));
         }
       }
+      
+      // إضافة السور للفة الحالية للتحقق من الاكتمال
+      if (report.revisionCompletedSurahs && Array.isArray(report.revisionCompletedSurahs)) {
+        report.revisionCompletedSurahs.forEach(s => loopCompletedSurahs.add(s));
+      }
+      
+      // اختيار النطاق المناسب (اللفة الأولى من المراجعة، البقية من الدرس)
+      const loopRange = loopCounter === 1 ? firstLoopRange : tempRevisionRange;
+      
+      // إذا اكتملت هذه اللفة، ننتقل للفة التالية
+      if (loopCompletedSurahs.size >= loopRange.totalSurahs) {
+        loopCounter++;
+        loopCompletedSurahs.clear(); // بداية لفة جديدة
+      }
     }
+    
+    // حساب النطاق النهائي للفة الحالية
+    revisionRange = currentLoop === 1 ? firstLoopRange : tempRevisionRange;
+    
+    console.log('  - Final revisionRange:', revisionRange);
+    console.log('  - allCompletedSurahs.size:', allCompletedSurahs.size);
+    console.log('  - allCompletedSurahs:', Array.from(allCompletedSurahs));
     
     // حساب النسبة
     const progress = calculateRevisionProgress(allCompletedSurahs, revisionRange);
+    
+    console.log('  - Calculated progress:', progress + '%');
+    console.log('✅ Showing progress bar');
     
     // عرض البيانات
     progressContainer.style.display = 'block';
