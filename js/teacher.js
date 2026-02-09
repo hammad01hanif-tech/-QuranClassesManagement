@@ -1531,7 +1531,24 @@ async function loadSmartRevisionTracking() {
     const nextPoint = getNextRevisionPoint(lastPoint, studentLevel === 'hifz' ? 'reverse' : 'forward');
     
     if (!nextPoint) {
-      console.log('✅ Revision cycle complete!');
+      console.log('✅ Revision cycle complete! Starting new loop...');
+      // لا تخرج! يجب عرض شريط التقدم للفة الجديدة
+      
+      // عرض رسالة توجيهية
+      const statusDiv = document.getElementById('teacherStatus');
+      if (statusDiv) {
+        statusDiv.innerHTML = `
+          <div style="background: #d3f9d8; border: 1px solid #51cf66; padding: 12px; border-radius: 8px; margin: 10px 0;">
+            <div style="font-weight: bold; color: #2f9e44; margin-bottom: 5px;">🎉 اكتملت اللفة!</div>
+            <div style="color: #495057; font-size: 14px;">
+              ابدأ لفة جديدة من نطاق المراجعة
+            </div>
+          </div>
+        `;
+      }
+      
+      // عرض شريط التقدم للفة الجديدة
+      await displayRevisionProgress();
       return;
     }
     
