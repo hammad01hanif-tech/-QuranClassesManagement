@@ -1135,13 +1135,16 @@ function detectRevisionLoop(reports, initialRevisionRange, studentLevel) {
   const completedInLoop = new Set();
   const loopsHistory = []; // تاريخ اللفات
   
-  // حساب النطاق للفة الأولى من أول مراجعة
+  // حساب النطاق للفة الأولى من أول مراجعة التي تحتوي على سور مكتملة
   let firstLoopRange = initialRevisionRange;
   let firstRevisionSurah = null;
   
   for (let i = reports.length - 1; i >= 0; i--) {
-    if (reports[i].revisionSurahFrom) {
-      firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+    const report = reports[i];
+    if (report.revisionSurahFrom && 
+        report.revisionCompletedSurahs && 
+        report.revisionCompletedSurahs.length > 0) {
+      firstRevisionSurah = parseInt(report.revisionSurahFrom);
       break;
     }
   }
@@ -1229,12 +1232,14 @@ async function getStudentLoopsHistory(studentId) {
     const studentLevel = currentTeacherStudentData?.level || 'hifz';
     const revisionRange = calculateRevisionRange(lessonSurah, studentLevel);
     
-    // حساب النطاق للفة الأولى من أول مراجعة
+    // حساب النطاق للفة الأولى من أول مراجعة التي تحتوي على سور مكتملة
     let firstLoopRange = revisionRange;
     let firstRevisionSurah = null;
     
     for (const report of reports) {
-      if (report.revisionSurahFrom) {
+      if (report.revisionSurahFrom && 
+          report.revisionCompletedSurahs && 
+          report.revisionCompletedSurahs.length > 0) {
         firstRevisionSurah = parseInt(report.revisionSurahFrom);
         break;
       }
@@ -1372,12 +1377,15 @@ async function checkJuzCompletionRequirements(studentId, completedJuzNumber) {
       // تحديد اللفة الحالية أولاً
       const currentLoop = detectRevisionLoop(reports, revisionRange, studentLevel);
       
-      // 🎯 للفة الأولى: نحتاج معرفة أول مراجعة مسجلة
+      // 🎯 للفة الأولى: نحتاج معرفة أول مراجعة مسجلة التي تحتوي على سور مكتملة
       if (currentLoop === 1) {
-        // نبحث عن أول تقرير يحتوي على مراجعة
+        // نبحث عن أول تقرير يحتوي على مراجعة بسور مكتملة
         for (let i = reports.length - 1; i >= 0; i--) {
-          if (reports[i].revisionSurahFrom) {
-            firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+          const report = reports[i];
+          if (report.revisionSurahFrom && 
+              report.revisionCompletedSurahs && 
+              report.revisionCompletedSurahs.length > 0) {
+            firstRevisionSurah = parseInt(report.revisionSurahFrom);
             break;
           }
         }
@@ -1545,11 +1553,14 @@ async function loadSmartRevisionTracking() {
       // حساب النطاق الفعلي للفة الحالية
       let actualRange = tempRange;
       if (currentLoop === 1) {
-        // اللفة الأولى: من أول مراجعة
+        // اللفة الأولى: من أول مراجعة التي تحتوي على سور مكتملة
         let firstRevisionSurah = null;
         for (let i = reports.length - 1; i >= 0; i--) {
-          if (reports[i].revisionSurahFrom) {
-            firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+          const report = reports[i];
+          if (report.revisionSurahFrom && 
+              report.revisionCompletedSurahs && 
+              report.revisionCompletedSurahs.length > 0) {
+            firstRevisionSurah = parseInt(report.revisionSurahFrom);
             break;
           }
         }
@@ -1677,11 +1688,15 @@ async function filterRevisionSurahOptions(reports) {
     const currentLoop = revisionRange ? detectRevisionLoop(reports, revisionRange, studentLevel) : 1;
     
     if (currentLoop === 1) {
-      // اللفة الأولى: من أول مراجعة مسجلة
+      // اللفة الأولى: من أول مراجعة مسجلة التي تحتوي على سور مكتملة فعلياً
       let firstRevisionSurah = null;
       for (let i = reports.length - 1; i >= 0; i--) {
-        if (reports[i].revisionSurahFrom) {
-          firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+        const report = reports[i];
+        // تحقق من أن التقرير يحتوي على سور مكتملة (ليس فارغاً)
+        if (report.revisionSurahFrom && 
+            report.revisionCompletedSurahs && 
+            report.revisionCompletedSurahs.length > 0) {
+          firstRevisionSurah = parseInt(report.revisionSurahFrom);
           break;
         }
       }
@@ -2063,11 +2078,16 @@ async function displayRevisionProgress() {
     let revisionRange;
     
     if (currentLoop === 1) {
-      // اللفة الأولى: من أول مراجعة مسجلة
+      // اللفة الأولى: من أول مراجعة مسجلة التي تحتوي على سور مكتملة فعلياً
       let firstRevisionSurah = null;
       for (let i = reports.length - 1; i >= 0; i--) {
-        if (reports[i].revisionSurahFrom) {
-          firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+        const report = reports[i];
+        // تحقق من أن التقرير يحتوي على سور مكتملة (ليس فارغاً)
+        if (report.revisionSurahFrom && 
+            report.revisionCompletedSurahs && 
+            report.revisionCompletedSurahs.length > 0) {
+          firstRevisionSurah = parseInt(report.revisionSurahFrom);
+          console.log(`  ✅ Found first revision with completed surahs: ${firstRevisionSurah} (${report.revisionCompletedSurahs.length} surahs)`);
           break;
         }
       }
@@ -2103,13 +2123,16 @@ async function displayRevisionProgress() {
     let loopCounter = 1;
     const loopCompletedSurahs = new Set();
     
-    // حساب النطاق للفة الأولى من أول مراجعة (نفس المنطق في detectRevisionLoop)
+    // حساب النطاق للفة الأولى من أول مراجعة التي تحتوي على سور مكتملة
     let firstLoopRange = tempRevisionRange;
     let firstRevisionSurah = null;
     
     for (let i = reports.length - 1; i >= 0; i--) {
-      if (reports[i].revisionSurahFrom) {
-        firstRevisionSurah = parseInt(reports[i].revisionSurahFrom);
+      const report = reports[i];
+      if (report.revisionSurahFrom && 
+          report.revisionCompletedSurahs && 
+          report.revisionCompletedSurahs.length > 0) {
+        firstRevisionSurah = parseInt(report.revisionSurahFrom);
         break;
       }
     }
