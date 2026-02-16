@@ -14,8 +14,8 @@ import {
   onSnapshot
 } from '../firebase-config.js';
 
-import { getTodayForStorage, getCurrentHijriDate, formatHijriDate } from './hijri-date.js';
-import { accurateHijriDates, gregorianToAccurateHijri } from './accurate-hijri-dates.js';
+import { getTodayForStorage, getCurrentHijriDate, formatHijriDate, getHijriDayName } from './hijri-date.js';
+import { accurateHijriDates, gregorianToAccurateHijri, accurateHijriToGregorian } from './accurate-hijri-dates.js';
 
 let viewerNotificationsListener = null;
 
@@ -451,6 +451,20 @@ window.loadViewerJuzReports = async function() {
         `;
       }
       
+      // Display attempts count if exists
+      let attemptsHtml = '';
+      if (data.attemptsCount) {
+        const attemptsColor = data.attemptsCount === 1 ? '#28a745' : data.attemptsCount === 2 ? '#ffc107' : '#dc3545';
+        attemptsHtml = `
+          <div>
+            <strong style="color: #667eea;">عدد مرات التسميع:</strong>
+            <div style="margin-top: 5px; padding: 8px; background: ${attemptsColor}; color: white; border-radius: 5px; text-align: center; font-weight: bold;">
+              🔄 ${data.attemptsCount} ${data.attemptsCount === 1 ? 'مرة' : data.attemptsCount === 2 ? 'مرتان' : 'مرات'}
+            </div>
+          </div>
+        `;
+      }
+      
       // Action buttons (only show if display date exists)
       let actionButtonsHtml = '';
       if (data.displayDate) {
@@ -496,6 +510,7 @@ window.loadViewerJuzReports = async function() {
               </span>
             </div>
             ${durationHtml}
+            ${attemptsHtml}
           </div>
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px;">
             <button onclick="window.updateJuzDisplayDate('${reportId}')" 
@@ -649,9 +664,19 @@ window.updateJuzDisplayDate = async function(reportId) {
   }
   
   try {
+    // Get current report data to calculate attempts
+    const reportDoc = await getDoc(doc(db, 'juzDisplays', reportId));
+    const currentData = reportDoc.data();
+    const currentAttempts = currentData.attemptsCount || 0;
+    const failedAttempts = currentData.failedAttempts || [];
+    
+    // Calculate total attempts = 1 (current success) + failed attempts
+    const totalAttempts = failedAttempts.length + 1;
+    
     await updateDoc(doc(db, 'juzDisplays', reportId), {
       displayDate: normalizedDate, // Store in YYYY-MM-DD format
       status: 'completed',
+      attemptsCount: totalAttempts,
       updatedAt: serverTimestamp()
     });
     
@@ -1300,8 +1325,20 @@ window.loadDailyQueue = async function() {
       
       // Only include if displayDate is empty or null
       if (!data.displayDate || data.displayDate === '') {
-        // Calculate days since last lesson using accurate Hijri calendar
-        const daysSince = calculateHijriDaysDifference(data.lastLessonDate, todayHijri);
+        // Smart priority calculation:
+        // - If student has attempted (failed), use lastAttemptDate
+        // - Otherwise, use lastLessonDate
+        let priorityDate = data.lastLessonDate;
+        let daysSince = 0;
+        
+        if (data.lastAttemptDate) {
+          // Student has attempted before - use last attempt date for priority
+          priorityDate = data.lastAttemptDate;
+          daysSince = calculateHijriDaysDifference(data.lastAttemptDate, todayHijri);
+        } else {
+          // New student - never attempted - use last lesson date
+          daysSince = calculateHijriDaysDifference(data.lastLessonDate, todayHijri);
+        }
         
         queue.push({
           reportId: reportId,
@@ -1311,12 +1348,16 @@ window.loadDailyQueue = async function() {
           teacherName: data.teacherName || 'غير محدد',
           juzNumber: data.juzNumber,
           lastLessonDate: data.lastLessonDate,
+          lastAttemptDate: data.lastAttemptDate || null,
+          failedAttempts: data.failedAttempts || [],
+          priorityDate: priorityDate,
           daysSince: daysSince
         });
       }
     });
     
     // Sort by daysSince (descending - oldest first = highest priority)
+    // Students who haven't attempted in longer time get higher priority
     queue.sort((a, b) => b.daysSince - a.daysSince);
     
     const endTime = performance.now();
@@ -1439,6 +1480,62 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
     
     const reportData = reportDoc.data();
     const previousNotes = reportData.notes || [];
+    const failedAttempts = reportData.failedAttempts || [];
+    const lastAttemptDate = reportData.lastAttemptDate;
+    const lastLessonDate = reportData.lastLessonDate;
+    
+    // Format dates in Hijri
+    let lastAttemptHtml = '';
+    if (lastAttemptDate) {
+      const formattedAttemptDate = formatDateForDisplay(lastAttemptDate); // DD-MM-YYYY
+      // Convert Hijri to Gregorian to get day name
+      const attemptGregorianDate = accurateHijriToGregorian(lastAttemptDate);
+      const attemptDayName = getHijriDayName(attemptGregorianDate);
+      lastAttemptHtml = `
+        <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-right: 4px solid #ffc107;">
+          <div style="font-size: 13px; color: #856404; margin-bottom: 5px;">
+            <strong>📅 آخر محاولة تسميع:</strong>
+          </div>
+          <div style="font-size: 15px; font-weight: bold; color: #333;">
+            ${attemptDayName} - ${formattedAttemptDate}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Format last lesson date
+    const formattedLessonDate = formatDateForDisplay(lastLessonDate);
+    // Convert Hijri to Gregorian to get day name
+    const lessonGregorianDate = accurateHijriToGregorian(lastLessonDate);
+    const lessonDayName = getHijriDayName(lessonGregorianDate);
+    
+    // Display attempts count
+    let attemptsCountHtml = '';
+    if (failedAttempts.length > 0) {
+      const totalAttempts = failedAttempts.length; // Just failed attempts (successful not counted yet)
+      const attemptsColor = totalAttempts === 1 ? '#ffc107' : totalAttempts === 2 ? '#ff9800' : '#dc3545';
+      attemptsCountHtml = `
+        <div style="background: ${attemptsColor}; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+          <div style="font-size: 13px; color: white; margin-bottom: 3px;">
+            عدد مرات التسميع حتى الآن
+          </div>
+          <div style="font-size: 24px; font-weight: bold; color: white;">
+            🔄 ${totalAttempts} ${totalAttempts === 1 ? 'مرة' : totalAttempts === 2 ? 'مرتان' : 'مرات'}
+          </div>
+          <div style="font-size: 12px; color: white; margin-top: 3px; opacity: 0.9;">
+            (لم يجتاز بعد)
+          </div>
+        </div>
+      `;
+    } else {
+      attemptsCountHtml = `
+        <div style="background: #d4edda; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; border: 2px solid #28a745;">
+          <div style="font-size: 14px; color: #155724; font-weight: bold;">
+            ✨ أول محاولة تسميع
+          </div>
+        </div>
+      `;
+    }
     
     // Create popup overlay
     const overlay = document.createElement('div');
@@ -1585,10 +1682,22 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
         📋 خيارات عرض الجزء
       </h2>
       
-      <div style="text-align: center; color: #666; margin-bottom: 25px; padding: 12px; background: #e3f2fd; border-radius: 8px;">
+      <div style="text-align: center; color: #666; margin-bottom: 20px; padding: 12px; background: #e3f2fd; border-radius: 8px;">
         <div style="font-weight: bold; font-size: 16px; color: #333;">${studentName}</div>
         <div style="margin-top: 5px; color: #764ba2; font-weight: bold;">الجزء ${juzNumber}</div>
       </div>
+      
+      <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-right: 4px solid #28a745;">
+        <div style="font-size: 13px; color: #2e7d32; margin-bottom: 5px;">
+          <strong>📚 تاريخ آخر درس:</strong>
+        </div>
+        <div style="font-size: 15px; font-weight: bold; color: #333;">
+          ${lessonDayName} - ${formattedLessonDate}
+        </div>
+      </div>
+      
+      ${lastAttemptHtml}
+      ${attemptsCountHtml}
       
       <div style="margin-bottom: 20px;">
         <button class="option-btn pass-btn" onclick="window.handleJuzPass('${reportId}')">
@@ -1649,18 +1758,75 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
   }
 };
 
-// Handle Juz Pass (to be implemented)
+// Handle Juz Pass - Opens report for updating display date
 window.handleJuzPass = async function(reportId) {
-  console.log('✅ Pass clicked for report:', reportId);
-  alert('سيتم تنفيذ خيار "اجتاز" قريباً');
-  // Implementation will be added based on your requirements
+  try {
+    console.log('✅ Pass clicked for report:', reportId);
+    
+    // Close the options popup
+    const overlay = document.getElementById('juzDisplayOptionsOverlay');
+    if (overlay) {
+      overlay.remove();
+    }
+    
+    // Open the report (same as openQueueReport)
+    await window.openQueueReport(reportId);
+    
+  } catch (error) {
+    console.error('Error handling pass:', error);
+    alert('❌ حدث خطأ');
+  }
 };
 
-// Handle Juz Fail (to be implemented)
+// Handle Juz Fail - Records failed attempt and moves to bottom of queue
 window.handleJuzFail = async function(reportId) {
-  console.log('❌ Fail clicked for report:', reportId);
-  alert('سيتم تنفيذ خيار "لم يجتاز" قريباً');
-  // Implementation will be added based on your requirements
+  try {
+    console.log('❌ Fail clicked for report:', reportId);
+    
+    // Get current report data
+    const reportDoc = await getDoc(doc(db, 'juzDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const currentData = reportDoc.data();
+    const failedAttempts = currentData.failedAttempts || [];
+    
+    // Add failed attempt record
+    const failedAttempt = {
+      date: getTodayForStorage(), // YYYY-MM-DD format
+      timestamp: new Date()
+    };
+    
+    failedAttempts.push(failedAttempt);
+    
+    // Update report: record failed attempt with lastAttemptDate
+    // Keep lastLessonDate unchanged (preserves actual lesson history)
+    // This will move student to bottom of queue (daysSince from lastAttemptDate = 0)
+    await updateDoc(doc(db, 'juzDisplays', reportId), {
+      failedAttempts: failedAttempts,
+      lastAttemptDate: getTodayForStorage(), // Track last attempt separately
+      updatedAt: serverTimestamp()
+    });
+    
+    // Close popup
+    const overlay = document.getElementById('juzDisplayOptionsOverlay');
+    if (overlay) {
+      overlay.remove();
+    }
+    
+    // Reload queue to show updated order
+    await loadDailyQueue();
+    
+    // Show success message
+    alert(`✅ تم تسجيل محاولة فاشلة\nإجمالي المحاولات: ${failedAttempts.length}\nتم نقل الطالب لأسفل القائمة`);
+    
+  } catch (error) {
+    console.error('Error handling fail:', error);
+    alert('❌ حدث خطأ في تسجيل المحاولة الفاشلة');
+  }
 };
 
 // Save Juz Note
