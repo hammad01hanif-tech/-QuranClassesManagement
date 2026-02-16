@@ -1492,11 +1492,11 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
       const attemptGregorianDate = accurateHijriToGregorian(lastAttemptDate);
       const attemptDayName = getHijriDayName(attemptGregorianDate);
       lastAttemptHtml = `
-        <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-right: 4px solid #ffc107;">
-          <div style="font-size: 13px; color: #856404; margin-bottom: 5px;">
+        <div style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-right: 3px solid #ffc107;">
+          <div style="font-size: 12px; color: #856404; margin-bottom: 3px;">
             <strong>📅 آخر محاولة تسميع:</strong>
           </div>
-          <div style="font-size: 15px; font-weight: bold; color: #333;">
+          <div style="font-size: 14px; font-weight: bold; color: #333;">
             ${attemptDayName} - ${formattedAttemptDate}
           </div>
         </div>
@@ -1515,22 +1515,22 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
       const totalAttempts = failedAttempts.length; // Just failed attempts (successful not counted yet)
       const attemptsColor = totalAttempts === 1 ? '#ffc107' : totalAttempts === 2 ? '#ff9800' : '#dc3545';
       attemptsCountHtml = `
-        <div style="background: ${attemptsColor}; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
-          <div style="font-size: 13px; color: white; margin-bottom: 3px;">
+        <div style="background: ${attemptsColor}; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center;">
+          <div style="font-size: 12px; color: white; margin-bottom: 2px;">
             عدد مرات التسميع حتى الآن
           </div>
-          <div style="font-size: 24px; font-weight: bold; color: white;">
+          <div style="font-size: 20px; font-weight: bold; color: white;">
             🔄 ${totalAttempts} ${totalAttempts === 1 ? 'مرة' : totalAttempts === 2 ? 'مرتان' : 'مرات'}
           </div>
-          <div style="font-size: 12px; color: white; margin-top: 3px; opacity: 0.9;">
+          <div style="font-size: 11px; color: white; margin-top: 2px; opacity: 0.9;">
             (لم يجتاز بعد)
           </div>
         </div>
       `;
     } else {
       attemptsCountHtml = `
-        <div style="background: #d4edda; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; border: 2px solid #28a745;">
-          <div style="font-size: 14px; color: #155724; font-weight: bold;">
+        <div style="background: #d4edda; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 2px solid #28a745;">
+          <div style="font-size: 13px; color: #155724; font-weight: bold;">
             ✨ أول محاولة تسميع
           </div>
         </div>
@@ -1546,12 +1546,12 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.5);
       display: flex;
       justify-content: center;
       align-items: center;
       z-index: 10000;
-      backdrop-filter: blur(5px);
+      backdrop-filter: blur(3px);
       animation: fadeIn 0.2s ease;
     `;
     
@@ -1559,13 +1559,13 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
     const popup = document.createElement('div');
     popup.style.cssText = `
       background: white;
-      border-radius: 16px;
-      padding: 30px;
+      border-radius: 12px;
+      padding: 20px;
       width: 90%;
-      max-width: 550px;
-      max-height: 85vh;
+      max-width: 420px;
+      max-height: 80vh;
       overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
       animation: slideUp 0.3s ease;
       direction: rtl;
     `;
@@ -1577,23 +1577,23 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
           to { opacity: 1; }
         }
         @keyframes slideUp {
-          from { transform: translateY(50px); opacity: 0; }
+          from { transform: translateY(30px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
         .option-btn {
-          padding: 15px 25px;
+          padding: 12px 20px;
           border: none;
-          border-radius: 12px;
-          font-size: 16px;
+          border-radius: 8px;
+          font-size: 15px;
           font-weight: bold;
           cursor: pointer;
-          transition: all 0.3s;
+          transition: all 0.2s;
           width: 100%;
-          margin-bottom: 12px;
+          margin-bottom: 8px;
         }
         .option-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         .pass-btn {
           background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
@@ -1605,17 +1605,17 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
         }
         .notes-section {
           background: #f8f9fa;
-          border-radius: 12px;
-          padding: 20px;
-          margin-top: 15px;
+          border-radius: 8px;
+          padding: 15px;
+          margin-top: 12px;
         }
         .new-note-input {
           width: 100%;
-          min-height: 100px;
-          padding: 12px;
+          min-height: 80px;
+          padding: 10px;
           border: 2px solid #ddd;
-          border-radius: 8px;
-          font-size: 14px;
+          border-radius: 6px;
+          font-size: 13px;
           font-family: inherit;
           resize: vertical;
           transition: border 0.3s;
@@ -1627,50 +1627,50 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
         .save-note-btn {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
-          padding: 10px 20px;
+          padding: 8px 16px;
           border: none;
-          border-radius: 8px;
-          font-size: 14px;
+          border-radius: 6px;
+          font-size: 13px;
           font-weight: bold;
           cursor: pointer;
-          margin-top: 10px;
-          transition: all 0.3s;
+          margin-top: 8px;
+          transition: all 0.2s;
         }
         .save-note-btn:hover {
-          transform: translateY(-2px);
+          transform: translateY(-1px);
           box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         .previous-notes {
-          margin-top: 20px;
-          max-height: 250px;
+          margin-top: 12px;
+          max-height: 180px;
           overflow-y: auto;
         }
         .note-item {
           background: white;
-          padding: 12px;
-          border-radius: 8px;
-          margin-bottom: 10px;
-          border-right: 4px solid #667eea;
+          padding: 10px;
+          border-radius: 6px;
+          margin-bottom: 8px;
+          border-right: 3px solid #667eea;
         }
         .note-date {
-          font-size: 12px;
+          font-size: 11px;
           color: #666;
-          margin-bottom: 5px;
+          margin-bottom: 4px;
         }
         .note-text {
-          font-size: 14px;
+          font-size: 13px;
           color: #333;
-          line-height: 1.6;
+          line-height: 1.5;
         }
         .close-btn {
           background: #6c757d;
           color: white;
-          padding: 10px 20px;
+          padding: 8px 16px;
           border: none;
-          border-radius: 8px;
-          font-size: 14px;
+          border-radius: 6px;
+          font-size: 13px;
           cursor: pointer;
-          margin-top: 15px;
+          margin-top: 12px;
           width: 100%;
         }
         .close-btn:hover {
@@ -1678,20 +1678,20 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
         }
       </style>
       
-      <h2 style="color: #667eea; margin-bottom: 10px; font-size: 22px; text-align: center;">
+      <h2 style="color: #667eea; margin-bottom: 8px; font-size: 18px; text-align: center;">
         📋 خيارات عرض الجزء
       </h2>
       
-      <div style="text-align: center; color: #666; margin-bottom: 20px; padding: 12px; background: #e3f2fd; border-radius: 8px;">
-        <div style="font-weight: bold; font-size: 16px; color: #333;">${studentName}</div>
-        <div style="margin-top: 5px; color: #764ba2; font-weight: bold;">الجزء ${juzNumber}</div>
+      <div style="text-align: center; color: #666; margin-bottom: 12px; padding: 10px; background: #e3f2fd; border-radius: 6px;">
+        <div style="font-weight: bold; font-size: 15px; color: #333;">${studentName}</div>
+        <div style="margin-top: 3px; color: #764ba2; font-weight: bold; font-size: 14px;">الجزء ${juzNumber}</div>
       </div>
       
-      <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-right: 4px solid #28a745;">
-        <div style="font-size: 13px; color: #2e7d32; margin-bottom: 5px;">
+      <div style="background: #e8f5e9; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-right: 3px solid #28a745;">
+        <div style="font-size: 12px; color: #2e7d32; margin-bottom: 3px;">
           <strong>📚 تاريخ آخر درس:</strong>
         </div>
-        <div style="font-size: 15px; font-weight: bold; color: #333;">
+        <div style="font-size: 14px; font-weight: bold; color: #333;">
           ${lessonDayName} - ${formattedLessonDate}
         </div>
       </div>
@@ -1699,7 +1699,7 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
       ${lastAttemptHtml}
       ${attemptsCountHtml}
       
-      <div style="margin-bottom: 20px;">
+      <div style="margin-bottom: 12px;">
         <button class="option-btn pass-btn" onclick="window.handleJuzPass('${reportId}')">
           ✅ اجتاز
         </button>
@@ -1710,7 +1710,7 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
       </div>
       
       <div class="notes-section">
-        <h3 style="color: #667eea; margin-bottom: 15px; font-size: 18px;">
+        <h3 style="color: #667eea; margin-bottom: 10px; font-size: 15px;">
           📝 الملاحظات
         </h3>
         
@@ -1726,7 +1726,7 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
         
         <div class="previous-notes" id="previousNotesList">
           ${previousNotes.length === 0 ? 
-            '<p style="text-align: center; color: #999; padding: 20px;">لا توجد ملاحظات سابقة</p>' :
+            '<p style="text-align: center; color: #999; padding: 12px; font-size: 13px;">لا توجد ملاحظات سابقة</p>' :
             previousNotes.map(note => `
               <div class="note-item">
                 <div class="note-date">${note.date || 'غير محدد'}</div>
@@ -1738,6 +1738,8 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
       </div>
       
       <button class="close-btn" onclick="document.getElementById('juzDisplayOptionsOverlay').remove()">
+        إغلاق
+      </button>>
         إغلاق
       </button>
     `;
@@ -1782,6 +1784,21 @@ window.handleJuzPass = async function(reportId) {
 window.handleJuzFail = async function(reportId) {
   try {
     console.log('❌ Fail clicked for report:', reportId);
+    
+    // Confirmation message
+    const confirmed = confirm(
+      '⚠️ تأكيد عدم الاجتياز\n\n' +
+      'هل أنت متأكد من أن الطالب لم يجتاز؟\n\n' +
+      'سيتم:\n' +
+      '• تسجيل محاولة فاشلة\n' +
+      '• نقل الطالب لأسفل قائمة الانتظار\n' +
+      '• إتاحة فرصة جديدة لاحقاً'
+    );
+    
+    if (!confirmed) {
+      console.log('❌ User cancelled fail operation');
+      return;
+    }
     
     // Get current report data
     const reportDoc = await getDoc(doc(db, 'juzDisplays', reportId));
