@@ -1349,7 +1349,7 @@ window.loadDailyQueue = async function() {
       const daysText = student.daysSince === 1 ? 'يوم واحد' : student.daysSince === 2 ? 'يومان' : `${student.daysSince} أيام`;
       
       tableHTML += `
-        <tr onclick="window.openQueueReport('${student.reportId}')" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
+        <tr onclick="window.showJuzDisplayOptions('${student.reportId}', '${student.studentName}', ${student.juzNumber})" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
           <td style="padding: 12px; font-weight: bold; color: #667eea;">${index + 1}</td>
           <td style="padding: 12px; font-weight: bold;">${student.studentName}</td>
           <td style="padding: 12px; color: #666;">${student.teacherName}</td>
@@ -1423,3 +1423,315 @@ window.openQueueReport = async function(reportId) {
     alert('❌ حدث خطأ في فتح التقرير');
   }
 };
+
+// Show Juz Display Options Popup
+window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) {
+  try {
+    console.log('📋 Opening options for report:', reportId);
+    
+    // Get report data
+    const reportDoc = await getDoc(doc(db, 'juzDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const reportData = reportDoc.data();
+    const previousNotes = reportData.notes || [];
+    
+    // Create popup overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'juzDisplayOptionsOverlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      backdrop-filter: blur(5px);
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    // Create popup container
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      width: 90%;
+      max-width: 550px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease;
+      direction: rtl;
+    `;
+    
+    popup.innerHTML = `
+      <style>
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(50px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .option-btn {
+          padding: 15px 25px;
+          border: none;
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.3s;
+          width: 100%;
+          margin-bottom: 12px;
+        }
+        .option-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .pass-btn {
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+        }
+        .fail-btn {
+          background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+          color: white;
+        }
+        .notes-section {
+          background: #f8f9fa;
+          border-radius: 12px;
+          padding: 20px;
+          margin-top: 15px;
+        }
+        .new-note-input {
+          width: 100%;
+          min-height: 100px;
+          padding: 12px;
+          border: 2px solid #ddd;
+          border-radius: 8px;
+          font-size: 14px;
+          font-family: inherit;
+          resize: vertical;
+          transition: border 0.3s;
+        }
+        .new-note-input:focus {
+          outline: none;
+          border-color: #667eea;
+        }
+        .save-note-btn {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 10px 20px;
+          border: none;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: bold;
+          cursor: pointer;
+          margin-top: 10px;
+          transition: all 0.3s;
+        }
+        .save-note-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .previous-notes {
+          margin-top: 20px;
+          max-height: 250px;
+          overflow-y: auto;
+        }
+        .note-item {
+          background: white;
+          padding: 12px;
+          border-radius: 8px;
+          margin-bottom: 10px;
+          border-right: 4px solid #667eea;
+        }
+        .note-date {
+          font-size: 12px;
+          color: #666;
+          margin-bottom: 5px;
+        }
+        .note-text {
+          font-size: 14px;
+          color: #333;
+          line-height: 1.6;
+        }
+        .close-btn {
+          background: #6c757d;
+          color: white;
+          padding: 10px 20px;
+          border: none;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          margin-top: 15px;
+          width: 100%;
+        }
+        .close-btn:hover {
+          background: #5a6268;
+        }
+      </style>
+      
+      <h2 style="color: #667eea; margin-bottom: 10px; font-size: 22px; text-align: center;">
+        📋 خيارات عرض الجزء
+      </h2>
+      
+      <div style="text-align: center; color: #666; margin-bottom: 25px; padding: 12px; background: #e3f2fd; border-radius: 8px;">
+        <div style="font-weight: bold; font-size: 16px; color: #333;">${studentName}</div>
+        <div style="margin-top: 5px; color: #764ba2; font-weight: bold;">الجزء ${juzNumber}</div>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <button class="option-btn pass-btn" onclick="window.handleJuzPass('${reportId}')">
+          ✅ اجتاز
+        </button>
+        
+        <button class="option-btn fail-btn" onclick="window.handleJuzFail('${reportId}')">
+          ❌ لم يجتاز
+        </button>
+      </div>
+      
+      <div class="notes-section">
+        <h3 style="color: #667eea; margin-bottom: 15px; font-size: 18px;">
+          📝 الملاحظات
+        </h3>
+        
+        <textarea 
+          id="newNoteInput" 
+          class="new-note-input" 
+          placeholder="أضف ملاحظة جديدة..."
+        ></textarea>
+        
+        <button class="save-note-btn" onclick="window.saveJuzNote('${reportId}')">
+          💾 حفظ الملاحظة
+        </button>
+        
+        <div class="previous-notes" id="previousNotesList">
+          ${previousNotes.length === 0 ? 
+            '<p style="text-align: center; color: #999; padding: 20px;">لا توجد ملاحظات سابقة</p>' :
+            previousNotes.map(note => `
+              <div class="note-item">
+                <div class="note-date">${note.date || 'غير محدد'}</div>
+                <div class="note-text">${note.text}</div>
+              </div>
+            `).join('')
+          }
+        </div>
+      </div>
+      
+      <button class="close-btn" onclick="document.getElementById('juzDisplayOptionsOverlay').remove()">
+        إغلاق
+      </button>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error showing options:', error);
+    alert('❌ حدث خطأ في عرض الخيارات');
+  }
+};
+
+// Handle Juz Pass (to be implemented)
+window.handleJuzPass = async function(reportId) {
+  console.log('✅ Pass clicked for report:', reportId);
+  alert('سيتم تنفيذ خيار "اجتاز" قريباً');
+  // Implementation will be added based on your requirements
+};
+
+// Handle Juz Fail (to be implemented)
+window.handleJuzFail = async function(reportId) {
+  console.log('❌ Fail clicked for report:', reportId);
+  alert('سيتم تنفيذ خيار "لم يجتاز" قريباً');
+  // Implementation will be added based on your requirements
+};
+
+// Save Juz Note
+window.saveJuzNote = async function(reportId) {
+  try {
+    const noteInput = document.getElementById('newNoteInput');
+    const noteText = noteInput.value.trim();
+    
+    if (!noteText) {
+      alert('⚠️ الرجاء كتابة ملاحظة');
+      return;
+    }
+    
+    // Get current report data
+    const reportDoc = await getDoc(doc(db, 'juzDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const reportData = reportDoc.data();
+    const currentNotes = reportData.notes || [];
+    
+    // Add new note with timestamp
+    const newNote = {
+      text: noteText,
+      date: new Date().toLocaleString('ar-SA', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      timestamp: new Date()
+    };
+    
+    currentNotes.unshift(newNote); // Add to beginning
+    
+    // Update Firebase
+    await updateDoc(doc(db, 'juzDisplays', reportId), {
+      notes: currentNotes
+    });
+    
+    // Clear input
+    noteInput.value = '';
+    
+    // Update notes list
+    const notesList = document.getElementById('previousNotesList');
+    notesList.innerHTML = currentNotes.map(note => `
+      <div class="note-item">
+        <div class="note-date">${note.date || 'غير محدد'}</div>
+        <div class="note-text">${note.text}</div>
+      </div>
+    `).join('');
+    
+    // Show success message
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = '✅ تم الحفظ';
+    btn.style.background = '#28a745';
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }, 2000);
+    
+    console.log('✅ Note saved successfully');
+    
+  } catch (error) {
+    console.error('Error saving note:', error);
+    alert('❌ حدث خطأ في حفظ الملاحظة');
+  }
+};
+
