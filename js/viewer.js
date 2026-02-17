@@ -1329,15 +1329,19 @@ window.loadDailyQueue = async function() {
         // - If student has attempted (failed), use lastAttemptDate
         // - Otherwise, use lastLessonDate
         let priorityDate = data.lastLessonDate;
-        let daysSince = 0;
+        let daysSinceAttempt = 0;
+        let daysSinceLesson = 0;
+        
+        // Always calculate days since last lesson (used as secondary sort)
+        daysSinceLesson = calculateHijriDaysDifference(data.lastLessonDate, todayHijri);
         
         if (data.lastAttemptDate) {
           // Student has attempted before - use last attempt date for priority
           priorityDate = data.lastAttemptDate;
-          daysSince = calculateHijriDaysDifference(data.lastAttemptDate, todayHijri);
+          daysSinceAttempt = calculateHijriDaysDifference(data.lastAttemptDate, todayHijri);
         } else {
           // New student - never attempted - use last lesson date
-          daysSince = calculateHijriDaysDifference(data.lastLessonDate, todayHijri);
+          daysSinceAttempt = daysSinceLesson;
         }
         
         queue.push({
@@ -1351,14 +1355,24 @@ window.loadDailyQueue = async function() {
           lastAttemptDate: data.lastAttemptDate || null,
           failedAttempts: data.failedAttempts || [],
           priorityDate: priorityDate,
-          daysSince: daysSince
+          daysSinceAttempt: daysSinceAttempt,
+          daysSinceLesson: daysSinceLesson
         });
       }
     });
     
-    // Sort by daysSince (descending - oldest first = highest priority)
-    // Students who haven't attempted in longer time get higher priority
-    queue.sort((a, b) => b.daysSince - a.daysSince);
+    // Sort by two criteria:
+    // 1. Primary: daysSinceAttempt (descending - oldest attempt first)
+    // 2. Secondary: daysSinceLesson (descending - oldest lesson first)
+    // This ensures students who failed on same day are sorted by lesson date
+    queue.sort((a, b) => {
+      // If attempt days are different, sort by attempt days
+      if (b.daysSinceAttempt !== a.daysSinceAttempt) {
+        return b.daysSinceAttempt - a.daysSinceAttempt;
+      }
+      // If attempt days are same, sort by lesson days (older lesson = higher priority)
+      return b.daysSinceLesson - a.daysSinceLesson;
+    });
     
     const endTime = performance.now();
     console.log(`✅ Queue loaded in ${Math.round(endTime - startTime)}ms`);
@@ -1386,8 +1400,10 @@ window.loadDailyQueue = async function() {
     
     queue.forEach((student, index) => {
       const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-      const priorityColor = student.daysSince >= 7 ? '#dc3545' : student.daysSince >= 5 ? '#ffc107' : '#28a745';
-      const daysText = student.daysSince === 1 ? 'يوم واحد' : student.daysSince === 2 ? 'يومان' : `${student.daysSince} أيام`;
+      // Color based on days since LESSON (not attempt) - shows urgency of last lesson
+      const priorityColor = student.daysSinceLesson >= 7 ? '#dc3545' : student.daysSinceLesson >= 5 ? '#ffc107' : '#28a745';
+      // Display days since LESSON (not attempt) - this is what "منذ" means
+      const daysText = student.daysSinceLesson === 1 ? 'يوم واحد' : student.daysSinceLesson === 2 ? 'يومان' : `${student.daysSinceLesson} أيام`;
       
       tableHTML += `
         <tr onclick="window.showJuzDisplayOptions('${student.reportId}', '${student.studentName}', ${student.juzNumber})" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
