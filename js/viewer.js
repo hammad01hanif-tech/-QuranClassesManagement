@@ -1692,6 +1692,31 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
         .close-btn:hover {
           background: #5a6268;
         }
+        .tags-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+          margin-bottom: 10px;
+        }
+        .note-tag {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 5px 10px;
+          border-radius: 12px;
+          font-size: 11px;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        .note-tag:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+        .note-tag:active {
+          transform: translateY(0);
+        }
       </style>
       
       <h2 style="color: #667eea; margin-bottom: 8px; font-size: 18px; text-align: center;">
@@ -1729,6 +1754,16 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
         <h3 style="color: #667eea; margin-bottom: 10px; font-size: 15px;">
           📝 الملاحظات
         </h3>
+        
+        <div style="margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #666; margin-bottom: 5px;">🏷️ اختصارات سريعة:</div>
+          <div class="tags-container">
+            <button class="note-tag" onclick="window.addNoteTag('ضعف في التجويد')">ضعف في التجويد</button>
+            <button class="note-tag" onclick="window.addNoteTag('ضعف في الحفظ')">ضعف في الحفظ</button>
+            <button class="note-tag" onclick="window.addNoteTag('القراءة سريعة')">القراءة سريعة</button>
+            <button class="note-tag" onclick="window.addNoteTag('ألحان جلية كثيرة')">ألحان جلية كثيرة</button>
+          </div>
+        </div>
         
         <textarea 
           id="newNoteInput" 
@@ -1860,6 +1895,33 @@ window.handleJuzFail = async function(reportId) {
     console.error('Error handling fail:', error);
     alert('❌ حدث خطأ في تسجيل المحاولة الفاشلة');
   }
+};
+
+// Add note tag to textarea
+window.addNoteTag = function(tagText) {
+  const noteInput = document.getElementById('newNoteInput');
+  if (!noteInput) return;
+  
+  const currentText = noteInput.value.trim();
+  
+  // Add tag to text (with separator if text exists)
+  if (currentText) {
+    // Check if tag already exists in text
+    if (currentText.includes(tagText)) {
+      // Tag already exists, don't add duplicate
+      return;
+    }
+    // Add comma separator
+    noteInput.value = currentText + '، ' + tagText;
+  } else {
+    noteInput.value = tagText;
+  }
+  
+  // Focus textarea for immediate editing
+  noteInput.focus();
+  
+  // Move cursor to end
+  noteInput.setSelectionRange(noteInput.value.length, noteInput.value.length);
 };
 
 // Save Juz Note
