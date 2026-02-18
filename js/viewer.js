@@ -1996,3 +1996,448 @@ window.saveJuzNote = async function(reportId) {
   }
 };
 
+// ============================================
+// JUZ REPORT PDF EXPORT SYSTEM
+// ============================================
+
+// Show report options popup
+window.showJuzReportOptions = function() {
+  // Get current Hijri date for defaults
+  const today = getTodayForStorage(); // YYYY-MM-DD
+  const todayParts = today.split('-');
+  const currentYear = todayParts[0];
+  const currentMonth = todayParts[1];
+  
+  // Generate month options
+  const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  let monthOptions = '';
+  
+  // Add current year months
+  for (let i = 1; i <= 12; i++) {
+    const monthKey = `${currentYear}-${String(i).padStart(2, '0')}`;
+    const isSelected = String(i).padStart(2, '0') === currentMonth ? 'selected' : '';
+    monthOptions += `<option value="${monthKey}" ${isSelected}>${hijriMonths[i-1]} ${currentYear}</option>`;
+  }
+  
+  // Add previous year months (last 3)
+  const prevYear = String(parseInt(currentYear) - 1);
+  for (let i = 10; i <= 12; i++) {
+    const monthKey = `${prevYear}-${String(i).padStart(2, '0')}`;
+    monthOptions += `<option value="${monthKey}">${hijriMonths[i-1]} ${prevYear}</option>`;
+  }
+  
+  // Create popup overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'juzReportOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease;
+  `;
+  
+  overlay.innerHTML = `
+    <div style="background: white; border-radius: 15px; padding: 25px; width: 90%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; direction: rtl;">
+      <style>
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(30px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      </style>
+      
+      <h2 style="color: #667eea; margin: 0 0 20px 0; text-align: center; font-size: 22px;">
+        📊 تصدير تقرير الأجزاء
+      </h2>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
+          📅 اختر الفترة:
+        </label>
+        <select id="reportPeriodType" onchange="window.toggleReportDateInputs()" style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px; cursor: pointer;">
+          <option value="month">شهر محدد</option>
+          <option value="custom">فترة مخصصة</option>
+          <option value="all">جميع الفترات</option>
+        </select>
+      </div>
+      
+      <div id="monthSelectContainer" style="margin-bottom: 20px;">
+        <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
+          🗓️ الشهر:
+        </label>
+        <select id="reportMonth" style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;">
+          ${monthOptions}
+        </select>
+      </div>
+      
+      <div id="customDateContainer" style="display: none; margin-bottom: 20px;">
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
+            📅 من تاريخ (DD-MM-YYYY):
+          </label>
+          <input type="text" id="reportFromDate" placeholder="01-09-1447" style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;" />
+        </div>
+        <div>
+          <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
+            📅 إلى تاريخ (DD-MM-YYYY):
+          </label>
+          <input type="text" id="reportToDate" placeholder="30-09-1447" style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;" />
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 10px; margin-top: 25px;">
+        <button onclick="window.generateJuzReport()" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+          📥 تصدير PDF
+        </button>
+        <button onclick="document.getElementById('juzReportOverlay').remove()" style="flex: 1; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+          ❌ إلغاء
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  // Close on overlay click
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+};
+
+// Toggle date inputs based on period type
+window.toggleReportDateInputs = function() {
+  const periodType = document.getElementById('reportPeriodType').value;
+  const monthContainer = document.getElementById('monthSelectContainer');
+  const customContainer = document.getElementById('customDateContainer');
+  
+  if (periodType === 'month') {
+    monthContainer.style.display = 'block';
+    customContainer.style.display = 'none';
+  } else if (periodType === 'custom') {
+    monthContainer.style.display = 'none';
+    customContainer.style.display = 'block';
+  } else {
+    monthContainer.style.display = 'none';
+    customContainer.style.display = 'none';
+  }
+};
+
+// Generate Juz Report PDF
+window.generateJuzReport = async function() {
+  try {
+    const periodType = document.getElementById('reportPeriodType').value;
+    let fromDate = null;
+    let toDate = null;
+    let periodLabel = '';
+    
+    // Determine date range
+    if (periodType === 'month') {
+      const monthKey = document.getElementById('reportMonth').value; // YYYY-MM
+      const monthParts = monthKey.split('-');
+      fromDate = `${monthKey}-01`;
+      toDate = `${monthKey}-30`; // Approximate end of Hijri month
+      
+      const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+      const monthName = hijriMonths[parseInt(monthParts[1]) - 1];
+      periodLabel = `${monthName} ${monthParts[0]}`;
+    } else if (periodType === 'custom') {
+      const from = document.getElementById('reportFromDate').value.trim();
+      const to = document.getElementById('reportToDate').value.trim();
+      
+      if (!from || !to) {
+        alert('⚠️ يرجى إدخال التاريخ من والى');
+        return;
+      }
+      
+      fromDate = normalizeDateFormat(from);
+      toDate = normalizeDateFormat(to);
+      
+      if (!fromDate || !toDate) {
+        alert('❌ تنسيق التاريخ غير صحيح. استخدم DD-MM-YYYY');
+        return;
+      }
+      
+      periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
+    } else {
+      // All periods
+      periodLabel = 'جميع الفترات';
+    }
+    
+    // Show loading
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'pdfLoadingMsg';
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      z-index: 10001;
+      text-align: center;
+    `;
+    loadingMsg.innerHTML = `
+      <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+      <div style="font-size: 18px; color: #667eea; font-weight: bold;">جاري إنشاء التقرير...</div>
+      <div style="font-size: 14px; color: #666; margin-top: 8px;">يرجى الانتظار</div>
+    `;
+    document.body.appendChild(loadingMsg);
+    
+    // Fetch all juzDisplays
+    const snapshot = await getDocs(collection(db, 'juzDisplays'));
+    
+    // Filter based on date range
+    let allReports = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const displayDate = data.displayDate;
+      
+      // Include based on period type
+      if (periodType === 'all') {
+        allReports.push(data);
+      } else if (displayDate) {
+        // Check if date is in range
+        if ((!fromDate || displayDate >= fromDate) && (!toDate || displayDate <= toDate)) {
+          allReports.push(data);
+        }
+      } else if (periodType === 'month' || periodType === 'custom') {
+        // Include incomplete reports in the date range if lastLessonDate is in range
+        if (data.lastLessonDate && 
+            (!fromDate || data.lastLessonDate >= fromDate) && 
+            (!toDate || data.lastLessonDate <= toDate)) {
+          allReports.push(data);
+        }
+      }
+    });
+    
+    // Calculate statistics
+    const totalStudents = allReports.length;
+    const passedStudents = allReports.filter(r => r.status === 'complete' && r.passed).length;
+    const remainingStudents = allReports.filter(r => r.status === 'incomplete').length;
+    
+    // Calculate per teacher
+    const teacherStats = {};
+    allReports.forEach(report => {
+      const teacherId = report.teacherId;
+      const teacherName = report.teacherName || 'غير محدد';
+      
+      if (!teacherStats[teacherId]) {
+        teacherStats[teacherId] = {
+          name: teacherName,
+          completed: 0,
+          remaining: 0
+        };
+      }
+      
+      if (report.status === 'complete' && report.passed) {
+        teacherStats[teacherId].completed++;
+      } else if (report.status === 'incomplete') {
+        teacherStats[teacherId].remaining++;
+      }
+    });
+    
+    // Analyze common notes (based on tags)
+    const noteTags = {
+      'ضعف في التجويد': 0,
+      'ضعف في الحفظ': 0,
+      'القراءة سريعة': 0,
+      'ألحان جلية كثيرة': 0
+    };
+    
+    allReports.forEach(report => {
+      if (report.notes && Array.isArray(report.notes)) {
+        report.notes.forEach(note => {
+          const text = note.text || '';
+          Object.keys(noteTags).forEach(tag => {
+            if (text.includes(tag)) {
+              noteTags[tag]++;
+            }
+          });
+        });
+      }
+    });
+    
+    // 🚀 INNOVATIVE SOLUTION: Create HTML content and convert to PDF using html2canvas
+    console.log('🎨 Creating HTML content for PDF...');
+    
+    const successRate = totalStudents > 0 ? Math.round((passedStudents / totalStudents) * 100) : 0;
+    const teacherEntries = Object.values(teacherStats).sort((a, b) => b.completed - a.completed);
+    const sortedNotes = Object.entries(noteTags).sort((a, b) => b[1] - a[1]);
+    
+    // Build teacher rows HTML
+    let teacherRowsHTML = '';
+    teacherEntries.forEach((teacher, index) => {
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      teacherRowsHTML += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${teacher.name}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #28a745; font-weight: bold;">${teacher.completed}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #dc3545;">${teacher.remaining}</td>
+        </tr>
+      `;
+    });
+    
+    // Build notes rows HTML
+    let notesRowsHTML = '';
+    sortedNotes.forEach(([tag, count], index) => {
+      if (count > 0) {
+        const percentage = totalStudents > 0 ? Math.round((count / totalStudents) * 100) : 0;
+        const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+        notesRowsHTML += `
+          <tr style="background: ${bgColor};">
+            <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${tag}</td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; font-weight: bold;">${count}</td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #667eea; font-weight: bold;">${percentage}%</td>
+          </tr>
+        `;
+      }
+    });
+    
+    // Create temporary container
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 800px;
+      background: white;
+      padding: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #667eea; margin: 0 0 10px 0; font-size: 32px;">📊 تقرير الأجزاء القرآنية</h1>
+        <p style="color: #666; font-size: 18px; margin: 0;">${periodLabel}</p>
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 12px; margin-bottom: 30px; color: white;">
+        <h2 style="margin: 0 0 20px 0; font-size: 24px; text-align: center;">📈 الإحصائيات العامة</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">إجمالي الطلاب</div>
+            <div style="font-size: 28px; font-weight: bold;">${totalStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">المجتازين</div>
+            <div style="font-size: 28px; font-weight: bold; color: #90ee90;">${passedStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">المتبقي</div>
+            <div style="font-size: 28px; font-weight: bold; color: #ffb6c1;">${remainingStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">نسبة النجاح</div>
+            <div style="font-size: 28px; font-weight: bold; color: #ffd700;">${successRate}%</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 30px;">
+        <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 22px; border-bottom: 3px solid #667eea; padding-bottom: 10px;">👥 إنجازات المعلمين</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 16px; border-radius: 8px 0 0 0;">اسم المعلم</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px;">المنجز</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px; border-radius: 0 8px 0 0;">المتبقي</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${teacherRowsHTML || '<tr><td colspan="3" style="padding: 20px; text-align: center; color: #999;">لا توجد بيانات</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="margin-bottom: 30px;">
+        <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 22px; border-bottom: 3px solid #667eea; padding-bottom: 10px;">📝 الملاحظات الشائعة</h2>
+        ${notesRowsHTML ? `
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 16px; border-radius: 8px 0 0 0;">الملاحظة</th>
+                <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px;">العدد</th>
+                <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px; border-radius: 0 8px 0 0;">النسبة</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${notesRowsHTML}
+            </tbody>
+          </table>
+        ` : '<p style="text-align: center; color: #999; padding: 20px;">لا توجد ملاحظات مسجلة</p>'}
+      </div>
+      
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #667eea;">
+        <p style="margin: 5px 0; color: #667eea; font-size: 14px; font-style: italic;">📚 نظام إدارة عرض الأجزاء القرآنية</p>
+        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${formatDateForDisplay(getTodayForStorage())}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    console.log('📸 Converting HTML to canvas...');
+    
+    // Convert HTML to canvas using html2canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    console.log('✅ Canvas created successfully');
+    
+    // Remove temporary container
+    document.body.removeChild(container);
+    
+    // Create PDF from canvas
+    console.log('📄 Creating PDF from canvas...');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    doc.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    console.log('✅ PDF generated successfully');
+    
+    // Save PDF
+    const fileName = `تقرير_الأجزاء_${periodLabel.replace(/\s/g, '_')}.pdf`;
+    doc.save(fileName);
+    
+    console.log('🎉 PDF saved successfully:', fileName);
+    
+    // Remove loading and overlay
+    loadingMsg.remove();
+    document.getElementById('juzReportOverlay').remove();
+    
+    alert('✅ تم تصدير التقرير بنجاح!');
+    
+  } catch (error) {
+    console.error('Error generating report:', error);
+    const loadingMsg = document.getElementById('pdfLoadingMsg');
+    if (loadingMsg) loadingMsg.remove();
+    alert('❌ حدث خطأ في إنشاء التقرير');
+  }
+};
