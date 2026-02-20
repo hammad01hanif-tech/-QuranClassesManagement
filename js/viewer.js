@@ -875,8 +875,12 @@ window.sendReportToTeacher = async function(reportId) {
     const durationDays = calculateHijriDaysDifference(data.lastLessonDate, data.displayDate);
     const durationText = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
     
+    // Get failed attempts count
+    const attemptCount = (data.failedAttempts && data.failedAttempts.length) || 0;
+    const totalAttempts = attemptCount + 1; // Include the final successful attempt
+    
     // Create notification message
-    const notificationMessage = `🎉 رسالة اجتياز\n\n✅ الطالب: ${data.studentName}\n👨‍🏫 المعلم: ${data.teacherName || 'غير محدد'}\n📖 الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${data.displayDate}\n⏱️ المدة المستغرقة: ${durationText}\n👤 العارض: ${data.viewerName}`;
+    const notificationMessage = `🎉 رسالة اجتياز\n\n✅ الطالب: ${data.studentName}\n👨‍🏫 المعلم: ${data.teacherName || 'غير محدد'}\n📖 الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${data.displayDate}\n⏱️ المدة المستغرقة: ${durationText}\n👤 العارض: ${data.viewerName}\n🔄 عدد مرات التسميع: ${totalAttempts}`;
     
     console.log('📤 Sending notification:', {
       teacherId: data.teacherId,
@@ -896,6 +900,7 @@ window.sendReportToTeacher = async function(reportId) {
       duration: durationText,
       viewerName: data.viewerName,
       viewerId: data.viewerId || 'MZNBL01',
+      totalAttempts: totalAttempts,
       message: notificationMessage,
       createdAt: serverTimestamp(),
       read: false
@@ -952,6 +957,10 @@ window.shareReport = async function(reportId) {
     const durationDays = calculateHijriDaysDifference(data.lastLessonDate, data.displayDate);
     const durationText = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
     
+    // Get failed attempts count
+    const attemptCount = (data.failedAttempts && data.failedAttempts.length) || 0;
+    const totalAttempts = attemptCount + 1; // Include the final successful attempt
+    
     // Create shareable text
     const shareText = `━━━━━━━━━━━━━━━━━━━━
 🎉 رسالة اجتياز
@@ -963,10 +972,7 @@ window.shareReport = async function(reportId) {
 📅 تاريخ العرض: ${data.displayDate}
 ⏱️ المدة المستغرقة: ${durationText}
 👤 العارض: ${data.viewerName}
-
-━━━━━━━━━━━━━━━━━━━━
-📱 مركز متون لتحفيظ القرآن
-━━━━━━━━━━━━━━━━━━━━`;
+🔄 عدد مرات التسميع: ${totalAttempts}`;
     
     // Save notification for teacher
     await setDoc(doc(collection(db, 'teacherNotifications')), {
@@ -979,6 +985,7 @@ window.shareReport = async function(reportId) {
       displayDate: data.displayDate,
       duration: durationText,
       viewerName: data.viewerName,
+      totalAttempts: totalAttempts,
       message: shareText,
       createdAt: serverTimestamp(),
       read: false
@@ -995,6 +1002,7 @@ window.shareReport = async function(reportId) {
       displayDate: data.displayDate,
       duration: durationText,
       viewerName: data.viewerName,
+      totalAttempts: totalAttempts,
       message: shareText,
       createdAt: serverTimestamp(),
       read: false
