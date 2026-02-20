@@ -19,6 +19,161 @@ import { accurateHijriDates, gregorianToAccurateHijri, accurateHijriToGregorian 
 
 let viewerNotificationsListener = null;
 
+// ============================================
+// VIEWERS LIST - قائمة العارضين
+// ============================================
+const VIEWERS_LIST = [
+  'مازن البلوشي',
+  'بدر بن عفيف',
+  'محمد عثمان',
+  'سليمان موسى',
+  'فيض مهاجر',
+  'إبراهيم الطارقي'
+];
+
+// Show viewer selection popup
+async function selectViewerName(defaultViewer = 'مازن البلوشي') {
+  return new Promise((resolve) => {
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'viewerSelectionOverlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10001;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    // Build options HTML
+    let optionsHTML = '';
+    VIEWERS_LIST.forEach(viewer => {
+      const isDefault = viewer === defaultViewer;
+      optionsHTML += `
+        <div class="viewer-option" data-viewer="${viewer}" style="
+          padding: 12px 20px;
+          background: ${isDefault ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f8f9fa'};
+          color: ${isDefault ? 'white' : '#333'};
+          border-radius: 8px;
+          margin-bottom: 8px;
+          cursor: pointer;
+          font-size: 15px;
+          font-weight: ${isDefault ? 'bold' : 'normal'};
+          transition: all 0.2s;
+          border: 2px solid ${isDefault ? '#667eea' : '#dee2e6'};
+        ">
+          ${isDefault ? '✅ ' : ''}${viewer}
+        </div>
+      `;
+    });
+    
+    overlay.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        width: 90%;
+        max-width: 400px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        animation: slideUp 0.3s ease;
+        direction: rtl;
+      ">
+        <style>
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+          .viewer-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          }
+        </style>
+        
+        <h2 style="color: #667eea; margin: 0 0 20px 0; text-align: center; font-size: 20px;">
+          👤 اختر اسم العارض
+        </h2>
+        
+        <div id="viewersContainer">
+          ${optionsHTML}
+        </div>
+        
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #f0f0f0;">
+          <div class="viewer-option" data-viewer="other" style="
+            padding: 12px 20px;
+            background: #6c757d;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.2s;
+            border: 2px solid #6c757d;
+          ">
+            ➕ آخر (إدخال يدوي)
+          </div>
+        </div>
+        
+        <button onclick="this.closest('#viewerSelectionOverlay').remove()" style="
+          width: 100%;
+          padding: 10px;
+          margin-top: 15px;
+          background: #dc3545;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+        ">
+          ❌ إلغاء
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Handle option clicks
+    overlay.querySelectorAll('.viewer-option').forEach(option => {
+      option.addEventListener('click', function() {
+        const selectedViewer = this.getAttribute('data-viewer');
+        
+        if (selectedViewer === 'other') {
+          // Manual input
+          const customName = prompt('📝 أدخل اسم العارض:');
+          if (customName && customName.trim()) {
+            overlay.remove();
+            resolve(customName.trim());
+          }
+        } else {
+          overlay.remove();
+          resolve(selectedViewer);
+        }
+      });
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        overlay.remove();
+        resolve(null); // User cancelled
+      }
+    });
+  });
+}
+
 // Get today's Hijri date in YYYY-MM-DD format (accurate)
 window.getTodayHijriAccurate = function() {
   return getTodayForStorage(); // Returns accurate format: YYYY-MM-DD
@@ -199,6 +354,7 @@ window.saveNewJuzDisplay = async function() {
   const juzNumber = document.getElementById('viewerJuzNumber').value;
   let lastLessonDate = document.getElementById('viewerLastLessonDate').value.trim();
   let displayDate = document.getElementById('viewerDisplayDate').value.trim();
+  const viewerName = document.getElementById('viewerName').value; // Get selected viewer name
   const messageDiv = document.getElementById('viewerNewJuzMessage');
   
   // Validation
@@ -252,7 +408,7 @@ window.saveNewJuzDisplay = async function() {
       juzNumber: parseInt(juzNumber),
       lastLessonDate: normalizedLastLessonDate, // Stored in YYYY-MM-DD format
       displayDate: normalizedDisplayDate || null,
-      viewerName: 'مازن البلوشي',
+      viewerName: viewerName, // Use selected viewer name
       viewerId: 'MZNBL01',
       createdAt: serverTimestamp(),
       status: normalizedDisplayDate ? 'completed' : 'incomplete'
@@ -1502,18 +1658,21 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
     
     // Format dates in Hijri
     let lastAttemptHtml = '';
-    if (lastAttemptDate) {
+    if (lastAttemptDate && failedAttempts.length > 0) {
       const formattedAttemptDate = formatDateForDisplay(lastAttemptDate); // DD-MM-YYYY
       // Convert Hijri to Gregorian to get day name
       const attemptGregorianDate = accurateHijriToGregorian(lastAttemptDate);
       const attemptDayName = getHijriDayName(attemptGregorianDate);
       lastAttemptHtml = `
-        <div style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-right: 3px solid #ffc107;">
+        <div onclick="window.showAttemptsHistory('${reportId}')" style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-right: 3px solid #ffc107; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#ffe082'" onmouseout="this.style.background='#fff3cd'">
           <div style="font-size: 12px; color: #856404; margin-bottom: 3px;">
-            <strong>📅 آخر محاولة تسميع:</strong>
+            <strong>📅 آخر محاولة تسميع:</strong> <span style="font-size: 10px; opacity: 0.8;">(اضغط لعرض السجل)</span>
           </div>
           <div style="font-size: 14px; font-weight: bold; color: #333;">
             ${attemptDayName} - ${formattedAttemptDate}
+          </div>
+          <div style="font-size: 11px; color: #856404; margin-top: 3px;">
+            📊 إجمالي المحاولات: ${failedAttempts.length}
           </div>
         </div>
       `;
@@ -1822,6 +1981,22 @@ window.handleJuzPass = async function(reportId) {
       overlay.remove();
     }
     
+    // Select viewer name
+    const viewerName = await selectViewerName('مازن البلوشي');
+    
+    if (!viewerName) {
+      console.log('❌ User cancelled viewer selection');
+      return;
+    }
+    
+    // Update viewerName in the report
+    await updateDoc(doc(db, 'juzDisplays', reportId), {
+      viewerName: viewerName,
+      updatedAt: serverTimestamp()
+    });
+    
+    console.log('✅ Viewer name updated:', viewerName);
+    
     // Open the report (same as openQueueReport)
     await window.openQueueReport(reportId);
     
@@ -1836,18 +2011,19 @@ window.handleJuzFail = async function(reportId) {
   try {
     console.log('❌ Fail clicked for report:', reportId);
     
-    // Confirmation message
-    const confirmed = confirm(
-      '⚠️ تأكيد عدم الاجتياز\n\n' +
-      'هل أنت متأكد من أن الطالب لم يجتاز؟\n\n' +
-      'سيتم:\n' +
-      '• تسجيل محاولة فاشلة\n' +
-      '• نقل الطالب لأسفل قائمة الانتظار\n' +
-      '• إتاحة فرصة جديدة لاحقاً'
-    );
+    // Select viewer name first
+    const viewerName = await selectViewerName('مازن البلوشي');
     
-    if (!confirmed) {
-      console.log('❌ User cancelled fail operation');
+    if (!viewerName) {
+      console.log('❌ User cancelled viewer selection');
+      return;
+    }
+    
+    // Show attempt details form
+    const attemptDetails = await showAttemptDetailsForm(viewerName);
+    
+    if (!attemptDetails) {
+      console.log('❌ User cancelled attempt details');
       return;
     }
     
@@ -1862,20 +2038,24 @@ window.handleJuzFail = async function(reportId) {
     const currentData = reportDoc.data();
     const failedAttempts = currentData.failedAttempts || [];
     
-    // Add failed attempt record
+    // Add failed attempt record with full details
     const failedAttempt = {
+      attemptNumber: failedAttempts.length + 1,
       date: getTodayForStorage(), // YYYY-MM-DD format
-      timestamp: new Date()
+      timestamp: new Date(),
+      viewerName: viewerName,
+      warnings: attemptDetails.warnings,
+      mistakes: attemptDetails.mistakes,
+      majorMelodies: attemptDetails.majorMelodies
     };
     
     failedAttempts.push(failedAttempt);
     
-    // Update report: record failed attempt with lastAttemptDate
-    // Keep lastLessonDate unchanged (preserves actual lesson history)
-    // This will move student to bottom of queue (daysSince from lastAttemptDate = 0)
+    // Update report: record failed attempt with lastAttemptDate and viewerName
     await updateDoc(doc(db, 'juzDisplays', reportId), {
       failedAttempts: failedAttempts,
-      lastAttemptDate: getTodayForStorage(), // Track last attempt separately
+      lastAttemptDate: getTodayForStorage(),
+      viewerName: viewerName,
       updatedAt: serverTimestamp()
     });
     
@@ -1889,13 +2069,216 @@ window.handleJuzFail = async function(reportId) {
     await loadDailyQueue();
     
     // Show success message
-    alert(`✅ تم تسجيل محاولة فاشلة\nإجمالي المحاولات: ${failedAttempts.length}\nتم نقل الطالب لأسفل القائمة`);
+    alert(
+      `✅ تم تسجيل محاولة فاشلة\n\n` +
+      `📊 التفاصيل:\n` +
+      `• العارض: ${viewerName}\n` +
+      `• رقم المحاولة: ${failedAttempt.attemptNumber}\n` +
+      `• التنبيهات: ${attemptDetails.warnings}\n` +
+      `• الغلطات: ${attemptDetails.mistakes}\n` +
+      `• الألحان الجلية: ${attemptDetails.majorMelodies}\n\n` +
+      `تم نقل الطالب لأسفل القائمة`
+    );
     
   } catch (error) {
     console.error('Error handling fail:', error);
     alert('❌ حدث خطأ في تسجيل المحاولة الفاشلة');
   }
 };
+
+// Show attempt details form (warnings, mistakes, major melodies counters)
+async function showAttemptDetailsForm(viewerName) {
+  return new Promise((resolve) => {
+    let warnings = 0;
+    let mistakes = 0;
+    let majorMelodies = 0;
+    
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'attemptDetailsOverlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10002;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    const updateDisplay = () => {
+      document.getElementById('warningsCount').textContent = warnings;
+      document.getElementById('mistakesCount').textContent = mistakes;
+      document.getElementById('melodiesCount').textContent = majorMelodies;
+    };
+    
+    overlay.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        width: 90%;
+        max-width: 450px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        animation: slideUp 0.3s ease;
+        direction: rtl;
+      ">
+        <style>
+          .counter-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+          }
+          .counter-btn:hover {
+            transform: scale(1.1);
+          }
+          .counter-btn:active {
+            transform: scale(0.95);
+          }
+          .plus-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          }
+          .minus-btn {
+            background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+          }
+          .counter-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            min-width: 50px;
+            text-align: center;
+          }
+        </style>
+        
+        <h2 style="color: #667eea; margin: 0 0 10px 0; text-align: center; font-size: 20px;">
+          📊 تفاصيل المحاولة
+        </h2>
+        
+        <div style="background: #e3f2fd; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+          <div style="font-size: 14px; color: #666; margin-bottom: 3px;">العارض</div>
+          <div style="font-size: 16px; font-weight: bold; color: #333;">${viewerName}</div>
+        </div>
+        
+        <!-- Warnings Counter -->
+        <div style="background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+          <div style="font-size: 14px; color: #856404; margin-bottom: 10px; font-weight: bold; text-align: center;">
+            ⚠️ عدد التنبيهات
+          </div>
+          <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+            <button class="counter-btn minus-btn" onclick="window.decrementCounter('warnings')">−</button>
+            <div class="counter-display" id="warningsCount">0</div>
+            <button class="counter-btn plus-btn" onclick="window.incrementCounter('warnings')">+</button>
+          </div>
+        </div>
+        
+        <!-- Mistakes Counter -->
+        <div style="background: #f8d7da; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+          <div style="font-size: 14px; color: #721c24; margin-bottom: 10px; font-weight: bold; text-align: center;">
+            ❌ عدد الغلطات
+          </div>
+          <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+            <button class="counter-btn minus-btn" onclick="window.decrementCounter('mistakes')">−</button>
+            <div class="counter-display" id="mistakesCount">0</div>
+            <button class="counter-btn plus-btn" onclick="window.incrementCounter('mistakes')">+</button>
+          </div>
+        </div>
+        
+        <!-- Major Melodies Counter -->
+        <div style="background: #e2d4f7; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+          <div style="font-size: 14px; color: #5a2d82; margin-bottom: 10px; font-weight: bold; text-align: center;">
+            🎵 عدد الألحان الجلية
+          </div>
+          <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+            <button class="counter-btn minus-btn" onclick="window.decrementCounter('majorMelodies')">−</button>
+            <div class="counter-display" id="melodiesCount">0</div>
+            <button class="counter-btn plus-btn" onclick="window.incrementCounter('majorMelodies')">+</button>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <button id="confirmDetailsBtn" style="
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+          ">
+            ✅ تأكيد
+          </button>
+          <button id="cancelDetailsBtn" style="
+            flex: 1;
+            padding: 12px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+          ">
+            ❌ إلغاء
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Counter functions
+    window.incrementCounter = (type) => {
+      if (type === 'warnings') warnings++;
+      else if (type === 'mistakes') mistakes++;
+      else if (type === 'majorMelodies') majorMelodies++;
+      updateDisplay();
+    };
+    
+    window.decrementCounter = (type) => {
+      if (type === 'warnings' && warnings > 0) warnings--;
+      else if (type === 'mistakes' && mistakes > 0) mistakes--;
+      else if (type === 'majorMelodies' && majorMelodies > 0) majorMelodies--;
+      updateDisplay();
+    };
+    
+    // Confirm button
+    document.getElementById('confirmDetailsBtn').addEventListener('click', () => {
+      overlay.remove();
+      resolve({
+        warnings: warnings,
+        mistakes: mistakes,
+        majorMelodies: majorMelodies
+      });
+    });
+    
+    // Cancel button
+    document.getElementById('cancelDetailsBtn').addEventListener('click', () => {
+      overlay.remove();
+      resolve(null);
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+        resolve(null);
+      }
+    });
+  });
+}
 
 // Add note tag to textarea
 window.addNoteTag = function(tagText) {
@@ -1922,6 +2305,138 @@ window.addNoteTag = function(tagText) {
   
   // Move cursor to end
   noteInput.setSelectionRange(noteInput.value.length, noteInput.value.length);
+};
+
+// Show attempts history table
+window.showAttemptsHistory = async function(reportId) {
+  try {
+    // Get report data
+    const reportDoc = await getDoc(doc(db, 'juzDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const reportData = reportDoc.data();
+    const failedAttempts = reportData.failedAttempts || [];
+    
+    if (failedAttempts.length === 0) {
+      alert('ℹ️ لا توجد محاولات مسجلة');
+      return;
+    }
+    
+    // Build table rows
+    let tableRows = '';
+    failedAttempts.forEach((attempt, index) => {
+      const formattedDate = formatDateForDisplay(attempt.date);
+      const gregorianDate = accurateHijriToGregorian(attempt.date);
+      const dayName = getHijriDayName(gregorianDate);
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      
+      tableRows += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: #667eea;">${attempt.attemptNumber || index + 1}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 13px;">
+            <div style="font-weight: bold; color: #333;">${dayName}</div>
+            <div style="font-size: 11px; color: #666;">${formattedDate}</div>
+          </td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 13px;">${attempt.viewerName || 'غير محدد'}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; color: #856404; font-weight: bold;">${attempt.warnings || 0}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; color: #721c24; font-weight: bold;">${attempt.mistakes || 0}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; color: #5a2d82; font-weight: bold;">${attempt.majorMelodies || 0}</td>
+        </tr>
+      `;
+    });
+    
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'attemptsHistoryOverlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10003;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    overlay.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        width: 95%;
+        max-width: 900px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        animation: slideUp 0.3s ease;
+        direction: rtl;
+      ">
+        <h2 style="color: #667eea; margin: 0 0 20px 0; text-align: center; font-size: 22px;">
+          📊 سجل محاولات التسميع
+        </h2>
+        
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; margin-bottom: 20px; color: white; text-align: center;">
+          <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">إجمالي المحاولات</div>
+          <div style="font-size: 28px; font-weight: bold;">🔄 ${failedAttempts.length}</div>
+        </div>
+        
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <th style="padding: 12px; border: none; border-radius: 8px 0 0 0;">#</th>
+                <th style="padding: 12px; border: none;">اليوم والتاريخ</th>
+                <th style="padding: 12px; border: none;">العارض</th>
+                <th style="padding: 12px; border: none; text-align: center;">⚠️ تنبيهات</th>
+                <th style="padding: 12px; border: none; text-align: center;">❌ غلطات</th>
+                <th style="padding: 12px; border: none; text-align: center; border-radius: 0 8px 0 0;">🎵 ألحان جلية</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+        
+        <button onclick="document.getElementById('attemptsHistoryOverlay').remove()" style="
+          width: 100%;
+          padding: 12px;
+          margin-top: 20px;
+          background: #6c757d;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+        ">
+          ❌ إغلاق
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Close on overlay click
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error showing attempts history:', error);
+    alert('❌ حدث خطأ في عرض السجل');
+  }
 };
 
 // Save Juz Note
