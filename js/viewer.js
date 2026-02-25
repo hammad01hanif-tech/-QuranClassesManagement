@@ -696,19 +696,26 @@ window.loadViewerJuzReports = async function() {
   }
 };
 
-// Set today's Hijri date in DD-MM-YYYY format
+// Set today's Hijri date in DD-MM-YYYY format using ACCURATE calendar
 window.setTodayHijriDate = function(reportId) {
   const today = new Date();
-  const hijriParts = today.toLocaleDateString('en-SA-u-ca-islamic', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).split('/');
   
-  // Convert from MM/DD/YYYY to DD-MM-YYYY
-  const hijriDate = `${hijriParts[1]}-${hijriParts[0]}-${hijriParts[2]}`;
+  // Use accurate Hijri calendar conversion
+  const accurateHijri = gregorianToAccurateHijri(today);
+  const hijriDateYMD = accurateHijri.hijri; // YYYY-MM-DD format
+  
+  // Convert YYYY-MM-DD to DD-MM-YYYY for display
+  const parts = hijriDateYMD.split('-');
+  const hijriDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
   
   document.getElementById(`displayDate_${reportId}`).value = hijriDate;
+  
+  console.log('✅ Set accurate Hijri date:', {
+    gregorian: today.toISOString().split('T')[0],
+    hijriYMD: hijriDateYMD,
+    hijriDisplay: hijriDate,
+    dayName: accurateHijri.dayName
+  });
 };
 
 // Normalize date format: accepts DD-MM-YYYY or YYYY-MM-DD, returns YYYY-MM-DD
@@ -2668,14 +2675,38 @@ window.generateJuzReport = async function() {
     
     // Determine date range
     if (periodType === 'month') {
-      const monthKey = document.getElementById('reportMonth').value; // YYYY-MM
+      const monthKey = document.getElementById('reportMonth').value; // YYYY-MM (e.g., "1447-09")
       const monthParts = monthKey.split('-');
-      fromDate = `${monthKey}-01`;
-      toDate = `${monthKey}-30`; // Approximate end of Hijri month
+      const selectedYear = parseInt(monthParts[0]);
+      const selectedMonth = parseInt(monthParts[1]);
+      
+      // Find EXACT start and end dates from accurateHijriDates
+      const monthDates = accurateHijriDates.filter(entry => 
+        entry.hijriYear === selectedYear && entry.hijriMonth === selectedMonth
+      );
+      
+      if (monthDates.length > 0) {
+        // Use first and last dates from accurate calendar
+        fromDate = monthDates[0].hijri; // First day of month
+        toDate = monthDates[monthDates.length - 1].hijri; // Last day of month
+        
+        console.log(`📅 Accurate month range for ${monthKey}:`, {
+          fromDate,
+          toDate,
+          totalDays: monthDates.length,
+          gregorianStart: monthDates[0].gregorian,
+          gregorianEnd: monthDates[monthDates.length - 1].gregorian
+        });
+      } else {
+        // Fallback if month not in calendar (shouldn't happen)
+        fromDate = `${monthKey}-01`;
+        toDate = `${monthKey}-30`;
+        console.warn('⚠️ Month not found in accurate calendar, using approximation');
+      }
       
       const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-      const monthName = hijriMonths[parseInt(monthParts[1]) - 1];
-      periodLabel = `${monthName} ${monthParts[0]}`;
+      const monthName = hijriMonths[selectedMonth - 1];
+      periodLabel = `${monthName} ${selectedYear}`;
     } else if (periodType === 'custom') {
       const from = document.getElementById('reportFromDate').value.trim();
       const to = document.getElementById('reportToDate').value.trim();
@@ -2724,7 +2755,7 @@ window.generateJuzReport = async function() {
     // Fetch all juzDisplays
     const snapshot = await getDocs(collection(db, 'juzDisplays'));
     
-    // Filter based on date range
+    // Filter based on date range with ACCURATE date comparison
     let allReports = [];
     snapshot.forEach(doc => {
       const data = doc.data();
@@ -2734,9 +2765,30 @@ window.generateJuzReport = async function() {
       if (periodType === 'all') {
         allReports.push(data);
       } else if (displayDate) {
-        // Check if date is in range
-        if ((!fromDate || displayDate >= fromDate) && (!toDate || displayDate <= toDate)) {
+        // Normalize displayDate to ensure YYYY-MM-DD format
+        let normalizedDisplayDate = displayDate;
+        if (displayDate.includes('/')) {
+          // Convert DD/MM/YYYY to YYYY-MM-DD if needed
+          const parts = displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        // Check if date is in range (string comparison works for YYYY-MM-DD format)
+        if ((!fromDate || normalizedDisplayDate >= fromDate) && (!toDate || normalizedDisplayDate <= toDate)) {
           allReports.push(data);
+          console.log('✅ Included report:', {
+            student: data.studentName,
+            displayDate: normalizedDisplayDate,
+            range: `${fromDate} to ${toDate}`
+          });
+        } else {
+          console.log('❌ Excluded report (outside range):', {
+            student: data.studentName,
+            displayDate: normalizedDisplayDate,
+            range: `${fromDate} to ${toDate}`
+          });
         }
       } else if (periodType === 'month' || periodType === 'custom') {
         // Include incomplete reports in the date range if lastLessonDate is in range
@@ -2744,9 +2796,15 @@ window.generateJuzReport = async function() {
             (!fromDate || data.lastLessonDate >= fromDate) && 
             (!toDate || data.lastLessonDate <= toDate)) {
           allReports.push(data);
+          console.log('✅ Included incomplete report by lastLessonDate:', {
+            student: data.studentName,
+            lastLessonDate: data.lastLessonDate
+          });
         }
       }
     });
+    
+    console.log(`📊 Total reports found: ${allReports.length} for period: ${periodLabel}`);
     
     // Calculate statistics
     const totalStudents = allReports.length;
