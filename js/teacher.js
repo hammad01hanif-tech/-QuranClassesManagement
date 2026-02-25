@@ -3576,16 +3576,24 @@ window.sendStrugglingToAdmin = async function() {
   try {
     const teacherId = sessionStorage.getItem('loggedInTeacher');
     const teacherName = sessionStorage.getItem('loggedInTeacherName');
-    const today = getTodayForStorage(); // Gregorian for database
-    const todayHijri = gregorianToHijriDisplay(today);
+    const todayHijri = getTodayForStorage(); // Hijri date in YYYY-MM-DD format (from accurate calendar)
+    
+    // Get day name from accurate calendar
+    const dateEntry = accurateHijriDates.find(d => d.hijri === todayHijri);
+    let dayName = '';
+    if (dateEntry) {
+      const [gYear, gMonth, gDay] = dateEntry.gregorian.split('-').map(Number);
+      const gregorianDate = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
+      dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
+    }
     
     // Save struggling report to Firestore
-    await setDoc(doc(db, 'strugglingReports', `${teacherId}_${today}`), {
+    await setDoc(doc(db, 'strugglingReports', `${teacherId}_${todayHijri}`), {
       teacherId: teacherId,
       teacherName: teacherName,
       classId: currentTeacherClassId,
-      date: today, // Gregorian for database
-      dateHijri: todayHijri, // Hijri for display
+      dateId: todayHijri, // Hijri format YYYY-MM-DD
+      dayName: dayName, // اسم اليوم
       timestamp: serverTimestamp(),
       students: window.currentStrugglingStudents
     });
@@ -4265,11 +4273,10 @@ window.sendAbsentStudentToAdmin = async function(studentId, studentName, absentC
       studentName: studentName,
       absentCount: absentCount,
       month: currentMonth,
-      reportDate: todayHijriId, // Hijri date
-      gregorianDate: todayGregorian, // Gregorian for day name
+      dateId: todayHijriId, // Hijri date ID (YYYY-MM-DD format)
+      timestamp: serverTimestamp(),
       teacherName: teacherName,
-      classId: currentTeacherClassId,
-      timestamp: serverTimestamp()
+      classId: currentTeacherClassId
     });
     
     alert(`✅ تم إرسال تقرير غياب الطالب "${studentName}" للإدارة بنجاح`);

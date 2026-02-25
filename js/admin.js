@@ -922,8 +922,22 @@ window.loadReportsForStudent = async function(studentId, selectedMonthFilter = '
     daySelect.innerHTML = '<option value="all-days">جميع أيام الشهر</option>';
     allStudyDays.forEach(dateId => {
       const [y, m, d] = dateId.split('-').map(Number);
-      const gregorianDate = convertHijriToGregorian(y, m, d);
-      const dayOfWeek = gregorianDate.getDay();
+      
+      // PRIORITY: Use accurate-hijri-dates.js for day name
+      const dateEntry = accurateHijriDates.find(entry => entry.hijri === dateId);
+      let gregorianDate, dayOfWeek;
+      
+      if (dateEntry) {
+        // Use accurate calendar data
+        const [gYear, gMonth, gDay] = dateEntry.gregorian.split('-').map(Number);
+        gregorianDate = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
+        dayOfWeek = gregorianDate.getDay();
+      } else {
+        // Fallback: use conversion
+        gregorianDate = convertHijriToGregorian(y, m, d);
+        dayOfWeek = gregorianDate.getDay();
+      }
+      
       const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
       const dayName = dayNames[dayOfWeek];
       const monthName = hijriMonths[m - 1];
@@ -1002,8 +1016,21 @@ function calculateStudentStatistics(reports) {
     
     // Get the Gregorian date of the report to check day of week
     const [hijriYear, hijriMonth, hijriDay] = reportDateId.split('-').map(Number);
-    const reportGregorian = convertHijriToGregorian(hijriYear, hijriMonth, hijriDay);
-    const reportDayOfWeek = reportGregorian.getDay(); // 0=Sunday, 6=Saturday
+    
+    // PRIORITY: Use accurate-hijri-dates.js for day of week
+    const dateEntry = accurateHijriDates.find(d => d.hijri === reportDateId);
+    let reportGregorian, reportDayOfWeek;
+    
+    if (dateEntry) {
+      // Use accurate calendar data
+      const [gYear, gMonth, gDay] = dateEntry.gregorian.split('-').map(Number);
+      reportGregorian = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
+      reportDayOfWeek = reportGregorian.getDay();
+    } else {
+      // Fallback: use conversion
+      reportGregorian = convertHijriToGregorian(hijriYear, hijriMonth, hijriDay);
+      reportDayOfWeek = reportGregorian.getDay();
+    }
     
     // Only count if it's a study day (Sunday=0 to Thursday=4)
     const isStudyDay = reportDayOfWeek >= 0 && reportDayOfWeek <= 4;
@@ -1476,9 +1503,19 @@ window.viewReportDetails = function(dateId, report) {
   const monthName = hijriMonths[parseInt(month) - 1];
   const hijriDate = `${parseInt(day)} ${monthName} ${year} هـ`;
   
-  // Get day name
+  // Get day name - ALWAYS use accurate calendar first
   let dayName = 'غير محدد';
-  if (report.gregorianDate) {
+  
+  // PRIORITY 1: Look up in accurate-hijri-dates.js (most accurate)
+  const dateEntry = accurateHijriDates.find(d => d.hijri === dateId);
+  
+  if (dateEntry) {
+    // Use accurate calendar
+    const [gYear, gMonth, gDay] = dateEntry.gregorian.split('-').map(Number);
+    const gregorianDate = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
+    dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
+  } else if (report.gregorianDate) {
+    // PRIORITY 2: Use stored gregorianDate from report
     const gregorianDate = new Date(report.gregorianDate + 'T12:00:00');
     dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
   }
@@ -1630,9 +1667,38 @@ window.loadStrugglingReports = async function() {
       const reports = reportsByDate[dateKey];
       const firstReport = reports[0];
       
-      // Use the pre-formatted hijriDate and dayName from the report
-      const hijriDate = firstReport.date || 'تاريخ غير محدد';
-      const dayName = firstReport.dayName || '';
+      // PRIORITY: Use accurate-hijri-dates.js for day name and date display
+      let dayName = '';
+      let hijriDate = 'تاريخ غير محدد';
+      
+      // Try to get dateId (Hijri format: YYYY-MM-DD)
+      const dateId = firstReport.dateId || dateKey;
+      
+      if (dateId && dateId.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // Valid Hijri date format
+        const [year, month, day] = dateId.split('-').map(Number);
+        const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+        const monthName = hijriMonths[month - 1];
+        hijriDate = `${day} ${monthName} ${year} هـ`;
+        
+        // PRIORITY 1: Look up in accurate-hijri-dates.js (most accurate)
+        const dateEntry = accurateHijriDates.find(d => d.hijri === dateId);
+        
+        if (dateEntry) {
+          // Use accurate calendar
+          const [gYear, gMonth, gDay] = dateEntry.gregorian.split('-').map(Number);
+          const gregorianDate = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
+          dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
+        } else {
+          // PRIORITY 2: Use stored dayName from report
+          dayName = firstReport.dayName || '';
+        }
+      } else {
+        // Fallback: use stored data
+        hijriDate = firstReport.date || firstReport.dateHijri || 'تاريخ غير محدد';
+        dayName = firstReport.dayName || '';
+      }
+      
       const fullHijriDisplay = dayName ? `${dayName} ${hijriDate}` : hijriDate;
       
       reports.forEach(report => {
@@ -1731,17 +1797,41 @@ async function loadAbsentStudentsReports() {
       reports.push({ id: doc.id, ...doc.data() });
     });
     
-    // Sort by reportDate (Hijri format) descending
-    reports.sort((a, b) => (b.reportDate || '').localeCompare(a.reportDate || ''));
+    // Sort by dateId (Hijri format) descending
+    reports.sort((a, b) => (b.dateId || b.reportDate || '').localeCompare(a.dateId || a.reportDate || ''));
     
     let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">';
     
     reports.forEach(report => {
-      // Use pre-formatted date from report or format gregorianDate
+      // PRIORITY: Use accurate-hijri-dates.js for date display
       let displayDate = 'تاريخ غير محدد';
-      if (report.reportDate) {
-        displayDate = report.reportDate; // Already in Hijri format
+      let dayName = '';
+      
+      // Try to extract dateId (Hijri format)
+      const dateId = report.dateId || report.reportDate;
+      
+      if (dateId && dateId.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        // Valid Hijri date format
+        const [year, month, day] = dateId.split('-').map(Number);
+        const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+        const monthName = hijriMonths[month - 1];
+        displayDate = `${day} ${monthName} ${year} هـ`;
+        
+        // PRIORITY 1: Look up in accurate-hijri-dates.js for day name
+        const dateEntry = accurateHijriDates.find(d => d.hijri === dateId);
+        
+        if (dateEntry) {
+          // Use accurate calendar
+          const [gYear, gMonth, gDay] = dateEntry.gregorian.split('-').map(Number);
+          const gregorianDate = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
+          dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(gregorianDate);
+          displayDate = `${dayName} ${displayDate}`;
+        }
+      } else if (report.reportDate) {
+        // Already formatted
+        displayDate = report.reportDate;
       } else if (report.gregorianDate) {
+        // Convert from Gregorian
         try {
           displayDate = gregorianToHijriDisplay(report.gregorianDate);
         } catch (e) {
@@ -1907,8 +1997,22 @@ window.populateAdminDaysFilter = async function() {
   
   for (const dateId of studyDays) {
     const [y, m, d] = dateId.split('-').map(Number);
-    const gregorianDate = convertHijriToGregorian(y, m, d);
-    const dayOfWeek = gregorianDate.getDay();
+    
+    // PRIORITY: Use accurate-hijri-dates.js for day name
+    const dateEntry = accurateHijriDates.find(entry => entry.hijri === dateId);
+    let gregorianDate, dayOfWeek;
+    
+    if (dateEntry) {
+      // Use accurate calendar data
+      const [gYear, gMonth, gDay] = dateEntry.gregorian.split('-').map(Number);
+      gregorianDate = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
+      dayOfWeek = gregorianDate.getDay();
+    } else {
+      // Fallback: use conversion
+      gregorianDate = convertHijriToGregorian(y, m, d);
+      dayOfWeek = gregorianDate.getDay();
+    }
+    
     const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     const dayName = dayNames[dayOfWeek];
     const monthName = hijriMonthNames[m - 1];
@@ -2306,8 +2410,22 @@ window.populateAdminReportsDaysFilter = async function() {
   
   for (const dateId of studyDays) {
     const [y, m, d] = dateId.split('-').map(Number);
-    const gregorianDate = convertHijriToGregorian(y, m, d);
-    const dayOfWeek = gregorianDate.getDay();
+    
+    // PRIORITY: Use accurate-hijri-dates.js for day name
+    const dateEntry = accurateHijriDates.find(entry => entry.hijri === dateId);
+    let gregorianDate, dayOfWeek;
+    
+    if (dateEntry) {
+      // Use accurate calendar data
+      const [gYear, gMonth, gDay] = dateEntry.gregorian.split('-').map(Number);
+      gregorianDate = new Date(gYear, gMonth - 1, gDay, 12, 0, 0);
+      dayOfWeek = gregorianDate.getDay();
+    } else {
+      // Fallback: use conversion
+      gregorianDate = convertHijriToGregorian(y, m, d);
+      dayOfWeek = gregorianDate.getDay();
+    }
+    
     const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     const dayName = dayNames[dayOfWeek];
     const monthName = hijriMonths[m - 1];
