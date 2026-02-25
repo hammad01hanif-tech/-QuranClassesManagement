@@ -190,7 +190,16 @@
       </h3>
       
       <div style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
-        <label style="display: block; margin-bottom: 10px; color: #555; font-weight: bold; font-size: 15px;">اختيار الحلقة:</label>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <label style="color: #555; font-weight: bold; font-size: 15px;">اختيار الحلقة:</label>
+          <button id="deleteAllStudentsBtn" onclick="window.deleteAllStudentsInClass()" 
+            style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 11px; cursor: pointer; display: none; font-weight: bold; transition: all 0.2s;" 
+            title="حذف جميع طلاب الحلقة"
+            onmouseover="this.style.background='#c82333'"
+            onmouseout="this.style.background='#dc3545'">
+            🗑️ حذف الكل
+          </button>
+        </div>
         <select id="classSelectView" 
           style="width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; font-family: inherit; background: white;">
           <option value="">-- اختر الحلقة --</option>

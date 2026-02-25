@@ -225,6 +225,12 @@ async function loadStudentsForClass(classId) {
   studentsDiv.innerHTML = 'جارٍ التحميل...';
   selectedClassId = classId;
   
+  // Show delete all button when a class is selected
+  const deleteAllBtn = document.getElementById('deleteAllStudentsBtn');
+  if (deleteAllBtn) {
+    deleteAllBtn.style.display = classId ? 'block' : 'none';
+  }
+  
   try {
     let q = query(collection(db, 'users'), where('classId', '==', classId));
     let snap = await getDocs(q);
@@ -357,6 +363,79 @@ async function deleteStudent(studentId, studentName) {
     alert('حدث خطأ أثناء حذف الطالب: ' + error.message);
   }
 }
+
+// Delete all students in a class
+window.deleteAllStudentsInClass = async function() {
+  if (!selectedClassId) {
+    alert('⚠️ يرجى اختيار حلقة أولاً');
+    return;
+  }
+  
+  try {
+    // Get all students in the class
+    const q = query(collection(db, 'users'), where('classId', '==', selectedClassId), where('role', '==', 'student'));
+    const snap = await getDocs(q);
+    
+    if (snap.empty) {
+      alert('ℹ️ لا يوجد طلاب في هذه الحلقة');
+      return;
+    }
+    
+    const studentCount = snap.size;
+    
+    // Confirm deletion
+    const confirmed = confirm(`⚠️ تحذير: هل أنت متأكد من حذف جميع الطلاب؟\n\nعدد الطلاب: ${studentCount}\n\n⚠️ سيتم حذف جميع البيانات نهائياً ولا يمكن التراجع!`);
+    
+    if (!confirmed) {
+      return;
+    }
+    
+    // Double confirmation for safety
+    const doubleConfirm = confirm(`⚠️⚠️ تأكيد نهائي ⚠️⚠️\n\nسيتم حذف ${studentCount} طالب نهائياً!\n\nهل أنت متأكد 100%؟`);
+    
+    if (!doubleConfirm) {
+      return;
+    }
+    
+    // Delete all students
+    let deletedCount = 0;
+    let failedCount = 0;
+    
+    for (const docSnap of snap.docs) {
+      try {
+        await deleteDoc(firestoreDoc(db, 'users', docSnap.id));
+        deletedCount++;
+      } catch (error) {
+        console.error(`Error deleting student ${docSnap.id}:`, error);
+        failedCount++;
+      }
+    }
+    
+    // Update class document
+    try {
+      const classDocRef = firestoreDoc(db, 'classes', selectedClassId);
+      await updateDoc(classDocRef, {
+        studentIds: []
+      });
+    } catch (error) {
+      console.warn('Error updating class document:', error);
+    }
+    
+    // Show result
+    if (failedCount > 0) {
+      alert(`✅ تم حذف ${deletedCount} طالب\n❌ فشل حذف ${failedCount} طالب`);
+    } else {
+      alert(`✅ تم حذف جميع الطلاب بنجاح (${deletedCount} طالب)`);
+    }
+    
+    // Reload the list
+    loadStudentsForClass(selectedClassId);
+    
+  } catch (error) {
+    console.error('Error deleting all students:', error);
+    alert('❌ حدث خطأ أثناء حذف الطلاب: ' + error.message);
+  }
+};
 
 // Show edit student dialog
 async function showEditStudentDialog(studentId, studentData) {
