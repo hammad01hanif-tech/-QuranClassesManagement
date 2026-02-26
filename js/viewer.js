@@ -2808,8 +2808,14 @@ window.generateJuzReport = async function() {
     
     // Calculate statistics
     const totalStudents = allReports.length;
-    const passedStudents = allReports.filter(r => r.status === 'complete' && r.passed).length;
+    const passedStudents = allReports.filter(r => r.status === 'completed').length; // Fixed: 'completed' not 'complete', and no need for r.passed
     const remainingStudents = allReports.filter(r => r.status === 'incomplete').length;
+    
+    console.log(`📊 Statistics:`, {
+      total: totalStudents,
+      passed: passedStudents,
+      remaining: remainingStudents
+    });
     
     // Calculate per teacher
     const teacherStats = {};
@@ -2825,7 +2831,7 @@ window.generateJuzReport = async function() {
         };
       }
       
-      if (report.status === 'complete' && report.passed) {
+      if (report.status === 'completed') { // Fixed: 'completed' not 'complete', and no need for report.passed
         teacherStats[teacherId].completed++;
       } else if (report.status === 'incomplete') {
         teacherStats[teacherId].remaining++;
