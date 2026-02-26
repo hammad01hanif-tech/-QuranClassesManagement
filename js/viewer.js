@@ -2826,17 +2826,24 @@ window.generateJuzReport = async function() {
       if (!teacherStats[teacherId]) {
         teacherStats[teacherId] = {
           name: teacherName,
-          completed: 0,
-          remaining: 0
+          total: 0,      // إجمالي المسجلين
+          completed: 0,  // المجتازين
+          remaining: 0   // الجاهزين (المتبقي)
         };
       }
       
-      if (report.status === 'completed') { // Fixed: 'completed' not 'complete', and no need for report.passed
+      // حساب الإجمالي
+      teacherStats[teacherId].total++;
+      
+      // حساب المجتازين والجاهزين
+      if (report.status === 'completed') {
         teacherStats[teacherId].completed++;
       } else if (report.status === 'incomplete') {
         teacherStats[teacherId].remaining++;
       }
     });
+    
+    console.log('📊 Teacher Statistics:', teacherStats);
     
     // Analyze common notes (based on tags)
     const noteTags = {
@@ -2873,8 +2880,9 @@ window.generateJuzReport = async function() {
       teacherRowsHTML += `
         <tr style="background: ${bgColor};">
           <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${teacher.name}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; font-weight: bold; color: #667eea;">${teacher.total}</td>
           <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #28a745; font-weight: bold;">${teacher.completed}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #dc3545;">${teacher.remaining}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #ffc107;">${teacher.remaining}</td>
         </tr>
       `;
     });
@@ -2943,7 +2951,8 @@ window.generateJuzReport = async function() {
           <thead>
             <tr>
               <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 16px; border-radius: 8px 0 0 0;">اسم المعلم</th>
-              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px;">المنجز</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px;">إجمالي المسجلين</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px;">المجتازين</th>
               <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px; border-radius: 0 8px 0 0;">المتبقي</th>
             </tr>
           </thead>
