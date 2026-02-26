@@ -2732,21 +2732,24 @@ window.toggleReportDateInputs = function() {
 // Show class (teacher) report options
 window.showClassReportOptions = async function() {
   try {
-    // جلب قائمة المعلمين من قاعدة البيانات
-    const teachersSnapshot = await getDocs(query(
-      collection(db, 'users'),
-      where('role', '==', 'teacher')
-    ));
+    // قائمة المعلمين الثابتة (نفس القائمة المستخدمة في النظام)
+    const teachers = {
+      'ABD01': 'عبدالرحمن السيسي',
+      'AMR01': 'عامر هوساوي',
+      'ANS01': 'الأستاذ أنس',
+      'HRT01': 'حارث',
+      'JHD01': 'الأستاذ جهاد',
+      'JWD01': 'عبدالرحمن جاويد',
+      'MZN01': 'الأستاذ مازن',
+      'NBL01': 'الأستاذ نبيل',
+      'OMR01': 'الأستاذ عمر',
+      'OSM01': 'أسامة حبيب',
+      'SLM01': 'سلمان رفيق'
+    };
     
     let teacherOptions = '';
-    teachersSnapshot.forEach(doc => {
-      const teacher = doc.data();
-      teacherOptions += `<option value="${doc.id}">${teacher.name || 'معلم'}</option>`;
-    });
-    
-    if (!teacherOptions) {
-      alert('⚠️ لا يوجد معلمين في النظام');
-      return;
+    for (const [id, name] of Object.entries(teachers)) {
+      teacherOptions += `<option value="${id}">${name}</option>`;
     }
     
     const overlay = document.createElement('div');
@@ -3268,9 +3271,21 @@ window.generateClassReport = async function() {
     `;
     document.body.appendChild(loadingMsg);
     
-    // Get teacher name
-    const teacherDoc = await getDoc(doc(db, 'users', teacherId));
-    const teacherName = teacherDoc.exists() ? (teacherDoc.data().name || 'المعلم') : 'المعلم';
+    // Get teacher name from the static list
+    const teachers = {
+      'ABD01': 'عبدالرحمن السيسي',
+      'AMR01': 'عامر هوساوي',
+      'ANS01': 'الأستاذ أنس',
+      'HRT01': 'حارث',
+      'JHD01': 'الأستاذ جهاد',
+      'JWD01': 'عبدالرحمن جاويد',
+      'MZN01': 'الأستاذ مازن',
+      'NBL01': 'الأستاذ نبيل',
+      'OMR01': 'الأستاذ عمر',
+      'OSM01': 'أسامة حبيب',
+      'SLM01': 'سلمان رفيق'
+    };
+    const teacherName = teachers[teacherId] || 'المعلم';
     
     // Fetch all juzDisplays for this teacher
     const snapshot = await getDocs(query(
