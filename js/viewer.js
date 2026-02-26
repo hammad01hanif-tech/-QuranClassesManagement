@@ -2760,45 +2760,65 @@ window.generateJuzReport = async function() {
     snapshot.forEach(doc => {
       const data = doc.data();
       const displayDate = data.displayDate;
+      const lastLessonDate = data.lastLessonDate;
       
       // Include based on period type
       if (periodType === 'all') {
         allReports.push(data);
-      } else if (displayDate) {
-        // Normalize displayDate to ensure YYYY-MM-DD format
+      } else if (data.status === 'completed' && displayDate) {
+        // المجتازين: نتحقق من تاريخ الاجتياز
         let normalizedDisplayDate = displayDate;
         if (displayDate.includes('/')) {
-          // Convert DD/MM/YYYY to YYYY-MM-DD if needed
           const parts = displayDate.split('/');
           if (parts.length === 3) {
             normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
           }
         }
         
-        // Check if date is in range (string comparison works for YYYY-MM-DD format)
-        if ((!fromDate || normalizedDisplayDate >= fromDate) && (!toDate || normalizedDisplayDate <= toDate)) {
+        // حالة 1: اجتاز في الفترة المحددة → يظهر كمجتاز
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
           allReports.push(data);
-          console.log('✅ Included report:', {
+          console.log('✅ Included as PASSED:', {
             student: data.studentName,
             displayDate: normalizedDisplayDate,
-            range: `${fromDate} to ${toDate}`
+            range: `${fromDate} to ${toDate}`,
+            status: 'مجتاز في هذه الفترة'
+          });
+        }
+        // حالة 2: اجتاز بعد الفترة لكن آخر درس كان في/قبل الفترة → يظهر كمتبقي
+        else if (lastLessonDate && lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
+          allReports.push(data);
+          console.log('✅ Included as PENDING (passed later):', {
+            student: data.studentName,
+            lastLessonDate: lastLessonDate,
+            displayDate: normalizedDisplayDate,
+            range: `${fromDate} to ${toDate}`,
+            status: 'كان متبقي في هذه الفترة (اجتاز لاحقاً)'
           });
         } else {
-          console.log('❌ Excluded report (outside range):', {
+          console.log('❌ Excluded completed report:', {
             student: data.studentName,
             displayDate: normalizedDisplayDate,
+            lastLessonDate: lastLessonDate,
             range: `${fromDate} to ${toDate}`
           });
         }
-      } else if (periodType === 'month' || periodType === 'custom') {
-        // Include incomplete reports in the date range if lastLessonDate is in range
-        if (data.lastLessonDate && 
-            (!fromDate || data.lastLessonDate >= fromDate) && 
-            (!toDate || data.lastLessonDate <= toDate)) {
+      } else if (data.status === 'incomplete' && lastLessonDate) {
+        // الجاهزين: آخر درس قبل أو خلال نهاية الفترة المحددة
+        // يظهر في شهره وجميع الأشهر اللاحقة حتى يجتاز
+        if (lastLessonDate <= toDate) {
           allReports.push(data);
-          console.log('✅ Included incomplete report by lastLessonDate:', {
+          console.log('✅ Included as PENDING:', {
             student: data.studentName,
-            lastLessonDate: data.lastLessonDate
+            lastLessonDate: lastLessonDate,
+            toDate: toDate,
+            status: 'جاهز - لم يجتاز بعد'
+          });
+        } else {
+          console.log('❌ Excluded incomplete report (lastLesson after period):', {
+            student: data.studentName,
+            lastLessonDate: lastLessonDate,
+            toDate: toDate
           });
         }
       }
@@ -2806,10 +2826,33 @@ window.generateJuzReport = async function() {
     
     console.log(`📊 Total reports found: ${allReports.length} for period: ${periodLabel}`);
     
-    // Calculate statistics
+    // Calculate statistics with accurate status for the period
     const totalStudents = allReports.length;
-    const passedStudents = allReports.filter(r => r.status === 'completed').length; // Fixed: 'completed' not 'complete', and no need for r.passed
-    const remainingStudents = allReports.filter(r => r.status === 'incomplete').length;
+    
+    // احسب المجتازين والمتبقين بناءً على الفترة المحددة
+    let passedStudents = 0;
+    let remainingStudents = 0;
+    
+    allReports.forEach(report => {
+      // إذا كان مجتاز وتاريخ الاجتياز في الفترة → مجتاز
+      if (report.status === 'completed' && report.displayDate) {
+        let normalizedDisplayDate = report.displayDate;
+        if (report.displayDate.includes('/')) {
+          const parts = report.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          passedStudents++; // اجتاز في هذه الفترة
+        } else {
+          remainingStudents++; // اجتاز لاحقاً، كان متبقي في هذه الفترة
+        }
+      } else if (report.status === 'incomplete') {
+        remainingStudents++; // لم يجتاز بعد
+      }
+    });
     
     console.log(`📊 Statistics:`, {
       total: totalStudents,
@@ -2827,7 +2870,7 @@ window.generateJuzReport = async function() {
         teacherStats[teacherId] = {
           name: teacherName,
           total: 0,      // إجمالي المسجلين
-          completed: 0,  // المجتازين
+          completed: 0,  // المجتازين في هذه الفترة
           remaining: 0   // الجاهزين (المتبقي)
         };
       }
@@ -2835,9 +2878,23 @@ window.generateJuzReport = async function() {
       // حساب الإجمالي
       teacherStats[teacherId].total++;
       
-      // حساب المجتازين والجاهزين
-      if (report.status === 'completed') {
-        teacherStats[teacherId].completed++;
+      // حساب المجتازين والجاهزين بناءً على الفترة
+      if (report.status === 'completed' && report.displayDate) {
+        let normalizedDisplayDate = report.displayDate;
+        if (report.displayDate.includes('/')) {
+          const parts = report.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        // إذا اجتاز في هذه الفترة → مجتاز
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          teacherStats[teacherId].completed++;
+        } else {
+          // اجتاز لاحقاً، كان متبقي في هذه الفترة
+          teacherStats[teacherId].remaining++;
+        }
       } else if (report.status === 'incomplete') {
         teacherStats[teacherId].remaining++;
       }
