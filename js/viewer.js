@@ -2530,8 +2530,72 @@ window.saveJuzNote = async function(reportId) {
 // JUZ REPORT PDF EXPORT SYSTEM
 // ============================================
 
-// Show report options popup
+// Show report type selection (General or Class-specific)
 window.showJuzReportOptions = function() {
+  const overlay = document.createElement('div');
+  overlay.id = 'reportTypeOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease;
+  `;
+  
+  overlay.innerHTML = `
+    <div style="background: white; border-radius: 15px; padding: 30px; width: 90%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; direction: rtl;">
+      <style>
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(30px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      </style>
+      
+      <h2 style="color: #667eea; margin: 0 0 25px 0; text-align: center; font-size: 24px;">
+        📊 اختر نوع التقرير
+      </h2>
+      
+      <button onclick="document.getElementById('reportTypeOverlay').remove(); window.showGeneralReportOptions();" 
+        style="width: 100%; padding: 18px; margin-bottom: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+        📈 التقرير العام
+        <div style="font-size: 12px; margin-top: 5px; opacity: 0.9;">إحصائيات شاملة لجميع الحلقات</div>
+      </button>
+      
+      <button onclick="document.getElementById('reportTypeOverlay').remove(); window.showClassReportOptions();" 
+        style="width: 100%; padding: 18px; margin-bottom: 15px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);">
+        👥 تقرير حلقة
+        <div style="font-size: 12px; margin-top: 5px; opacity: 0.9;">تفاصيل طلاب حلقة معينة</div>
+      </button>
+      
+      <button onclick="document.getElementById('reportTypeOverlay').remove();" 
+        style="width: 100%; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+        ❌ إلغاء
+      </button>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+};
+
+// Show general report options (original function)
+window.showGeneralReportOptions = function() {
   // Get current Hijri date for defaults
   const today = getTodayForStorage(); // YYYY-MM-DD
   const todayParts = today.split('-');
@@ -2662,6 +2726,83 @@ window.toggleReportDateInputs = function() {
   } else {
     monthContainer.style.display = 'none';
     customContainer.style.display = 'none';
+  }
+};
+
+// Show class (teacher) report options
+window.showClassReportOptions = async function() {
+  try {
+    // جلب قائمة المعلمين من قاعدة البيانات
+    const teachersSnapshot = await getDocs(query(
+      collection(db, 'users'),
+      where('role', '==', 'teacher')
+    ));
+    
+    let teacherOptions = '';
+    teachersSnapshot.forEach(doc => {
+      const teacher = doc.data();
+      teacherOptions += `<option value="${doc.id}">${teacher.name || 'معلم'}</option>`;
+    });
+    
+    if (!teacherOptions) {
+      alert('⚠️ لا يوجد معلمين في النظام');
+      return;
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'classReportOverlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    overlay.innerHTML = `
+      <div style="background: white; border-radius: 15px; padding: 25px; width: 90%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; direction: rtl;">
+        <h2 style="color: #28a745; margin: 0 0 20px 0; text-align: center; font-size: 22px;">
+          👥 تقرير حلقة
+        </h2>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
+            👨‍🏫 اختر المعلم (الحلقة):
+          </label>
+          <select id="classReportTeacher" style="width: 100%; padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px; cursor: pointer;">
+            ${teacherOptions}
+          </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+          <button onclick="window.generateClassReport()" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+            📥 تصدير PDF
+          </button>
+          <button onclick="document.getElementById('classReportOverlay').remove()" style="flex: 1; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
+            ❌ إلغاء
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error loading teachers:', error);
+    alert('❌ حدث خطأ في تحميل قائمة المعلمين');
   }
 };
 
@@ -3092,5 +3233,240 @@ window.generateJuzReport = async function() {
     const loadingMsg = document.getElementById('pdfLoadingMsg');
     if (loadingMsg) loadingMsg.remove();
     alert('❌ حدث خطأ في إنشاء التقرير');
+  }
+};
+
+// Generate Class (Teacher) Report PDF
+window.generateClassReport = async function() {
+  try {
+    const teacherId = document.getElementById('classReportTeacher').value;
+    
+    if (!teacherId) {
+      alert('⚠️ يرجى اختيار المعلم');
+      return;
+    }
+    
+    // Show loading
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'pdfLoadingMsg';
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      z-index: 10001;
+      text-align: center;
+    `;
+    loadingMsg.innerHTML = `
+      <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+      <div style="font-size: 18px; color: #28a745; font-weight: bold;">جاري إنشاء تقرير الحلقة...</div>
+      <div style="font-size: 14px; color: #666; margin-top: 8px;">يرجى الانتظار</div>
+    `;
+    document.body.appendChild(loadingMsg);
+    
+    // Get teacher name
+    const teacherDoc = await getDoc(doc(db, 'users', teacherId));
+    const teacherName = teacherDoc.exists() ? (teacherDoc.data().name || 'المعلم') : 'المعلم';
+    
+    // Fetch all juzDisplays for this teacher
+    const snapshot = await getDocs(query(
+      collection(db, 'juzDisplays'),
+      where('teacherId', '==', teacherId)
+    ));
+    
+    const today = getTodayForStorage();
+    const todayEntry = accurateHijriDates.find(e => e.hijri === today);
+    const todayGregorian = todayEntry ? new Date(todayEntry.gregorian) : new Date();
+    
+    let studentsData = [];
+    
+    snapshot.forEach(docSnapshot => {
+      const data = docSnapshot.data();
+      const studentName = data.studentName || 'غير محدد';
+      const juzNumber = data.juzNumber || '-';
+      const status = data.status || 'incomplete';
+      const lastLessonDate = data.lastLessonDate;
+      const displayDate = data.displayDate;
+      
+      let daysSinceLastLesson = '-';
+      
+      // حساب كم مضى على آخر درس (للطلاب الذين لم يجتازوا فقط)
+      if (status === 'incomplete' && lastLessonDate) {
+        const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
+        if (lastLessonEntry) {
+          const lastLessonGregorian = new Date(lastLessonEntry.gregorian);
+          const diffTime = Math.abs(todayGregorian - lastLessonGregorian);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          daysSinceLastLesson = `${diffDays} يوم`;
+        }
+      }
+      
+      studentsData.push({
+        name: studentName,
+        juzNumber: juzNumber,
+        status: status,
+        displayDate: displayDate,
+        daysSinceLastLesson: daysSinceLastLesson
+      });
+    });
+    
+    // Sort by status (completed first) then by name
+    studentsData.sort((a, b) => {
+      if (a.status === 'completed' && b.status !== 'completed') return -1;
+      if (a.status !== 'completed' && b.status === 'completed') return 1;
+      return a.name.localeCompare(b.name, 'ar');
+    });
+    
+    // Calculate statistics
+    const totalStudents = studentsData.length;
+    const passedStudents = studentsData.filter(s => s.status === 'completed').length;
+    const pendingStudents = totalStudents - passedStudents;
+    
+    // Build students table rows
+    let studentsRowsHTML = '';
+    studentsData.forEach((student, index) => {
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      const passedIcon = student.status === 'completed' ? '✅' : '';
+      const pendingIcon = student.status === 'incomplete' ? '⏳' : '';
+      const daysText = student.status === 'incomplete' ? student.daysSinceLastLesson : '';
+      
+      studentsRowsHTML += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${student.name}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px;">جزء ${student.juzNumber}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 18px;">${passedIcon}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 18px;">${pendingIcon}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: #dc3545; font-weight: bold;">${daysText}</td>
+        </tr>
+      `;
+    });
+    
+    if (studentsData.length === 0) {
+      studentsRowsHTML = `
+        <tr>
+          <td colspan="5" style="padding: 20px; text-align: center; color: #999; font-size: 14px;">
+            لا يوجد طلاب مسجلين في هذه الحلقة
+          </td>
+        </tr>
+      `;
+    }
+    
+    // Create HTML content
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 900px;
+      background: white;
+      padding: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #28a745; margin: 0 0 10px 0; font-size: 32px;">👥 تقرير حلقة</h1>
+        <h2 style="color: #667eea; margin: 0; font-size: 24px;">الأستاذ: ${teacherName}</h2>
+        <p style="color: #999; font-size: 14px; margin: 10px 0 0 0;">تاريخ التقرير: ${formatDateForDisplay(today)}</p>
+      </div>
+      
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #28a745; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #28a745; padding-bottom: 10px;">
+          📋 قائمة الطلاب المسجلين
+        </h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 15px; border-radius: 8px 0 0 0; width: 30%;">اسم الطالب</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 15%;">الجزء</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 12%;">اجتاز</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 13%;">لم يجتاز</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; border-radius: 0 8px 0 0; width: 30%;">كم مضى على آخر درس</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${studentsRowsHTML}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 12px; color: white;">
+        <h3 style="margin: 0 0 20px 0; font-size: 22px; text-align: center;">📊 الإحصائيات</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد المسجلين</div>
+            <div style="font-size: 28px; font-weight: bold;">${totalStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد المجتازين</div>
+            <div style="font-size: 28px; font-weight: bold; color: #90ee90;">${passedStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد الغير مجتازين</div>
+            <div style="font-size: 28px; font-weight: bold; color: #ffb6c1;">${pendingStudents}</div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // Generate PDF using html2canvas and jsPDF
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    document.body.removeChild(container);
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    let heightLeft = imgHeight;
+    let position = 10;
+    
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight + 10;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    const fileName = `تقرير_حلقة_${teacherName.replace(/\s/g, '_')}.pdf`;
+    pdf.save(fileName);
+    
+    console.log('🎉 Class report PDF saved:', fileName);
+    
+    // Remove loading and overlay
+    loadingMsg.remove();
+    document.getElementById('classReportOverlay').remove();
+    
+    alert('✅ تم تصدير تقرير الحلقة بنجاح!');
+    
+  } catch (error) {
+    console.error('Error generating class report:', error);
+    const loadingMsg = document.getElementById('pdfLoadingMsg');
+    if (loadingMsg) loadingMsg.remove();
+    alert('❌ حدث خطأ في إنشاء تقرير الحلقة');
   }
 };
