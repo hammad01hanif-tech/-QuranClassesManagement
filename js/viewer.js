@@ -2732,6 +2732,30 @@ window.toggleReportDateInputs = function() {
 // Show class (teacher) report options
 window.showClassReportOptions = async function() {
   try {
+    // Get current Hijri date for month options
+    const today = getTodayForStorage();
+    const todayParts = today.split('-');
+    const currentYear = todayParts[0];
+    const currentMonth = todayParts[1];
+    
+    // Generate month options
+    const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    let monthOptions = '';
+    
+    // Add current year months
+    for (let i = 1; i <= 12; i++) {
+      const monthKey = `${currentYear}-${String(i).padStart(2, '0')}`;
+      const isSelected = String(i).padStart(2, '0') === currentMonth ? 'selected' : '';
+      monthOptions += `<option value="${monthKey}" ${isSelected}>${hijriMonths[i-1]} ${currentYear}</option>`;
+    }
+    
+    // Add previous year months (last 3)
+    const prevYear = String(parseInt(currentYear) - 1);
+    for (let i = 10; i <= 12; i++) {
+      const monthKey = `${prevYear}-${String(i).padStart(2, '0')}`;
+      monthOptions += `<option value="${monthKey}">${hijriMonths[i-1]} ${prevYear}</option>`;
+    }
+    
     // قائمة المعلمين الثابتة (نفس القائمة المستخدمة في النظام)
     const teachers = {
       'ABD01': 'عبدالرحمن السيسي',
@@ -2784,6 +2808,41 @@ window.showClassReportOptions = async function() {
           </select>
         </div>
         
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
+            📅 اختر الفترة:
+          </label>
+          <select id="classReportPeriodType" onchange="window.toggleClassReportDateInputs()" style="width: 100%; padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px; cursor: pointer;">
+            <option value="month">شهر محدد</option>
+            <option value="custom">فترة مخصصة</option>
+            <option value="all">جميع الفترات</option>
+          </select>
+        </div>
+        
+        <div id="classMonthSelectContainer" style="margin-bottom: 20px;">
+          <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
+            🗓️ الشهر:
+          </label>
+          <select id="classReportMonth" style="width: 100%; padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;">
+            ${monthOptions}
+          </select>
+        </div>
+        
+        <div id="classCustomDateContainer" style="display: none; margin-bottom: 20px;">
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
+              📅 من تاريخ (DD-MM-YYYY):
+            </label>
+            <input type="text" id="classReportFromDate" placeholder="01-09-1447" style="width: 100%; padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;" />
+          </div>
+          <div>
+            <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
+              📅 إلى تاريخ (DD-MM-YYYY):
+            </label>
+            <input type="text" id="classReportToDate" placeholder="30-09-1447" style="width: 100%; padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;" />
+          </div>
+        </div>
+        
         <div style="display: flex; gap: 10px; margin-top: 25px;">
           <button onclick="window.generateClassReport()" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s;">
             📥 تصدير PDF
@@ -2806,6 +2865,24 @@ window.showClassReportOptions = async function() {
   } catch (error) {
     console.error('Error loading teachers:', error);
     alert('❌ حدث خطأ في تحميل قائمة المعلمين');
+  }
+};
+
+// Toggle date inputs for class report
+window.toggleClassReportDateInputs = function() {
+  const periodType = document.getElementById('classReportPeriodType').value;
+  const monthContainer = document.getElementById('classMonthSelectContainer');
+  const customContainer = document.getElementById('classCustomDateContainer');
+  
+  if (periodType === 'month') {
+    monthContainer.style.display = 'block';
+    customContainer.style.display = 'none';
+  } else if (periodType === 'custom') {
+    monthContainer.style.display = 'none';
+    customContainer.style.display = 'block';
+  } else {
+    monthContainer.style.display = 'none';
+    customContainer.style.display = 'none';
   }
 };
 
@@ -3249,6 +3326,65 @@ window.generateClassReport = async function() {
       return;
     }
     
+    // Get period selection
+    const periodType = document.getElementById('classReportPeriodType').value;
+    let fromDate = null;
+    let toDate = null;
+    let periodLabel = '';
+    
+    // Determine date range
+    if (periodType === 'month') {
+      const monthKey = document.getElementById('classReportMonth').value; // YYYY-MM
+      const monthParts = monthKey.split('-');
+      const selectedYear = parseInt(monthParts[0]);
+      const selectedMonth = parseInt(monthParts[1]);
+      
+      // Find EXACT start and end dates from accurateHijriDates
+      const monthDates = accurateHijriDates.filter(entry => 
+        entry.hijriYear === selectedYear && entry.hijriMonth === selectedMonth
+      );
+      
+      if (monthDates.length > 0) {
+        fromDate = monthDates[0].hijri;
+        toDate = monthDates[monthDates.length - 1].hijri;
+        
+        console.log(`📅 Accurate month range for ${monthKey}:`, {
+          fromDate,
+          toDate,
+          totalDays: monthDates.length
+        });
+      } else {
+        fromDate = `${monthKey}-01`;
+        toDate = `${monthKey}-30`;
+        console.warn('⚠️ Month not found in accurate calendar');
+      }
+      
+      const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+      const monthName = hijriMonths[selectedMonth - 1];
+      periodLabel = `${monthName} ${selectedYear}`;
+    } else if (periodType === 'custom') {
+      const from = document.getElementById('classReportFromDate').value.trim();
+      const to = document.getElementById('classReportToDate').value.trim();
+      
+      if (!from || !to) {
+        alert('⚠️ يرجى إدخال التاريخ من والى');
+        return;
+      }
+      
+      fromDate = normalizeDateFormat(from);
+      toDate = normalizeDateFormat(to);
+      
+      if (!fromDate || !toDate) {
+        alert('❌ تنسيق التاريخ غير صحيح. استخدم DD-MM-YYYY');
+        return;
+      }
+      
+      periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
+    } else {
+      // All periods
+      periodLabel = 'جميع الفترات';
+    }
+    
     // Show loading
     const loadingMsg = document.createElement('div');
     loadingMsg.id = 'pdfLoadingMsg';
@@ -3301,6 +3437,45 @@ window.generateClassReport = async function() {
     
     snapshot.forEach(docSnapshot => {
       const data = docSnapshot.data();
+      
+      // Apply date filter (same logic as general report)
+      let includeStudent = false;
+      
+      if (periodType === 'all') {
+        includeStudent = true;
+      } else if (data.status === 'completed' && data.displayDate) {
+        // للمجتازين: تحقق من تاريخ الاجتياز
+        let normalizedDisplayDate = data.displayDate;
+        if (data.displayDate.includes('/')) {
+          const parts = data.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        // حالة 1: اجتاز في الفترة المحددة
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          includeStudent = true;
+          console.log('✅ Included (passed in period):', data.studentName);
+        }
+        // حالة 2: اجتاز بعد الفترة لكن آخر درس كان في/قبل الفترة
+        else if (data.lastLessonDate && data.lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
+          includeStudent = true;
+          console.log('✅ Included (pending in period, passed later):', data.studentName);
+        }
+      } else if (data.status === 'incomplete' && data.lastLessonDate) {
+        // للجاهزين: آخر درس قبل أو خلال نهاية الفترة
+        if (data.lastLessonDate <= toDate) {
+          includeStudent = true;
+          console.log('✅ Included (pending):', data.studentName);
+        }
+      }
+      
+      if (!includeStudent) {
+        console.log('❌ Excluded:', data.studentName);
+        return; // Skip this student
+      }
+      
       const studentName = data.studentName || 'غير محدد';
       const juzNumber = data.juzNumber || '-';
       const status = data.status || 'incomplete';
@@ -3388,7 +3563,8 @@ window.generateClassReport = async function() {
       <div style="text-align: center; margin-bottom: 30px;">
         <h1 style="color: #28a745; margin: 0 0 10px 0; font-size: 32px;">👥 تقرير حلقة</h1>
         <h2 style="color: #667eea; margin: 0; font-size: 24px;">الأستاذ: ${teacherName}</h2>
-        <p style="color: #999; font-size: 14px; margin: 10px 0 0 0;">تاريخ التقرير: ${formatDateForDisplay(today)}</p>
+        <p style="color: #666; font-size: 16px; margin: 8px 0 0 0; font-weight: bold;">${periodLabel}</p>
+        <p style="color: #999; font-size: 14px; margin: 5px 0 0 0;">تاريخ التقرير: ${formatDateForDisplay(today)}</p>
       </div>
       
       <div style="margin-bottom: 30px;">
