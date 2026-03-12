@@ -13,7 +13,8 @@ import {
   updateDoc,
   arrayUnion,
   deleteDoc,
-  arrayRemove
+  arrayRemove,
+  deleteField
 } from '../firebase-config.js';
 
 import { calculateRevisionPages } from './quran-juz-data.js';
@@ -200,14 +201,25 @@ window.addStudent = async function() {
     result.innerText = `✅ تم إضافة الطالب بنجاح: ${name} (${userId})`;
     result.style.color = '#51cf66';
     
-    // Clear form
-    document.getElementById("studentName").value = "";
-    document.getElementById("studentBirthDate").value = "";
-    document.getElementById("studentNationalId").value = "";
-    document.getElementById("studentPhone").value = "";
-    document.getElementById("guardianPhone").value = "";
-    document.getElementById("studentLevel").value = "";
-    document.getElementById("classSelectAdd").value = "";
+    // Clear form and close after short delay
+    setTimeout(() => {
+      document.getElementById("studentName").value = "";
+      document.getElementById("studentBirthDate").value = "";
+      document.getElementById("studentNationalId").value = "";
+      document.getElementById("studentPhone").value = "";
+      document.getElementById("guardianPhone").value = "";
+      document.getElementById("studentLevel").value = "";
+      document.getElementById("classSelectAdd").value = "";
+      result.innerText = "";
+      
+      // Close form
+      const formContainer = document.getElementById('addStudentFormContainer');
+      if (formContainer) {
+        formContainer.style.display = 'none';
+        // Scroll to top smoothly
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 2000);
     
     // Reload student list if viewing same class
     if (selectedClassId === classId) {
@@ -2919,3 +2931,31 @@ window.updateClassTeacherName = async function(classId) {
   }
 };
 
+// Toggle Add Student Form visibility
+window.toggleAddStudentForm = function() {
+  const formContainer = document.getElementById('addStudentFormContainer');
+  const toggleBtn = document.getElementById('toggleAddStudentBtn');
+  
+  if (formContainer.style.display === 'none' || formContainer.style.display === '') {
+    // Show form
+    formContainer.style.display = 'block';
+    // Scroll to form smoothly
+    setTimeout(() => {
+      formContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  } else {
+    // Hide form and clear inputs
+    formContainer.style.display = 'none';
+    // Clear form fields
+    document.getElementById('studentName').value = '';
+    document.getElementById('studentBirthDate').value = '';
+    document.getElementById('studentNationalId').value = '';
+    document.getElementById('studentPhone').value = '';
+    document.getElementById('guardianPhone').value = '';
+    document.getElementById('studentLevel').value = '';
+    document.getElementById('classSelectAdd').value = '';
+    document.getElementById('result').innerText = '';
+    // Scroll back to button
+    toggleBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+};

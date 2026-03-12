@@ -93,12 +93,32 @@
         👥 إدارة الطلاب
       </h3>
 
+      <!-- Add Student Button -->
+      <div style="text-align: center; margin-bottom: 30px;">
+        <button onclick="toggleAddStudentForm()" id="toggleAddStudentBtn"
+          style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 20px rgba(102,126,234,0.4); transition: all 0.3s; font-family: inherit; display: inline-flex; align-items: center; gap: 10px;"
+          onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(102,126,234,0.5)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 5px 20px rgba(102,126,234,0.4)'">
+          <span style="font-size: 20px;">➕</span>
+          <span>إضافة طالب جديد</span>
+        </button>
+      </div>
+
       <!-- Add New Student Form -->
-      <div class="add-student-form" style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); margin-bottom: 40px;">
-        <h4 style="color: #333; margin-bottom: 25px; font-size: 20px; display: flex; align-items: center; gap: 10px;">
-          <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px;">➕</span>
-          إضافة طالب جديد
-        </h4>
+      <div id="addStudentFormContainer" class="add-student-form" style="display: none; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); margin-bottom: 40px; animation: slideDown 0.3s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+          <h4 style="color: #333; margin: 0; font-size: 20px; display: flex; align-items: center; gap: 10px;">
+            <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px;">➕</span>
+            إضافة طالب جديد
+          </h4>
+          <button onclick="toggleAddStudentForm()" 
+            style="background: #e0e0e0; color: #666; border: none; width: 35px; height: 35px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s;"
+            onmouseover="this.style.background='#ff6b6b'; this.style.color='white'"
+            onmouseout="this.style.background='#e0e0e0'; this.style.color='#666'"
+            title="إغلاق">
+            ×
+          </button>
+        </div>
 
         <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
           <!-- Student Name -->
