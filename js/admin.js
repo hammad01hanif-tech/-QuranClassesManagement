@@ -2959,3 +2959,251 @@ window.toggleAddStudentForm = function() {
     toggleBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 };
+
+// Toggle Student Search visibility
+window.toggleStudentSearch = function() {
+  const searchContainer = document.getElementById('searchStudentContainer');
+  const toggleBtn = document.getElementById('toggleSearchBtn');
+  
+  if (searchContainer.style.display === 'none' || searchContainer.style.display === '') {
+    // Show search
+    searchContainer.style.display = 'block';
+    // Clear previous search
+    document.getElementById('studentSearchInput').value = '';
+    document.getElementById('searchResultsContainer').innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">اكتب اسم الطالب للبحث...</p>';
+    // Scroll to search
+    setTimeout(() => {
+      searchContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      document.getElementById('studentSearchInput').focus();
+    }, 100);
+  } else {
+    // Hide search
+    searchContainer.style.display = 'none';
+    // Scroll back to button
+    toggleBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+};
+
+// Perform student search
+window.performStudentSearch = async function() {
+  const searchInput = document.getElementById('studentSearchInput').value.trim().toLowerCase();
+  const resultsContainer = document.getElementById('searchResultsContainer');
+  
+  // If search is empty, show placeholder
+  if (searchInput.length === 0) {
+    resultsContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">اكتب اسم الطالب للبحث...</p>';
+    return;
+  }
+  
+  // If search is less than 2 characters, ask for more
+  if (searchInput.length < 2) {
+    resultsContainer.innerHTML = '<p style="text-align: center; color: #ff6b6b; padding: 40px;">الرجاء إدخال حرفين على الأقل</p>';
+    return;
+  }
+  
+  try {
+    resultsContainer.innerHTML = '<p style="text-align: center; color: #667eea; padding: 40px;">🔍 جاري البحث...</p>';
+    
+    // Get all students
+    const studentsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
+    
+    // Filter students by name
+    const matchedStudents = [];
+    studentsSnapshot.forEach(doc => {
+      const studentData = doc.data();
+      if (studentData.name && studentData.name.toLowerCase().includes(searchInput)) {
+        matchedStudents.push({
+          id: doc.id,
+          ...studentData
+        });
+      }
+    });
+    
+    // Display results
+    if (matchedStudents.length === 0) {
+      resultsContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <div style="font-size: 64px; margin-bottom: 15px;">🔍</div>
+          <p style="color: #999; font-size: 18px; margin: 0;">لا توجد نتائج للبحث عن: <strong>"${searchInput}"</strong></p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Store matched students globally for detail view
+    window.searchResultsData = matchedStudents;
+    
+    // Get class names for students
+    const classIds = [...new Set(matchedStudents.map(s => s.classId).filter(Boolean))];
+    const classNames = {};
+    for (const classId of classIds) {
+      try {
+        const classDoc = await getDoc(firestoreDoc(db, 'classes', classId));
+        if (classDoc.exists()) {
+          classNames[classId] = classDoc.data().name || classId;
+        }
+      } catch (error) {
+        classNames[classId] = classId;
+      }
+    }
+    
+    // Store class names globally
+    window.searchClassNames = classNames;
+    
+    // Display matched students as simple list
+    let html = `
+      <div style="margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 10px; text-align: center;">
+        <span style="color: #1976d2; font-weight: bold; font-size: 16px;">🎯 النتائج: ${matchedStudents.length} طالب</span>
+        <span style="color: #666; font-size: 13px; margin-right: 10px;">- اضغط على أي اسم لعرض التفاصيل</span>
+      </div>
+      <div style="display: grid; gap: 10px;">
+    `;
+    
+    matchedStudents.forEach((student, index) => {
+      const className = classNames[student.classId] || 'غير محدد';
+      
+      html += `
+        <div id="student-card-${index}" onclick="toggleStudentDetails(${index})" 
+          style="background: white; border: 2px solid #e0e0e0; border-radius: 10px; padding: 15px; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.06);"
+          onmouseover="this.style.borderColor='#28a745'; this.style.boxShadow='0 3px 12px rgba(40,167,69,0.2)'; this.style.transform='translateX(-3px)'"
+          onmouseout="this.style.borderColor='#e0e0e0'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.06)'; this.style.transform='translateX(0)'">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+              <span style="font-size: 24px;">👤</span>
+              <div>
+                <div style="font-weight: bold; color: #333; font-size: 16px;">${student.name}</div>
+                <div style="color: #999; font-size: 12px;">${student.id}</div>
+              </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: bold;">
+                ${className}
+              </span>
+              <span id="toggle-icon-${index}" style="color: #28a745; font-size: 18px; transition: transform 0.3s;">▼</span>
+            </div>
+          </div>
+          
+          <div id="student-details-${index}" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 2px solid #f0f0f0;"></div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    resultsContainer.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error searching students:', error);
+    resultsContainer.innerHTML = `
+      <div style="text-align: center; padding: 40px;">
+        <div style="font-size: 48px; margin-bottom: 15px;">❌</div>
+        <p style="color: #dc3545; font-size: 16px; margin: 0;">حدث خطأ في البحث: ${error.message}</p>
+      </div>
+    `;
+  }
+};
+
+// Show edit student dialog from search results
+window.showEditStudentFromSearch = async function(studentId) {
+  try {
+    const studentDoc = await getDoc(firestoreDoc(db, 'users', studentId));
+    if (studentDoc.exists()) {
+      await showEditStudentDialog(studentId, studentDoc.data());
+    } else {
+      alert('الطالب غير موجود');
+    }
+  } catch (error) {
+    console.error('Error loading student:', error);
+    alert('حدث خطأ في تحميل بيانات الطالب');
+  }
+};
+
+// Show transfer dialog from search results  
+window.showTransferFromSearch = async function(studentId, studentName, currentClassId) {
+  await showTransferDialog(studentId, studentName);
+};
+
+// Toggle student details in search results
+window.toggleStudentDetails = function(index) {
+  const detailsDiv = document.getElementById(`student-details-${index}`);
+  const toggleIcon = document.getElementById(`toggle-icon-${index}`);
+  const cardDiv = document.getElementById(`student-card-${index}`);
+  
+  if (detailsDiv.style.display === 'none' || detailsDiv.style.display === '') {
+    // Show details
+    const student = window.searchResultsData[index];
+    const classNames = window.searchClassNames;
+    const levelIcon = student.level === 'hifz' ? '📚' : student.level === 'dabt' ? '✨' : '🌟';
+    const levelName = student.level === 'hifz' ? 'حفظ' : student.level === 'dabt' ? 'ضبط' : 'القاعدة النورانية';
+    
+    let html = `
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 12px; animation: slideDown 0.3s ease;">
+        <div style="background: #f8f9fa; padding: 10px; border-radius: 8px;">
+          <div style="font-size: 11px; color: #666; margin-bottom: 4px;">📅 تاريخ الميلاد</div>
+          <div style="font-weight: bold; color: #333; font-size: 13px;">${student.birthDate || '-'}</div>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 10px; border-radius: 8px;">
+          <div style="font-size: 11px; color: #666; margin-bottom: 4px;">🎂 العمر</div>
+          <div style="font-weight: bold; color: #333; font-size: 13px;">${student.age || '-'} سنة</div>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 10px; border-radius: 8px;">
+          <div style="font-size: 11px; color: #666; margin-bottom: 4px;">${levelIcon} المستوى</div>
+          <div style="font-weight: bold; color: #333; font-size: 13px;">${levelName}</div>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px;">
+        ${student.guardianPhone ? `
+          <div style="background: #e8f5e9; padding: 10px; border-radius: 8px;">
+            <div style="font-size: 11px; color: #2e7d32; margin-bottom: 4px;">📞 جوال ولي الأمر</div>
+            <div style="font-weight: bold; color: #1b5e20; font-size: 13px; direction: ltr; text-align: right;">${student.guardianPhone}</div>
+          </div>
+        ` : ''}
+        
+        ${student.studentPhone ? `
+          <div style="background: #e3f2fd; padding: 10px; border-radius: 8px;">
+            <div style="font-size: 11px; color: #1565c0; margin-bottom: 4px;">📱 جوال الطالب</div>
+            <div style="font-weight: bold; color: #0d47a1; font-size: 13px; direction: ltr; text-align: right;">${student.studentPhone}</div>
+          </div>
+        ` : ''}
+        
+        ${student.nationalId ? `
+          <div style="background: #fff3e0; padding: 10px; border-radius: 8px;">
+            <div style="font-size: 11px; color: #e65100; margin-bottom: 4px;">🆔 رقم الهوية</div>
+            <div style="font-weight: bold; color: #bf360c; font-size: 13px;">${student.nationalId}</div>
+          </div>
+        ` : ''}
+      </div>
+      
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button onclick="event.stopPropagation(); showEditStudentFromSearch('${student.id}')" 
+          style="flex: 1; min-width: 110px; background: #667eea; color: white; padding: 9px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.3s;"
+          onmouseover="this.style.background='#5568d3'"
+          onmouseout="this.style.background='#667eea'">
+          ✏️ تعديل البيانات
+        </button>
+        <button onclick="event.stopPropagation(); showTransferFromSearch('${student.id}', '${student.name.replace(/'/g, "\\'")}', '${student.classId}')" 
+          style="flex: 1; min-width: 110px; background: #28a745; color: white; padding: 9px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.3s;"
+          onmouseover="this.style.background='#218838'"
+          onmouseout="this.style.background='#28a745'">
+          🔄 نقل لحلقة أخرى
+        </button>
+      </div>
+    `;
+    
+    detailsDiv.innerHTML = html;
+    detailsDiv.style.display = 'block';
+    toggleIcon.style.transform = 'rotate(180deg)';
+    toggleIcon.textContent = '▲';
+    cardDiv.style.background = 'linear-gradient(to bottom, #f8f9fa 0%, white 100%)';
+  } else {
+    // Hide details
+    detailsDiv.style.display = 'none';
+    toggleIcon.style.transform = 'rotate(0deg)';
+    toggleIcon.textContent = '▼';
+    cardDiv.style.background = 'white';
+  }
+};
