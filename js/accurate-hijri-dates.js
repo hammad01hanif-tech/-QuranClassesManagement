@@ -1,11 +1,12 @@
 // Accurate Hijri Calendar Data
 // Based on official Saudi Umm Al-Qura calendar
 //
-// Current Coverage: 5 months (118 days total)
+// Current Coverage: 6 months (147 days total)
 // - Jumada Al-Akhir 1447: 29 days (2025-11-22 to 2025-12-20)
 // - Rajab 1447: 30 days (2025-12-21 to 2026-01-19)
 // - Sha'ban 1447: 29 days (2026-01-20 to 2026-02-17)
 // - Ramadan 1447: 30 days (2026-02-18 to 2026-03-19)
+// - Shawwal 1447: 29 days (2026-03-20 to 2026-04-17)
 //
 // STUDY DAYS SYSTEM (أيام الدراسة):
 // This system automatically recognizes study days for ALL months (current and future)
@@ -966,6 +967,238 @@ export const accurateHijriDates = [
     "hijriMonth": 9,
     "hijriYear": 1447,
     "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-03-20",
+    "hijri": "1447-10-01",
+    "hijriDay": 1,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-03-21",
+    "hijri": "1447-10-02",
+    "hijriDay": 2,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-03-22",
+    "hijri": "1447-10-03",
+    "hijriDay": 3,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-03-23",
+    "hijri": "1447-10-04",
+    "hijriDay": 4,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-03-24",
+    "hijri": "1447-10-05",
+    "hijriDay": 5,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-03-25",
+    "hijri": "1447-10-06",
+    "hijriDay": 6,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-03-26",
+    "hijri": "1447-10-07",
+    "hijriDay": 7,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-03-27",
+    "hijri": "1447-10-08",
+    "hijriDay": 8,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-03-28",
+    "hijri": "1447-10-09",
+    "hijriDay": 9,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-03-29",
+    "hijri": "1447-10-10",
+    "hijriDay": 10,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-03-30",
+    "hijri": "1447-10-11",
+    "hijriDay": 11,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-03-31",
+    "hijri": "1447-10-12",
+    "hijriDay": 12,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-04-01",
+    "hijri": "1447-10-13",
+    "hijriDay": 13,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-04-02",
+    "hijri": "1447-10-14",
+    "hijriDay": 14,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-04-03",
+    "hijri": "1447-10-15",
+    "hijriDay": 15,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-04-04",
+    "hijri": "1447-10-16",
+    "hijriDay": 16,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-04-05",
+    "hijri": "1447-10-17",
+    "hijriDay": 17,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-04-06",
+    "hijri": "1447-10-18",
+    "hijriDay": 18,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-04-07",
+    "hijri": "1447-10-19",
+    "hijriDay": 19,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-04-08",
+    "hijri": "1447-10-20",
+    "hijriDay": 20,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-04-09",
+    "hijri": "1447-10-21",
+    "hijriDay": 21,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-04-10",
+    "hijri": "1447-10-22",
+    "hijriDay": 22,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-04-11",
+    "hijri": "1447-10-23",
+    "hijriDay": 23,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-04-12",
+    "hijri": "1447-10-24",
+    "hijriDay": 24,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-04-13",
+    "hijri": "1447-10-25",
+    "hijriDay": 25,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-04-14",
+    "hijri": "1447-10-26",
+    "hijriDay": 26,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-04-15",
+    "hijri": "1447-10-27",
+    "hijriDay": 27,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-04-16",
+    "hijri": "1447-10-28",
+    "hijriDay": 28,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-04-17",
+    "hijri": "1447-10-29",
+    "hijriDay": 29,
+    "hijriMonth": 10,
+    "hijriYear": 1447,
+    "dayName": "الجمعة"
   }
 ];
 
