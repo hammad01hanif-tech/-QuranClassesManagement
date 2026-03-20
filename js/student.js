@@ -739,3 +739,404 @@ window.viewStudentReportDetails = function(report) {
   
   document.body.appendChild(modalOverlay);
 };
+
+// Toggle Student Navbar (Sidebar)
+window.toggleStudentNavbar = function() {
+  const navbar = document.getElementById('studentSidebarNavbar');
+  const overlay = document.getElementById('studentNavbarOverlay');
+  
+  if (navbar.style.display === 'none' || navbar.style.display === '') {
+    // Open navbar
+    navbar.style.display = 'block';
+    overlay.style.display = 'block';
+    
+    // Set student name in navbar
+    const studentName = sessionStorage.getItem('loggedInStudentName');
+    document.getElementById('navbarStudentName').textContent = studentName || 'الطالب';
+    
+    // Animate slide in
+    setTimeout(() => {
+      navbar.style.transform = 'translateX(0)';
+    }, 10);
+  } else {
+    // Close navbar
+    navbar.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      navbar.style.display = 'none';
+      overlay.style.display = 'none';
+    }, 300);
+  }
+};
+
+// Open Personal Data Modal from Navbar
+window.openPersonalDataModal = async function() {
+  // Close navbar first
+  window.toggleStudentNavbar();
+  
+  // Wait a bit for navbar to close
+  setTimeout(async () => {
+    const panel = document.getElementById('studentPersonalDataPanel');
+    panel.style.display = 'flex';
+    await loadStudentPersonalData();
+  }, 300);
+};
+
+// Close Personal Data Modal
+window.closePersonalDataModal = function() {
+  document.getElementById('studentPersonalDataPanel').style.display = 'none';
+};
+
+// Open Passed Juz Modal from Navbar
+window.openPassedJuzModal = async function() {
+  // Close navbar first
+  window.toggleStudentNavbar();
+  
+  // Wait a bit for navbar to close
+  setTimeout(async () => {
+    const panel = document.getElementById('studentPassedJuzPanel');
+    panel.style.display = 'flex';
+    await loadPassedJuzData();
+  }, 300);
+};
+
+// Close Passed Juz Modal
+window.closePassedJuzModal = function() {
+  document.getElementById('studentPassedJuzPanel').style.display = 'none';
+};
+
+// Toggle Personal Data Modal (deprecated - kept for compatibility)
+window.toggleStudentPersonalData = async function() {
+  await openPersonalDataModal();
+};
+
+// Load student personal data
+async function loadStudentPersonalData() {
+  const studentId = sessionStorage.getItem('loggedInStudent');
+  
+  if (!studentId) {
+    console.error('No student logged in');
+    return;
+  }
+  
+  try {
+    // Get student data from Firebase
+    const studentDoc = await getDoc(doc(db, 'users', studentId));
+    
+    if (!studentDoc.exists()) {
+      console.error('Student not found');
+      return;
+    }
+    
+    const studentData = studentDoc.data();
+    
+    // Populate read-only fields
+    document.getElementById('studentPersonalName').textContent = studentData.name || '-';
+    document.getElementById('studentPersonalId').textContent = studentId || '-';
+    document.getElementById('studentPersonalClass').textContent = studentData.classId || '-';
+    
+    // Map level to Arabic
+    const levelMap = {
+      'hifz': 'حفظ',
+      'dabt': 'ضبط',
+      'noorani': 'نوراني'
+    };
+    document.getElementById('studentPersonalLevel').textContent = levelMap[studentData.level] || studentData.level || '-';
+    document.getElementById('studentPersonalAge').textContent = studentData.age ? `${studentData.age} سنة` : '-';
+    
+    // Populate editable fields
+    document.getElementById('studentEditBirthDate').value = studentData.birthDate || '';
+    document.getElementById('studentEditGuardianPhone').value = studentData.guardianPhone || '';
+    
+  } catch (error) {
+    console.error('Error loading personal data:', error);
+  }
+}
+
+// Load passed Juz data
+async function loadPassedJuzData() {
+  const studentId = sessionStorage.getItem('loggedInStudent');
+  const gridContainer = document.getElementById('studentPassedJuzGrid');
+  const countDisplay = document.getElementById('studentPassedJuzCount');
+  
+  if (!studentId) {
+    console.error('No student logged in');
+    return;
+  }
+  
+  try {
+    // Get all passed Juz for this student
+    const juzQuery = query(
+      collection(db, 'juzDisplays'),
+      where('studentId', '==', studentId),
+      where('status', '==', 'completed')
+    );
+    
+    const juzSnap = await getDocs(juzQuery);
+    
+    // Create a map of passed Juz numbers
+    const passedJuzMap = new Map();
+    juzSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      passedJuzMap.set(data.juzNumber, {
+        id: docSnap.id,
+        ...data
+      });
+    });
+    
+    // Update count display
+    if (countDisplay) {
+      countDisplay.textContent = `${passedJuzMap.size} / 30`;
+    }
+    
+    // Generate grid for all 30 Juz
+    let html = '';
+    for (let i = 1; i <= 30; i++) {
+      const isPassed = passedJuzMap.has(i);
+      const juzData = passedJuzMap.get(i);
+      
+      html += `
+        <div 
+          ${isPassed ? `onclick="window.showJuzDetails(${i})"` : ''}
+          style="
+            padding: 12px 8px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: ${isPassed ? 'pointer' : 'default'};
+            background: ${isPassed ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' : '#f0f0f0'};
+            color: ${isPassed ? 'white' : '#999'};
+            border: 2px solid ${isPassed ? '#28a745' : '#ddd'};
+            transition: all 0.3s;
+            ${isPassed ? 'box-shadow: 0 2px 8px rgba(40,167,69,0.3);' : ''}
+          "
+          ${isPassed ? `onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"` : ''}
+        >
+          ${i}
+          ${isPassed ? '<div style="font-size: 16px; margin-top: 2px;">✓</div>' : ''}
+        </div>
+      `;
+    }
+    
+    gridContainer.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error loading passed Juz:', error);
+    gridContainer.innerHTML = '<p style="text-align: center; color: #dc3545; grid-column: 1 / -1;">حدث خطأ في تحميل البيانات</p>';
+  }
+}
+
+// Toggle Personal Data Modal (Old function - removed load logic)
+// Now renamed functions handle the modal operations
+
+// Load student personal data (renamed from previous)
+// Already defined above
+
+// Load passed Juz data (renamed from previous)  
+// Already defined above
+
+// Show Juz details modal
+window.showJuzDetails = async function(juzNumber) {
+  const studentId = sessionStorage.getItem('loggedInStudent');
+  
+  if (!studentId) return;
+  
+  // Close passed juz modal if open
+  const passedJuzPanel = document.getElementById('studentPassedJuzPanel');
+  if (passedJuzPanel.style.display === 'flex') {
+    passedJuzPanel.style.display = 'none';
+  }
+  
+  const modal = document.getElementById('studentJuzDetailsModal');
+  const content = document.getElementById('studentJuzDetailsContent');
+  
+  modal.style.display = 'flex';
+  content.innerHTML = '<p style="text-align: center; padding: 20px;">⏳ جاري التحميل...</p>';
+  
+  try {
+    // Get Juz data
+    const juzQuery = query(
+      collection(db, 'juzDisplays'),
+      where('studentId', '==', studentId),
+      where('juzNumber', '==', juzNumber),
+      where('status', '==', 'completed')
+    );
+    
+    const juzSnap = await getDocs(juzQuery);
+    
+    if (juzSnap.empty) {
+      content.innerHTML = '<p style="text-align: center; color: #dc3545; padding: 20px;">لم يتم العثور على بيانات الجزء</p>';
+      return;
+    }
+    
+    const juzData = juzSnap.docs[0].data();
+    
+    // Format dates
+    const displayDate = juzData.displayDate ? formatDateForDisplay(juzData.displayDate) : '-';
+    const lastLessonDate = juzData.lastLessonDate ? formatDateForDisplay(juzData.lastLessonDate) : '-';
+    
+    // Calculate duration
+    let duration = '-';
+    let daysCount = 0;
+    if (juzData.lastLessonDate && juzData.displayDate) {
+      const lastLesson = new Date(juzData.lastLessonDate);
+      const display = new Date(juzData.displayDate);
+      daysCount = Math.ceil((display - lastLesson) / (1000 * 60 * 60 * 24));
+      duration = `${daysCount} يوم`;
+    }
+    
+    // Get attempt count from daily reports (count all reports with this juzNumber in revision)
+    let attemptCount = '-';
+    try {
+      const reportsQuery = query(
+        collection(db, 'studentProgress', studentId, 'dailyReports'),
+        where('status', '==', 'present')
+      );
+      const reportsSnap = await getDocs(reportsQuery);
+      
+      let count = 0;
+      reportsSnap.forEach(reportDoc => {
+        const reportData = reportDoc.data();
+        // Check if this report includes revision of this Juz
+        // This is a simplified count - you might want to make it more accurate
+        if (reportData.revisionFrom || reportData.revisionTo) {
+          count++;
+        }
+      });
+      
+      attemptCount = count > 0 ? `${count} مرة` : 'غير محدد';
+    } catch (err) {
+      console.error('Error counting attempts:', err);
+    }
+    
+    content.innerHTML = `
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 10px;">📖</div>
+        <div style="font-size: 24px; font-weight: bold; color: #28a745;">الجزء ${juzNumber}</div>
+      </div>
+      
+      <div style="background: white; border-radius: 8px; overflow: hidden; margin-bottom: 15px;">
+        <div style="padding: 12px 15px; background: #f8f9fa; border-bottom: 2px solid #e9ecef;">
+          <div style="font-size: 13px; color: #666; margin-bottom: 3px;">📅 تاريخ العرض</div>
+          <div style="font-size: 16px; font-weight: bold; color: #333;">${displayDate}</div>
+        </div>
+        
+        <div style="padding: 12px 15px; border-bottom: 2px solid #e9ecef;">
+          <div style="font-size: 13px; color: #666; margin-bottom: 3px;">👤 اسم العارض</div>
+          <div style="font-size: 16px; font-weight: bold; color: #333;">${juzData.viewerName || juzData.studentName || '-'}</div>
+        </div>
+        
+        <div style="padding: 12px 15px; border-bottom: 2px solid #e9ecef;">
+          <div style="font-size: 13px; color: #666; margin-bottom: 3px;">⏱️ عدد الأيام المستغرقة</div>
+          <div style="font-size: 16px; font-weight: bold; color: #333;">${duration}</div>
+        </div>
+        
+        <div style="padding: 12px 15px;">
+          <div style="font-size: 13px; color: #666; margin-bottom: 3px;">🔄 عدد مرات التسميع</div>
+          <div style="font-size: 16px; font-weight: bold; color: #333;">${attemptCount}</div>
+        </div>
+      </div>
+      
+      <button onclick="window.closeJuzDetailsModal()" style="width: 100%; padding: 12px; background: #f5f5f5; border: 2px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 14px;">
+        إغلاق
+      </button>
+    `;
+    
+  } catch (error) {
+    console.error('Error loading Juz details:', error);
+    content.innerHTML = '<p style="text-align: center; color: #dc3545; padding: 20px;">حدث خطأ في تحميل التفاصيل</p>';
+  }
+};
+
+// Close Juz details modal
+window.closeJuzDetailsModal = function() {
+  document.getElementById('studentJuzDetailsModal').style.display = 'none';
+};
+
+// Format date for display
+function formatDateForDisplay(dateString) {
+  if (!dateString) return '-';
+  
+  try {
+    const [year, month, day] = dateString.split('-');
+    const hijriMonths = [
+      'محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني', 'جمادى الأولى', 'جمادى الآخرة',
+      'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+    ];
+    const monthName = hijriMonths[parseInt(month) - 1];
+    return `${parseInt(day)} ${monthName} ${year} هـ`;
+  } catch (err) {
+    return dateString;
+  }
+}
+
+// Save student personal data
+window.saveStudentPersonalData = async function() {
+  const studentId = sessionStorage.getItem('loggedInStudent');
+  
+  if (!studentId) {
+    console.error('No student logged in');
+    return;
+  }
+  
+  const birthDate = document.getElementById('studentEditBirthDate').value;
+  const guardianPhone = document.getElementById('studentEditGuardianPhone').value.trim();
+  const statusDiv = document.getElementById('studentPersonalDataSaveStatus');
+  
+  // Validation
+  if (!birthDate) {
+    statusDiv.style.color = '#dc3545';
+    statusDiv.textContent = '❌ الرجاء إدخال تاريخ الميلاد';
+    return;
+  }
+  
+  if (!guardianPhone) {
+    statusDiv.style.color = '#dc3545';
+    statusDiv.textContent = '❌ الرجاء إدخال رقم جوال ولي الأمر';
+    return;
+  }
+  
+  // Validate phone format (10 digits)
+  if (!/^[0-9]{10}$/.test(guardianPhone)) {
+    statusDiv.style.color = '#dc3545';
+    statusDiv.textContent = '❌ رقم الجوال يجب أن يكون 10 أرقام';
+    return;
+  }
+  
+  try {
+    statusDiv.style.color = '#667eea';
+    statusDiv.textContent = '⏳ جاري الحفظ...';
+    
+    // Calculate age from birth date
+    const birthDateObj = new Date(birthDate);
+    const todayDate = new Date();
+    let age = todayDate.getFullYear() - birthDateObj.getFullYear();
+    const monthDiff = todayDate.getMonth() - birthDateObj.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && todayDate.getDate() < birthDateObj.getDate())) {
+      age--;
+    }
+    
+    // Update Firebase
+    await updateDoc(doc(db, 'users', studentId), {
+      birthDate: birthDate,
+      guardianPhone: guardianPhone,
+      age: age
+    });
+    
+    statusDiv.style.color = '#28a745';
+    statusDiv.textContent = '✅ تم الحفظ بنجاح!';
+    
+    // Update age display
+    document.getElementById('studentPersonalAge').textContent = `${age} سنة`;
+    
+    setTimeout(() => {
+      statusDiv.textContent = '';
+    }, 3000);
+    
+  } catch (error) {
+    console.error('Error saving data:', error);
+    statusDiv.style.color = '#dc3545';
+    statusDiv.textContent = '❌ حدث خطأ أثناء الحفظ';
+  }
+};
+
