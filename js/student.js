@@ -411,6 +411,12 @@ window.showStudentAttendance = async function() {
   
   if (!studentId) return;
   
+  // Close navbar if open
+  const navbar = document.getElementById('studentSidebarNavbar');
+  if (navbar && navbar.style.display !== 'none') {
+    window.toggleStudentNavbar();
+  }
+  
   const modal = document.getElementById('studentAttendancePanel');
   modal.style.display = 'block';
   
