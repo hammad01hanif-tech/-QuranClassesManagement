@@ -3784,9 +3784,11 @@ function displayMonthlyScores(studentsScores) {
             <div style="font-size: 10px; color: #666;">المعدل</div>
             <div style="font-size: 15px; font-weight: bold; color: ${student.rank <= 3 ? '#28a745' : '#17a2b8'};">${avgDisplay}</div>
           </div>
-          <button onclick="editStudentExamScore('${student.id}', '${student.name.replace(/'/g, "\\'")}', ${student.examScore})" style="padding: 5px 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; min-width: 60px;">
-            ✏️ تعديل
-          </button>
+          <span onclick="editStudentExamScore('${student.id}', '${student.name.replace(/'/g, "\\'")}', ${student.examScore})" 
+                style="font-size: 18px; cursor: pointer; padding: 4px; opacity: 0.7; transition: opacity 0.2s, transform 0.2s;" 
+                onmouseover="this.style.opacity='1'; this.style.transform='scale(1.2)'" 
+                onmouseout="this.style.opacity='0.7'; this.style.transform='scale(1)'"
+                title="تعديل درجة الاختبار">✏️</span>
         </div>
       </div>
     `;
