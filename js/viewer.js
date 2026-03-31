@@ -1962,9 +1962,14 @@ window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) 
         </div>
       </div>
       
+      <button onclick="window.handleRemoveFromQueue('${reportId}', '${studentName}')" 
+              style="background: #dc3545; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; margin-top: 12px; width: 100%; transition: all 0.2s;" 
+              onmouseover="this.style.background='#c82333'" 
+              onmouseout="this.style.background='#dc3545'">
+        🗑️ حذف من القائمة
+      </button>
+      
       <button class="close-btn" onclick="document.getElementById('juzDisplayOptionsOverlay').remove()">
-        إغلاق
-      </button>>
         إغلاق
       </button>
     `;
@@ -2098,6 +2103,49 @@ window.handleJuzFail = async function(reportId) {
   } catch (error) {
     console.error('Error handling fail:', error);
     alert('❌ حدث خطأ في تسجيل المحاولة الفاشلة');
+  }
+};
+
+// Handle Remove from Queue - Delete student from queue completely
+window.handleRemoveFromQueue = async function(reportId, studentName) {
+  try {
+    // Confirm deletion
+    const confirmed = confirm(
+      `⚠️ تأكيد الحذف\n\n` +
+      `هل أنت متأكد من حذف الطالب:\n"${studentName}"\n\n` +
+      `من قائمة الجاهزين للعرض؟\n\n` +
+      `⚠️ سيتم حذف جميع البيانات المرتبطة بهذا الجزء\n` +
+      `(الملاحظات، المحاولات الفاشلة، إلخ...)\n\n` +
+      `هذا الإجراء لا يمكن التراجع عنه!`
+    );
+    
+    if (!confirmed) {
+      console.log('❌ User cancelled deletion');
+      return;
+    }
+    
+    console.log('🗑️ Deleting report:', reportId);
+    
+    // Delete the document from juzDisplays collection
+    await deleteDoc(doc(db, 'juzDisplays', reportId));
+    
+    console.log('✅ Report deleted successfully');
+    
+    // Close the popup
+    const overlay = document.getElementById('juzDisplayOptionsOverlay');
+    if (overlay) {
+      overlay.remove();
+    }
+    
+    // Reload queue to show updated list
+    await loadDailyQueue();
+    
+    // Show success message
+    alert(`✅ تم حذف الطالب من القائمة بنجاح\n\n${studentName}`);
+    
+  } catch (error) {
+    console.error('Error removing from queue:', error);
+    alert('❌ حدث خطأ في حذف الطالب من القائمة');
   }
 };
 
