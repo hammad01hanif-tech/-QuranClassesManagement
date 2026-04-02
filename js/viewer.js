@@ -31,6 +31,19 @@ const VIEWERS_LIST = [
   'إبراهيم الطارقي'
 ];
 
+// ============================================
+// HELPER FUNCTION - Extract Arabic Name Only
+// ============================================
+function extractArabicName(fullName) {
+  if (!fullName) return '';
+  // If name contains " — " separator, extract the Arabic part after it
+  if (fullName.includes(' — ')) {
+    return fullName.split(' — ')[1].trim();
+  }
+  // If no separator, return as is
+  return fullName;
+}
+
 // Show viewer selection popup
 async function selectViewerName(defaultViewer = 'مازن البلوشي') {
   return new Promise((resolve) => {
@@ -886,8 +899,11 @@ window.sendReportToTeacher = async function(reportId) {
     const attemptCount = (data.failedAttempts && data.failedAttempts.length) || 0;
     const totalAttempts = attemptCount + 1; // Include the final successful attempt
     
+    // Extract Arabic name only for display
+    const arabicName = extractArabicName(data.studentName);
+    
     // Create notification message
-    const notificationMessage = `🎉 رسالة اجتياز\n\n✅ الطالب: ${data.studentName}\n👨‍🏫 المعلم: ${data.teacherName || 'غير محدد'}\n📖 الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${data.displayDate}\n⏱️ المدة المستغرقة: ${durationText}\n👤 العارض: ${data.viewerName}\n🔄 عدد مرات التسميع: ${totalAttempts}`;
+    const notificationMessage = `🎉 رسالة اجتياز\n\n✅ الطالب: ${arabicName}\n👨‍🏫 المعلم: ${data.teacherName || 'غير محدد'}\n📖 الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${data.displayDate}\n⏱️ المدة المستغرقة: ${durationText}\n👤 العارض: ${data.viewerName}\n🔄 عدد مرات التسميع: ${totalAttempts}`;
     
     console.log('📤 Sending notification:', {
       teacherId: data.teacherId,
@@ -968,12 +984,15 @@ window.shareReport = async function(reportId) {
     const attemptCount = (data.failedAttempts && data.failedAttempts.length) || 0;
     const totalAttempts = attemptCount + 1; // Include the final successful attempt
     
+    // Extract Arabic name only for display
+    const arabicName = extractArabicName(data.studentName);
+    
     // Create shareable text
     const shareText = `━━━━━━━━━━━━━━━━━━━━
 🎉 رسالة اجتياز
 ━━━━━━━━━━━━━━━━━━━━
 
-✅ الطالب: ${data.studentName}
+✅ الطالب: ${arabicName}
 👨‍🏫 المعلم: ${data.teacherName || 'غير محدد'}
 📖 الجزء: ${data.juzNumber}
 📅 تاريخ العرض: ${data.displayDate}
@@ -1576,10 +1595,13 @@ window.loadDailyQueue = async function() {
       // Display days since LESSON (not attempt) - this is what "منذ" means
       const daysText = student.daysSinceLesson === 1 ? 'يوم واحد' : student.daysSinceLesson === 2 ? 'يومان' : `${student.daysSinceLesson} أيام`;
       
+      // Extract Arabic name only
+      const displayName = extractArabicName(student.studentName);
+      
       tableHTML += `
         <tr onclick="window.showJuzDisplayOptions('${student.reportId}', '${student.studentName}', ${student.juzNumber})" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
           <td style="padding: 12px; font-weight: bold; color: #667eea;">${index + 1}</td>
-          <td style="padding: 12px; font-weight: bold;">${student.studentName}</td>
+          <td style="padding: 12px; font-weight: bold;">${displayName}</td>
           <td style="padding: 12px; color: #666;">${student.teacherName}</td>
           <td style="padding: 12px; text-align: center; font-weight: bold; color: #764ba2;">الجزء ${student.juzNumber}</td>
           <td style="padding: 12px; text-align: center;">
