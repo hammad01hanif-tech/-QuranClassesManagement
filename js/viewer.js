@@ -3058,6 +3058,15 @@ window.generateJuzReport = async function() {
     `;
     document.body.appendChild(loadingMsg);
     
+    // Fetch teacher names from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teacherNamesMap = {};
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
+    });
+    
     // Fetch all juzDisplays
     const snapshot = await getDocs(collection(db, 'juzDisplays'));
     
@@ -3170,7 +3179,7 @@ window.generateJuzReport = async function() {
     const teacherStats = {};
     allReports.forEach(report => {
       const teacherId = report.teacherId;
-      const teacherName = report.teacherName || 'غير محدد';
+      const teacherName = teacherNamesMap[report.teacherId] || report.teacherName || 'غير محدد';
       
       if (!teacherStats[teacherId]) {
         teacherStats[teacherId] = {
@@ -3492,21 +3501,15 @@ window.generateClassReport = async function() {
     `;
     document.body.appendChild(loadingMsg);
     
-    // Get teacher name from the static list
-    const teachers = {
-      'ABD01': 'عبدالرحمن السيسي',
-      'AMR01': 'عامر هوساوي',
-      'ANS01': 'الأستاذ أنس',
-      'HRT01': 'حارث',
-      'JHD01': 'الأستاذ جهاد',
-      'JWD01': 'عبدالرحمن جاويد',
-      'MZN01': 'الأستاذ مازن',
-      'NBL01': 'الأستاذ نبيل',
-      'OMR01': 'الأستاذ عمر',
-      'OSM01': 'أسامة حبيب',
-      'SLM01': 'سلمان رفيق'
-    };
-    const teacherName = teachers[teacherId] || 'المعلم';
+    // Get teacher name from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teacherNamesMap = {};
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
+    });
+    const teacherName = teacherNamesMap[teacherId] || 'المعلم';
     
     // Fetch all juzDisplays for this teacher
     const snapshot = await getDocs(query(
