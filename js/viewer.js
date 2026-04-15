@@ -1510,6 +1510,16 @@ window.loadDailyQueue = async function() {
     
     // Process students
     const queue = [];
+    
+    // Get teacher names from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teacherNamesMap = {};
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
+    });
+    
     snapshot.forEach(doc => {
       const data = doc.data();
       const reportId = doc.id;
@@ -1535,12 +1545,15 @@ window.loadDailyQueue = async function() {
           daysSinceAttempt = daysSinceLesson;
         }
         
+        // Get teacher name from classes collection based on teacherId
+        const teacherName = teacherNamesMap[data.teacherId] || data.teacherName || 'غير محدد';
+        
         queue.push({
           reportId: reportId,
           studentId: data.studentId,
           studentName: data.studentName,
           teacherId: data.teacherId,
-          teacherName: data.teacherName || 'غير محدد',
+          teacherName: teacherName,
           juzNumber: data.juzNumber,
           lastLessonDate: data.lastLessonDate,
           lastAttemptDate: data.lastAttemptDate || null,
