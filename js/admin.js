@@ -1969,19 +1969,279 @@ async function loadAbsentStudentsReports() {
 window.loadDailyAttendance = async function() {
   console.log('🔵 loadDailyAttendance: Start');
   const classId = document.getElementById('classSelectAttendance').value;
-  const reportSection = document.getElementById('adminAttendanceReportSection');
   
   if (!classId) {
-    console.log('⚠️ No classId, hiding report section');
-    reportSection.style.display = 'none';
+    console.log('⚠️ No classId selected');
     return;
   }
   
-  console.log('✅ Showing daily attendance section for class:', classId);
-  reportSection.style.display = 'block';
+  try {
+    // Get class data
+    const classDocRef = firestoreDoc(db, 'classes', classId);
+    const classDocSnap = await getDoc(classDocRef);
+    
+    if (!classDocSnap.exists()) {
+      alert('❌ الحلقة غير موجودة');
+      return;
+    }
+    
+    const classData = classDocSnap.data();
+    const teacherName = classData.teacherName || classData.className || 'غير محدد';
+    
+    // Get students in this class
+    const studentsSnap = await getDocs(query(
+      collection(db, 'users'),
+      where('classId', '==', classId),
+      where('role', '==', 'student')
+    ));
+    
+    if (studentsSnap.empty) {
+      alert('⚠️ لا يوجد طلاب في هذه الحلقة');
+      return;
+    }
+    
+    // Collect students
+    const students = [];
+    studentsSnap.forEach(doc => {
+      students.push({
+        id: doc.id,
+        name: doc.data().name || 'غير محدد'
+      });
+    });
+    
+    // Sort alphabetically
+    students.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    // Show modal with students
+    window.showDailyAttendanceModal(classId, teacherName, students);
+    
+  } catch (error) {
+    console.error('❌ Error loading daily attendance:', error);
+    alert('حدث خطأ في تحميل التحضير اليومي');
+  }
+};
+
+// Show daily attendance modal
+window.showDailyAttendanceModal = function(classId, teacherName, students) {
+  const modal = document.getElementById('dailyAttendanceModal');
+  const dateDisplay = document.getElementById('dailyAttendanceDate');
+  const teacherDisplay = document.getElementById('dailyAttendanceTeacher');
+  const studentsList = document.getElementById('dailyAttendanceStudentsList');
   
-  // Future implementation will be added here
-  // سيتم إضافة نظام التحضير اليومي هنا لاحقاً
+  // Store classId for saving
+  modal.dataset.classId = classId;
+  
+  // Get today's date
+  const today = getTodayForStorage(); // YYYY-MM-DD
+  const todayEntry = accurateHijriDates.find(e => e.hijri === today);
+  
+  if (todayEntry) {
+    const parts = todayEntry.hijri.split('-');
+    const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    const monthName = hijriMonths[parseInt(parts[1]) - 1];
+    dateDisplay.textContent = `${todayEntry.dayName} - ${parts[2]} ${monthName} ${parts[0]} هـ`;
+  } else {
+    dateDisplay.textContent = today;
+  }
+  
+  teacherDisplay.textContent = `المعلم: ${teacherName}`;
+  
+  // Build students list
+  let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+  
+  students.forEach(student => {
+    html += `
+      <div style="background: white; border: 2px solid #e9ecef; border-radius: 12px; padding: 15px; transition: all 0.3s;" onmouseover="this.style.borderColor='#667eea'" onmouseout="this.style.borderColor='#e9ecef'">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          
+          <!-- Student Name -->
+          <div style="font-weight: bold; color: #333; font-size: 15px; flex: 1; min-width: 150px;">
+            ${student.name}
+          </div>
+          
+          <!-- Attendance Buttons -->
+          <div class="attendance-buttons" data-student-id="${student.id}" style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button onclick="window.selectAttendanceStatus('${student.id}', 'present')" data-status="present" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s; opacity: 1;" onmouseover="this.style.opacity='0.8'" onmouseout="if(!this.classList.contains('selected')) this.style.opacity='1'">
+              ✓ حاضر
+            </button>
+            <button onclick="window.selectAttendanceStatus('${student.id}', 'late')" data-status="late" style="background: #ffc107; color: #333; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s; opacity: 0.5;" onmouseover="this.style.opacity='0.8'" onmouseout="if(!this.classList.contains('selected')) this.style.opacity='0.5'">
+              ⏰ متأخر
+            </button>
+            <button onclick="window.selectAttendanceStatus('${student.id}', 'absent-excuse')" data-status="absent-excuse" style="background: #667eea; color: white; border: none; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s; opacity: 0.5;" onmouseover="this.style.opacity='0.8'" onmouseout="if(!this.classList.contains('selected')) this.style.opacity='0.5'">
+              📄 بعذر
+            </button>
+            <button onclick="window.selectAttendanceStatus('${student.id}', 'absent-no-excuse')" data-status="absent-no-excuse" style="background: #dc3545; color: white; border: none; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s; opacity: 0.5;" onmouseover="this.style.opacity='0.8'" onmouseout="if(!this.classList.contains('selected')) this.style.opacity='0.5'">
+              ⚠️ بدون عذر
+            </button>
+            <button onclick="window.selectAttendanceStatus('${student.id}', 'distracted')" data-status="distracted" style="background: #ff9800; color: white; border: none; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s; opacity: 0.5;" onmouseover="this.style.opacity='0.8'" onmouseout="if(!this.classList.contains('selected')) this.style.opacity='0.5'">
+              💫 شارد
+            </button>
+          </div>
+          
+        </div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  studentsList.innerHTML = html;
+  
+  // Show modal
+  modal.style.display = 'flex';
+  
+  // Update stats initially (all present = 0 absent)
+  window.updateAttendanceStats();
+};
+
+// Select attendance status for a student
+window.selectAttendanceStatus = function(studentId, status) {
+  const container = document.querySelector(`.attendance-buttons[data-student-id="${studentId}"]`);
+  const buttons = container.querySelectorAll('button');
+  
+  // Remove selected class from all buttons
+  buttons.forEach(btn => {
+    btn.classList.remove('selected');
+    btn.style.opacity = '0.5';
+    if (btn.dataset.status === 'present') {
+      btn.style.opacity = '1'; // Present is always visible
+    }
+  });
+  
+  // Add selected class to clicked button
+  const selectedBtn = container.querySelector(`button[data-status="${status}"]`);
+  selectedBtn.classList.add('selected');
+  selectedBtn.style.opacity = '1';
+  selectedBtn.style.transform = 'scale(1.05)';
+  setTimeout(() => {
+    selectedBtn.style.transform = 'scale(1)';
+  }, 200);
+  
+  // Update stats
+  window.updateAttendanceStats();
+};
+
+// Update attendance statistics
+window.updateAttendanceStats = function() {
+  const allButtons = document.querySelectorAll('.attendance-buttons');
+  let absentWithExcuse = 0;
+  let absentWithoutExcuse = 0;
+  
+  allButtons.forEach(container => {
+    const selectedBtn = container.querySelector('button.selected');
+    const status = selectedBtn ? selectedBtn.dataset.status : 'present';
+    
+    if (status === 'absent-excuse') {
+      absentWithExcuse++;
+    } else if (status === 'absent-no-excuse') {
+      absentWithoutExcuse++;
+    }
+  });
+  
+  document.getElementById('absentWithExcuseCount').textContent = absentWithExcuse;
+  document.getElementById('absentWithoutExcuseCount').textContent = absentWithoutExcuse;
+};
+
+// Save daily attendance
+window.saveDailyAttendance = async function() {
+  const modal = document.getElementById('dailyAttendanceModal');
+  const classId = modal.dataset.classId;
+  const saveBtn = document.getElementById('saveDailyAttendanceBtn');
+  
+  if (!classId) {
+    alert('❌ خطأ: لم يتم اختيار الحلقة');
+    return;
+  }
+  
+  // Disable button
+  saveBtn.disabled = true;
+  saveBtn.textContent = '⏳ جاري الحفظ...';
+  
+  try {
+    const today = getTodayForStorage(); // YYYY-MM-DD
+    const allButtons = document.querySelectorAll('.attendance-buttons');
+    
+    // Collect attendance data
+    const attendanceData = [];
+    allButtons.forEach(container => {
+      const studentId = container.dataset.studentId;
+      const selectedBtn = container.querySelector('button.selected');
+      const status = selectedBtn ? selectedBtn.dataset.status : 'present';
+      
+      let finalStatus = 'present';
+      let excuseType = null;
+      
+      if (status === 'late') {
+        finalStatus = 'present'; // متأخر = حاضر
+      } else if (status === 'absent-excuse') {
+        finalStatus = 'absent';
+        excuseType = 'withExcuse';
+      } else if (status === 'absent-no-excuse') {
+        finalStatus = 'absent';
+        excuseType = 'withoutExcuse';
+      } else if (status === 'distracted') {
+        finalStatus = 'distracted';
+      }
+      
+      attendanceData.push({
+        studentId,
+        status: finalStatus,
+        originalStatus: status,
+        excuseType,
+        date: today
+      });
+    });
+    
+    // Save to Firebase
+    for (const record of attendanceData) {
+      const reportRef = firestoreDoc(db, 'studentProgress', record.studentId, 'dailyReports', today);
+      
+      const reportData = {
+        status: record.status,
+        date: today,
+        timestamp: serverTimestamp()
+      };
+      
+      if (record.excuseType) {
+        reportData.excuseType = record.excuseType;
+      }
+      
+      if (record.originalStatus === 'late') {
+        reportData.late = true;
+      }
+      
+      if (record.originalStatus === 'distracted') {
+        reportData.distracted = true;
+      }
+      
+      await setDoc(reportRef, reportData, { merge: true });
+    }
+    
+    // Success
+    saveBtn.textContent = '✅ تم الحفظ بنجاح';
+    saveBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+    
+    setTimeout(() => {
+      window.closeDailyAttendanceModal();
+    }, 1500);
+    
+  } catch (error) {
+    console.error('❌ Error saving attendance:', error);
+    alert('حدث خطأ في حفظ التحضير');
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 حفظ التحضير';
+  }
+};
+
+// Close daily attendance modal
+window.closeDailyAttendanceModal = function() {
+  const modal = document.getElementById('dailyAttendanceModal');
+  modal.style.display = 'none';
+  
+  // Reset save button
+  const saveBtn = document.getElementById('saveDailyAttendanceBtn');
+  saveBtn.disabled = false;
+  saveBtn.textContent = '💾 حفظ التحضير';
+  saveBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
 };
 
 // Toggle admin notifications panel
