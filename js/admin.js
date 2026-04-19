@@ -2034,10 +2034,10 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
   modal.dataset.studentsData = JSON.stringify(students);
   
   // Get selected date or today's date
-  const targetDate = selectedDate || getTodayForStorage(); // YYYY-MM-DD
+  const targetDate = selectedDate || getTodayForStorage(); // YYYY-MM-DD (Hijri format)
   modal.dataset.currentDate = targetDate;
   
-  const todayEntry = accurateHijriDates.find(e => e.gregorian === targetDate);
+  const todayEntry = accurateHijriDates.find(e => e.hijri === targetDate);
   
   if (todayEntry) {
     const parts = todayEntry.hijri.split('-');
@@ -2158,7 +2158,7 @@ window.showDatePicker = function() {
   const currentDate = modal.dataset.currentDate || getTodayForStorage();
   
   // Find current month from selected date
-  let currentEntry = accurateHijriDates.find(e => e.gregorian === currentDate);
+  let currentEntry = accurateHijriDates.find(e => e.hijri === currentDate);
   
   // If current date not found in accurate data, use the last available month
   if (!currentEntry) {
@@ -2204,7 +2204,7 @@ window.showDatePicker = function() {
   const monthName = hijriMonths[currentMonth - 1];
   
   // Check if we're showing fallback data
-  const isUsingFallback = !accurateHijriDates.find(e => e.gregorian === currentDate);
+  const isUsingFallback = !accurateHijriDates.find(e => e.hijri === currentDate);
   const warningMessage = isUsingFallback ? 
     '<div style="background: #fff3cd; color: #856404; padding: 8px; margin: 10px 15px 0 15px; border-radius: 8px; font-size: 11px; text-align: center;">⚠️ التاريخ الحالي خارج نطاق البيانات المتوفرة. يتم عرض آخر شهر متاح.</div>' : '';
   
@@ -2224,13 +2224,13 @@ window.showDatePicker = function() {
   
   monthDates.forEach(entry => {
     const parts = entry.hijri.split('-');
-    const isSelected = entry.gregorian === currentDate;
+    const isSelected = entry.hijri === currentDate;
     const bgColor = isSelected ? '#667eea' : '#f8f9fa';
     const textColor = isSelected ? 'white' : '#333';
     const borderColor = isSelected ? '#667eea' : '#e9ecef';
     
     html += `
-      <div onclick="window.switchToDate('${entry.gregorian}'); this.closest('div[style*=\"position: fixed\"]').remove();" 
+      <div onclick="window.switchToDate('${entry.hijri}'); this.closest('div[style*=\"position: fixed\"]').remove();" 
            style="background: ${bgColor}; color: ${textColor}; padding: 12px 15px; margin-bottom: 8px; border-radius: 10px; cursor: pointer; border: 2px solid ${borderColor}; transition: all 0.3s; display: flex; justify-content: space-between; align-items: center;"
            onmouseover="if('${isSelected}' !== 'true') { this.style.background='#e9ecef'; this.style.transform='translateX(5px)'; }"
            onmouseout="if('${isSelected}' !== 'true') { this.style.background='#f8f9fa'; this.style.transform='translateX(0)'; }">
@@ -2254,14 +2254,14 @@ window.showDatePicker = function() {
 };
 
 // Switch to different date
-window.switchToDate = function(gregorianDate) {
+window.switchToDate = function(hijriDate) {
   const modal = document.getElementById('dailyAttendanceModal');
   const classId = modal.dataset.classId;
   const teacherName = modal.dataset.teacherName;
   const students = JSON.parse(modal.dataset.studentsData || '[]');
   
-  // Reload modal with new date
-  window.showDailyAttendanceModal(classId, teacherName, students, gregorianDate);
+  // Reload modal with new date (hijri format: YYYY-MM-DD)
+  window.showDailyAttendanceModal(classId, teacherName, students, hijriDate);
 };
 
 // Load saved attendance data for students

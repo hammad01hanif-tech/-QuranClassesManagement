@@ -4263,7 +4263,6 @@ window.sendAbsentStudentToAdmin = async function(studentId, studentName, absentC
   try {
     const hijriToday = getCurrentHijriDate();
     const todayHijriId = hijriToday?.hijri || getTodayForStorage(); // "1447-06-05"
-    const todayGregorian = getTodayForStorage(); // For gregorianDate field
     
     const teacherName = sessionStorage.getItem('loggedInTeacherName') || 'المعلم';
     const currentMonth = formatHijriDate(new Date());
