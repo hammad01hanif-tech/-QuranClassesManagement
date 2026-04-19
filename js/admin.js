@@ -2158,10 +2158,25 @@ window.showDatePicker = function() {
   const currentDate = modal.dataset.currentDate || getTodayForStorage();
   
   // Find current month from selected date
-  const currentEntry = accurateHijriDates.find(e => e.gregorian === currentDate);
+  let currentEntry = accurateHijriDates.find(e => e.gregorian === currentDate);
+  
+  // If current date not found in accurate data, use the last available month
   if (!currentEntry) {
-    alert('لا توجد بيانات للتاريخ الحالي');
-    return;
+    // Get the last entry in the accurate dates
+    const lastEntry = accurateHijriDates[accurateHijriDates.length - 1];
+    if (!lastEntry) {
+      alert('⚠️ لا توجد بيانات هجرية متاحة. يرجى تحديث التقويم.');
+      return;
+    }
+    // Use last available month
+    currentEntry = lastEntry;
+    
+    // Show warning message
+    const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    const parts = lastEntry.hijri.split('-');
+    const monthName = hijriMonths[parseInt(parts[1]) - 1];
+    
+    console.warn(`⚠️ التاريخ الحالي (${currentDate}) غير متوفر في البيانات الدقيقة. عرض آخر شهر متاح: ${monthName} ${parts[0]} هـ`);
   }
   
   const currentMonth = currentEntry.hijriMonth;
@@ -2188,6 +2203,11 @@ window.showDatePicker = function() {
   const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
   const monthName = hijriMonths[currentMonth - 1];
   
+  // Check if we're showing fallback data
+  const isUsingFallback = !accurateHijriDates.find(e => e.gregorian === currentDate);
+  const warningMessage = isUsingFallback ? 
+    '<div style="background: #fff3cd; color: #856404; padding: 8px; margin: 10px 15px 0 15px; border-radius: 8px; font-size: 11px; text-align: center;">⚠️ التاريخ الحالي خارج نطاق البيانات المتوفرة. يتم عرض آخر شهر متاح.</div>' : '';
+  
   let html = `
     <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;" onclick="this.remove()">
       <div style="background: white; border-radius: 15px; width: 90%; max-width: 500px; max-height: 70vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
@@ -2196,6 +2216,7 @@ window.showDatePicker = function() {
           <h3 style="margin: 0; font-size: 18px; text-align: center;">📅 اختر يوم التحضير</h3>
           <p style="margin: 5px 0 0 0; font-size: 13px; text-align: center; opacity: 0.9;">${monthName} ${currentYear} هـ (أيام الدراسة فقط)</p>
         </div>
+        ${warningMessage}
         
         <!-- Dates List -->
         <div style="padding: 15px;">
