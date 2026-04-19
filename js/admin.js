@@ -3366,3 +3366,358 @@ window.toggleStudentDetails = function(index) {
     cardDiv.style.background = 'white';
   }
 };
+
+// ==================== ABSENCE REPORTS MODULE ====================
+
+// Show absence reports modal - Select teacher/class
+window.showAbsenceReportsModal = async function() {
+  try {
+    // Get all classes
+    const classesSnap = await getDocs(collection(db, 'classes'));
+    
+    if (classesSnap.empty) {
+      alert('⚠️ لا توجد حلقات متاحة');
+      return;
+    }
+    
+    let classOptions = '<option value="">-- اختر الحلقة --</option>';
+    classesSnap.forEach(doc => {
+      const classData = doc.data();
+      const teacherName = classData.teacherName || 'غير محدد';
+      const className = classData.className || 'غير محدد';
+      classOptions += `<option value="${doc.id}">${teacherName} - ${className}</option>`;
+    });
+    
+    const html = `
+      <div id="absenceReportsOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;" onclick="this.remove()">
+        <div style="background: white; border-radius: 15px; width: 90%; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; color: white; border-radius: 15px 15px 0 0;">
+            <h3 style="margin: 0; text-align: center; font-size: 20px;">📊 تقارير الغياب</h3>
+          </div>
+          
+          <div style="padding: 25px;">
+            <label style="display: block; margin-bottom: 10px; color: #333; font-weight: bold;">👨‍🏫 اختر الحلقة:</label>
+            <select id="absenceClassSelect" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 15px; margin-bottom: 20px;">
+              ${classOptions}
+            </select>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+              <button onclick="document.getElementById('absenceReportsOverlay').remove()" style="padding: 12px 25px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px;">
+                إلغاء
+              </button>
+              <button onclick="window.loadAbsenceReportForClass()" style="padding: 12px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: bold;">
+                التالي
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', html);
+    
+  } catch (error) {
+    console.error('Error loading absence reports:', error);
+    alert('حدث خطأ في تحميل تقارير الغياب');
+  }
+};
+
+// Load absence report for selected class - Show date range and students selection
+window.loadAbsenceReportForClass = async function() {
+  const classId = document.getElementById('absenceClassSelect').value;
+  
+  if (!classId) {
+    alert('⚠️ يرجى اختيار الحلقة أولاً');
+    return;
+  }
+  
+  try {
+    // Get class data
+    const classDocRef = firestoreDoc(db, 'classes', classId);
+    const classDocSnap = await getDoc(classDocRef);
+    
+    if (!classDocSnap.exists()) {
+      alert('❌ الحلقة غير موجودة');
+      return;
+    }
+    
+    const classData = classDocSnap.data();
+    const teacherName = classData.teacherName || 'غير محدد';
+    
+    // Get students in this class
+    const studentsSnap = await getDocs(query(
+      collection(db, 'users'),
+      where('classId', '==', classId),
+      where('role', '==', 'student')
+    ));
+    
+    if (studentsSnap.empty) {
+      alert('⚠️ لا يوجد طلاب في هذه الحلقة');
+      return;
+    }
+    
+    const students = [];
+    studentsSnap.forEach(doc => {
+      students.push({
+        id: doc.id,
+        name: doc.data().name || 'غير محدد'
+      });
+    });
+    
+    // Sort alphabetically
+    students.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    // Get first day of current Hijri month
+    const today = getTodayForStorage(); // e.g., "1447-11-02"
+    const todayParts = today.split('-');
+    const firstDayOfMonth = `${todayParts[0]}-${todayParts[1]}-01`;
+    
+    // Build students options
+    let studentOptions = '<option value="all">جميع الطلاب</option>';
+    students.forEach(student => {
+      studentOptions += `<option value="${student.id}">${student.name}</option>`;
+    });
+    
+    // Close previous modal
+    const overlay = document.getElementById('absenceReportsOverlay');
+    if (overlay) overlay.remove();
+    
+    const html = `
+      <div id="absenceReportConfigOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;" onclick="this.remove()">
+        <div style="background: white; border-radius: 15px; width: 90%; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; color: white; border-radius: 15px 15px 0 0;">
+            <h3 style="margin: 0; text-align: center; font-size: 18px;">📊 تقرير غياب الطلاب</h3>
+            <p style="margin: 5px 0 0 0; text-align: center; font-size: 13px; opacity: 0.9;">المعلم: ${teacherName}</p>
+          </div>
+          
+          <div style="padding: 25px;">
+            <label style="display: block; margin-bottom: 8px; color: #333; font-weight: bold;">📅 من تاريخ (هجري):</label>
+            <input type="text" id="absenceFromDate" value="${firstDayOfMonth}" placeholder="YYYY-MM-DD" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 15px; margin-bottom: 15px; text-align: center; font-family: 'Cairo', sans-serif;">
+            
+            <label style="display: block; margin-bottom: 8px; color: #333; font-weight: bold;">📅 إلى تاريخ (هجري):</label>
+            <input type="text" id="absenceToDate" value="${today}" placeholder="YYYY-MM-DD" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 15px; margin-bottom: 15px; text-align: center; font-family: 'Cairo', sans-serif;">
+            
+            <label style="display: block; margin-bottom: 8px; color: #333; font-weight: bold;">👨‍🎓 اختر الطالب:</label>
+            <select id="absenceStudentSelect" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 15px; margin-bottom: 20px;">
+              ${studentOptions}
+            </select>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+              <button onclick="document.getElementById('absenceReportConfigOverlay').remove()" style="padding: 12px 25px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px;">
+                إلغاء
+              </button>
+              <button onclick="window.generateAbsenceReport('${classId}', '${teacherName}')" style="padding: 12px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: bold;">
+                📊 عرض التقرير
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', html);
+    
+  } catch (error) {
+    console.error('Error loading class data:', error);
+    alert('حدث خطأ في تحميل بيانات الحلقة');
+  }
+};
+
+// Generate absence report
+window.generateAbsenceReport = async function(classId, teacherName) {
+  const fromDate = document.getElementById('absenceFromDate').value.trim();
+  const toDate = document.getElementById('absenceToDate').value.trim();
+  const studentSelection = document.getElementById('absenceStudentSelect').value;
+  
+  if (!fromDate || !toDate) {
+    alert('⚠️ يرجى إدخال الفترة الزمنية كاملة');
+    return;
+  }
+  
+  // Validate date format
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (!datePattern.test(fromDate) || !datePattern.test(toDate)) {
+    alert('⚠️ صيغة التاريخ غير صحيحة. استخدم: YYYY-MM-DD');
+    return;
+  }
+  
+  if (fromDate > toDate) {
+    alert('⚠️ تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+    return;
+  }
+  
+  try {
+    // Show loading
+    const configOverlay = document.getElementById('absenceReportConfigOverlay');
+    if (configOverlay) configOverlay.remove();
+    
+    const loadingHtml = `
+      <div id="absenceReportLoadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+          <p style="margin: 0; font-size: 16px; color: #333;">جاري تحميل التقرير...</p>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', loadingHtml);
+    
+    // Get students to analyze
+    let studentsToAnalyze = [];
+    
+    if (studentSelection === 'all') {
+      // Get all students in the class
+      const studentsSnap = await getDocs(query(
+        collection(db, 'users'),
+        where('classId', '==', classId),
+        where('role', '==', 'student')
+      ));
+      
+      studentsSnap.forEach(doc => {
+        studentsToAnalyze.push({
+          id: doc.id,
+          name: doc.data().name || 'غير محدد'
+        });
+      });
+    } else {
+      // Get single student
+      const studentDoc = await getDoc(firestoreDoc(db, 'users', studentSelection));
+      if (studentDoc.exists()) {
+        studentsToAnalyze.push({
+          id: studentDoc.id,
+          name: studentDoc.data().name || 'غير محدد'
+        });
+      }
+    }
+    
+    if (studentsToAnalyze.length === 0) {
+      alert('⚠️ لم يتم العثور على طلاب');
+      document.getElementById('absenceReportLoadingOverlay').remove();
+      return;
+    }
+    
+    // Sort alphabetically
+    studentsToAnalyze.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    // Get all study dates in the range
+    const studyDates = accurateHijriDates.filter(entry => {
+      if (entry.hijri < fromDate || entry.hijri > toDate) return false;
+      
+      // Check if it's a study day (Sunday to Thursday)
+      const gregDate = new Date(entry.gregorian);
+      const dayOfWeek = gregDate.getDay();
+      return dayOfWeek >= 0 && dayOfWeek <= 4;
+    });
+    
+    if (studyDates.length === 0) {
+      alert('⚠️ لا توجد أيام دراسية في الفترة المحددة');
+      document.getElementById('absenceReportLoadingOverlay').remove();
+      return;
+    }
+    
+    // Analyze absence for each student
+    const reportData = [];
+    
+    for (const student of studentsToAnalyze) {
+      let excusedAbsences = 0;
+      let unexcusedAbsences = 0;
+      
+      for (const dateEntry of studyDates) {
+        const reportRef = firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', dateEntry.hijri);
+        const reportSnap = await getDoc(reportRef);
+        
+        if (reportSnap.exists()) {
+          const data = reportSnap.data();
+          if (data.attendance === 'excused') {
+            excusedAbsences++;
+          } else if (data.attendance === 'absent') {
+            unexcusedAbsences++;
+          }
+        }
+      }
+      
+      reportData.push({
+        name: student.name,
+        excusedAbsences,
+        unexcusedAbsences,
+        totalAbsences: excusedAbsences + unexcusedAbsences
+      });
+    }
+    
+    // Remove loading
+    document.getElementById('absenceReportLoadingOverlay').remove();
+    
+    // Display report
+    displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, studyDates.length);
+    
+  } catch (error) {
+    console.error('Error generating absence report:', error);
+    alert('حدث خطأ في إنشاء التقرير');
+    const loadingOverlay = document.getElementById('absenceReportLoadingOverlay');
+    if (loadingOverlay) loadingOverlay.remove();
+  }
+};
+
+// Display absence report table
+function displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, totalDays) {
+  // Format dates for display
+  const fromParts = fromDate.split('-');
+  const toParts = toDate.split('-');
+  const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  const fromDateDisplay = `${fromParts[2]} ${hijriMonths[parseInt(fromParts[1]) - 1]} ${fromParts[0]} هـ`;
+  const toDateDisplay = `${toParts[2]} ${hijriMonths[parseInt(toParts[1]) - 1]} ${toParts[0]} هـ`;
+  
+  // Build table rows
+  let tableRows = '';
+  reportData.forEach((student, index) => {
+    const rowBg = index % 2 === 0 ? '#f8f9fa' : 'white';
+    tableRows += `
+      <tr style="background: ${rowBg};">
+        <td style="padding: 10px 12px; text-align: right; border-bottom: 1px solid #e9ecef; font-size: 14px;">${student.name}</td>
+        <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #e9ecef; color: #28a745; font-weight: bold; font-size: 14px;">${student.excusedAbsences}</td>
+        <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #e9ecef; color: #dc3545; font-weight: bold; font-size: 14px;">${student.unexcusedAbsences}</td>
+        <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #e9ecef; font-weight: bold; font-size: 14px;">${student.totalAbsences}</td>
+      </tr>
+    `;
+  });
+  
+  const html = `
+    <div id="absenceReportResultOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center; overflow-y: auto; padding: 20px;" onclick="this.remove()">
+      <div style="background: white; border-radius: 15px; width: 95%; max-width: 700px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0;">
+          <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px;">📊 تقرير غياب الطلاب</h3>
+          <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
+          <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
+          <p style="margin: 5px 0 0 0; text-align: center; font-size: 11px; opacity: 0.85;">إجمالي الأيام الدراسية: ${totalDays} يوم</p>
+        </div>
+        
+        <div style="padding: 20px; max-height: 500px; overflow-y: auto;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <th style="padding: 10px 12px; text-align: right; border-radius: 8px 0 0 0; font-size: 13px;">اسم الطالب</th>
+                <th style="padding: 10px 12px; text-align: center; font-size: 13px;">غياب بعذر</th>
+                <th style="padding: 10px 12px; text-align: center; font-size: 13px;">غياب بدون عذر</th>
+                <th style="padding: 10px 12px; text-align: center; border-radius: 0 8px 0 0; font-size: 13px;">المجموع</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="padding: 15px 20px; background: #f8f9fa; border-radius: 0 0 15px 15px; text-align: center;">
+          <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="padding: 10px 25px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-left: 10px;">
+            إغلاق
+          </button>
+          <button onclick="window.print()" style="padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+            🖨️ طباعة
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', html);
+}
