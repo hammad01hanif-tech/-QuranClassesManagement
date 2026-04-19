@@ -2153,7 +2153,7 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
 };
 
 // Show date picker for selecting different days
-window.showDatePicker = function() {
+window.showDatePicker = function(selectedMonth = null) {
   const modal = document.getElementById('dailyAttendanceModal');
   const currentDate = modal.dataset.currentDate || getTodayForStorage();
   
@@ -2179,7 +2179,7 @@ window.showDatePicker = function() {
     console.warn(`⚠️ التاريخ الحالي (${currentDate}) غير متوفر في البيانات الدقيقة. عرض آخر شهر متاح: ${monthName} ${parts[0]} هـ`);
   }
   
-  const currentMonth = currentEntry.hijriMonth;
+  let currentMonth = selectedMonth || currentEntry.hijriMonth;
   const currentYear = currentEntry.hijriYear;
   
   // Get all study days for current month (Sunday to Thursday only)
@@ -2208,13 +2208,24 @@ window.showDatePicker = function() {
   const warningMessage = isUsingFallback ? 
     '<div style="background: #fff3cd; color: #856404; padding: 8px; margin: 10px 15px 0 15px; border-radius: 8px; font-size: 11px; text-align: center;">⚠️ التاريخ الحالي خارج نطاق البيانات المتوفرة. يتم عرض آخر شهر متاح.</div>' : '';
   
+  // Available months filter (ذو القعدة and ذو الحجة)
+  const availableMonths = [{num: 11, name: 'ذو القعدة'}, {num: 12, name: 'ذو الحجة'}];
+  const monthOptions = availableMonths.map(m => 
+    `<option value="${m.num}" ${m.num === currentMonth ? 'selected' : ''}>${m.name}</option>`
+  ).join('');
+  
   let html = `
-    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;" onclick="this.remove()">
+    <div id="datePickerOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;" onclick="this.remove()">
       <div style="background: white; border-radius: 15px; width: 90%; max-width: 500px; max-height: 70vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; color: white; border-radius: 15px 15px 0 0; position: sticky; top: 0; z-index: 1;">
           <h3 style="margin: 0; font-size: 18px; text-align: center;">📅 اختر يوم التحضير</h3>
-          <p style="margin: 5px 0 0 0; font-size: 13px; text-align: center; opacity: 0.9;">${monthName} ${currentYear} هـ (أيام الدراسة فقط)</p>
+          <div style="margin-top: 10px; text-align: center;">
+            <select onchange="window.showDatePicker(parseInt(this.value))" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 8px 15px; border-radius: 8px; font-size: 14px; cursor: pointer; outline: none; min-width: 150px;">
+              ${monthOptions}
+            </select>
+          </div>
+          <p style="margin: 5px 0 0 0; font-size: 12px; text-align: center; opacity: 0.8;">${currentYear} هـ (أيام الدراسة فقط)</p>
         </div>
         ${warningMessage}
         
@@ -2230,7 +2241,7 @@ window.showDatePicker = function() {
     const borderColor = isSelected ? '#667eea' : '#e9ecef';
     
     html += `
-      <div onclick="window.switchToDate('${entry.hijri}'); this.closest('div[style*=\"position: fixed\"]').remove();" 
+      <div onclick="window.switchToDate('${entry.hijri}'); document.getElementById('datePickerOverlay').remove();" 
            style="background: ${bgColor}; color: ${textColor}; padding: 12px 15px; margin-bottom: 8px; border-radius: 10px; cursor: pointer; border: 2px solid ${borderColor}; transition: all 0.3s; display: flex; justify-content: space-between; align-items: center;"
            onmouseover="if('${isSelected}' !== 'true') { this.style.background='#e9ecef'; this.style.transform='translateX(5px)'; }"
            onmouseout="if('${isSelected}' !== 'true') { this.style.background='#f8f9fa'; this.style.transform='translateX(0)'; }">
