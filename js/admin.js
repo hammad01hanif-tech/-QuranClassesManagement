@@ -2022,26 +2022,38 @@ window.loadDailyAttendance = async function() {
 };
 
 // Show daily attendance modal
-window.showDailyAttendanceModal = function(classId, teacherName, students) {
+window.showDailyAttendanceModal = function(classId, teacherName, students, selectedDate = null) {
   const modal = document.getElementById('dailyAttendanceModal');
   const dateDisplay = document.getElementById('dailyAttendanceDate');
   const teacherDisplay = document.getElementById('dailyAttendanceTeacher');
   const studentsList = document.getElementById('dailyAttendanceStudentsList');
   
-  // Store classId for saving
+  // Store classId, students, and teacherName for later use
   modal.dataset.classId = classId;
+  modal.dataset.teacherName = teacherName;
+  modal.dataset.studentsData = JSON.stringify(students);
   
-  // Get today's date
-  const today = getTodayForStorage(); // YYYY-MM-DD
-  const todayEntry = accurateHijriDates.find(e => e.hijri === today);
+  // Get selected date or today's date
+  const targetDate = selectedDate || getTodayForStorage(); // YYYY-MM-DD
+  modal.dataset.currentDate = targetDate;
+  
+  const todayEntry = accurateHijriDates.find(e => e.gregorian === targetDate);
   
   if (todayEntry) {
     const parts = todayEntry.hijri.split('-');
     const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
     const monthName = hijriMonths[parseInt(parts[1]) - 1];
-    dateDisplay.textContent = `${todayEntry.dayName} - ${parts[2]} ${monthName} ${parts[0]} هـ`;
+    dateDisplay.innerHTML = `
+      <div onclick="window.showDatePicker()" style="cursor: pointer; padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,0.1); transition: all 0.3s; display: inline-block;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+        📅 ${todayEntry.dayName} - ${parts[2]} ${monthName} ${parts[0]} هـ
+      </div>
+    `;
   } else {
-    dateDisplay.textContent = today;
+    dateDisplay.innerHTML = `
+      <div onclick="window.showDatePicker()" style="cursor: pointer; padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,0.1); transition: all 0.3s; display: inline-block;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+        📅 ${targetDate}
+      </div>
+    `;
   }
   
   teacherDisplay.textContent = `المعلم: ${teacherName}`;
@@ -2137,16 +2149,107 @@ window.showDailyAttendanceModal = function(classId, teacherName, students) {
   modal.style.display = 'flex';
   
   // Load saved attendance data
-  window.loadSavedAttendance(students);
+  window.loadSavedAttendance(students, targetDate);
+};
+
+// Show date picker for selecting different days
+window.showDatePicker = function() {
+  const modal = document.getElementById('dailyAttendanceModal');
+  const currentDate = modal.dataset.currentDate || getTodayForStorage();
+  
+  // Find current month from selected date
+  const currentEntry = accurateHijriDates.find(e => e.gregorian === currentDate);
+  if (!currentEntry) {
+    alert('لا توجد بيانات للتاريخ الحالي');
+    return;
+  }
+  
+  const currentMonth = currentEntry.hijriMonth;
+  const currentYear = currentEntry.hijriYear;
+  
+  // Get all study days for current month (Sunday to Thursday only)
+  const monthDates = accurateHijriDates.filter(entry => {
+    if (entry.hijriMonth !== currentMonth || entry.hijriYear !== currentYear) return false;
+    
+    // Get day of week from Gregorian date
+    const gregDate = new Date(entry.gregorian);
+    const dayOfWeek = gregDate.getDay(); // 0=Sunday, 6=Saturday
+    
+    // Only study days: Sunday(0) to Thursday(4)
+    return dayOfWeek >= 0 && dayOfWeek <= 4;
+  });
+  
+  if (monthDates.length === 0) {
+    alert('لا توجد أيام دراسية في هذا الشهر');
+    return;
+  }
+  
+  // Build date picker HTML
+  const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  const monthName = hijriMonths[currentMonth - 1];
+  
+  let html = `
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;" onclick="this.remove()">
+      <div style="background: white; border-radius: 15px; width: 90%; max-width: 500px; max-height: 70vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px 20px; color: white; border-radius: 15px 15px 0 0; position: sticky; top: 0; z-index: 1;">
+          <h3 style="margin: 0; font-size: 18px; text-align: center;">📅 اختر يوم التحضير</h3>
+          <p style="margin: 5px 0 0 0; font-size: 13px; text-align: center; opacity: 0.9;">${monthName} ${currentYear} هـ (أيام الدراسة فقط)</p>
+        </div>
+        
+        <!-- Dates List -->
+        <div style="padding: 15px;">
+  `;
+  
+  monthDates.forEach(entry => {
+    const parts = entry.hijri.split('-');
+    const isSelected = entry.gregorian === currentDate;
+    const bgColor = isSelected ? '#667eea' : '#f8f9fa';
+    const textColor = isSelected ? 'white' : '#333';
+    const borderColor = isSelected ? '#667eea' : '#e9ecef';
+    
+    html += `
+      <div onclick="window.switchToDate('${entry.gregorian}'); this.closest('div[style*=\"position: fixed\"]').remove();" 
+           style="background: ${bgColor}; color: ${textColor}; padding: 12px 15px; margin-bottom: 8px; border-radius: 10px; cursor: pointer; border: 2px solid ${borderColor}; transition: all 0.3s; display: flex; justify-content: space-between; align-items: center;"
+           onmouseover="if('${isSelected}' !== 'true') { this.style.background='#e9ecef'; this.style.transform='translateX(5px)'; }"
+           onmouseout="if('${isSelected}' !== 'true') { this.style.background='#f8f9fa'; this.style.transform='translateX(0)'; }">
+        <div>
+          <div style="font-weight: bold; font-size: 14px;">${entry.dayName}</div>
+          <div style="font-size: 12px; opacity: 0.8; margin-top: 2px;">${parts[2]} ${monthName} ${parts[0]} هـ</div>
+        </div>
+        <div style="font-size: 12px; opacity: 0.7;">${entry.gregorian}</div>
+      </div>
+    `;
+  });
+  
+  html += `
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Show the date picker
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+// Switch to different date
+window.switchToDate = function(gregorianDate) {
+  const modal = document.getElementById('dailyAttendanceModal');
+  const classId = modal.dataset.classId;
+  const teacherName = modal.dataset.teacherName;
+  const students = JSON.parse(modal.dataset.studentsData || '[]');
+  
+  // Reload modal with new date
+  window.showDailyAttendanceModal(classId, teacherName, students, gregorianDate);
 };
 
 // Load saved attendance data for students
-window.loadSavedAttendance = async function(students) {
+window.loadSavedAttendance = async function(students, targetDate = null) {
   try {
-    const today = getTodayForStorage(); // YYYY-MM-DD
+    const dateToLoad = targetDate || getTodayForStorage(); // YYYY-MM-DD
     
     for (const student of students) {
-      const reportRef = firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', today);
+      const reportRef = firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', dateToLoad);
       const reportSnap = await getDoc(reportRef);
       
       if (reportSnap.exists()) {
@@ -2252,6 +2355,7 @@ window.updateAttendanceStats = function() {
 window.saveDailyAttendance = async function() {
   const modal = document.getElementById('dailyAttendanceModal');
   const classId = modal.dataset.classId;
+  const currentDate = modal.dataset.currentDate || getTodayForStorage();
   const saveBtn = document.getElementById('saveDailyAttendanceBtn');
   
   if (!classId) {
@@ -2264,7 +2368,6 @@ window.saveDailyAttendance = async function() {
   saveBtn.textContent = '⏳ جاري الحفظ...';
   
   try {
-    const today = getTodayForStorage(); // YYYY-MM-DD
     const allButtons = document.querySelectorAll('.attendance-buttons');
     
     // Collect attendance data
@@ -2294,17 +2397,17 @@ window.saveDailyAttendance = async function() {
         status: finalStatus,
         originalStatus: status,
         excuseType,
-        date: today
+        date: currentDate
       });
     });
     
     // Save to Firebase
     for (const record of attendanceData) {
-      const reportRef = firestoreDoc(db, 'studentProgress', record.studentId, 'dailyReports', today);
+      const reportRef = firestoreDoc(db, 'studentProgress', record.studentId, 'dailyReports', currentDate);
       
       const reportData = {
         status: record.status,
-        date: today,
+        date: currentDate,
         timestamp: serverTimestamp()
       };
       
