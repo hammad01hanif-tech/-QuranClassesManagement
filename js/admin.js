@@ -2136,8 +2136,49 @@ window.showDailyAttendanceModal = function(classId, teacherName, students) {
   // Show modal
   modal.style.display = 'flex';
   
-  // Update stats initially (all present)
-  window.updateAttendanceStats();
+  // Load saved attendance data
+  window.loadSavedAttendance(students);
+};
+
+// Load saved attendance data for students
+window.loadSavedAttendance = async function(students) {
+  try {
+    const today = getTodayForStorage(); // YYYY-MM-DD
+    
+    for (const student of students) {
+      const reportRef = firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', today);
+      const reportSnap = await getDoc(reportRef);
+      
+      if (reportSnap.exists()) {
+        const data = reportSnap.data();
+        let uiStatus = 'present'; // default
+        
+        // Convert saved data to UI status
+        if (data.status === 'present' && data.late === true) {
+          uiStatus = 'late';
+        } else if (data.status === 'absent' && data.excuseType === 'withExcuse') {
+          uiStatus = 'absent-excuse';
+        } else if (data.status === 'absent' && data.excuseType === 'withoutExcuse') {
+          uiStatus = 'absent-no-excuse';
+        } else if (data.status === 'distracted') {
+          uiStatus = 'distracted';
+        } else if (data.status === 'present') {
+          uiStatus = 'present';
+        }
+        
+        // Apply the saved status
+        window.selectAttendanceStatus(student.id, uiStatus);
+      }
+    }
+    
+    // Update stats after loading all data
+    window.updateAttendanceStats();
+    
+  } catch (error) {
+    console.error('❌ Error loading saved attendance:', error);
+    // If error, just show default (all present) and update stats
+    window.updateAttendanceStats();
+  }
 };
 
 // Select attendance status for a student
