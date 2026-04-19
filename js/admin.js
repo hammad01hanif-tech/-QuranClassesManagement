@@ -2148,8 +2148,10 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
   // Show modal
   modal.style.display = 'flex';
   
-  // Load saved attendance data
-  window.loadSavedAttendance(students, targetDate);
+  // Load saved attendance data after DOM updates
+  setTimeout(() => {
+    window.loadSavedAttendance(students, targetDate);
+  }, 100);
 };
 
 // Show date picker for selecting different days
@@ -2280,6 +2282,12 @@ window.loadSavedAttendance = async function(students, targetDate = null) {
   try {
     const dateToLoad = targetDate || getTodayForStorage(); // YYYY-MM-DD
     
+    if (!students || students.length === 0) {
+      console.log('⚠️ No students to load attendance for');
+      window.updateAttendanceStats();
+      return;
+    }
+    
     for (const student of students) {
       const reportRef = firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', dateToLoad);
       const reportSnap = await getDoc(reportRef);
@@ -2301,7 +2309,7 @@ window.loadSavedAttendance = async function(students, targetDate = null) {
           uiStatus = 'present';
         }
         
-        // Apply the saved status
+        // Apply the saved status (will be skipped if element not found)
         window.selectAttendanceStatus(student.id, uiStatus);
       }
     }
@@ -2319,6 +2327,13 @@ window.loadSavedAttendance = async function(students, targetDate = null) {
 // Select attendance status for a student
 window.selectAttendanceStatus = function(studentId, status) {
   const container = document.querySelector(`.attendance-buttons[data-student-id="${studentId}"]`);
+  
+  // Check if container exists
+  if (!container) {
+    console.warn(`⚠️ Container not found for student: ${studentId}`);
+    return;
+  }
+  
   const buttons = container.querySelectorAll('button');
   
   // Remove selected class from all buttons
@@ -2331,6 +2346,12 @@ window.selectAttendanceStatus = function(studentId, status) {
   
   // Add selected class to clicked button
   const selectedBtn = container.querySelector(`button[data-status="${status}"]`);
+  
+  if (!selectedBtn) {
+    console.warn(`⚠️ Button not found for status: ${status}`);
+    return;
+  }
+  
   selectedBtn.classList.add('selected');
   selectedBtn.style.opacity = '1';
   selectedBtn.style.border = `2px solid ${selectedBtn.style.background}`;
@@ -3617,6 +3638,9 @@ window.generateAbsenceReport = async function(classId, teacherName) {
     // Analyze absence for each student
     const reportData = [];
     
+    console.log('📊 Analyzing absence for date range:', fromDate, 'to', toDate);
+    console.log('📊 Study dates found:', studyDates.length);
+    
     for (const student of studentsToAnalyze) {
       let excusedAbsences = 0;
       let unexcusedAbsences = 0;
@@ -3627,13 +3651,20 @@ window.generateAbsenceReport = async function(classId, teacherName) {
         
         if (reportSnap.exists()) {
           const data = reportSnap.data();
-          if (data.attendance === 'excused') {
-            excusedAbsences++;
-          } else if (data.attendance === 'absent') {
-            unexcusedAbsences++;
+          console.log(`📊 ${student.name} (${dateEntry.hijri}):`, data);
+          
+          // Check attendance status
+          if (data.status === 'absent') {
+            if (data.excuseType === 'withExcuse') {
+              excusedAbsences++;
+            } else if (data.excuseType === 'withoutExcuse') {
+              unexcusedAbsences++;
+            }
           }
         }
       }
+      
+      console.log(`✅ ${student.name}: Excused=${excusedAbsences}, Unexcused=${unexcusedAbsences}`);
       
       reportData.push({
         name: student.name,
