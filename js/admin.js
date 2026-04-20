@@ -3752,3 +3752,31 @@ function displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, to
   
   document.body.insertAdjacentHTML('beforeend', html);
 }
+
+// ==================== ADMIN NAVBAR TOGGLE ====================
+
+// Toggle admin sidebar navbar
+window.toggleAdminNavbar = function() {
+  const navbar = document.getElementById('adminSidebarNavbar');
+  const overlay = document.getElementById('adminNavbarOverlay');
+  
+  if (navbar.style.display === 'none' || navbar.style.display === '') {
+    // Open navbar
+    navbar.style.display = 'block';
+    overlay.style.display = 'block';
+    
+    // Animate slide in
+    setTimeout(() => {
+      navbar.style.transform = 'translateX(0)';
+    }, 10);
+  } else {
+    // Close navbar
+    navbar.style.transform = 'translateX(100%)';
+    
+    // Hide after animation
+    setTimeout(() => {
+      navbar.style.display = 'none';
+      overlay.style.display = 'none';
+    }, 300);
+  }
+};
