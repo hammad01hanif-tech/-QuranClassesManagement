@@ -24,6 +24,7 @@ import { accurateHijriDates } from './accurate-hijri-dates.js';
 // DOM Elements - will be initialized in initAdmin()
 let classSelectAdd;
 let classSelectView;
+let classSelectViewModal;
 let classSelectReports;
 let classSelectStruggling;
 let studentSelectReports;
@@ -42,6 +43,7 @@ export function initAdmin() {
   // Initialize DOM elements
   classSelectAdd = document.getElementById('classSelectAdd');
   classSelectView = document.getElementById('classSelectView');
+  classSelectViewModal = document.getElementById('classSelectViewModal');
   classSelectReports = document.getElementById('classSelectReports');
   classSelectStruggling = document.getElementById('classSelectStruggling');
   studentSelectReports = document.getElementById('studentSelectReports');
@@ -62,6 +64,7 @@ export function initAdmin() {
 async function loadClasses() {
   classSelectAdd.innerHTML = '<option value="">-- اختر الحلقة --</option>';
   classSelectView.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+  classSelectViewModal.innerHTML = '<option value="">-- اختر الحلقة --</option>';
   classSelectReports.innerHTML = '<option value="">-- اختر الحلقة --</option>';
   classSelectStruggling.innerHTML = '<option value="">-- اختر الحلقة --</option>';
   
@@ -77,7 +80,7 @@ async function loadClasses() {
     const label = data.className || cid;
     
     // Add to all dropdowns
-    const selects = [classSelectAdd, classSelectView, classSelectReports, classSelectStruggling];
+    const selects = [classSelectAdd, classSelectView, classSelectViewModal, classSelectReports, classSelectStruggling];
     if (classSelectAttendance) selects.push(classSelectAttendance);
     
     selects.forEach(select => {
@@ -1689,7 +1692,8 @@ window.viewReportDetails = function(dateId, report) {
 
 // Setup event listeners
 function setupEventListeners() {
-  classSelectView.addEventListener('change', (e) => {
+  // Event listener for Students List Modal (shows cards)
+  classSelectViewModal.addEventListener('change', (e) => {
     const cid = e.target.value;
     if (!cid) { 
       studentsDiv.innerHTML = 'اختر حلقة.'; 
@@ -1697,6 +1701,9 @@ function setupEventListeners() {
     }
     loadStudentsForClass(cid);
   });
+  
+  // Note: classSelectView is used in Daily Attendance Modal (shows table)
+  // No event listener needed here as it's handled by modal functions
 
   classSelectReports.addEventListener('change', (e) => {
     const cid = e.target.value;
