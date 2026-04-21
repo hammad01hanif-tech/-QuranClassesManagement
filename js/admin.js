@@ -23,7 +23,6 @@ import { accurateHijriDates } from './accurate-hijri-dates.js';
 
 // DOM Elements - will be initialized in initAdmin()
 let classSelectAdd;
-let classSelectView;
 let classSelectViewModal;
 let classSelectReports;
 let classSelectStruggling;
@@ -42,7 +41,6 @@ window.currentAdminReportStudentId = null;
 export function initAdmin() {
   // Initialize DOM elements
   classSelectAdd = document.getElementById('classSelectAdd');
-  classSelectView = document.getElementById('classSelectView');
   classSelectViewModal = document.getElementById('classSelectViewModal');
   classSelectReports = document.getElementById('classSelectReports');
   classSelectStruggling = document.getElementById('classSelectStruggling');
@@ -63,7 +61,6 @@ export function initAdmin() {
 // Load classes from Firebase
 async function loadClasses() {
   classSelectAdd.innerHTML = '<option value="">-- اختر الحلقة --</option>';
-  classSelectView.innerHTML = '<option value="">-- اختر الحلقة --</option>';
   classSelectViewModal.innerHTML = '<option value="">-- اختر الحلقة --</option>';
   classSelectReports.innerHTML = '<option value="">-- اختر الحلقة --</option>';
   classSelectStruggling.innerHTML = '<option value="">-- اختر الحلقة --</option>';
@@ -80,7 +77,7 @@ async function loadClasses() {
     const label = data.className || cid;
     
     // Add to all dropdowns
-    const selects = [classSelectAdd, classSelectView, classSelectViewModal, classSelectReports, classSelectStruggling];
+    const selects = [classSelectAdd, classSelectViewModal, classSelectReports, classSelectStruggling];
     if (classSelectAttendance) selects.push(classSelectAttendance);
     
     selects.forEach(select => {
@@ -1702,8 +1699,8 @@ function setupEventListeners() {
     loadStudentsForClass(cid);
   });
   
-  // Note: classSelectView is used in Daily Attendance Modal (shows table)
-  // No event listener needed here as it's handled by modal functions
+  // Note: Daily Attendance Modal has its own class selector (classSelectAttendance)
+  // No additional event listener needed here
 
   classSelectReports.addEventListener('change', (e) => {
     const cid = e.target.value;
