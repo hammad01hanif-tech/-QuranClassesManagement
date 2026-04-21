@@ -2083,7 +2083,8 @@ window.loadDailyAttendance = async function() {
     studentsSnap.forEach(doc => {
       students.push({
         id: doc.id,
-        name: doc.data().name || 'غير محدد'
+        name: doc.data().name || 'غير محدد',
+        guardianPhone: doc.data().guardianPhone || ''
       });
     });
     
@@ -2181,7 +2182,7 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
     html += `
       <tr id="row-${student.id}" style="background: ${rowColor}; border-bottom: 1px solid #e9ecef; transition: background 0.3s;">
         <td style="padding: 8px; font-size: 12px; color: #666;">${index + 1}</td>
-        <td style="padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333;">${student.name}</td>
+        <td onclick="window.showWhatsAppModal('${student.name.replace(/'/g, "\\'")}', '${student.guardianPhone || ''}')" style="padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.color='#667eea'; this.style.textDecoration='underline'" onmouseout="this.style.color='#333'; this.style.textDecoration='none'" title="اضغط للتواصل مع ولي الأمر">${student.name}</td>
         <td style="padding: 6px 8px;">
           <div class="attendance-buttons" data-student-id="${student.id}" style="display: flex; gap: 6px; justify-content: center; align-items: center;">
             <button onclick="window.selectAttendanceStatus('${student.id}', 'present')" data-status="present" title="حاضر" style="width: 26px; height: 26px; background: #28a745; border: 2px solid #28a745; border-radius: 50%; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(40,167,69,0.3); padding: 0;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></button>
@@ -3914,5 +3915,49 @@ window.closeStudentsListModal = function() {
   if (modal) {
     modal.style.display = 'none';
     document.body.style.overflow = ''; // Restore scrolling
+  }
+};
+
+// Show WhatsApp contact modal
+window.showWhatsAppModal = function(studentName, guardianPhone) {
+  const modal = document.getElementById('whatsappContactModal');
+  const nameDisplay = document.getElementById('whatsappStudentName');
+  const phoneDisplay = document.getElementById('whatsappGuardianPhone');
+  const whatsappLink = document.getElementById('whatsappContactLink');
+  
+  // Check if guardian phone exists
+  if (!guardianPhone || guardianPhone === '-' || guardianPhone === '') {
+    alert('⚠️ لا يوجد رقم جوال لولي أمر هذا الطالب');
+    return;
+  }
+  
+  // Fill modal data
+  nameDisplay.textContent = studentName;
+  phoneDisplay.textContent = guardianPhone;
+  
+  // Prepare WhatsApp message
+  const message = `السلام عليكم ورحمة الله وبركاته،
+
+نود إشعاركم بأن ابنكم ${studentName} متغيب عن الحلقات، وهذا الغياب يؤثر سلبًا على مستواه وتحصيله. نأمل منكم متابعته والحرص على انتظامه في الحضور.
+
+شاكرين تعاونكم،
+إدارة الحلقات`;
+  
+  // Format phone number (remove leading 0 and add 966 country code)
+  const formattedPhone = guardianPhone.replace(/^0/, '');
+  const encodedMessage = encodeURIComponent(message);
+  
+  // Set WhatsApp link
+  whatsappLink.href = `https://wa.me/966${formattedPhone}?text=${encodedMessage}`;
+  
+  // Show modal
+  modal.style.display = 'flex';
+};
+
+// Close WhatsApp contact modal
+window.closeWhatsAppModal = function() {
+  const modal = document.getElementById('whatsappContactModal');
+  if (modal) {
+    modal.style.display = 'none';
   }
 };
