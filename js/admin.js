@@ -2586,6 +2586,21 @@ window.saveDailyAttendance = async function() {
     saveBtn.textContent = '✅ تم الحفظ بنجاح';
     saveBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
     
+    // Reload attendance indicators for the class dropdown
+    const classSelect = document.getElementById('classSelectAttendance');
+    if (classSelect) {
+      const currentDate = getTodayForStorage();
+      // Update the indicator for this specific class
+      const option = classSelect.querySelector(`option[value="${classId}"]`);
+      if (option) {
+        const hasIndicator = option.textContent.includes('✅');
+        if (!hasIndicator) {
+          const originalText = option.textContent;
+          option.textContent = `✅ ${originalText}`;
+        }
+      }
+    }
+    
     setTimeout(() => {
       window.closeDailyAttendanceModal();
     }, 1500);
@@ -3957,6 +3972,221 @@ window.showWhatsAppModal = function(studentName, guardianPhone) {
 // Close WhatsApp contact modal
 window.closeWhatsAppModal = function() {
   const modal = document.getElementById('whatsappContactModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+};
+
+// Show ready messages menu
+window.showReadyMessagesMenu = function() {
+  const modal = document.getElementById('readyMessagesMenuModal');
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+};
+
+// Close ready messages menu
+window.closeReadyMessagesMenu = function() {
+  const modal = document.getElementById('readyMessagesMenuModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+};
+
+// Show absent without excuse modal
+window.showAbsentWithoutExcuseModal = async function() {
+  // Close the menu first
+  window.closeReadyMessagesMenu();
+  
+  const modal = document.getElementById('absentWithoutExcuseModal');
+  const content = document.getElementById('absentWithoutExcuseContent');
+  
+  // Show loading
+  content.innerHTML = '<p style="text-align: center; color: #666;"><span style="font-size: 40px;">⏳</span><br>جاري تحميل بيانات الغائبين...</p>';
+  
+  // Show modal
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+  
+  try {
+    // Get today's date in Hijri format
+    const todayHijri = getTodayForStorage(); // YYYY-MM-DD format
+    const todayEntry = accurateHijriDates.find(e => e.hijri === todayHijri);
+    
+    let dateText = todayHijri;
+    if (todayEntry) {
+      const parts = todayEntry.hijri.split('-');
+      const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+      const monthName = hijriMonths[parseInt(parts[1]) - 1];
+      dateText = `${todayEntry.dayName} - ${parts[2]} ${monthName} ${parts[0]} هـ`;
+    }
+    
+    // Get all students and classes in parallel
+    const [studentsSnap, classesSnap] = await Promise.all([
+      getDocs(query(collection(db, 'users'), where('role', '==', 'student'))),
+      getDocs(collection(db, 'classes'))
+    ]);
+    
+    if (classesSnap.empty) {
+      content.innerHTML = '<p style="text-align: center; color: #dc3545;">لا توجد حلقات في النظام</p>';
+      return;
+    }
+    
+    // Create classes map for quick lookup
+    const classesMap = {};
+    classesSnap.forEach(classDoc => {
+      const classData = classDoc.data();
+      classesMap[classDoc.id] = {
+        teacherName: classData.teacherName || classData.className || 'غير محدد',
+        absentStudents: []
+      };
+    });
+    
+    // Get all student reports in parallel (much faster!)
+    const reportPromises = studentsSnap.docs.map(async (studentDoc) => {
+      const studentId = studentDoc.id;
+      const studentData = studentDoc.data();
+      const studentName = studentData.name || 'غير محدد';
+      const classId = studentData.classId;
+      
+      if (!classId || !classesMap[classId]) return null;
+      
+      const reportRef = firestoreDoc(db, 'studentProgress', studentId, 'dailyReports', todayHijri);
+      const reportSnap = await getDoc(reportRef);
+      
+      if (reportSnap.exists()) {
+        const reportData = reportSnap.data();
+        
+        // Check if student is absent without excuse
+        if (reportData.status === 'absent' && reportData.excuseType === 'withoutExcuse') {
+          return { classId, studentName };
+        }
+      }
+      
+      return null;
+    });
+    
+    // Wait for all reports and filter nulls
+    const results = (await Promise.all(reportPromises)).filter(r => r !== null);
+    
+    // Group by class
+    let totalAbsent = 0;
+    results.forEach(result => {
+      if (classesMap[result.classId]) {
+        classesMap[result.classId].absentStudents.push(result.studentName);
+        totalAbsent++;
+      }
+    });
+    
+    // Convert to array and sort
+    const classesData = Object.values(classesMap).map(classInfo => ({
+      teacherName: classInfo.teacherName,
+      absentStudents: classInfo.absentStudents.sort((a, b) => a.localeCompare(b, 'ar'))
+    })).sort((a, b) => a.teacherName.localeCompare(b.teacherName, 'ar'));
+    
+    // Build message
+    let message = `📋 تقرير الغياب اليومي\n${dateText}\n\n`;
+    
+    classesData.forEach(classInfo => {
+      message += `👨‍🏫 ${classInfo.teacherName}\n`;
+      
+      if (classInfo.absentStudents.length === 0) {
+        message += `✅ لا يوجد طلاب غائبين بدون عذر\n\n`;
+      } else {
+        classInfo.absentStudents.forEach((studentName, index) => {
+          message += `   ${index + 1}. ${studentName}\n`;
+        });
+        message += `\n`;
+      }
+    });
+    
+    message += `━━━━━━━━━━━━━━━━\n📊 المجموع: ${totalAbsent} طالب غائب بدون عذر`;
+    
+    // Encode message for WhatsApp
+    const whatsappGroupLink = `https://chat.whatsapp.com/E9uZOmNEB2wElocpUYgBmb`;
+    
+    // Display content
+    content.innerHTML = `
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 2px solid #e9ecef;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 8px; text-align: center;">📅 التاريخ</div>
+        <div style="font-size: 15px; font-weight: bold; color: #333; text-align: center;">${dateText}</div>
+      </div>
+      
+      <div id="messagePreview" style="background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 2px solid #e9ecef; max-height: 300px; overflow-y: auto;">
+        <div style="white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.6; text-align: right;">
+${message.split('\n').map(line => {
+  if (line.includes('👨‍🏫')) {
+    return `<div style="background: #667eea; color: white; padding: 8px 12px; border-radius: 8px; margin: 8px 0; font-weight: bold;">${line}</div>`;
+  } else if (line.includes('✅')) {
+    return `<div style="color: #28a745; padding: 4px 12px; font-style: italic;">${line}</div>`;
+  } else if (line.includes('📊')) {
+    return `<div style="background: #dc3545; color: white; padding: 10px 12px; border-radius: 8px; margin-top: 12px; font-weight: bold; text-align: center;">${line}</div>`;
+  } else if (line.includes('━━━')) {
+    return '<hr style="border: none; border-top: 2px dashed #ddd; margin: 10px 0;">';
+  } else if (line.trim()) {
+    return `<div style="padding: 2px 12px;">${line}</div>`;
+  }
+  return '';
+}).join('')}
+        </div>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button onclick="window.copyAbsentMessage(\`${message.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`, event)" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: bold; box-shadow: 0 4px 15px rgba(102,126,234,0.3); transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102,126,234,0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102,126,234,0.3)'">
+          <span style="font-size: 20px;">📋</span>
+          <span>نسخ الرسالة</span>
+        </button>
+        
+        <a href="${whatsappGroupLink}" target="_blank" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white; text-decoration: none; border-radius: 10px; font-size: 14px; font-weight: bold; box-shadow: 0 4px 15px rgba(37,211,102,0.3); transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(37,211,102,0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(37,211,102,0.3)'">
+          <span style="font-size: 20px;">📱</span>
+          <span>فتح مجموعة الواتساب</span>
+        </a>
+      </div>
+      
+      <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">
+        <div style="font-size: 12px; color: #856404; text-align: center;">
+          💡 انسخ الرسالة أولاً، ثم افتح المجموعة والصقها
+        </div>
+      </div>
+    `;
+    
+  } catch (error) {
+    console.error('Error loading absent students:', error);
+    content.innerHTML = `
+      <div style="text-align: center; padding: 20px; color: #dc3545;">
+        <div style="font-size: 50px; margin-bottom: 10px;">❌</div>
+        <div style="font-size: 16px; font-weight: bold;">حدث خطأ في تحميل البيانات</div>
+        <div style="font-size: 13px; margin-top: 8px; color: #666;">${error.message}</div>
+      </div>
+    `;
+  }
+};
+
+// Copy absent message to clipboard
+window.copyAbsentMessage = async function(message, event) {
+  try {
+    await navigator.clipboard.writeText(message);
+    
+    // Show success feedback
+    const btn = event.target.closest('button');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<span style="font-size: 20px;">✅</span><span>تم النسخ!</span>';
+    btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+    
+    setTimeout(() => {
+      btn.innerHTML = originalHTML;
+      btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }, 2000);
+  } catch (error) {
+    console.error('Error copying message:', error);
+    alert('حدث خطأ في نسخ الرسالة. الرجاء المحاولة مرة أخرى.');
+  }
+};
+
+// Close absent without excuse modal
+window.closeAbsentWithoutExcuseModal = function() {
+  const modal = document.getElementById('absentWithoutExcuseModal');
   if (modal) {
     modal.style.display = 'none';
   }
