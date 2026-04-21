@@ -237,10 +237,15 @@ async function loadStudentsForClass(classId) {
   studentsDiv.innerHTML = 'جارٍ التحميل...';
   selectedClassId = classId;
   
-  // Show delete all button when a class is selected
+  // Show delete all buttons when a class is selected (both in navbar and modal)
   const deleteAllBtn = document.getElementById('deleteAllStudentsBtn');
+  const deleteAllBtnModal = document.getElementById('deleteAllStudentsBtnModal');
+  
   if (deleteAllBtn) {
     deleteAllBtn.style.display = classId ? 'block' : 'none';
+  }
+  if (deleteAllBtnModal) {
+    deleteAllBtnModal.style.display = classId ? 'block' : 'none';
   }
   
   try {
@@ -3778,5 +3783,39 @@ window.toggleAdminNavbar = function() {
       navbar.style.display = 'none';
       overlay.style.display = 'none';
     }, 300);
+  }
+};
+// ==================== STUDENTS LIST MODAL ====================
+
+// Open students list modal
+window.openStudentsListModal = function() {
+  // First, close the navbar
+  const navbar = document.getElementById('adminSidebarNavbar');
+  const overlay = document.getElementById('adminNavbarOverlay');
+  
+  if (navbar && navbar.style.display !== 'none') {
+    navbar.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      navbar.style.display = 'none';
+      overlay.style.display = 'none';
+    }, 300);
+  }
+  
+  // Then open the modal
+  setTimeout(() => {
+    const modal = document.getElementById('studentsListModal');
+    if (modal) {
+      modal.style.display = 'block';
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+  }, navbar && navbar.style.display !== 'none' ? 350 : 0);
+};
+
+// Close students list modal
+window.closeStudentsListModal = function() {
+  const modal = document.getElementById('studentsListModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = ''; // Restore scrolling
   }
 };

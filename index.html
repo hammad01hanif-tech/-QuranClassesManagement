@@ -81,18 +81,59 @@
         <div style="font-size: 14px; opacity: 0.9;">المدير</div>
       </div>
       
-      <div style="padding: 15px 0;">
-        <!-- Navigation items will be added here -->
-        <div style="text-align: center; padding: 40px 20px; color: #999;">
-          <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
-          <p style="margin: 0; font-size: 14px;">ستتم إضافة الأقسام قريباً</p>
-        </div>
+      <div style="padding: 15px 0; max-height: calc(100vh - 200px); overflow-y: auto;">
+        <!-- قائمة الطلاب حسب الحلقة -->
+        <button onclick="window.openStudentsListModal()" style="width: 100%; padding: 18px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; cursor: pointer; text-align: right; font-size: 15px; display: flex; align-items: center; gap: 12px; transition: all 0.3s; border-radius: 8px; margin: 0 10px; width: calc(100% - 20px); color: white;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+          <span style="font-size: 24px;">📋</span>
+          <span style="font-weight: 600;">قائمة الطلاب حسب الحلقة</span>
+        </button>
         
         <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #f0f0f0;">
           <button onclick="window.logout()" style="width: 100%; padding: 18px 20px; background: #fff5f5; border: none; cursor: pointer; text-align: right; font-size: 15px; display: flex; align-items: center; gap: 12px; transition: all 0.3s; border-radius: 8px; margin: 0 10px; width: calc(100% - 20px);" onmouseover="this.style.background='#ffe5e5'" onmouseout="this.style.background='#fff5f5'">
             <span style="font-size: 24px;">🚪</span>
             <span style="color: #dc3545; font-weight: 600;">تسجيل الخروج</span>
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Students List Modal -->
+    <div id="studentsListModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000; animation: fadeIn 0.3s;">
+      <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);" onclick="window.closeStudentsListModal()"></div>
+      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 700px; max-height: 85vh; background: white; border-radius: 20px; box-shadow: 0 10px 50px rgba(0,0,0,0.3); overflow: hidden; animation: slideUp 0.3s;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; color: white; position: relative;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 22px; display: flex; align-items: center; gap: 12px;">
+              <span>📋</span>
+              <span>قائمة الطلاب حسب الحلقة</span>
+            </h3>
+            <button onclick="window.closeStudentsListModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 32px; cursor: pointer; padding: 0; width: 40px; height: 40px; border-radius: 50%; line-height: 1; transition: all 0.3s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">×</button>
+          </div>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 25px; overflow-y: auto; max-height: calc(85vh - 100px);">
+          <div style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <label style="color: #555; font-weight: bold; font-size: 15px;">اختيار الحلقة:</label>
+              <button id="deleteAllStudentsBtnModal" onclick="window.deleteAllStudentsInClass()" 
+                style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; display: none; font-weight: bold; transition: all 0.2s;" 
+                title="حذف جميع طلاب الحلقة"
+                onmouseover="this.style.background='#c82333'"
+                onmouseout="this.style.background='#dc3545'">
+                🗑️ حذف الكل
+              </button>
+            </div>
+            <select id="classSelectView" 
+              style="width: 100%; padding: 14px 16px; border: 2px solid #e0e0e0; border-radius: 12px; font-size: 15px; font-family: inherit; background: white; transition: all 0.3s;"
+              onfocus="this.style.borderColor='#667eea'"
+              onblur="this.style.borderColor='#e0e0e0'">
+              <option value="">-- اختر الحلقة --</option>
+            </select>
+          </div>
+
+          <div id="students" class="student-list" style="margin-top: 20px;">اختر حلقة لعرض الطلاب</div>
         </div>
       </div>
     </div>
@@ -277,30 +318,6 @@
         <p id="result" style="margin-top: 20px; text-align: center; font-size: 15px; font-weight: bold;"></p>
       </div>
 
-      <hr style="border: none; border-top: 2px solid #e0e0e0; margin: 40px 0;">
-
-      <h3 style="text-align: center; margin-bottom: 25px; color: #667eea; font-size: 20px;">
-        📋 قائمة الطلاب حسب الحلقة
-      </h3>
-      
-      <div style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <label style="color: #555; font-weight: bold; font-size: 15px;">اختيار الحلقة:</label>
-          <button id="deleteAllStudentsBtn" onclick="window.deleteAllStudentsInClass()" 
-            style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 11px; cursor: pointer; display: none; font-weight: bold; transition: all 0.2s;" 
-            title="حذف جميع طلاب الحلقة"
-            onmouseover="this.style.background='#c82333'"
-            onmouseout="this.style.background='#dc3545'">
-            🗑️ حذف الكل
-          </button>
-        </div>
-        <select id="classSelectView" 
-          style="width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; font-family: inherit; background: white;">
-          <option value="">-- اختر الحلقة --</option>
-        </select>
-
-        <div id="students" class="student-list" style="margin-top: 20px;">اختر حلقة لعرض الطلاب</div>
-      </div>
     </div>
 
     <!-- Reports Tab -->

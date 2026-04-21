@@ -2407,3 +2407,42 @@ details[open] > summary {
 #addStudentFormContainer {
   animation: slideDown 0.3s ease;
 }
+
+/* Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Slide Up Animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Students List Modal Responsive */
+@media (max-width: 768px) {
+  #studentsListModal > div:last-child {
+    width: 95% !important;
+    max-height: 90vh !important;
+  }
+  
+  #studentsListModal .student-card-item {
+    padding: 12px !important;
+  }
+  
+  #studentsListModal .student-card-actions button {
+    padding: 8px !important;
+    font-size: 16px !important;
+  }
+}
