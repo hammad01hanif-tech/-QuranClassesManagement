@@ -22,6 +22,22 @@ import { calculateRevisionPages } from './quran-juz-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getHijriWeekAgo, getHijriMonthAgo, getStudyDaysInCurrentHijriMonth, getStudyDaysForHijriMonth, getTodayForStorage, getCurrentHijriDate, gregorianToHijri, hijriToGregorian as convertHijriToGregorian } from './hijri-date.js';
 import { accurateHijriDates } from './accurate-hijri-dates.js';
 
+// Teacher names mapping for display in UI
+const teacherNames = {
+  'ABD01': 'الأستاذ عبدالرحمن السيسي',
+  'AMR01': 'الأستاذ عامر هوساوي',
+  'ANS01': 'الأستاذ أنس',
+  'HRT01': 'الأستاذ حارث',
+  'JHD01': 'الأستاذ جهاد',
+  'JWD01': 'الأستاذ عبدالرحمن جاويد',
+  'MZB01': 'الأستاذ مازن البلوشي',
+  'MZN01': 'الأستاذ مازن',
+  'NBL01': 'الأستاذ نبيل',
+  'OMR01': 'الأستاذ عمر',
+  'OSM01': 'الأستاذ أسامة حبيب',
+  'SLM01': 'الأستاذ سلمان رفيق'
+};
+
 // DOM Elements - will be initialized in initAdmin()
 let classSelectAdd;
 let classSelectViewModal;
@@ -724,7 +740,9 @@ async function showTransferDialog(studentId, studentName) {
       const classData = classDoc.data();
       const classId = classDoc.id;
       if (classId !== currentClassId) {
-        classesHTML += `<option value="${classId}">${classData.name || classId}</option>`;
+        // Display teacher name if available, otherwise show class name or ID
+        const displayName = teacherNames[classId] || classData.name || classId;
+        classesHTML += `<option value="${classId}">${displayName}</option>`;
       }
     });
     
