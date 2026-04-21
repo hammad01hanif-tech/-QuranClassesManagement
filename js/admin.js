@@ -8,6 +8,7 @@ import {
   doc as firestoreDoc, 
   query, 
   where, 
+  limit,
   setDoc, 
   serverTimestamp,
   updateDoc,
@@ -71,14 +72,16 @@ async function loadClasses() {
   }
   
   const snap = await getDocs(collection(db, 'classes'));
+  const classesData = [];
+  
   snap.forEach(d => {
     const data = d.data();
     const cid = data.classId || d.id;
     const label = data.className || cid;
+    classesData.push({ cid, label });
     
-    // Add to all dropdowns
+    // Add to all dropdowns immediately (no waiting for attendance check)
     const selects = [classSelectAdd, classSelectViewModal, classSelectReports, classSelectStruggling];
-    if (classSelectAttendance) selects.push(classSelectAttendance);
     
     selects.forEach(select => {
       const opt = document.createElement('option');
@@ -86,7 +89,73 @@ async function loadClasses() {
       opt.textContent = label;
       select.appendChild(opt);
     });
+    
+    // Add to attendance dropdown immediately (without indicator)
+    if (classSelectAttendance) {
+      const opt = document.createElement('option');
+      opt.value = cid;
+      opt.textContent = label;
+      opt.dataset.originalLabel = label; // Store original label
+      classSelectAttendance.appendChild(opt);
+    }
   });
+  
+  // Load attendance indicators in background (non-blocking)
+  if (classSelectAttendance && classesData.length > 0) {
+    loadAttendanceIndicators(classesData, classSelectAttendance);
+  }
+}
+
+// Load attendance indicators in background (non-blocking)
+async function loadAttendanceIndicators(classesData, selectElement) {
+  const today = getTodayForStorage();
+  
+  // Process classes one by one to avoid overwhelming Firebase
+  for (const { cid, label } of classesData) {
+    try {
+      const hasAttendance = await checkClassHasAttendanceToday(cid, today);
+      
+      // Update the option with indicator
+      const option = Array.from(selectElement.options).find(opt => opt.value === cid);
+      if (option && hasAttendance) {
+        option.textContent = `✅ ${label}`;
+      }
+    } catch (error) {
+      console.error(`Error checking attendance for ${cid}:`, error);
+      // Continue with next class even if one fails
+    }
+  }
+}
+
+// Helper function to check if a class has attendance saved for a specific date (optimized)
+async function checkClassHasAttendanceToday(classId, hijriDate) {
+  try {
+    // Get only the first student in the class (limit to 1 for performance)
+    const studentsQuery = query(
+      collection(db, 'users'),
+      where('classId', '==', classId),
+      where('role', '==', 'student'),
+      limit(5) // Check only first 5 students for faster response
+    );
+    const studentsSnap = await getDocs(studentsQuery);
+    
+    if (studentsSnap.empty) return false;
+    
+    // Check if any of the first students has attendance for this date
+    for (const studentDoc of studentsSnap.docs) {
+      const reportRef = firestoreDoc(db, 'studentProgress', studentDoc.id, 'dailyReports', hijriDate);
+      const reportSnap = await getDoc(reportRef);
+      
+      if (reportSnap.exists()) {
+        return true; // Found at least one attendance record
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking attendance:', error);
+    return false;
+  }
 }
 
 // Add student function
@@ -2164,9 +2233,10 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
 };
 
 // Show date picker for selecting different days
-window.showDatePicker = function(selectedMonth = null) {
+window.showDatePicker = async function(selectedMonth = null) {
   const modal = document.getElementById('dailyAttendanceModal');
   const currentDate = modal.dataset.currentDate || getTodayForStorage();
+  const classId = modal.dataset.classId;
   
   // Find current month from selected date
   let currentEntry = accurateHijriDates.find(e => e.hijri === currentDate);
@@ -2210,7 +2280,7 @@ window.showDatePicker = function(selectedMonth = null) {
     return;
   }
   
-  // Build date picker HTML
+  // Build date picker HTML immediately (don't wait for attendance checks)
   const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
   const monthName = hijriMonths[currentMonth - 1];
   
@@ -2241,7 +2311,7 @@ window.showDatePicker = function(selectedMonth = null) {
         ${warningMessage}
         
         <!-- Dates List -->
-        <div style="padding: 15px;">
+        <div id="datesListContainer" style="padding: 15px;">
   `;
   
   monthDates.forEach(entry => {
@@ -2252,13 +2322,16 @@ window.showDatePicker = function(selectedMonth = null) {
     const borderColor = isSelected ? '#667eea' : '#e9ecef';
     
     html += `
-      <div onclick="window.switchToDate('${entry.hijri}'); document.getElementById('datePickerOverlay').remove();" 
+      <div id="date-${entry.hijri}" onclick="window.switchToDate('${entry.hijri}'); document.getElementById('datePickerOverlay').remove();" 
            style="background: ${bgColor}; color: ${textColor}; padding: 12px 15px; margin-bottom: 8px; border-radius: 10px; cursor: pointer; border: 2px solid ${borderColor}; transition: all 0.3s; display: flex; justify-content: space-between; align-items: center;"
            onmouseover="if('${isSelected}' !== 'true') { this.style.background='#e9ecef'; this.style.transform='translateX(5px)'; }"
            onmouseout="if('${isSelected}' !== 'true') { this.style.background='#f8f9fa'; this.style.transform='translateX(0)'; }">
-        <div>
-          <div style="font-weight: bold; font-size: 14px;">${entry.dayName}</div>
-          <div style="font-size: 12px; opacity: 0.8; margin-top: 2px;">${parts[2]} ${monthName} ${parts[0]} هـ</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="indicator-${entry.hijri}" style="font-size: 12px; display: none;">✅</span>
+          <div>
+            <div style="font-weight: bold; font-size: 14px;">${entry.dayName}</div>
+            <div style="font-size: 12px; opacity: 0.8; margin-top: 2px;">${parts[2]} ${monthName} ${parts[0]} هـ</div>
+          </div>
         </div>
         <div style="font-size: 12px; opacity: 0.7;">${entry.gregorian}</div>
       </div>
@@ -2271,9 +2344,29 @@ window.showDatePicker = function(selectedMonth = null) {
     </div>
   `;
   
-  // Show the date picker
+  // Show the date picker immediately
   document.body.insertAdjacentHTML('beforeend', html);
+  
+  // Load attendance indicators in background (non-blocking)
+  loadDateAttendanceIndicators(classId, monthDates);
 };
+
+// Load attendance indicators for date picker in background
+async function loadDateAttendanceIndicators(classId, monthDates) {
+  for (const entry of monthDates) {
+    try {
+      const hasAttendance = await checkClassHasAttendanceToday(classId, entry.hijri);
+      
+      // Update the indicator in the DOM
+      const indicator = document.getElementById(`indicator-${entry.hijri}`);
+      if (indicator && hasAttendance) {
+        indicator.style.display = 'inline';
+      }
+    } catch (error) {
+      console.error(`Error checking attendance for ${entry.hijri}:`, error);
+    }
+  }
+}
 
 // Switch to different date
 window.switchToDate = function(hijriDate) {
