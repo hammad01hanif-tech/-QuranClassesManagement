@@ -585,8 +585,7 @@ window.loadViewerJuzReports = async function() {
     const q = query(
       collection(db, 'juzDisplays'),
       where('teacherId', '==', teacherId),
-      where('studentId', '==', studentId),
-      orderBy('createdAt', 'desc')
+      where('studentId', '==', studentId)
     );
     const snapshot = await getDocs(q);
     
@@ -594,36 +593,54 @@ window.loadViewerJuzReports = async function() {
     console.log(`✅ Reports loaded in ${Math.round(endTime - startTime)}ms`);
     console.log(`📊 Total reports found: ${snapshot.size}`);
     
-    // Debug: Log all reports details
-    const reportsDetails = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      reportsDetails.push({
-        id: doc.id,
-        juzNumber: data.juzNumber,
-        lastLessonDate: data.lastLessonDate,
-        displayDate: data.displayDate || 'لم يُعرض بعد',
-        status: data.status,
-        createdAt: data.createdAt ? 'موجود' : 'غير موجود'
-      });
-    });
-    console.table(reportsDetails);
-    
     if (snapshot.empty) {
       container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">لا توجد تقارير لهذا الطالب</p>';
       return;
     }
+    
+    // Convert to array and sort by createdAt (most recent first) and juzNumber
+    const reports = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      reports.push({
+        id: doc.id,
+        data: data,
+        // Convert Firestore timestamp to sortable number
+        createdAtTime: data.createdAt?.toMillis ? data.createdAt.toMillis() : 0,
+        juzNumber: data.juzNumber || 0
+      });
+    });
+    
+    // Sort: First by juzNumber (ascending), then by createdAt (descending for same juz)
+    reports.sort((a, b) => {
+      if (a.juzNumber !== b.juzNumber) {
+        return a.juzNumber - b.juzNumber; // Ascending juz number
+      }
+      return b.createdAtTime - a.createdAtTime; // Descending created time for same juz
+    });
+    
+    // Debug: Log all reports details
+    const reportsDetails = reports.map(r => ({
+      id: r.id,
+      juzNumber: r.data.juzNumber,
+      lastLessonDate: r.data.lastLessonDate,
+      displayDate: r.data.displayDate || 'لم يُعرض بعد',
+      status: r.data.status,
+      createdAt: r.data.createdAt ? new Date(r.createdAtTime).toLocaleString('ar-SA') : 'غير موجود'
+    }));
+    console.table(reportsDetails);
     
     let html = '';
     
     // Add header showing total reports count
     html += `
       <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; font-size: 18px; font-weight: bold;">
-        📚 عدد التقارير المحملة: ${snapshot.size} ${snapshot.size === 1 ? 'تقرير' : snapshot.size === 2 ? 'تقريران' : 'تقارير'}
+        📚 عدد التقارير المحملة: ${reports.length} ${reports.length === 1 ? 'تقرير' : reports.length === 2 ? 'تقريران' : 'تقارير'}
       </div>
     `;
     
-    snapshot.forEach(docSnapshot => {
+    reports.forEach(report => {
+      const docSnapshot = { id: report.id, data: () => report.data };
       const data = docSnapshot.data();
       const reportId = docSnapshot.id;
       
