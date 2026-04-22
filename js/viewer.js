@@ -10,6 +10,7 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
   serverTimestamp,
   onSnapshot
 } from '../firebase-config.js';
@@ -584,12 +585,29 @@ window.loadViewerJuzReports = async function() {
     const q = query(
       collection(db, 'juzDisplays'),
       where('teacherId', '==', teacherId),
-      where('studentId', '==', studentId)
+      where('studentId', '==', studentId),
+      orderBy('createdAt', 'desc')
     );
     const snapshot = await getDocs(q);
     
     const endTime = performance.now();
     console.log(`✅ Reports loaded in ${Math.round(endTime - startTime)}ms`);
+    console.log(`📊 Total reports found: ${snapshot.size}`);
+    
+    // Debug: Log all reports details
+    const reportsDetails = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      reportsDetails.push({
+        id: doc.id,
+        juzNumber: data.juzNumber,
+        lastLessonDate: data.lastLessonDate,
+        displayDate: data.displayDate || 'لم يُعرض بعد',
+        status: data.status,
+        createdAt: data.createdAt ? 'موجود' : 'غير موجود'
+      });
+    });
+    console.table(reportsDetails);
     
     if (snapshot.empty) {
       container.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">لا توجد تقارير لهذا الطالب</p>';
@@ -597,6 +615,14 @@ window.loadViewerJuzReports = async function() {
     }
     
     let html = '';
+    
+    // Add header showing total reports count
+    html += `
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; font-size: 18px; font-weight: bold;">
+        📚 عدد التقارير المحملة: ${snapshot.size} ${snapshot.size === 1 ? 'تقرير' : snapshot.size === 2 ? 'تقريران' : 'تقارير'}
+      </div>
+    `;
+    
     snapshot.forEach(docSnapshot => {
       const data = docSnapshot.data();
       const reportId = docSnapshot.id;
