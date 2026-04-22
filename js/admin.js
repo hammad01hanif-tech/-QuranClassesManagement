@@ -4012,32 +4012,25 @@ window.closeReadyMessagesMenu = function() {
 };
 
 // Show absent without excuse modal
-window.showAbsentWithoutExcuseModal = async function() {
-  // Close the menu first
-  window.closeReadyMessagesMenu();
+// Load absent report for a specific date
+async function loadAbsentReportForDate(hijriDate) {
+  const resultsDiv = document.getElementById('absentReportResults');
   
-  const modal = document.getElementById('absentWithoutExcuseModal');
-  const content = document.getElementById('absentWithoutExcuseContent');
+  if (!resultsDiv) return;
   
   // Show loading
-  content.innerHTML = '<p style="text-align: center; color: #666;"><span style="font-size: 40px;">⏳</span><br>جاري تحميل بيانات الغائبين...</p>';
-  
-  // Show modal
-  if (modal) {
-    modal.style.display = 'flex';
-  }
+  resultsDiv.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;"><span style="font-size: 40px;">⏳</span><br>جاري تحميل بيانات الغائبين...</p>';
   
   try {
-    // Get today's date in Hijri format
-    const todayHijri = getTodayForStorage(); // YYYY-MM-DD format
-    const todayEntry = accurateHijriDates.find(e => e.hijri === todayHijri);
+    // Get date details from accurateHijriDates
+    const dateEntry = accurateHijriDates.find(e => e.hijri === hijriDate);
     
-    let dateText = todayHijri;
-    if (todayEntry) {
-      const parts = todayEntry.hijri.split('-');
+    let dateText = hijriDate;
+    if (dateEntry) {
+      const parts = dateEntry.hijri.split('-');
       const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
       const monthName = hijriMonths[parseInt(parts[1]) - 1];
-      dateText = `${todayEntry.dayName} - ${parts[2]} ${monthName} ${parts[0]} هـ`;
+      dateText = `${dateEntry.dayName} - ${parts[2]} ${monthName} ${parts[0]} هـ`;
     }
     
     // Get all students and classes in parallel
@@ -4047,7 +4040,7 @@ window.showAbsentWithoutExcuseModal = async function() {
     ]);
     
     if (classesSnap.empty) {
-      content.innerHTML = '<p style="text-align: center; color: #dc3545;">لا توجد حلقات في النظام</p>';
+      resultsDiv.innerHTML = '<p style="text-align: center; color: #dc3545; padding: 20px;">لا توجد حلقات في النظام</p>';
       return;
     }
     
@@ -4070,7 +4063,7 @@ window.showAbsentWithoutExcuseModal = async function() {
       
       if (!classId || !classesMap[classId]) return null;
       
-      const reportRef = firestoreDoc(db, 'studentProgress', studentId, 'dailyReports', todayHijri);
+      const reportRef = firestoreDoc(db, 'studentProgress', studentId, 'dailyReports', hijriDate);
       const reportSnap = await getDoc(reportRef);
       
       if (reportSnap.exists()) {
@@ -4124,8 +4117,8 @@ window.showAbsentWithoutExcuseModal = async function() {
     // Encode message for WhatsApp
     const whatsappGroupLink = `https://chat.whatsapp.com/E9uZOmNEB2wElocpUYgBmb`;
     
-    // Display content
-    content.innerHTML = `
+    // Display results
+    resultsDiv.innerHTML = `
       <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 2px solid #e9ecef;">
         <div style="font-size: 13px; color: #666; margin-bottom: 8px; text-align: center;">📅 التاريخ</div>
         <div style="font-size: 15px; font-weight: bold; color: #333; text-align: center;">${dateText}</div>
@@ -4171,7 +4164,7 @@ ${message.split('\n').map(line => {
     
   } catch (error) {
     console.error('Error loading absent students:', error);
-    content.innerHTML = `
+    resultsDiv.innerHTML = `
       <div style="text-align: center; padding: 20px; color: #dc3545;">
         <div style="font-size: 50px; margin-bottom: 10px;">❌</div>
         <div style="font-size: 16px; font-weight: bold;">حدث خطأ في تحميل البيانات</div>
@@ -4179,6 +4172,76 @@ ${message.split('\n').map(line => {
       </div>
     `;
   }
+}
+
+// Show Absent Without Excuse Modal with date selector
+window.showAbsentWithoutExcuseModal = async function() {
+  // Close the menu first
+  window.closeReadyMessagesMenu();
+  
+  const modal = document.getElementById('absentWithoutExcuseModal');
+  const content = document.getElementById('absentWithoutExcuseContent');
+  
+  // Get current Hijri date
+  const todayHijri = getTodayForStorage(); // YYYY-MM-DD format
+  const parts = todayHijri.split('-');
+  const currentYear = parts[0];
+  const currentMonth = parts[1];
+  const currentDay = parts[2];
+  
+  // Show modal
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+  
+  // Create date selector UI
+  content.innerHTML = `
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+      <div style="text-align: center; color: white; font-size: 14px; font-weight: bold; margin-bottom: 12px;">
+        📅 اختر التاريخ الميلادي لعرض تقرير الغياب
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+          <label style="display: block; color: white; font-size: 12px; margin-bottom: 5px; font-weight: bold;">الشهر</label>
+          <select id="absentMonthSelect" style="width: 100%; padding: 10px; border: 2px solid white; border-radius: 8px; font-size: 14px; font-weight: bold; background: white; color: #333;">
+            <option value="11" ${currentMonth === '11' ? 'selected' : ''}>ذو القعدة</option>
+            <option value="12" ${currentMonth === '12' ? 'selected' : ''}>ذو الحجة</option>
+          </select>
+        </div>
+        
+        <div>
+          <label style="display: block; color: white; font-size: 12px; margin-bottom: 5px; font-weight: bold;">اليوم</label>
+          <select id="absentDaySelect" style="width: 100%; padding: 10px; border: 2px solid white; border-radius: 8px; font-size: 14px; font-weight: bold; background: white; color: #333;">
+            ${Array.from({length: 30}, (_, i) => i + 1).map(day => {
+              const dayStr = day.toString().padStart(2, '0');
+              return `<option value="${dayStr}" ${currentDay === dayStr ? 'selected' : ''}>${day}</option>`;
+            }).join('')}
+          </select>
+        </div>
+      </div>
+      
+      <button id="loadAbsentReportBtn" style="width: 100%; padding: 12px; background: white; color: #667eea; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; margin-top: 12px; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.2);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 15px rgba(0,0,0,0.3)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 10px rgba(0,0,0,0.2)'">
+        🔍 عرض التقرير
+      </button>
+    </div>
+    
+    <div id="absentReportResults">
+      <p style="text-align: center; color: #999; padding: 20px;">اختر التاريخ واضغط على "عرض التقرير" لعرض البيانات</p>
+    </div>
+  `;
+  
+  // Add event listener to the button
+  document.getElementById('loadAbsentReportBtn').addEventListener('click', async () => {
+    const month = document.getElementById('absentMonthSelect').value;
+    const day = document.getElementById('absentDaySelect').value;
+    const selectedDate = `${currentYear}-${month}-${day}`;
+    
+    await loadAbsentReportForDate(selectedDate);
+  });
+  
+  // Auto-load today's report
+  await loadAbsentReportForDate(todayHijri);
 };
 
 // Copy absent message to clipboard
