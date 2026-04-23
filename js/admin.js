@@ -4031,6 +4031,9 @@ async function generateTardinessReport(classId, teacherName, fromDate, toDate, s
     // Analyze tardiness for each student (optimized with Promise.all)
     const reportData = [];
     
+    console.log('⏰ Analyzing tardiness for date range:', fromDate, 'to', toDate);
+    console.log('⏰ Study dates found:', studyDates.length);
+    
     // Process all students in parallel
     const studentPromises = studentsToAnalyze.map(async (student) => {
       // Fetch all date reports for this student in parallel
@@ -4041,11 +4044,18 @@ async function generateTardinessReport(classId, teacherName, fromDate, toDate, s
       const reportSnaps = await Promise.all(datePromises);
       
       let tardinessCount = 0;
-      reportSnaps.forEach(reportSnap => {
-        if (reportSnap.exists() && reportSnap.data().status === 'late') {
-          tardinessCount++;
+      reportSnaps.forEach((reportSnap, index) => {
+        if (reportSnap.exists()) {
+          const data = reportSnap.data();
+          // Check if student was late using the 'late' field (not status)
+          if (data.late === true) {
+            tardinessCount++;
+            console.log(`⏰ ${student.name} was late on ${studyDates[index].hijri}`);
+          }
         }
       });
+      
+      console.log(`✅ ${student.name}: Total tardiness = ${tardinessCount}`);
       
       return {
         name: student.name,
