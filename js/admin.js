@@ -1314,8 +1314,14 @@ async function populateHijriDateRangeFilters() {
     startDateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
     endDateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
     
-    // Add all available dates from accurate calendar
-    accurateHijriDates.forEach(dateEntry => {
+    // Filter dates to only include Dhul Qidah (11) and Dhul Hijjah (12) of 1447
+    const filteredDates = accurateHijriDates.filter(dateEntry => {
+      const [year, month] = dateEntry.hijri.split('-').map(Number);
+      return year === 1447 && (month === 11 || month === 12);
+    });
+    
+    // Add filtered dates to dropdowns
+    filteredDates.forEach(dateEntry => {
       const [year, month, day] = dateEntry.hijri.split('-').map(Number);
       const monthName = hijriMonths[month - 1];
       
