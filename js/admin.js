@@ -1313,16 +1313,37 @@ async function populateHijriDateRangeFilters() {
     
     if (!monthSelector) return;
     
-    // Clear and populate month selector with all 12 months
+    // Clear and populate month selector - Starting from Dhul Qidah 1447
     monthSelector.innerHTML = '<option value="">-- اختر الشهر --</option>';
+    
+    // Add Dhul Qidah and Dhul Hijjah 1447
+    const option11 = document.createElement('option');
+    option11.value = '1447-11';
+    option11.textContent = 'ذو القعدة 1447';
+    if (currentMonth === 11) option11.selected = true;
+    monthSelector.appendChild(option11);
+    
+    const option12 = document.createElement('option');
+    option12.value = '1447-12';
+    option12.textContent = 'ذو الحجة 1447';
+    if (currentMonth === 12) option12.selected = true;
+    monthSelector.appendChild(option12);
+    
+    // Add year separator for 1448
+    const separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '────── 1448 هـ ──────';
+    separator.style.textAlign = 'center';
+    separator.style.fontSize = '11px';
+    separator.style.color = '#999';
+    monthSelector.appendChild(separator);
+    
+    // Add all months for 1448
     hijriMonths.forEach((monthName, index) => {
       const monthNum = index + 1;
       const option = document.createElement('option');
-      option.value = monthNum;
+      option.value = `1448-${monthNum}`;
       option.textContent = monthName;
-      if (monthNum === currentMonth) {
-        option.selected = true;
-      }
       monthSelector.appendChild(option);
     });
     
@@ -1343,14 +1364,17 @@ window.updateAdminAttendanceDatesForMonth = async function() {
   
   if (!monthSelector || !startDateSelect || !endDateSelect) return;
   
-  const selectedMonth = parseInt(monthSelector.value);
+  const selectedValue = monthSelector.value;
   
-  if (!selectedMonth) {
+  if (!selectedValue) {
     startDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
     endDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
     if (messageDiv) messageDiv.style.display = 'none';
     return;
   }
+  
+  // Parse year-month from value (e.g., "1447-11" or "1448-1")
+  const [selectedYear, selectedMonth] = selectedValue.split('-').map(Number);
   
   try {
     const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
@@ -1361,10 +1385,10 @@ window.updateAdminAttendanceDatesForMonth = async function() {
     startDateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
     endDateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
     
-    // Filter dates for selected month (year 1447)
+    // Filter dates for selected year and month
     const filteredDates = accurateHijriDates.filter(dateEntry => {
       const [year, month] = dateEntry.hijri.split('-').map(Number);
-      return year === 1447 && month === selectedMonth;
+      return year === selectedYear && month === selectedMonth;
     });
     
     // Check if dates exist for this month
@@ -3705,12 +3729,20 @@ window.loadAbsenceReportForClass = async function() {
     const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
     const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     
-    // Build month options (all 12 months)
+    // Build month options - Starting from Dhul Qidah 1447
     let monthOptions = '<option value="">-- اختر الشهر --</option>';
+    
+    // Add Dhul Qidah and Dhul Hijjah 1447
+    monthOptions += `<option value="1447-11" ${currentMonth === 11 ? 'selected' : ''}>ذو القعدة 1447</option>`;
+    monthOptions += `<option value="1447-12" ${currentMonth === 12 ? 'selected' : ''}>ذو الحجة 1447</option>`;
+    
+    // Add year separator
+    monthOptions += '<option disabled style="text-align: center; font-size: 11px; color: #999;">────── 1448 هـ ──────</option>';
+    
+    // Add all months for 1448
     hijriMonths.forEach((monthName, index) => {
       const monthNum = index + 1;
-      const isSelected = monthNum === currentMonth ? 'selected' : '';
-      monthOptions += `<option value="${monthNum}" ${isSelected}>${monthName}</option>`;
+      monthOptions += `<option value="1448-${monthNum}">${monthName}</option>`;
     });
     
     // Build students options
@@ -3808,24 +3840,27 @@ window.updateAbsenceDatesForMonth = async function() {
   
   if (!monthSelect || !fromDateSelect || !toDateSelect) return;
   
-  const selectedMonth = parseInt(monthSelect.value);
+  const selectedValue = monthSelect.value;
   
-  if (!selectedMonth) {
+  if (!selectedValue) {
     fromDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
     toDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
     messageDiv.style.display = 'none';
     return;
   }
   
+  // Parse year-month from value (e.g., "1447-11" or "1448-1")
+  const [selectedYear, selectedMonth] = selectedValue.split('-').map(Number);
+  
   try {
     const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
     const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
     const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     
-    // Filter dates for selected month
+    // Filter dates for selected year and month
     const filteredDates = accurateHijriDates.filter(dateEntry => {
       const [year, month] = dateEntry.hijri.split('-').map(Number);
-      return year === 1447 && month === selectedMonth;
+      return year === selectedYear && month === selectedMonth;
     });
     
     // Check if dates exist for this month
