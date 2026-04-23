@@ -3630,10 +3630,40 @@ window.loadAbsenceReportForClass = async function() {
     // Sort alphabetically
     students.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     
-    // Get first day of current Hijri month
+    // Get today's Hijri date
     const today = getTodayForStorage(); // e.g., "1447-11-02"
+    
+    // Build date options from accurate Hijri dates (Dhul Qidah and Dhul Hijjah 1447)
+    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
+    const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    
+    // Filter dates to only include Dhul Qidah (11) and Dhul Hijjah (12) of 1447
+    const filteredDates = accurateHijriDates.filter(dateEntry => {
+      const [year, month] = dateEntry.hijri.split('-').map(Number);
+      return year === 1447 && (month === 11 || month === 12);
+    });
+    
+    // Get first date of current month for default selection
     const todayParts = today.split('-');
     const firstDayOfMonth = `${todayParts[0]}-${todayParts[1]}-01`;
+    
+    // Build date options HTML
+    let dateOptions = '<option value="">-- اختر التاريخ --</option>';
+    filteredDates.forEach(dateEntry => {
+      const [year, month, day] = dateEntry.hijri.split('-').map(Number);
+      const monthName = hijriMonths[month - 1];
+      
+      // Get day of week
+      const gregorianDate = new Date(dateEntry.gregorian + 'T12:00:00');
+      const dayOfWeek = gregorianDate.getDay();
+      const dayName = dayNames[dayOfWeek];
+      
+      const displayText = `${dayName} ${day} ${monthName} ${year} هـ`;
+      const isSelected = dateEntry.hijri === today || dateEntry.hijri === firstDayOfMonth;
+      
+      dateOptions += `<option value="${dateEntry.hijri}">${displayText}</option>`;
+    });
     
     // Build students options
     let studentOptions = '<option value="all">جميع الطلاب</option>';
@@ -3647,29 +3677,45 @@ window.loadAbsenceReportForClass = async function() {
     
     const html = `
       <div id="absenceReportConfigOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;" onclick="this.remove()">
-        <div style="background: white; border-radius: 15px; width: 90%; max-width: 500px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; color: white; border-radius: 15px 15px 0 0;">
+        <div style="background: white; border-radius: 15px; width: 90%; max-width: 500px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; color: white; border-radius: 15px 15px 0 0; flex-shrink: 0;">
             <h3 style="margin: 0; text-align: center; font-size: 18px;">📊 تقرير غياب الطلاب</h3>
             <p style="margin: 5px 0 0 0; text-align: center; font-size: 13px; opacity: 0.9;">المعلم: ${teacherName}</p>
           </div>
           
-          <div style="padding: 25px;">
-            <label style="display: block; margin-bottom: 8px; color: #333; font-weight: bold;">📅 من تاريخ (هجري):</label>
-            <input type="text" id="absenceFromDate" value="${firstDayOfMonth}" placeholder="YYYY-MM-DD" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 15px; margin-bottom: 15px; text-align: center; font-family: 'Cairo', sans-serif;">
-            
-            <label style="display: block; margin-bottom: 8px; color: #333; font-weight: bold;">📅 إلى تاريخ (هجري):</label>
-            <input type="text" id="absenceToDate" value="${today}" placeholder="YYYY-MM-DD" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 15px; margin-bottom: 15px; text-align: center; font-family: 'Cairo', sans-serif;">
+          <div style="padding: 20px; overflow-y: auto; flex: 1;">
+            <div style="background: rgba(102,126,234,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 6px; color: #333; font-weight: bold; font-size: 13px;">📅 الفترة الزمنية (ذو القعدة - ذو الحجة):</label>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div>
+                  <label style="display: block; margin-bottom: 4px; color: #666; font-size: 12px;">من تاريخ:</label>
+                  <select id="absenceFromDate" style="width: 100%; padding: 8px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 12px;">
+                    ${dateOptions}
+                  </select>
+                </div>
+                
+                <div>
+                  <label style="display: block; margin-bottom: 4px; color: #666; font-size: 12px;">إلى تاريخ:</label>
+                  <select id="absenceToDate" style="width: 100%; padding: 8px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 12px;">
+                    ${dateOptions}
+                  </select>
+                </div>
+              </div>
+            </div>
             
             <label style="display: block; margin-bottom: 8px; color: #333; font-weight: bold;">👨‍🎓 اختر الطالب:</label>
-            <select id="absenceStudentSelect" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 15px; margin-bottom: 20px;">
+            <select id="absenceStudentSelect" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 15px; margin-bottom: 15px;">
               ${studentOptions}
             </select>
-            
+          </div>
+          
+          <div style="padding: 15px; background: #f8f9fa; border-top: 2px solid #e9ecef; flex-shrink: 0;">
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
-              <button onclick="document.getElementById('absenceReportConfigOverlay').remove()" style="padding: 12px 25px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px;">
+              <button onclick="document.getElementById('absenceReportConfigOverlay').remove()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
                 إلغاء
               </button>
-              <button onclick="window.generateAbsenceReport('${classId}', '${teacherName}')" style="padding: 12px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: bold;">
+              <button onclick="window.generateAbsenceReport('${classId}', '${teacherName}')" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold;">
                 📊 عرض التقرير
               </button>
             </div>
@@ -3679,6 +3725,28 @@ window.loadAbsenceReportForClass = async function() {
     `;
     
     document.body.insertAdjacentHTML('beforeend', html);
+    
+    // Set default values after HTML is inserted
+    setTimeout(() => {
+      const fromDateSelect = document.getElementById('absenceFromDate');
+      const toDateSelect = document.getElementById('absenceToDate');
+      
+      // Set from date to first day of current month (if available)
+      if (fromDateSelect) {
+        const firstOption = Array.from(fromDateSelect.options).find(opt => opt.value === firstDayOfMonth);
+        if (firstOption) {
+          fromDateSelect.value = firstDayOfMonth;
+        }
+      }
+      
+      // Set to date to today (if available)
+      if (toDateSelect) {
+        const todayOption = Array.from(toDateSelect.options).find(opt => opt.value === today);
+        if (todayOption) {
+          toDateSelect.value = today;
+        }
+      }
+    }, 100);
     
   } catch (error) {
     console.error('Error loading class data:', error);
