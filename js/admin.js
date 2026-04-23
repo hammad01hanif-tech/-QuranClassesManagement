@@ -4028,31 +4028,33 @@ async function generateTardinessReport(classId, teacherName, fromDate, toDate, s
       return;
     }
     
-    // Analyze tardiness for each student
+    // Analyze tardiness for each student (optimized with Promise.all)
     const reportData = [];
     
-    for (const student of studentsToAnalyze) {
+    // Process all students in parallel
+    const studentPromises = studentsToAnalyze.map(async (student) => {
+      // Fetch all date reports for this student in parallel
+      const datePromises = studyDates.map(dateEntry => 
+        getDoc(firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', dateEntry.hijri))
+      );
+      
+      const reportSnaps = await Promise.all(datePromises);
+      
       let tardinessCount = 0;
-      
-      for (const dateEntry of studyDates) {
-        const reportRef = firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', dateEntry.hijri);
-        const reportSnap = await getDoc(reportRef);
-        
-        if (reportSnap.exists()) {
-          const data = reportSnap.data();
-          
-          // Check if student was late (status = 'late')
-          if (data.status === 'late') {
-            tardinessCount++;
-          }
+      reportSnaps.forEach(reportSnap => {
+        if (reportSnap.exists() && reportSnap.data().status === 'late') {
+          tardinessCount++;
         }
-      }
+      });
       
-      reportData.push({
+      return {
         name: student.name,
         tardinessCount
-      });
-    }
+      };
+    });
+    
+    const results = await Promise.all(studentPromises);
+    reportData.push(...results);
     
     // Remove loading
     document.getElementById('absenceReportLoadingOverlay').remove();
@@ -4198,23 +4200,27 @@ async function generateAbsencesReport(classId, teacherName, fromDate, toDate, st
       return;
     }
     
-    // Analyze absence for each student
+    // Analyze absence for each student (optimized with Promise.all)
     const reportData = [];
     
     console.log('📊 Analyzing absence for date range:', fromDate, 'to', toDate);
     console.log('📊 Study dates found:', studyDates.length);
     
-    for (const student of studentsToAnalyze) {
+    // Process all students in parallel
+    const studentPromises = studentsToAnalyze.map(async (student) => {
+      // Fetch all date reports for this student in parallel
+      const datePromises = studyDates.map(dateEntry => 
+        getDoc(firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', dateEntry.hijri))
+      );
+      
+      const reportSnaps = await Promise.all(datePromises);
+      
       let excusedAbsences = 0;
       let unexcusedAbsences = 0;
       
-      for (const dateEntry of studyDates) {
-        const reportRef = firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', dateEntry.hijri);
-        const reportSnap = await getDoc(reportRef);
-        
+      reportSnaps.forEach((reportSnap, index) => {
         if (reportSnap.exists()) {
           const data = reportSnap.data();
-          console.log(`📊 ${student.name} (${dateEntry.hijri}):`, data);
           
           // Check attendance status
           if (data.status === 'absent') {
@@ -4225,17 +4231,20 @@ async function generateAbsencesReport(classId, teacherName, fromDate, toDate, st
             }
           }
         }
-      }
+      });
       
       console.log(`✅ ${student.name}: Excused=${excusedAbsences}, Unexcused=${unexcusedAbsences}`);
       
-      reportData.push({
+      return {
         name: student.name,
         excusedAbsences,
         unexcusedAbsences,
         totalAbsences: excusedAbsences + unexcusedAbsences
-      });
-    }
+      };
+    });
+    
+    const results = await Promise.all(studentPromises);
+    reportData.push(...results);
     
     // Remove loading
     document.getElementById('absenceReportLoadingOverlay').remove();
