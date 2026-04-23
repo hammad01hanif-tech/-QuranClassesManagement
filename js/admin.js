@@ -1305,20 +1305,78 @@ async function populateHijriDateRangeFilters() {
     const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
     
     const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const today = getTodayForStorage();
+    const todayParts = today.split('-');
+    const currentMonth = parseInt(todayParts[1]);
     
-    const startDateSelect = document.getElementById('adminReportsStartDateHijri');
-    const endDateSelect = document.getElementById('adminReportsEndDateHijri');
+    const monthSelector = document.getElementById('adminReportsMonthSelector');
+    
+    if (!monthSelector) return;
+    
+    // Clear and populate month selector with all 12 months
+    monthSelector.innerHTML = '<option value="">-- اختر الشهر --</option>';
+    hijriMonths.forEach((monthName, index) => {
+      const monthNum = index + 1;
+      const option = document.createElement('option');
+      option.value = monthNum;
+      option.textContent = monthName;
+      if (monthNum === currentMonth) {
+        option.selected = true;
+      }
+      monthSelector.appendChild(option);
+    });
+    
+    // Trigger initial population for current month
+    window.updateAdminAttendanceDatesForMonth();
+    
+  } catch (error) {
+    console.error('Error populating Hijri date filters:', error);
+  }
+}
+
+// Update dates dropdown based on selected month for attendance reports
+window.updateAdminAttendanceDatesForMonth = async function() {
+  const monthSelector = document.getElementById('adminReportsMonthSelector');
+  const startDateSelect = document.getElementById('adminReportsStartDateHijri');
+  const endDateSelect = document.getElementById('adminReportsEndDateHijri');
+  const messageDiv = document.getElementById('attendanceDateMessage');
+  
+  if (!monthSelector || !startDateSelect || !endDateSelect) return;
+  
+  const selectedMonth = parseInt(monthSelector.value);
+  
+  if (!selectedMonth) {
+    startDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
+    endDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
+    if (messageDiv) messageDiv.style.display = 'none';
+    return;
+  }
+  
+  try {
+    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
+    const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     
     // Clear existing options
     startDateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
     endDateSelect.innerHTML = '<option value="">-- اختر التاريخ --</option>';
     
-    // Filter dates to only include Dhul Qidah (11) and Dhul Hijjah (12) of 1447
+    // Filter dates for selected month (year 1447)
     const filteredDates = accurateHijriDates.filter(dateEntry => {
       const [year, month] = dateEntry.hijri.split('-').map(Number);
-      return year === 1447 && (month === 11 || month === 12);
+      return year === 1447 && month === selectedMonth;
     });
+    
+    // Check if dates exist for this month
+    if (filteredDates.length === 0) {
+      startDateSelect.innerHTML = '<option value="">-- غير متوفر --</option>';
+      endDateSelect.innerHTML = '<option value="">-- غير متوفر --</option>';
+      if (messageDiv) messageDiv.style.display = 'block';
+      return;
+    }
+    
+    // Hide message if dates found
+    if (messageDiv) messageDiv.style.display = 'none';
     
     // Add filtered dates to dropdowns
     filteredDates.forEach(dateEntry => {
@@ -1345,10 +1403,17 @@ async function populateHijriDateRangeFilters() {
       endDateSelect.appendChild(endOption);
     });
     
+    // Set default values - first and last date of month
+    if (filteredDates.length > 0) {
+      startDateSelect.value = filteredDates[0].hijri;
+      endDateSelect.value = filteredDates[filteredDates.length - 1].hijri;
+    }
+    
   } catch (error) {
-    console.error('Error populating Hijri date filters:', error);
+    console.error('Error updating dates:', error);
+    if (messageDiv) messageDiv.style.display = 'block';
   }
-}
+};
 
 // Set default date range (from start of current month to today)
 async function setDefaultDateRange() {
@@ -3632,37 +3697,20 @@ window.loadAbsenceReportForClass = async function() {
     
     // Get today's Hijri date
     const today = getTodayForStorage(); // e.g., "1447-11-02"
+    const todayParts = today.split('-');
+    const currentMonth = parseInt(todayParts[1]);
     
-    // Build date options from accurate Hijri dates (Dhul Qidah and Dhul Hijjah 1447)
+    // Build date options from accurate Hijri dates
     const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
     const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
     const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     
-    // Filter dates to only include Dhul Qidah (11) and Dhul Hijjah (12) of 1447
-    const filteredDates = accurateHijriDates.filter(dateEntry => {
-      const [year, month] = dateEntry.hijri.split('-').map(Number);
-      return year === 1447 && (month === 11 || month === 12);
-    });
-    
-    // Get first date of current month for default selection
-    const todayParts = today.split('-');
-    const firstDayOfMonth = `${todayParts[0]}-${todayParts[1]}-01`;
-    
-    // Build date options HTML
-    let dateOptions = '<option value="">-- اختر التاريخ --</option>';
-    filteredDates.forEach(dateEntry => {
-      const [year, month, day] = dateEntry.hijri.split('-').map(Number);
-      const monthName = hijriMonths[month - 1];
-      
-      // Get day of week
-      const gregorianDate = new Date(dateEntry.gregorian + 'T12:00:00');
-      const dayOfWeek = gregorianDate.getDay();
-      const dayName = dayNames[dayOfWeek];
-      
-      const displayText = `${dayName} ${day} ${monthName} ${year} هـ`;
-      const isSelected = dateEntry.hijri === today || dateEntry.hijri === firstDayOfMonth;
-      
-      dateOptions += `<option value="${dateEntry.hijri}">${displayText}</option>`;
+    // Build month options (all 12 months)
+    let monthOptions = '<option value="">-- اختر الشهر --</option>';
+    hijriMonths.forEach((monthName, index) => {
+      const monthNum = index + 1;
+      const isSelected = monthNum === currentMonth ? 'selected' : '';
+      monthOptions += `<option value="${monthNum}" ${isSelected}>${monthName}</option>`;
     });
     
     // Build students options
@@ -3685,22 +3733,36 @@ window.loadAbsenceReportForClass = async function() {
           
           <div style="padding: 20px; overflow-y: auto; flex: 1;">
             <div style="background: rgba(102,126,234,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-              <label style="display: block; margin-bottom: 6px; color: #333; font-weight: bold; font-size: 13px;">📅 الفترة الزمنية (ذو القعدة - ذو الحجة):</label>
+              <label style="display: block; margin-bottom: 6px; color: #333; font-weight: bold; font-size: 13px;">📅 اختر الفترة الزمنية:</label>
               
+              <!-- Month Selector -->
+              <div style="margin-bottom: 12px;">
+                <label style="display: block; margin-bottom: 4px; color: #666; font-size: 12px;">اختر الشهر الهجري:</label>
+                <select id="absenceMonthSelect" onchange="window.updateAbsenceDatesForMonth()" style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 13px; font-weight: bold; background: white;">
+                  ${monthOptions}
+                </select>
+              </div>
+              
+              <!-- Date Range Selectors -->
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div>
                   <label style="display: block; margin-bottom: 4px; color: #666; font-size: 12px;">من تاريخ:</label>
                   <select id="absenceFromDate" style="width: 100%; padding: 8px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 12px;">
-                    ${dateOptions}
+                    <option value="">-- اختر التاريخ --</option>
                   </select>
                 </div>
                 
                 <div>
                   <label style="display: block; margin-bottom: 4px; color: #666; font-size: 12px;">إلى تاريخ:</label>
                   <select id="absenceToDate" style="width: 100%; padding: 8px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 12px;">
-                    ${dateOptions}
+                    <option value="">-- اختر التاريخ --</option>
                   </select>
                 </div>
+              </div>
+              
+              <!-- Message for unavailable months -->
+              <div id="absenceDateMessage" style="display: none; margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; color: #856404; font-size: 12px; text-align: center;">
+                ⚠️ التواريخ لهذا الشهر غير مضافة بعد
               </div>
             </div>
             
@@ -3726,31 +3788,85 @@ window.loadAbsenceReportForClass = async function() {
     
     document.body.insertAdjacentHTML('beforeend', html);
     
-    // Set default values after HTML is inserted
+    // Trigger month change to populate dates for current month
     setTimeout(() => {
-      const fromDateSelect = document.getElementById('absenceFromDate');
-      const toDateSelect = document.getElementById('absenceToDate');
-      
-      // Set from date to first day of current month (if available)
-      if (fromDateSelect) {
-        const firstOption = Array.from(fromDateSelect.options).find(opt => opt.value === firstDayOfMonth);
-        if (firstOption) {
-          fromDateSelect.value = firstDayOfMonth;
-        }
-      }
-      
-      // Set to date to today (if available)
-      if (toDateSelect) {
-        const todayOption = Array.from(toDateSelect.options).find(opt => opt.value === today);
-        if (todayOption) {
-          toDateSelect.value = today;
-        }
-      }
+      window.updateAbsenceDatesForMonth();
     }, 100);
     
   } catch (error) {
     console.error('Error loading class data:', error);
     alert('حدث خطأ في تحميل بيانات الحلقة');
+  }
+};
+
+// Update dates dropdown based on selected month
+window.updateAbsenceDatesForMonth = async function() {
+  const monthSelect = document.getElementById('absenceMonthSelect');
+  const fromDateSelect = document.getElementById('absenceFromDate');
+  const toDateSelect = document.getElementById('absenceToDate');
+  const messageDiv = document.getElementById('absenceDateMessage');
+  
+  if (!monthSelect || !fromDateSelect || !toDateSelect) return;
+  
+  const selectedMonth = parseInt(monthSelect.value);
+  
+  if (!selectedMonth) {
+    fromDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
+    toDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
+    messageDiv.style.display = 'none';
+    return;
+  }
+  
+  try {
+    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
+    const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    
+    // Filter dates for selected month
+    const filteredDates = accurateHijriDates.filter(dateEntry => {
+      const [year, month] = dateEntry.hijri.split('-').map(Number);
+      return year === 1447 && month === selectedMonth;
+    });
+    
+    // Check if dates exist for this month
+    if (filteredDates.length === 0) {
+      fromDateSelect.innerHTML = '<option value="">-- غير متوفر --</option>';
+      toDateSelect.innerHTML = '<option value="">-- غير متوفر --</option>';
+      messageDiv.style.display = 'block';
+      return;
+    }
+    
+    // Hide message if dates found
+    messageDiv.style.display = 'none';
+    
+    // Build date options
+    let dateOptions = '<option value="">-- اختر التاريخ --</option>';
+    filteredDates.forEach(dateEntry => {
+      const [year, month, day] = dateEntry.hijri.split('-').map(Number);
+      const monthName = hijriMonths[month - 1];
+      
+      // Get day of week
+      const gregorianDate = new Date(dateEntry.gregorian + 'T12:00:00');
+      const dayOfWeek = gregorianDate.getDay();
+      const dayName = dayNames[dayOfWeek];
+      
+      const displayText = `${dayName} ${day} ${monthName} ${year} هـ`;
+      dateOptions += `<option value="${dateEntry.hijri}">${displayText}</option>`;
+    });
+    
+    // Update both selects
+    fromDateSelect.innerHTML = dateOptions;
+    toDateSelect.innerHTML = dateOptions;
+    
+    // Set default values - first date and last date of month
+    if (filteredDates.length > 0) {
+      fromDateSelect.value = filteredDates[0].hijri;
+      toDateSelect.value = filteredDates[filteredDates.length - 1].hijri;
+    }
+    
+  } catch (error) {
+    console.error('Error updating dates:', error);
+    messageDiv.style.display = 'block';
   }
 };
 

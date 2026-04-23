@@ -335,20 +335,28 @@
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white;">
           <h4 style="margin: 0 0 15px 0; text-align: center;">📊 فلترة تقارير المتابعة</h4>
           
+          <!-- Month Selector First -->
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+            <label style="display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px;">📅 اختر الشهر الهجري أولاً:</label>
+            <select id="adminReportsMonthSelector" onchange="window.updateAdminAttendanceDatesForMonth()" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid white; font-size: 13px; font-weight: bold; background: white; color: #333;">
+              <option value="">-- اختر الشهر --</option>
+            </select>
+          </div>
+          
           <!-- Date Range Inputs (Hijri) -->
           <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-            <label style="display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px;">📅 اختر الفترة الزمنية (ذو القعدة - ذو الحجة):</label>
+            <label style="display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px;">📅 اختر الفترة الزمنية:</label>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
               <div>
                 <label style="display: block; font-size: 12px; margin-bottom: 4px; opacity: 0.9;">من تاريخ:</label>
                 <select id="adminReportsStartDateHijri" style="width: 100%; padding: 8px; border-radius: 6px; border: 2px solid white; font-size: 12px; font-weight: bold; background: white; color: #333;">
-                  <option value="">-- اختر التاريخ --</option>
+                  <option value="">-- اختر الشهر أولاً --</option>
                 </select>
               </div>
               <div>
                 <label style="display: block; font-size: 12px; margin-bottom: 4px; opacity: 0.9;">إلى تاريخ:</label>
                 <select id="adminReportsEndDateHijri" style="width: 100%; padding: 8px; border-radius: 6px; border: 2px solid white; font-size: 12px; font-weight: bold; background: white; color: #333;">
-                  <option value="">-- اختر التاريخ --</option>
+                  <option value="">-- اختر الشهر أولاً --</option>
                 </select>
               </div>
             </div>
@@ -356,6 +364,11 @@
               🔍 تطبيق الفلتر
             </button>
             <div id="dateRangeDisplay" style="margin-top: 8px; text-align: center; font-size: 12px; opacity: 0.9;"></div>
+            
+            <!-- Message for unavailable months -->
+            <div id="attendanceDateMessage" style="display: none; margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; color: #856404; font-size: 12px; text-align: center;">
+              ⚠️ التواريخ لهذا الشهر غير مضافة بعد
+            </div>
           </div>
           
           <!-- Original Month/Day Filters -->
