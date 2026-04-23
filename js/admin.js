@@ -3798,6 +3798,22 @@ window.loadAbsenceReportForClass = async function() {
               </div>
             </div>
             
+            <!-- Report Type Selector -->
+            <div style="background: rgba(102,126,234,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 8px; color: #333; font-weight: bold; font-size: 13px;">📋 نوع التقرير:</label>
+              <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; background: white; border: 2px solid #e9ecef; border-radius: 8px; font-size: 13px; transition: all 0.3s;" onmouseover="this.style.borderColor='#667eea'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
+                  <input type="radio" name="reportType" value="tardiness" id="reportTypeTardiness" style="width: 16px; height: 16px; cursor: pointer;" onchange="this.parentElement.style.borderColor='#667eea'; this.parentElement.style.background='rgba(102,126,234,0.1)'">
+                  <span>⏰ تقرير التأخيرات</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 8px 12px; background: white; border: 2px solid #e9ecef; border-radius: 8px; font-size: 13px; transition: all 0.3s;" onmouseover="this.style.borderColor='#667eea'" onmouseout="if(!this.querySelector('input').checked) this.style.borderColor='#e9ecef'">
+                  <input type="radio" name="reportType" value="absences" id="reportTypeAbsences" style="width: 16px; height: 16px; cursor: pointer;" onchange="this.parentElement.style.borderColor='#667eea'; this.parentElement.style.background='rgba(102,126,234,0.1)'">
+                  <span>📊 تقرير الغيابات</span>
+                </label>
+              </div>
+            </div>
+            
             <label style="display: block; margin-bottom: 8px; color: #333; font-weight: bold;">👨‍🎓 اختر الطالب:</label>
             <select id="absenceStudentSelect" style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 15px; margin-bottom: 15px;">
               ${studentOptions}
@@ -3911,6 +3927,17 @@ window.generateAbsenceReport = async function(classId, teacherName) {
   const toDate = document.getElementById('absenceToDate').value.trim();
   const studentSelection = document.getElementById('absenceStudentSelect').value;
   
+  // Check report type selection
+  const reportTypeTardiness = document.getElementById('reportTypeTardiness');
+  const reportTypeAbsences = document.getElementById('reportTypeAbsences');
+  
+  if (!reportTypeTardiness.checked && !reportTypeAbsences.checked) {
+    alert('⚠️ يرجى اختيار نوع التقرير (تأخيرات أو غيابات)');
+    return;
+  }
+  
+  const reportType = reportTypeTardiness.checked ? 'tardiness' : 'absences';
+  
   if (!fromDate || !toDate) {
     alert('⚠️ يرجى إدخال الفترة الزمنية كاملة');
     return;
@@ -3928,6 +3955,181 @@ window.generateAbsenceReport = async function(classId, teacherName) {
     return;
   }
   
+  // Route to appropriate report generator
+  if (reportType === 'tardiness') {
+    await generateTardinessReport(classId, teacherName, fromDate, toDate, studentSelection);
+  } else {
+    await generateAbsencesReport(classId, teacherName, fromDate, toDate, studentSelection);
+  }
+};
+
+// Generate tardiness report
+async function generateTardinessReport(classId, teacherName, fromDate, toDate, studentSelection) {
+  try {
+    // Show loading
+    const configOverlay = document.getElementById('absenceReportConfigOverlay');
+    if (configOverlay) configOverlay.remove();
+    
+    const loadingHtml = `
+      <div id="absenceReportLoadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+          <p style="margin: 0; font-size: 16px; color: #333;">جاري تحميل تقرير التأخيرات...</p>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', loadingHtml);
+    
+    // Get students to analyze
+    let studentsToAnalyze = [];
+    
+    if (studentSelection === 'all') {
+      const studentsSnap = await getDocs(query(
+        collection(db, 'users'),
+        where('classId', '==', classId),
+        where('role', '==', 'student')
+      ));
+      
+      studentsSnap.forEach(doc => {
+        studentsToAnalyze.push({
+          id: doc.id,
+          name: doc.data().name || 'غير محدد'
+        });
+      });
+    } else {
+      const studentDoc = await getDoc(firestoreDoc(db, 'users', studentSelection));
+      if (studentDoc.exists()) {
+        studentsToAnalyze.push({
+          id: studentDoc.id,
+          name: studentDoc.data().name || 'غير محدد'
+        });
+      }
+    }
+    
+    if (studentsToAnalyze.length === 0) {
+      alert('⚠️ لم يتم العثور على طلاب');
+      document.getElementById('absenceReportLoadingOverlay').remove();
+      return;
+    }
+    
+    studentsToAnalyze.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    // Get all study dates in the range
+    const studyDates = accurateHijriDates.filter(entry => {
+      if (entry.hijri < fromDate || entry.hijri > toDate) return false;
+      const gregDate = new Date(entry.gregorian);
+      const dayOfWeek = gregDate.getDay();
+      return dayOfWeek >= 0 && dayOfWeek <= 4;
+    });
+    
+    if (studyDates.length === 0) {
+      alert('⚠️ لا توجد أيام دراسية في الفترة المحددة');
+      document.getElementById('absenceReportLoadingOverlay').remove();
+      return;
+    }
+    
+    // Analyze tardiness for each student
+    const reportData = [];
+    
+    for (const student of studentsToAnalyze) {
+      let tardinessCount = 0;
+      
+      for (const dateEntry of studyDates) {
+        const reportRef = firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', dateEntry.hijri);
+        const reportSnap = await getDoc(reportRef);
+        
+        if (reportSnap.exists()) {
+          const data = reportSnap.data();
+          
+          // Check if student was late (status = 'late')
+          if (data.status === 'late') {
+            tardinessCount++;
+          }
+        }
+      }
+      
+      reportData.push({
+        name: student.name,
+        tardinessCount
+      });
+    }
+    
+    // Remove loading
+    document.getElementById('absenceReportLoadingOverlay').remove();
+    
+    // Display report
+    displayTardinessReportTable(reportData, fromDate, toDate, teacherName, studyDates.length);
+    
+  } catch (error) {
+    console.error('Error generating tardiness report:', error);
+    alert('حدث خطأ في إنشاء تقرير التأخيرات');
+    const loadingOverlay = document.getElementById('absenceReportLoadingOverlay');
+    if (loadingOverlay) loadingOverlay.remove();
+  }
+}
+
+// Display tardiness report table
+function displayTardinessReportTable(reportData, fromDate, toDate, teacherName, totalDays) {
+  const fromParts = fromDate.split('-');
+  const toParts = toDate.split('-');
+  const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  const fromDateDisplay = `${fromParts[2]} ${hijriMonths[parseInt(fromParts[1]) - 1]} ${fromParts[0]} هـ`;
+  const toDateDisplay = `${toParts[2]} ${hijriMonths[parseInt(toParts[1]) - 1]} ${toParts[0]} هـ`;
+  
+  // Build table rows
+  let tableRows = '';
+  reportData.forEach((student, index) => {
+    const rowBg = index % 2 === 0 ? '#f8f9fa' : 'white';
+    tableRows += `
+      <tr style="background: ${rowBg};">
+        <td style="padding: 10px 12px; text-align: right; border-bottom: 1px solid #e9ecef; font-size: 14px;">${student.name}</td>
+        <td style="padding: 10px 12px; text-align: center; border-bottom: 1px solid #e9ecef; color: #ff9800; font-weight: bold; font-size: 14px;">${student.tardinessCount}</td>
+      </tr>
+    `;
+  });
+  
+  const html = `
+    <div id="absenceReportResultOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center; overflow-y: auto; padding: 20px;" onclick="this.remove()">
+      <div style="background: white; border-radius: 15px; width: 95%; max-width: 600px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
+        <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0;">
+          <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px;">⏰ تقرير تأخيرات الطلاب</h3>
+          <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
+          <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
+          <p style="margin: 5px 0 0 0; text-align: center; font-size: 11px; opacity: 0.85;">إجمالي الأيام الدراسية: ${totalDays} يوم</p>
+        </div>
+        
+        <div style="padding: 20px; max-height: 500px; overflow-y: auto;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); color: white;">
+                <th style="padding: 10px 12px; text-align: right; border-radius: 8px 0 0 0; font-size: 13px;">اسم الطالب</th>
+                <th style="padding: 10px 12px; text-align: center; border-radius: 0 8px 0 0; font-size: 13px;">مجموع التأخيرات</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="padding: 15px 20px; background: #f8f9fa; border-radius: 0 0 15px 15px; text-align: center;">
+          <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="padding: 10px 25px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-left: 10px;">
+            إغلاق
+          </button>
+          <button onclick="window.print()" style="padding: 10px 25px; background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+            🖨️ طباعة
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+// Generate absences report (original function)
+async function generateAbsencesReport(classId, teacherName, fromDate, toDate, studentSelection) {
   try {
     // Show loading
     const configOverlay = document.getElementById('absenceReportConfigOverlay');
@@ -4047,7 +4249,7 @@ window.generateAbsenceReport = async function(classId, teacherName) {
     const loadingOverlay = document.getElementById('absenceReportLoadingOverlay');
     if (loadingOverlay) loadingOverlay.remove();
   }
-};
+}
 
 // Display absence report table
 function displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, totalDays) {
