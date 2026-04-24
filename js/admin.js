@@ -2250,7 +2250,47 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
   
   teacherDisplay.textContent = `المعلم: ${teacherName}`;
   
-  // Build table with legend and students
+  // Check if it's Friday or Saturday (weekend)
+  const isWeekend = todayEntry && (todayEntry.dayName === 'الجمعة' || todayEntry.dayName === 'السبت');
+  
+  // If it's weekend, show holiday message instead of students list
+  if (isWeekend) {
+    const dayNameArabic = todayEntry.dayName;
+    studentsList.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; padding: 40px; text-align: center;">
+        <div style="font-size: 80px; margin-bottom: 20px; opacity: 0.3;">🏖️</div>
+        <h2 style="color: #667eea; font-size: 28px; margin-bottom: 15px; font-weight: bold;">يوم إجازة</h2>
+        <p style="color: #666; font-size: 18px; line-height: 1.8; max-width: 500px;">
+          لا يوجد تحضير يومي يوم <strong style="color: #764ba2;">${dayNameArabic}</strong>
+          <br>
+          💼 يمكنك الضغط على التاريخ أعلاه لعرض تحضيرات الأيام السابقة
+        </p>
+        <div style="margin-top: 25px; padding: 15px 25px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 10px; border: 2px dashed #667eea;">
+          <p style="color: #764ba2; font-weight: 600; margin: 0;">
+            📅 أيام الدراسة: الأحد - الخميس
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Hide save button on weekends
+    const saveBtn = document.getElementById('saveDailyAttendanceBtn');
+    if (saveBtn) {
+      saveBtn.style.display = 'none';
+    }
+    
+    // Show modal and return early (skip loading saved attendance)
+    modal.style.display = 'flex';
+    return;
+  }
+  
+  // Show save button for non-weekend days
+  const saveBtn = document.getElementById('saveDailyAttendanceBtn');
+  if (saveBtn) {
+    saveBtn.style.display = 'block';
+  }
+  
+  // Build table with legend and students (for non-weekend days)
   let html = `
     <!-- Legend -->
     <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 2px solid #e9ecef;">
