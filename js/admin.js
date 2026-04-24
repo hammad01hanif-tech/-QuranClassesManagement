@@ -4397,6 +4397,53 @@ window.closeStudentsListModal = function() {
   }
 };
 
+// ==================== NEW STUDENTS MODAL ====================
+
+// Open new students modal
+window.openNewStudentsModal = function() {
+  // First, close the navbar
+  const navbar = document.getElementById('adminSidebarNavbar');
+  const overlay = document.getElementById('adminNavbarOverlay');
+  
+  if (navbar && navbar.style.display !== 'none') {
+    navbar.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      navbar.style.display = 'none';
+      overlay.style.display = 'none';
+    }, 300);
+  }
+  
+  // Then open the modal
+  setTimeout(() => {
+    const modal = document.getElementById('newStudentsModal');
+    if (modal) {
+      modal.style.display = 'block';
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+  }, navbar && navbar.style.display !== 'none' ? 350 : 0);
+};
+
+// Close new students modal
+window.closeNewStudentsModal = function() {
+  const modal = document.getElementById('newStudentsModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = ''; // Restore scrolling
+  }
+};
+
+// Show add new student form (placeholder - to be implemented later)
+window.showAddNewStudentForm = function() {
+  alert('⏳ سيتم تنفيذ هذه الميزة قريباً');
+  // TODO: Implement add new student form functionality
+};
+
+// Show new students list (placeholder - to be implemented later)
+window.showNewStudentsList = function() {
+  alert('⏳ سيتم تنفيذ هذه الميزة قريباً');
+  // TODO: Implement new students list table with details to be provided later
+};
+
 // Show WhatsApp contact modal
 window.showWhatsAppModal = function(studentName, guardianPhone) {
   const modal = document.getElementById('whatsappContactModal');
