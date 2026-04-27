@@ -4143,15 +4143,17 @@ function displayTardinessReportTable(reportData, fromDate, toDate, teacherName, 
   
   const html = `
     <div id="absenceReportResultOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center; overflow-y: auto; padding: 20px;" onclick="this.remove()">
-      <div style="background: white; border-radius: 15px; width: 95%; max-width: 600px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
-        <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0;">
-          <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px;">⏰ تقرير تأخيرات الطلاب</h3>
+      <div style="background: white; border-radius: 15px; width: 90%; max-width: 550px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
+        <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0; position: relative;">
+          <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="position: absolute; top: 12px; left: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 22px; line-height: 1; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="إغلاق">×</button>
+          <button onclick="window.print()" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
+          <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px; padding: 0 50px;">⏰ تقرير تأخيرات الطلاب</h3>
           <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 11px; opacity: 0.85;">إجمالي الأيام الدراسية: ${totalDays} يوم</p>
         </div>
         
-        <div style="padding: 20px; max-height: 500px; overflow-y: auto;">
+        <div style="padding: 20px; max-height: 450px; overflow-y: auto;">
           <table style="width: 100%; border-collapse: collapse;">
             <thead>
               <tr style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); color: white;">
@@ -4163,15 +4165,6 @@ function displayTardinessReportTable(reportData, fromDate, toDate, teacherName, 
               ${tableRows}
             </tbody>
           </table>
-        </div>
-        
-        <div style="padding: 15px 20px; background: #f8f9fa; border-radius: 0 0 15px 15px; text-align: center;">
-          <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="padding: 10px 25px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-left: 10px;">
-            إغلاق
-          </button>
-          <button onclick="window.print()" style="padding: 10px 25px; background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-            🖨️ طباعة
-          </button>
         </div>
       </div>
     </div>
@@ -4336,15 +4329,17 @@ function displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, to
   
   const html = `
     <div id="absenceReportResultOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center; overflow-y: auto; padding: 20px;" onclick="this.remove()">
-      <div style="background: white; border-radius: 15px; width: 95%; max-width: 700px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0;">
-          <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px;">📊 تقرير غياب الطلاب</h3>
+      <div style="background: white; border-radius: 15px; width: 90%; max-width: 650px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0; position: relative;">
+          <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="position: absolute; top: 12px; left: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 22px; line-height: 1; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="إغلاق">×</button>
+          <button onclick="window.print()" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
+          <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px; padding: 0 50px;">📊 تقرير غياب الطلاب</h3>
           <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 11px; opacity: 0.85;">إجمالي الأيام الدراسية: ${totalDays} يوم</p>
         </div>
         
-        <div style="padding: 20px; max-height: 500px; overflow-y: auto;">
+        <div style="padding: 20px; max-height: 450px; overflow-y: auto;">
           <table style="width: 100%; border-collapse: collapse;">
             <thead>
               <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
@@ -4358,15 +4353,6 @@ function displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, to
               ${tableRows}
             </tbody>
           </table>
-        </div>
-        
-        <div style="padding: 15px 20px; background: #f8f9fa; border-radius: 0 0 15px 15px; text-align: center;">
-          <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="padding: 10px 25px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; margin-left: 10px;">
-            إغلاق
-          </button>
-          <button onclick="window.print()" style="padding: 10px 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-            🖨️ طباعة
-          </button>
         </div>
       </div>
     </div>
