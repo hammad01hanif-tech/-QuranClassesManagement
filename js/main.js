@@ -36,6 +36,11 @@ window.selectRole = function(role) {
     document.getElementById('adminSection').style.display = 'block';
     updateDateTime();
     initAdmin();
+    
+    // Initialize new mobile-first design
+    if (window.initNewAdminDesign) {
+      window.initNewAdminDesign();
+    }
   } else if (role === 'teacher') {
     document.getElementById('teacherSection').style.display = 'block';
     document.getElementById('teacherLogin').style.display = 'block';

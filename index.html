@@ -48,6 +48,259 @@
 
   <!-- Admin Section -->
   <div id="adminSection" class="admin-section" style="display:none;">
+    
+    <!-- NEW MOBILE-FIRST DESIGN WRAPPER -->
+    <div id="newAdminDesign" class="new-admin-design" style="display:none;">
+      
+      <!-- Top Header -->
+      <div class="new-admin-header">
+        <div class="admin-greeting">
+          <div class="greeting-icon">🌙</div>
+          <div class="greeting-text">السلام عليكم</div>
+        </div>
+        <div class="admin-header-right">
+          <button class="new-notification-btn" onclick="window.toggleAdminNotifications()">
+            <span class="notif-icon">🔔</span>
+            <span id="newAdminNotificationBadge" class="notification-dot" style="display: none;"></span>
+          </button>
+          <div class="hijri-date-display" id="newAdminHijriDate">
+            <span class="hijri-icon">📅</span>
+            <span id="hijriDateText">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="new-admin-content">
+        
+        <!-- Dashboard Home Section (Initially visible) -->
+        <div id="dashboardHomeSection" class="admin-main-section active-section">
+          
+          <!-- Stats Cards Grid -->
+          <div class="stats-grid">
+            <div class="stat-card students-card">
+              <div class="stat-icon">👥</div>
+              <div class="stat-info">
+                <div class="stat-label">عدد الطلاب</div>
+                <div class="stat-value" id="totalStudentsCount">0</div>
+              </div>
+            </div>
+            
+            <div class="stat-card classes-card">
+              <div class="stat-icon">📚</div>
+              <div class="stat-info">
+                <div class="stat-label">عدد الحلقات</div>
+                <div class="stat-value" id="totalClassesCount">0</div>
+              </div>
+            </div>
+            
+            <div class="stat-card tasks-card">
+              <div class="stat-icon">📝</div>
+              <div class="stat-info">
+                <div class="stat-label">مهام اليوم</div>
+                <div class="stat-value" id="todayTasksCount">0</div>
+              </div>
+            </div>
+            
+            <div class="stat-card absent-card">
+              <div class="stat-icon">📊</div>
+              <div class="stat-info">
+                <div class="stat-label">الغائبين اليوم</div>
+                <div class="stat-value" id="todayAbsentCount">0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Today's Tasks Section -->
+          <div class="dashboard-section">
+            <div class="section-header">
+              <h3 class="section-title">
+                <span class="section-icon">✅</span>
+                مهام اليوم
+              </h3>
+              <button class="view-all-btn" onclick="window.showAllTasks()">
+                عرض الكل
+                <span style="margin-right: 5px;">←</span>
+              </button>
+            </div>
+            
+            <div class="tasks-list" id="todayTasksList">
+              <!-- Sample Tasks -->
+              <div class="task-item in-progress">
+                <div class="task-main">
+                  <div class="task-status-dot"></div>
+                  <div class="task-details">
+                    <div class="task-name">مراجعة حضور الطلاب</div>
+                    <div class="task-meta">
+                      <span class="task-assignee">👤 أحمد المعلم</span>
+                      <span class="task-time">⏰ 10:00 ص</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="task-badge in-progress">جاري التنفيذ</div>
+              </div>
+              
+              <div class="task-item completed">
+                <div class="task-main">
+                  <div class="task-status-dot"></div>
+                  <div class="task-details">
+                    <div class="task-name">تحديث جدول الحلقات</div>
+                    <div class="task-meta">
+                      <span class="task-assignee">👤 محمد المشرف</span>
+                      <span class="task-time">⏰ 09:00 ص</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="task-badge completed">مكتملة</div>
+              </div>
+              
+              <div class="task-item not-started">
+                <div class="task-main">
+                  <div class="task-status-dot"></div>
+                  <div class="task-details">
+                    <div class="task-name">إعداد تقرير الأسبوع</div>
+                    <div class="task-meta">
+                      <span class="task-assignee">👤 عبدالله الإداري</span>
+                      <span class="task-time">⏰ 02:00 م</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="task-badge not-started">لم تبدأ</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Upcoming Events Section -->
+          <div class="dashboard-section">
+            <div class="section-header">
+              <h3 class="section-title">
+                <span class="section-icon">📅</span>
+                الأحداث القادمة
+              </h3>
+            </div>
+            
+            <div class="events-list" id="upcomingEventsList">
+              <div class="event-item">
+                <div class="event-icon">👥</div>
+                <div class="event-details">
+                  <div class="event-name">اجتماع الإدارة</div>
+                  <div class="event-date">الأحد, 15 رمضان 1448</div>
+                </div>
+              </div>
+              
+              <div class="event-item">
+                <div class="event-icon">📊</div>
+                <div class="event-details">
+                  <div class="event-name">تقرير نهاية الشهر</div>
+                  <div class="event-date">الخميس, 28 رمضان 1448</div>
+                </div>
+              </div>
+              
+              <div class="event-item">
+                <div class="event-icon">🎉</div>
+                <div class="event-details">
+                  <div class="event-name">حملة تسجيل جديدة</div>
+                  <div class="event-date">الأحد, 1 شوال 1448</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Students Section (Hidden initially) -->
+        <div id="studentsSection" class="admin-main-section">
+          <div class="section-header">
+            <h3 class="section-title">
+              <span class="section-icon">👥</span>
+              إدارة الطلاب
+            </h3>
+          </div>
+          <div style="padding: 40px 20px; text-align: center; color: #999;">
+            <p>سيتم إضافة محتوى الطلاب هنا لاحقاً</p>
+          </div>
+        </div>
+
+        <!-- Classes Section (Hidden initially) -->
+        <div id="classesSection" class="admin-main-section">
+          <div class="section-header">
+            <h3 class="section-title">
+              <span class="section-icon">📚</span>
+              إدارة الحلقات
+            </h3>
+          </div>
+          <div style="padding: 40px 20px; text-align: center; color: #999;">
+            <p>سيتم إضافة محتوى الحلقات هنا لاحقاً</p>
+            <p style="margin-top: 10px; font-size: 14px;">سيتم نقل التحضير اليومي إلى هذا القسم</p>
+          </div>
+        </div>
+
+        <!-- Tasks Section (Hidden initially) -->
+        <div id="tasksSection" class="admin-main-section">
+          <div class="section-header">
+            <h3 class="section-title">
+              <span class="section-icon">📝</span>
+              المهام
+            </h3>
+          </div>
+          <div style="padding: 40px 20px; text-align: center; color: #999;">
+            <p>سيتم إضافة محتوى المهام هنا لاحقاً</p>
+          </div>
+        </div>
+
+        <!-- More Section (Hidden initially) -->
+        <div id="moreSection" class="admin-main-section">
+          <div class="section-header">
+            <h3 class="section-title">
+              <span class="section-icon">⋯</span>
+              المزيد
+            </h3>
+          </div>
+          <div style="padding: 40px 20px; text-align: center; color: #999;">
+            <p>سيتم إضافة الإعدادات والخيارات الإضافية هنا</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Navigation Bar -->
+      <div class="bottom-nav-bar">
+        <button class="nav-item active" onclick="window.switchAdminSection('dashboard')" data-section="dashboard">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label">الرئيسية</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchAdminSection('students')" data-section="students">
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">الطلاب</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchAdminSection('classes')" data-section="classes">
+          <span class="nav-icon">📚</span>
+          <span class="nav-label">الحلقات</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchAdminSection('tasks')" data-section="tasks">
+          <span class="nav-icon">📝</span>
+          <span class="nav-label">المهام</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchAdminSection('more')" data-section="more">
+          <span class="nav-icon">⋯</span>
+          <span class="nav-label">المزيد</span>
+        </button>
+      </div>
+
+      <!-- Floating Action Button (Add Task) -->
+      <button class="floating-action-btn" onclick="window.showAddTaskModal()" title="إضافة مهمة">
+        <span style="font-size: 28px;">➕</span>
+      </button>
+
+    </div>
+    <!-- END OF NEW DESIGN -->
+
+    <!-- OLD DESIGN (PRESERVED) -->
+    <div id="oldAdminDesign" class="old-admin-design">
     <div class="admin-header">
       <div class="admin-header-title">
         <div style="display: flex; align-items: center; gap: 15px;">
@@ -637,7 +890,10 @@
         </div>
       </div>
     </div>
+    </div>
+    <!-- END OF OLD ADMIN DESIGN -->
   </div>
+  <!-- END OF ADMIN SECTION -->
 
   <!-- Teacher Section -->
   <div id="teacherSection" style="display:none;">

@@ -5117,3 +5117,129 @@ window.addEventListener('load', function() {
   }
   window.modalStack = [];
 });
+
+// ==========================================
+// NEW MOBILE-FIRST DESIGN FUNCTIONS
+// ==========================================
+
+// Switch between admin sections in new design
+window.switchAdminSection = function(sectionName) {
+  // Hide all sections
+  const allSections = document.querySelectorAll('.admin-main-section');
+  allSections.forEach(section => section.classList.remove('active-section'));
+  
+  // Remove active class from all nav items
+  const allNavItems = document.querySelectorAll('.nav-item');
+  allNavItems.forEach(item => item.classList.remove('active'));
+  
+  // Show selected section
+  let targetSection;
+  switch(sectionName) {
+    case 'dashboard':
+      targetSection = document.getElementById('dashboardHomeSection');
+      break;
+    case 'students':
+      targetSection = document.getElementById('studentsSection');
+      break;
+    case 'classes':
+      targetSection = document.getElementById('classesSection');
+      break;
+    case 'tasks':
+      targetSection = document.getElementById('tasksSection');
+      break;
+    case 'more':
+      targetSection = document.getElementById('moreSection');
+      break;
+    default:
+      targetSection = document.getElementById('dashboardHomeSection');
+  }
+  
+  if (targetSection) {
+    targetSection.classList.add('active-section');
+  }
+  
+  // Add active class to clicked nav item
+  const activeNavItem = document.querySelector(`.nav-item[data-section="${sectionName}"]`);
+  if (activeNavItem) {
+    activeNavItem.classList.add('active');
+  }
+  
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+// Update Hijri Date in new header
+window.updateNewAdminHijriDate = function() {
+  const hijriDateElement = document.getElementById('hijriDateText');
+  if (hijriDateElement) {
+    const currentHijri = getCurrentHijriDate();
+    // Format: "15 رمضان 1448"
+    hijriDateElement.textContent = `${currentHijri.day} ${currentHijri.monthName} ${currentHijri.year}`;
+  }
+};
+
+// Show all tasks
+window.showAllTasks = function() {
+  window.switchAdminSection('tasks');
+};
+
+// Show add task modal (placeholder for now)
+window.showAddTaskModal = function() {
+  alert('سيتم إضافة نموذج إضافة مهمة لاحقاً');
+};
+
+// Load dashboard statistics
+window.loadDashboardStats = async function() {
+  try {
+    // Count total students
+    const studentsSnapshot = await getDocs(collectionGroup(db, 'students'));
+    const totalStudents = studentsSnapshot.size;
+    document.getElementById('totalStudentsCount').textContent = totalStudents;
+    
+    // Count total classes
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const totalClasses = classesSnapshot.size;
+    document.getElementById('totalClassesCount').textContent = totalClasses;
+    
+    // Today's tasks count (placeholder - replace with actual data)
+    document.getElementById('todayTasksCount').textContent = '3';
+    
+    // Today's absent count (placeholder - replace with actual data)
+    document.getElementById('todayAbsentCount').textContent = '0';
+    
+  } catch (error) {
+    console.error('Error loading dashboard stats:', error);
+  }
+};
+
+// Initialize new design when admin section is shown
+window.initNewAdminDesign = function() {
+  // Show new design, hide old design
+  const newDesign = document.getElementById('newAdminDesign');
+  const oldDesign = document.getElementById('oldAdminDesign');
+  
+  if (newDesign && oldDesign) {
+    newDesign.style.display = 'block';
+    oldDesign.style.display = 'none';
+  }
+  
+  // Update Hijri date
+  window.updateNewAdminHijriDate();
+  
+  // Load dashboard stats
+  window.loadDashboardStats();
+  
+  // Set default section to dashboard
+  window.switchAdminSection('dashboard');
+};
+
+// Call init function when admin section is loaded
+// This will be triggered from main.js when role is selected
+if (document.getElementById('adminSection')) {
+  // Wait for DOM to be fully loaded
+  setTimeout(() => {
+    window.initNewAdminDesign();
+  }, 100);
+}
+
+// END OF NEW MOBILE-FIRST DESIGN FUNCTIONS
