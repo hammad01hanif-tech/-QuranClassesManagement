@@ -4121,7 +4121,7 @@ async function generateTardinessReport(classId, teacherName, fromDate, toDate, s
 }
 
 // Print tardiness report function
-function printTardinessReport(reportData, fromDate, toDate, teacherName, totalDays) {
+window.printTardinessReport = function(reportData, fromDate, toDate, teacherName, totalDays) {
   const fromParts = fromDate.split('-');
   const toParts = toDate.split('-');
   const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
@@ -4415,7 +4415,7 @@ async function generateAbsencesReport(classId, teacherName, fromDate, toDate, st
 }
 
 // Print absence report function
-function printAbsenceReport(reportData, fromDate, toDate, teacherName, totalDays) {
+window.printAbsenceReport = function(reportData, fromDate, toDate, teacherName, totalDays) {
   const fromParts = fromDate.split('-');
   const toParts = toDate.split('-');
   const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
