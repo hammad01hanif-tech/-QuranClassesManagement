@@ -4120,6 +4120,108 @@ async function generateTardinessReport(classId, teacherName, fromDate, toDate, s
   }
 }
 
+// Print tardiness report function
+function printTardinessReport(reportData, fromDate, toDate, teacherName, totalDays) {
+  const fromParts = fromDate.split('-');
+  const toParts = toDate.split('-');
+  const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  const fromDateDisplay = `${fromParts[2]} ${hijriMonths[parseInt(fromParts[1]) - 1]} ${fromParts[0]} هـ`;
+  const toDateDisplay = `${toParts[2]} ${hijriMonths[parseInt(toParts[1]) - 1]} ${toParts[0]} هـ`;
+  
+  // Build table rows
+  let tableRows = '';
+  reportData.forEach((student, index) => {
+    tableRows += `
+      <tr>
+        <td style="padding: 10px 12px; text-align: right; border: 1px solid #ddd;">${student.name}</td>
+        <td style="padding: 10px 12px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${student.tardinessCount}</td>
+      </tr>
+    `;
+  });
+  
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>تقرير تأخيرات الطلاب</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          padding: 20px;
+          direction: rtl;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          border-bottom: 3px solid #ff9800;
+          padding-bottom: 15px;
+        }
+        .header h1 {
+          color: #ff9800;
+          margin: 0 0 10px 0;
+          font-size: 24px;
+        }
+        .header p {
+          margin: 5px 0;
+          color: #666;
+          font-size: 14px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+        th {
+          background: #ff9800;
+          color: white;
+          padding: 12px;
+          text-align: center;
+          border: 1px solid #ddd;
+        }
+        td {
+          padding: 10px 12px;
+          border: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+          background: #f8f9fa;
+        }
+        @media print {
+          body { padding: 10px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>⏰ تقرير تأخيرات الطلاب</h1>
+        <p><strong>المعلم:</strong> ${teacherName}</p>
+        <p><strong>الفترة:</strong> من ${fromDateDisplay} إلى ${toDateDisplay}</p>
+        <p><strong>إجمالي الأيام الدراسية:</strong> ${totalDays} يوم</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>اسم الطالب</th>
+            <th>مجموع التأخيرات</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+    printWindow.close();
+  }, 250);
+}
+
 // Display tardiness report table
 function displayTardinessReportTable(reportData, fromDate, toDate, teacherName, totalDays) {
   const fromParts = fromDate.split('-');
@@ -4146,7 +4248,7 @@ function displayTardinessReportTable(reportData, fromDate, toDate, teacherName, 
       <div style="background: white; border-radius: 15px; width: 90%; max-width: 550px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
         <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0; position: relative;">
           <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="position: absolute; top: 12px; left: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 22px; line-height: 1; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="إغلاق">×</button>
-          <button onclick="window.print()" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
+          <button onclick="printTardinessReport(${JSON.stringify(reportData)}, '${fromDate}', '${toDate}', '${teacherName}', ${totalDays})" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
           <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px; padding: 0 50px;">⏰ تقرير تأخيرات الطلاب</h3>
           <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
@@ -4303,6 +4405,112 @@ async function generateAbsencesReport(classId, teacherName, fromDate, toDate, st
   }
 }
 
+// Print absence report function
+function printAbsenceReport(reportData, fromDate, toDate, teacherName, totalDays) {
+  const fromParts = fromDate.split('-');
+  const toParts = toDate.split('-');
+  const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  const fromDateDisplay = `${fromParts[2]} ${hijriMonths[parseInt(fromParts[1]) - 1]} ${fromParts[0]} هـ`;
+  const toDateDisplay = `${toParts[2]} ${hijriMonths[parseInt(toParts[1]) - 1]} ${toParts[0]} هـ`;
+  
+  // Build table rows
+  let tableRows = '';
+  reportData.forEach((student, index) => {
+    tableRows += `
+      <tr>
+        <td style="padding: 10px 12px; text-align: right; border: 1px solid #ddd;">${student.name}</td>
+        <td style="padding: 10px 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: #28a745;">${student.excusedAbsences}</td>
+        <td style="padding: 10px 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: #dc3545;">${student.unexcusedAbsences}</td>
+        <td style="padding: 10px 12px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${student.totalAbsences}</td>
+      </tr>
+    `;
+  });
+  
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>تقرير غياب الطلاب</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          padding: 20px;
+          direction: rtl;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          border-bottom: 3px solid #667eea;
+          padding-bottom: 15px;
+        }
+        .header h1 {
+          color: #667eea;
+          margin: 0 0 10px 0;
+          font-size: 24px;
+        }
+        .header p {
+          margin: 5px 0;
+          color: #666;
+          font-size: 14px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+        th {
+          background: #667eea;
+          color: white;
+          padding: 12px;
+          text-align: center;
+          border: 1px solid #ddd;
+        }
+        td {
+          padding: 10px 12px;
+          border: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+          background: #f8f9fa;
+        }
+        @media print {
+          body { padding: 10px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>📊 تقرير غياب الطلاب</h1>
+        <p><strong>المعلم:</strong> ${teacherName}</p>
+        <p><strong>الفترة:</strong> من ${fromDateDisplay} إلى ${toDateDisplay}</p>
+        <p><strong>إجمالي الأيام الدراسية:</strong> ${totalDays} يوم</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>اسم الطالب</th>
+            <th>غياب بعذر</th>
+            <th>غياب بدون عذر</th>
+            <th>المجموع</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+    printWindow.close();
+  }, 250);
+}
+
 // Display absence report table
 function displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, totalDays) {
   // Format dates for display
@@ -4332,7 +4540,7 @@ function displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, to
       <div style="background: white; border-radius: 15px; width: 90%; max-width: 650px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0; position: relative;">
           <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="position: absolute; top: 12px; left: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 22px; line-height: 1; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="إغلاق">×</button>
-          <button onclick="window.print()" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
+          <button onclick="printAbsenceReport(${JSON.stringify(reportData)}, '${fromDate}', '${toDate}', '${teacherName}', ${totalDays})" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
           <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px; padding: 0 50px;">📊 تقرير غياب الطلاب</h3>
           <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
