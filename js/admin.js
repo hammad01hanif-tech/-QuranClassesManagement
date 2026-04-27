@@ -5173,9 +5173,11 @@ window.updateNewAdminHijriDate = function() {
   const hijriDateElement = document.getElementById('hijriDateText');
   if (hijriDateElement) {
     const hijriData = getTodayAccurateHijri();
-    if (hijriData) {
-      // Format: "15 رمضان 1448"
-      hijriDateElement.textContent = `${hijriData.hijriDay} ${hijriData.hijriMonthName} ${hijriData.hijriYear}`;
+    if (hijriData && hijriData.hijri) {
+      // Use the same formatting function as the old design
+      const formattedDate = formatAccurateHijriDate(hijriData);
+      // Remove " هـ" suffix as it's already in the icon/design
+      hijriDateElement.textContent = formattedDate.replace(' هـ', '');
     } else {
       // Fallback if date not in accurate data
       const currentHijri = getCurrentHijriDate();
