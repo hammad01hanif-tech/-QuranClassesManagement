@@ -784,12 +784,20 @@ window.openPersonalDataModal = async function() {
     const panel = document.getElementById('studentPersonalDataPanel');
     panel.style.display = 'flex';
     await loadStudentPersonalData();
+    
+    // Add to history for back button
+    window.pushModalToHistory('personalDataModal');
   }, 300);
 };
 
 // Close Personal Data Modal
 window.closePersonalDataModal = function() {
   document.getElementById('studentPersonalDataPanel').style.display = 'none';
+  
+  // Go back in history if modal was in stack
+  if (window.modalStack && window.modalStack.includes('personalDataModal')) {
+    history.back();
+  }
 };
 
 // Open Passed Juz Modal from Navbar
@@ -802,12 +810,20 @@ window.openPassedJuzModal = async function() {
     const panel = document.getElementById('studentPassedJuzPanel');
     panel.style.display = 'flex';
     await loadPassedJuzData();
+    
+    // Add to history for back button
+    window.pushModalToHistory('passedJuzModal');
   }, 300);
 };
 
 // Close Passed Juz Modal
 window.closePassedJuzModal = function() {
   document.getElementById('studentPassedJuzPanel').style.display = 'none';
+  
+  // Go back in history if modal was in stack
+  if (window.modalStack && window.modalStack.includes('passedJuzModal')) {
+    history.back();
+  }
 };
 
 // Toggle Personal Data Modal (deprecated - kept for compatibility)
@@ -1057,6 +1073,11 @@ window.showJuzDetails = async function(juzNumber) {
 // Close Juz details modal
 window.closeJuzDetailsModal = function() {
   document.getElementById('studentJuzDetailsModal').style.display = 'none';
+  
+  // Go back in history if modal was in stack
+  if (window.modalStack && window.modalStack.includes('studentJuzDetailsModal')) {
+    history.back();
+  }
 };
 
 // Format date for display
@@ -1146,3 +1167,59 @@ window.saveStudentPersonalData = async function() {
   }
 };
 
+
+// ==================== HISTORY API MANAGEMENT FOR MODALS ====================
+
+// Track currently open modals for back button navigation
+window.modalStack = window.modalStack || [];
+
+// Add modal to history
+window.pushModalToHistory = function(modalId) {
+  if (!window.modalStack.includes(modalId)) {
+    window.modalStack.push(modalId);
+    history.pushState({ modal: modalId }, '', `#${modalId}`);
+  }
+};
+
+// Remove modal from history
+window.popModalFromHistory = function() {
+  if (window.modalStack.length > 0) {
+    window.modalStack.pop();
+    if (window.modalStack.length === 0) {
+      // No more modals, go back to clean URL
+      history.pushState({}, '', window.location.pathname);
+    }
+  }
+};
+
+// Handle browser back button for student modals
+window.addEventListener('popstate', function(event) {
+  // Check if there are open modals
+  const modals = [
+    'personalDataModal',
+    'passedJuzModal',
+    'studentJuzDetailsModal'
+  ];
+  
+  let hasOpenModal = false;
+  
+  // Close all visible modals
+  modals.forEach(modalId => {
+    const modal = document.getElementById(modalId);
+    if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+      hasOpenModal = true;
+      modal.style.display = 'none';
+      
+      // Restore body scroll
+      document.body.style.overflow = '';
+      
+      // Clear modal stack
+      window.modalStack = window.modalStack.filter(id => id !== modalId);
+    }
+  });
+  
+  // Prevent default navigation if modal was closed
+  if (hasOpenModal) {
+    event.preventDefault();
+  }
+});

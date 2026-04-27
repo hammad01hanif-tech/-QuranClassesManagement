@@ -550,6 +550,9 @@ async function showStudentInfoModal(studentId, studentName) {
     
     document.body.appendChild(modal);
     
+    // Add to history for back button
+    window.pushModalToHistory('studentInfoModal');
+    
   } catch (error) {
     console.error('Error loading student info:', error);
     alert('حدث خطأ في تحميل معلومات الطالب');
@@ -561,6 +564,11 @@ window.closeStudentInfoModal = function() {
   const modal = document.getElementById('studentInfoModal');
   if (modal) {
     modal.remove();
+  }
+  
+  // Go back in history if modal was in stack
+  if (window.modalStack && window.modalStack.includes('studentInfoModal')) {
+    history.back();
   }
 };
 
@@ -7795,3 +7803,68 @@ window.returnToAssessmentForm = async function() {
     document.getElementById('newAssessmentForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 100);
 };
+
+
+// ==================== HISTORY API MANAGEMENT FOR MODALS ====================
+
+// Track currently open modals for back button navigation
+window.modalStack = window.modalStack || [];
+
+// Add modal to history
+window.pushModalToHistory = function(modalId) {
+  if (!window.modalStack.includes(modalId)) {
+    window.modalStack.push(modalId);
+    history.pushState({ modal: modalId }, '', `#${modalId}`);
+  }
+};
+
+// Remove modal from history
+window.popModalFromHistory = function() {
+  if (window.modalStack.length > 0) {
+    window.modalStack.pop();
+    if (window.modalStack.length === 0) {
+      // No more modals, go back to clean URL
+      history.pushState({}, '', window.location.pathname);
+    }
+  }
+};
+
+// Handle browser back button for teacher modals
+window.addEventListener('popstate', function(event) {
+  // Check if there are open modals
+  const modals = [
+    'studentInfoModal',
+    'examDetailsModal',
+    'topPerformersModal',
+    'strugglingModal',
+    'notificationsModal'
+  ];
+  
+  let hasOpenModal = false;
+  
+  // Close all visible modals
+  modals.forEach(modalId => {
+    const modal = document.getElementById(modalId);
+    if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+      hasOpenModal = true;
+      
+      // Remove or hide modal based on its type
+      if (modal.remove) {
+        modal.remove();
+      } else {
+        modal.style.display = 'none';
+      }
+      
+      // Restore body scroll
+      document.body.style.overflow = '';
+      
+      // Clear modal stack
+      window.modalStack = window.modalStack.filter(id => id !== modalId);
+    }
+  });
+  
+  // Prevent default navigation if modal was closed
+  if (hasOpenModal) {
+    event.preventDefault();
+  }
+});

@@ -2380,6 +2380,9 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
   // Show modal
   modal.style.display = 'flex';
   
+  // Add to history for back button
+  window.pushModalToHistory('dailyAttendanceModal');
+  
   // Load saved attendance data after DOM updates
   setTimeout(() => {
     window.loadSavedAttendance(students, targetDate);
@@ -2776,6 +2779,11 @@ window.closeDailyAttendanceModal = function() {
   saveBtn.disabled = false;
   saveBtn.textContent = '💾 حفظ التحضير';
   saveBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+  
+  // Go back in history if modal was in stack
+  if (window.modalStack.includes('dailyAttendanceModal')) {
+    history.back();
+  }
 };
 
 // Toggle admin notifications panel
@@ -4636,6 +4644,9 @@ window.openStudentsListModal = function() {
     if (modal) {
       modal.style.display = 'block';
       document.body.style.overflow = 'hidden'; // Prevent background scrolling
+      
+      // Add to history for back button
+      window.pushModalToHistory('studentsListModal');
     }
   }, navbar && navbar.style.display !== 'none' ? 350 : 0);
 };
@@ -4646,6 +4657,11 @@ window.closeStudentsListModal = function() {
   if (modal) {
     modal.style.display = 'none';
     document.body.style.overflow = ''; // Restore scrolling
+  }
+  
+  // Go back in history if modal was in stack
+  if (window.modalStack.includes('studentsListModal')) {
+    history.back();
   }
 };
 
@@ -4671,6 +4687,9 @@ window.openNewStudentsModal = function() {
     if (modal) {
       modal.style.display = 'block';
       document.body.style.overflow = 'hidden'; // Prevent background scrolling
+      
+      // Add to history for back button
+      window.pushModalToHistory('newStudentsModal');
     }
   }, navbar && navbar.style.display !== 'none' ? 350 : 0);
 };
@@ -4681,6 +4700,11 @@ window.closeNewStudentsModal = function() {
   if (modal) {
     modal.style.display = 'none';
     document.body.style.overflow = ''; // Restore scrolling
+  }
+  
+  // Go back in history if modal was in stack
+  if (window.modalStack.includes('newStudentsModal')) {
+    history.back();
   }
 };
 
@@ -5017,3 +5041,79 @@ window.closeAbsentWithoutExcuseModal = function() {
     modal.style.display = 'none';
   }
 };
+
+
+// ==================== HISTORY API MANAGEMENT FOR MODALS ====================
+
+// Track currently open modals for back button navigation
+window.modalStack = window.modalStack || [];
+
+// Add modal to history
+window.pushModalToHistory = function(modalId) {
+  if (!window.modalStack.includes(modalId)) {
+    window.modalStack.push(modalId);
+    history.pushState({ modal: modalId }, '', `#${modalId}`);
+  }
+};
+
+// Remove modal from history
+window.popModalFromHistory = function() {
+  if (window.modalStack.length > 0) {
+    window.modalStack.pop();
+    if (window.modalStack.length === 0) {
+      // No more modals, go back to clean URL
+      history.pushState({}, '', window.location.pathname);
+    }
+  }
+};
+
+// Handle browser back button
+window.addEventListener('popstate', function(event) {
+  // Check if there are open modals
+  const modals = [
+    'dailyAttendanceModal',
+    'studentsListModal',
+    'newStudentsModal',
+    'whatsappContactModal',
+    'absentWithoutExcuseModal',
+    'absenceReportConfigOverlay',
+    'absenceReportResultOverlay'
+  ];
+  
+  let hasOpenModal = false;
+  
+  // Close all visible modals
+  modals.forEach(modalId => {
+    const modal = document.getElementById(modalId);
+    if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
+      hasOpenModal = true;
+      modal.style.display = 'none';
+      
+      // Restore body scroll
+      document.body.style.overflow = '';
+      
+      // Clear modal stack
+      window.modalStack = window.modalStack.filter(id => id !== modalId);
+    }
+  });
+  
+  // If back button was pressed and no modal was open, let browser handle it normally
+  if (!hasOpenModal && event.state === null) {
+    // Normal navigation - browser will handle it
+    return;
+  }
+  
+  // Prevent default navigation if modal was closed
+  if (hasOpenModal) {
+    event.preventDefault();
+  }
+});
+
+// Initialize history state on page load
+window.addEventListener('load', function() {
+  // Clear hash if present
+  if (window.location.hash) {
+    history.replaceState({}, '', window.location.pathname);
+  }
+  window.modalStack = [];
+});
