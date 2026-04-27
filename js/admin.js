@@ -4243,12 +4243,21 @@ function displayTardinessReportTable(reportData, fromDate, toDate, teacherName, 
     `;
   });
   
+  // Store data in window object for print function
+  window.currentTardinessReportData = {
+    reportData: reportData,
+    fromDate: fromDate,
+    toDate: toDate,
+    teacherName: teacherName,
+    totalDays: totalDays
+  };
+  
   const html = `
     <div id="absenceReportResultOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center; overflow-y: auto; padding: 20px;" onclick="this.remove()">
       <div style="background: white; border-radius: 15px; width: 90%; max-width: 550px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
         <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0; position: relative;">
           <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="position: absolute; top: 12px; left: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 22px; line-height: 1; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="إغلاق">×</button>
-          <button onclick="printTardinessReport(${JSON.stringify(reportData)}, '${fromDate}', '${toDate}', '${teacherName}', ${totalDays})" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
+          <button onclick="printTardinessReport(window.currentTardinessReportData.reportData, window.currentTardinessReportData.fromDate, window.currentTardinessReportData.toDate, window.currentTardinessReportData.teacherName, window.currentTardinessReportData.totalDays)" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
           <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px; padding: 0 50px;">⏰ تقرير تأخيرات الطلاب</h3>
           <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
@@ -4535,12 +4544,21 @@ function displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, to
     `;
   });
   
+  // Store data in window object for print function
+  window.currentAbsenceReportData = {
+    reportData: reportData,
+    fromDate: fromDate,
+    toDate: toDate,
+    teacherName: teacherName,
+    totalDays: totalDays
+  };
+  
   const html = `
     <div id="absenceReportResultOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center; overflow-y: auto; padding: 20px;" onclick="this.remove()">
       <div style="background: white; border-radius: 15px; width: 90%; max-width: 650px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0; position: relative;">
           <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="position: absolute; top: 12px; left: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 22px; line-height: 1; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="إغلاق">×</button>
-          <button onclick="printAbsenceReport(${JSON.stringify(reportData)}, '${fromDate}', '${toDate}', '${teacherName}', ${totalDays})" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
+          <button onclick="printAbsenceReport(window.currentAbsenceReportData.reportData, window.currentAbsenceReportData.fromDate, window.currentAbsenceReportData.toDate, window.currentAbsenceReportData.teacherName, window.currentAbsenceReportData.totalDays)" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
           <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px; padding: 0 50px;">📊 تقرير غياب الطلاب</h3>
           <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
