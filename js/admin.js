@@ -20,7 +20,7 @@ import {
 
 import { calculateRevisionPages } from './quran-juz-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getHijriWeekAgo, getHijriMonthAgo, getStudyDaysInCurrentHijriMonth, getStudyDaysForHijriMonth, getTodayForStorage, getCurrentHijriDate, gregorianToHijri, hijriToGregorian as convertHijriToGregorian } from './hijri-date.js';
-import { accurateHijriDates } from './accurate-hijri-dates.js';
+import { accurateHijriDates, getTodayAccurateHijri, formatAccurateHijriDate } from './accurate-hijri-dates.js';
 
 // Teacher names mapping for display in UI
 const teacherNames = {
@@ -5172,9 +5172,15 @@ window.switchAdminSection = function(sectionName) {
 window.updateNewAdminHijriDate = function() {
   const hijriDateElement = document.getElementById('hijriDateText');
   if (hijriDateElement) {
-    const currentHijri = getCurrentHijriDate();
-    // Format: "15 رمضان 1448"
-    hijriDateElement.textContent = `${currentHijri.day} ${currentHijri.monthName} ${currentHijri.year}`;
+    const hijriData = getTodayAccurateHijri();
+    if (hijriData) {
+      // Format: "15 رمضان 1448"
+      hijriDateElement.textContent = `${hijriData.hijriDay} ${hijriData.hijriMonthName} ${hijriData.hijriYear}`;
+    } else {
+      // Fallback if date not in accurate data
+      const currentHijri = getCurrentHijriDate();
+      hijriDateElement.textContent = `${currentHijri.day} ${currentHijri.monthName} ${currentHijri.year}`;
+    }
   }
 };
 
