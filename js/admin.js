@@ -5164,6 +5164,23 @@ window.switchAdminSection = function(sectionName) {
     activeNavItem.classList.add('active');
   }
   
+  // Show/hide main header based on section
+  const mainHeader = document.getElementById('mainAdminHeader');
+  if (mainHeader) {
+    if (sectionName === 'dashboard') {
+      // Show header only on dashboard
+      mainHeader.style.display = 'flex';
+    } else {
+      // Hide header on other sections
+      mainHeader.style.display = 'none';
+    }
+  }
+  
+  // Load classes dropdown when switching to classes section
+  if (sectionName === 'classes') {
+    window.loadClassesForNewDesign();
+  }
+  
   // Scroll to top
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -5251,3 +5268,703 @@ if (document.getElementById('adminSection')) {
 }
 
 // END OF NEW MOBILE-FIRST DESIGN FUNCTIONS
+
+// ========================================
+// STUDENT MANAGEMENT FOR NEW DESIGN
+// ========================================
+
+// Add Student - New Design Version
+window.addStudentNew = async function() {
+  const name = document.getElementById("studentNameNew").value.trim();
+  const birthDate = document.getElementById("studentBirthDateNew").value;
+  const nationalId = document.getElementById("studentNationalIdNew").value.trim();
+  const studentPhone = document.getElementById("studentPhoneNew").value.trim();
+  const guardianPhone = document.getElementById("guardianPhoneNew").value.trim();
+  const level = document.getElementById("studentLevelNew").value;
+  const classId = document.getElementById("classSelectAddNew").value;
+  const result = document.getElementById("resultNew");
+
+  // Validation
+  if (!name) {
+    result.innerText = "❌ الرجاء إدخال اسم الطالب";
+    result.style.color = '#ff6b6b';
+    return;
+  }
+
+  if (!birthDate) {
+    result.innerText = "❌ الرجاء اختيار تاريخ الميلاد";
+    result.style.color = '#ff6b6b';
+    return;
+  }
+
+  if (!guardianPhone) {
+    result.innerText = "❌ الرجاء إدخال رقم جوال ولي الأمر";
+    result.style.color = '#ff6b6b';
+    return;
+  }
+
+  // Validate guardian phone format (10 digits)
+  if (guardianPhone && !/^[0-9]{10}$/.test(guardianPhone)) {
+    result.innerText = "❌ رقم جوال ولي الأمر يجب أن يكون 10 أرقام";
+    result.style.color = '#ff6b6b';
+    return;
+  }
+
+  // Validate student phone format if provided (10 digits)
+  if (studentPhone && !/^[0-9]{10}$/.test(studentPhone)) {
+    result.innerText = "❌ رقم جوال الطالب يجب أن يكون 10 أرقام";
+    result.style.color = '#ff6b6b';
+    return;
+  }
+
+  if (!level) {
+    result.innerText = "❌ الرجاء اختيار المستوى";
+    result.style.color = '#ff6b6b';
+    return;
+  }
+
+  if (!classId) {
+    result.innerText = "❌ الرجاء اختيار الحلقة";
+    result.style.color = '#ff6b6b';
+    return;
+  }
+
+  try {
+    result.innerText = "⏳ جاري إضافة الطالب...";
+    result.style.color = '#667eea';
+
+    // Generate unique student ID
+    const randomNumber = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+    const userId = `${classId}_${randomNumber}`;
+
+    // Calculate age from birth date
+    const birthDateObj = new Date(birthDate);
+    const todayDate = new Date();
+    let age = todayDate.getFullYear() - birthDateObj.getFullYear();
+    const monthDiff = todayDate.getMonth() - birthDateObj.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && todayDate.getDate() < birthDateObj.getDate())) {
+      age--;
+    }
+
+    // Get current Hijri date for registration date
+    const registrationDateHijri = formatHijriDate(todayDate);
+
+    // Prepare student data
+    const studentData = {
+      userId: userId,
+      name: name,
+      role: "student",
+      classId: classId,
+      birthDate: birthDate,
+      age: age,
+      guardianPhone: guardianPhone,
+      level: level,
+      createdAt: serverTimestamp(),
+      registrationDateHijri: registrationDateHijri,
+      monthlyScore: 0,
+      rank: 0
+    };
+
+    // Add optional fields if provided
+    if (nationalId) {
+      studentData.nationalId = nationalId;
+    }
+    if (studentPhone) {
+      studentData.studentPhone = studentPhone;
+    }
+
+    // Save to Firestore
+    await setDoc(firestoreDoc(db, "users", userId), studentData);
+
+    // Update class document with new student
+    const classDocRef = firestoreDoc(db, "classes", classId);
+    await updateDoc(classDocRef, {
+      studentIds: arrayUnion(userId)
+    });
+
+    result.innerText = `✅ تم إضافة الطالب بنجاح: ${name} (${userId})`;
+    result.style.color = '#51cf66';
+    
+    // Clear form after short delay
+    setTimeout(() => {
+      document.getElementById("studentNameNew").value = "";
+      document.getElementById("studentBirthDateNew").value = "";
+      document.getElementById("studentNationalIdNew").value = "";
+      document.getElementById("studentPhoneNew").value = "";
+      document.getElementById("guardianPhoneNew").value = "";
+      document.getElementById("studentLevelNew").value = "";
+      document.getElementById("classSelectAddNew").value = "";
+      result.innerText = "";
+      
+      // Close form
+      const formContainer = document.getElementById('addStudentFormContainerNew');
+      if (formContainer) {
+        formContainer.style.display = 'none';
+      }
+      
+      // Reload dashboard stats to reflect new student
+      if (typeof window.loadDashboardStats === 'function') {
+        window.loadDashboardStats();
+      }
+    }, 2000);
+
+  } catch (error) {
+    console.error("Error adding student:", error);
+    result.innerText = `❌ خطأ في إضافة الطالب: ${error.message}`;
+    result.style.color = '#ff6b6b';
+  }
+};
+
+// Perform Student Search - New Design Version
+window.performStudentSearchNew = async function() {
+  const searchInput = document.getElementById('studentSearchInputNew').value.trim().toLowerCase();
+  const resultsContainer = document.getElementById('searchResultsContainerNew');
+  
+  // If search is empty, show placeholder
+  if (searchInput.length === 0) {
+    resultsContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 30px; font-size: 14px;">اكتب اسم الطالب للبحث...</p>';
+    return;
+  }
+  
+  // If search is less than 2 characters, ask for more
+  if (searchInput.length < 2) {
+    resultsContainer.innerHTML = '<p style="text-align: center; color: #ff6b6b; padding: 30px; font-size: 14px;">الرجاء إدخال حرفين على الأقل</p>';
+    return;
+  }
+  
+  try {
+    resultsContainer.innerHTML = '<p style="text-align: center; color: #667eea; padding: 30px; font-size: 14px;">🔍 جاري البحث...</p>';
+    
+    // Get all students
+    const studentsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
+    
+    // Filter students by name
+    const matchedStudents = [];
+    studentsSnapshot.forEach(doc => {
+      const studentData = doc.data();
+      if (studentData.name && studentData.name.toLowerCase().includes(searchInput)) {
+        matchedStudents.push({
+          id: doc.id,
+          ...studentData
+        });
+      }
+    });
+    
+    // Display results
+    if (matchedStudents.length === 0) {
+      resultsContainer.innerHTML = `
+        <div style="text-align: center; padding: 30px;">
+          <div style="font-size: 48px; margin-bottom: 12px;">🔍</div>
+          <p style="color: #999; font-size: 15px; margin: 0;">لا توجد نتائج للبحث عن: <strong>"${searchInput}"</strong></p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Store matched students globally for detail view
+    window.searchResultsDataNew = matchedStudents;
+    
+    // Get class names for students
+    const classIds = [...new Set(matchedStudents.map(s => s.classId).filter(Boolean))];
+    const classNames = {};
+    for (const classId of classIds) {
+      try {
+        const classDoc = await getDoc(firestoreDoc(db, 'classes', classId));
+        if (classDoc.exists()) {
+          classNames[classId] = classDoc.data().name || classId;
+        }
+      } catch (error) {
+        classNames[classId] = classId;
+      }
+    }
+    
+    // Store class names globally
+    window.searchClassNamesNew = classNames;
+    
+    // Display matched students as compact list
+    let html = `
+      <div style="margin-bottom: 12px; padding: 10px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 8px; text-align: center;">
+        <span style="color: #1976d2; font-weight: bold; font-size: 14px;">🎯 النتائج: ${matchedStudents.length} طالب</span>
+      </div>
+      <div style="display: grid; gap: 8px;">
+    `;
+    
+    matchedStudents.forEach((student, index) => {
+      const className = classNames[student.classId] || 'غير محدد';
+      
+      html += `
+        <div id="student-card-new-${index}" onclick="toggleStudentDetailsNew(${index})" 
+          style="background: white; border: 2px solid #e0e0e0; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.06);"
+          onmouseover="this.style.borderColor='#28a745'; this.style.boxShadow='0 3px 12px rgba(40,167,69,0.2)'; this.style.transform='translateX(-3px)'"
+          onmouseout="this.style.borderColor='#e0e0e0'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.06)'; this.style.transform='translateX(0)'">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+              <span style="font-size: 20px;">👤</span>
+              <div>
+                <div style="font-weight: bold; color: #333; font-size: 14px;">${student.name}</div>
+                <div style="color: #999; font-size: 11px;">${student.id}</div>
+              </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">
+                ${className}
+              </span>
+              <span id="toggle-icon-new-${index}" style="color: #28a745; font-size: 16px; transition: transform 0.3s;">▼</span>
+            </div>
+          </div>
+          
+          <div id="student-details-new-${index}" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 2px solid #f0f0f0;"></div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    resultsContainer.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error searching students:', error);
+    resultsContainer.innerHTML = `
+      <div style="text-align: center; padding: 30px;">
+        <div style="font-size: 40px; margin-bottom: 12px;">❌</div>
+        <p style="color: #dc3545; font-size: 14px; margin: 0;">حدث خطأ في البحث: ${error.message}</p>
+      </div>
+    `;
+  }
+};
+
+// Toggle student details in search results - New Design Version
+window.toggleStudentDetailsNew = function(index) {
+  const detailsDiv = document.getElementById(`student-details-new-${index}`);
+  const toggleIcon = document.getElementById(`toggle-icon-new-${index}`);
+  
+  if (detailsDiv.style.display === 'none' || detailsDiv.style.display === '') {
+    // Show details
+    const student = window.searchResultsDataNew[index];
+    const classNames = window.searchClassNamesNew;
+    const levelIcon = student.level === 'hifz' ? '📚' : student.level === 'dabt' ? '✨' : '🌟';
+    const levelName = student.level === 'hifz' ? 'حفظ' : student.level === 'dabt' ? 'ضبط' : 'القاعدة النورانية';
+    
+    let html = `
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px;">
+        <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center;">
+          <div style="color: #999; font-size: 11px; margin-bottom: 3px;">المستوى</div>
+          <div style="font-weight: bold; color: #667eea; font-size: 12px;">${levelIcon} ${levelName}</div>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center;">
+          <div style="color: #999; font-size: 11px; margin-bottom: 3px;">العمر</div>
+          <div style="font-weight: bold; color: #28a745; font-size: 12px;">${student.age || 'غير محدد'} سنة</div>
+        </div>
+    `;
+    
+    if (student.guardianPhone) {
+      html += `
+        <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center;">
+          <div style="color: #999; font-size: 11px; margin-bottom: 3px;">جوال ولي الأمر</div>
+          <div style="font-weight: bold; color: #333; font-size: 12px; direction: ltr;">${student.guardianPhone}</div>
+        </div>
+      `;
+    }
+    
+    if (student.studentPhone) {
+      html += `
+        <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center;">
+          <div style="color: #999; font-size: 11px; margin-bottom: 3px;">جوال الطالب</div>
+          <div style="font-weight: bold; color: #333; font-size: 12px; direction: ltr;">${student.studentPhone}</div>
+        </div>
+      `;
+    }
+    
+    html += `</div>`;
+    
+    // Action buttons
+    html += `
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
+        <button onclick="showEditStudentFromSearch('${student.id}')" 
+          style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.3s; font-family: inherit;">
+          ✏️ تعديل
+        </button>
+        
+        <button onclick="showTransferFromSearch('${student.id}', '${student.name}', '${student.classId}')" 
+          style="flex: 1; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 8px; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.3s; font-family: inherit;">
+          🔄 نقل
+        </button>
+      </div>
+    `;
+    
+    detailsDiv.innerHTML = html;
+    detailsDiv.style.display = 'block';
+    toggleIcon.style.transform = 'rotate(180deg)';
+    toggleIcon.textContent = '▲';
+  } else {
+    // Hide details
+    detailsDiv.style.display = 'none';
+    toggleIcon.style.transform = 'rotate(0deg)';
+    toggleIcon.textContent = '▼';
+  }
+};
+
+// Load classes into dropdown - Called when Classes section is opened
+window.loadClassesForNewDesign = async function() {
+  const classSelect = document.getElementById('classSelectAddNew');
+  
+  if (!classSelect) return;
+  
+  try {
+    // Clear existing options except the first one
+    classSelect.innerHTML = '<option value="">-- اختر الحلقة --</option>';
+    
+    // Get all classes from Firestore
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    
+    if (classesSnapshot.empty) {
+      classSelect.innerHTML = '<option value="">لا توجد حلقات</option>';
+      return;
+    }
+    
+    // Add each class as an option
+    classesSnapshot.forEach(doc => {
+      const classData = doc.data();
+      const option = document.createElement('option');
+      option.value = doc.id;
+      option.textContent = classData.name || doc.id;
+      classSelect.appendChild(option);
+    });
+    
+  } catch (error) {
+    console.error('Error loading classes:', error);
+    classSelect.innerHTML = '<option value="">خطأ في تحميل الحلقات</option>';
+  }
+};
+
+// Update toggle functions to work with both designs
+const originalToggleAddStudentForm = window.toggleAddStudentForm;
+window.toggleAddStudentForm = function() {
+  // Check if new design is active
+  const newDesign = document.querySelector('.new-admin-design');
+  const isNewDesignActive = newDesign && window.getComputedStyle(newDesign).display !== 'none';
+  
+  if (isNewDesignActive) {
+    // Handle new design
+    const formContainer = document.getElementById('addStudentFormContainerNew');
+    const searchContainer = document.getElementById('searchStudentContainerNew');
+    
+    if (formContainer.style.display === 'none' || formContainer.style.display === '') {
+      // Show add form, hide search
+      formContainer.style.display = 'block';
+      if (searchContainer) searchContainer.style.display = 'none';
+      
+      // Load classes if not loaded yet
+      if (document.getElementById('classSelectAddNew').options.length <= 1) {
+        window.loadClassesForNewDesign();
+      }
+      
+      // Scroll to form
+      setTimeout(() => {
+        formContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+    } else {
+      // Hide form and clear inputs
+      formContainer.style.display = 'none';
+      document.getElementById('studentNameNew').value = '';
+      document.getElementById('studentBirthDateNew').value = '';
+      document.getElementById('studentNationalIdNew').value = '';
+      document.getElementById('studentPhoneNew').value = '';
+      document.getElementById('guardianPhoneNew').value = '';
+      document.getElementById('studentLevelNew').value = '';
+      document.getElementById('classSelectAddNew').value = '';
+      document.getElementById('resultNew').innerText = '';
+    }
+  } else {
+    // Call original function for old design
+    if (originalToggleAddStudentForm) {
+      originalToggleAddStudentForm();
+    }
+  }
+};
+
+const originalToggleStudentSearch = window.toggleStudentSearch;
+window.toggleStudentSearch = function() {
+  // Check if new design is active
+  const newDesign = document.querySelector('.new-admin-design');
+  const isNewDesignActive = newDesign && window.getComputedStyle(newDesign).display !== 'none';
+  
+  if (isNewDesignActive) {
+    // Handle new design
+    const searchContainer = document.getElementById('searchStudentContainerNew');
+    const formContainer = document.getElementById('addStudentFormContainerNew');
+    
+    if (searchContainer.style.display === 'none' || searchContainer.style.display === '') {
+      // Show search, hide add form
+      searchContainer.style.display = 'block';
+      if (formContainer) formContainer.style.display = 'none';
+      
+      // Clear previous search
+      document.getElementById('studentSearchInputNew').value = '';
+      document.getElementById('searchResultsContainerNew').innerHTML = '<p style="text-align: center; color: #999; padding: 30px; font-size: 14px;">اكتب اسم الطالب للبحث...</p>';
+      
+      // Scroll and focus
+      setTimeout(() => {
+        searchContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        document.getElementById('studentSearchInputNew').focus();
+      }, 100);
+    } else {
+      // Hide search
+      searchContainer.style.display = 'none';
+    }
+  } else {
+    // Call original function for old design
+    if (originalToggleStudentSearch) {
+      originalToggleStudentSearch();
+    }
+  }
+};
+
+// ========================================
+// MODERN TASKS PAGE FUNCTIONS
+// ========================================
+
+// Global filter state
+window.tasksFilterState = {
+  status: 'all',
+  priority: 'all',
+  assignee: 'all',
+  type: 'all',
+  dateFrom: '',
+  dateTo: '',
+  period: 'today' // today, month, year
+};
+
+// Switch Tasks Period (Today/Month/Year)
+window.switchTasksPeriod = function(period) {
+  // Update filter state
+  window.tasksFilterState.period = period;
+  
+  // Update active tab
+  const allTabs = document.querySelectorAll('.period-tab');
+  allTabs.forEach(tab => tab.classList.remove('active'));
+  
+  const activeTab = document.querySelector(`.period-tab[data-period="${period}"]`);
+  if (activeTab) {
+    activeTab.classList.add('active');
+  }
+  
+  // Reload tasks based on period
+  loadTasksByPeriod(period);
+};
+
+// Load tasks by period
+function loadTasksByPeriod(period) {
+  console.log(`Loading tasks for period: ${period}`);
+  // Here you would fetch tasks from Firebase based on period
+  // For now, we'll just log it
+}
+
+// Open Tasks Filter Modal
+window.openTasksFilter = function() {
+  const modal = document.getElementById('tasksFilterModal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
+  }
+};
+
+// Close Tasks Filter Modal
+window.closeTasksFilter = function() {
+  const modal = document.getElementById('tasksFilterModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.style.overflow = ''; // Restore scroll
+  }
+};
+
+// Close filter on outside click
+window.closeTasksFilterOnOutside = function(event) {
+  if (event.target.id === 'tasksFilterModal') {
+    closeTasksFilter();
+  }
+};
+
+// Handle filter option selection
+document.addEventListener('DOMContentLoaded', function() {
+  // Wait a bit for DOM to be ready
+  setTimeout(() => {
+    const filterButtons = document.querySelectorAll('.filter-option-btn');
+    
+    filterButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        const filterType = this.getAttribute('data-filter');
+        const filterValue = this.getAttribute('data-value');
+        
+        // Remove active from siblings
+        const siblings = this.parentElement.querySelectorAll('.filter-option-btn');
+        siblings.forEach(btn => btn.classList.remove('active'));
+        
+        // Add active to clicked button
+        this.classList.add('active');
+        
+        // Update filter state
+        if (filterType === 'status') {
+          window.tasksFilterState.status = filterValue;
+        } else if (filterType === 'priority') {
+          window.tasksFilterState.priority = filterValue;
+        } else if (filterType === 'assignee') {
+          window.tasksFilterState.assignee = filterValue;
+        } else if (filterType === 'type') {
+          window.tasksFilterState.type = filterValue;
+        }
+      });
+    });
+  }, 500);
+});
+
+// Apply Tasks Filter
+window.applyTasksFilter = function() {
+  // Get date filters
+  const dateFrom = document.getElementById('filterDateFrom')?.value || '';
+  const dateTo = document.getElementById('filterDateTo')?.value || '';
+  
+  window.tasksFilterState.dateFrom = dateFrom;
+  window.tasksFilterState.dateTo = dateTo;
+  
+  // Apply filter logic
+  filterTasks();
+  
+  // Close modal
+  closeTasksFilter();
+  
+  // Show feedback
+  console.log('Filter applied:', window.tasksFilterState);
+};
+
+// Reset Tasks Filter
+window.resetTasksFilter = function() {
+  // Reset state
+  window.tasksFilterState = {
+    status: 'all',
+    priority: 'all',
+    assignee: 'all',
+    type: 'all',
+    dateFrom: '',
+    dateTo: '',
+    period: window.tasksFilterState.period // Keep current period
+  };
+  
+  // Reset UI
+  document.querySelectorAll('.filter-option-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('data-value') === 'all') {
+      btn.classList.add('active');
+    }
+  });
+  
+  // Reset date inputs
+  const dateFrom = document.getElementById('filterDateFrom');
+  const dateTo = document.getElementById('filterDateTo');
+  if (dateFrom) dateFrom.value = '';
+  if (dateTo) dateTo.value = '';
+  
+  // Reload all tasks
+  filterTasks();
+  
+  console.log('Filter reset');
+};
+
+// Filter tasks based on current filter state
+function filterTasks() {
+  const allCards = document.querySelectorAll('.task-modern-card');
+  let visibleCount = 0;
+  
+  allCards.forEach(card => {
+    let shouldShow = true;
+    
+    // Filter by status
+    if (window.tasksFilterState.status !== 'all') {
+      const cardStatus = card.getAttribute('data-status');
+      if (cardStatus !== window.tasksFilterState.status) {
+        shouldShow = false;
+      }
+    }
+    
+    // Filter by priority
+    if (window.tasksFilterState.priority !== 'all') {
+      const cardPriority = card.getAttribute('data-priority');
+      if (cardPriority !== window.tasksFilterState.priority) {
+        shouldShow = false;
+      }
+    }
+    
+    // Show/hide card
+    if (shouldShow) {
+      card.style.display = 'block';
+      visibleCount++;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+  
+  // Update visible count
+  const countBadge = document.getElementById('visibleTasksCount');
+  if (countBadge) {
+    countBadge.textContent = `${visibleCount} مهمة`;
+  }
+}
+
+// Update Tasks Hijri Date
+window.updateTasksHijriDate = function() {
+  const hijriDateElement = document.getElementById('tasksHijriDate');
+  if (hijriDateElement && typeof getTodayAccurateHijri === 'function') {
+    const hijriData = getTodayAccurateHijri();
+    if (hijriData && hijriData.hijri) {
+      if (typeof formatAccurateHijriDate === 'function') {
+        const formattedDate = formatAccurateHijriDate(hijriData);
+        hijriDateElement.textContent = formattedDate.replace(' هـ', '');
+      }
+    }
+  }
+};
+
+// Load Tasks Stats
+window.loadTasksStats = async function() {
+  // This would fetch real data from Firebase
+  // For now, using sample data from HTML
+  console.log('Loading tasks stats...');
+  
+  // You can implement Firebase queries here to get real stats
+  // Example:
+  // const tasksSnapshot = await getDocs(collection(db, 'tasks'));
+  // Update counts based on actual data
+};
+
+// Initialize Tasks Page
+window.initTasksPage = function() {
+  // Update Hijri date
+  updateTasksHijriDate();
+  
+  // Load stats
+  loadTasksStats();
+  
+  // Set default period to today
+  switchTasksPeriod('today');
+  
+  console.log('Tasks page initialized');
+};
+
+// Call init when switching to tasks section
+const originalSwitchAdminSection = window.switchAdminSection;
+window.switchAdminSection = function(sectionName) {
+  // Call original function
+  originalSwitchAdminSection(sectionName);
+  
+  // Initialize tasks page if switching to it
+  if (sectionName === 'tasks') {
+    // Small delay to ensure DOM is ready
+    setTimeout(() => {
+      initTasksPage();
+    }, 100);
+  }
+};
+
+// END OF MODERN TASKS PAGE FUNCTIONS

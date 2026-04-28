@@ -53,7 +53,7 @@
     <div id="newAdminDesign" class="new-admin-design" style="display:none;">
       
       <!-- Top Header -->
-      <div class="new-admin-header">
+      <div class="new-admin-header" id="mainAdminHeader">
         <div class="admin-greeting">
           <div class="greeting-icon">🌙</div>
           <div class="greeting-text">السلام عليكم</div>
@@ -372,18 +372,548 @@
             
           </div>
           
+          <!-- Student Management Section -->
+          <div class="dashboard-section" style="margin-top: 20px;">
+            <div class="section-header">
+              <h3 class="section-title" style="font-size: 18px;">
+                <span class="section-icon">👥</span>
+                إدارة الطلاب
+              </h3>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; flex-wrap: wrap;">
+              <button onclick="toggleAddStudentForm()" id="toggleAddStudentBtnNew"
+                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(102,126,234,0.3); transition: all 0.3s; font-family: inherit; display: inline-flex; align-items: center; gap: 8px; flex: 1; min-width: 140px; justify-content: center;"
+                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102,126,234,0.4)'"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102,126,234,0.3)'">
+                <span style="font-size: 18px;">➕</span>
+                <span>إضافة طالب</span>
+              </button>
+              
+              <button onclick="toggleStudentSearch()" id="toggleSearchBtnNew"
+                style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px 24px; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(40,167,69,0.3); transition: all 0.3s; font-family: inherit; display: inline-flex; align-items: center; gap: 8px; flex: 1; min-width: 140px; justify-content: center;"
+                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(40,167,69,0.4)'"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(40,167,69,0.3)'">
+                <span style="font-size: 18px;">🔍</span>
+                <span>البحث</span>
+              </button>
+            </div>
+
+            <!-- Search Student Container -->
+            <div id="searchStudentContainerNew" style="display: none; background: #f8f9fa; padding: 20px; border-radius: 12px; margin-top: 15px; animation: slideDown 0.3s ease;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4 style="color: #333; margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; font-weight: bold;">
+                  <span style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">🔍</span>
+                  البحث عن طالب
+                </h4>
+                <button onclick="toggleStudentSearch()" 
+                  style="background: #e0e0e0; color: #666; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s;"
+                  onmouseover="this.style.background='#ff6b6b'; this.style.color='white'"
+                  onmouseout="this.style.background='#e0e0e0'; this.style.color='#666'"
+                  title="إغلاق">
+                  ×
+                </button>
+              </div>
+              
+              <div style="position: relative; margin-bottom: 15px;">
+                <input type="text" id="studentSearchInputNew" placeholder="ابحث باسم الطالب..." onkeyup="performStudentSearchNew()"
+                  style="width: 100%; padding: 12px 15px 12px 40px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 14px; transition: all 0.3s; font-family: inherit;"
+                  onfocus="this.style.borderColor='#28a745'; this.style.boxShadow='0 0 0 3px rgba(40,167,69,0.1)'"
+                  onblur="this.style.borderColor='#e0e0e0'; this.style.boxShadow='none'">
+                <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #999;">🔍</span>
+              </div>
+              
+              <div id="searchResultsContainerNew" style="min-height: 80px;">
+                <p style="text-align: center; color: #999; padding: 30px; font-size: 14px;">
+                  اكتب اسم الطالب للبحث...
+                </p>
+              </div>
+            </div>
+
+            <!-- Add New Student Form -->
+            <div id="addStudentFormContainerNew" class="add-student-form" style="display: none; background: #f8f9fa; padding: 20px; border-radius: 12px; margin-top: 15px; animation: slideDown 0.3s ease;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h4 style="color: #333; margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; font-weight: bold;">
+                  <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">➕</span>
+                  إضافة طالب جديد
+                </h4>
+                <button onclick="toggleAddStudentForm()" 
+                  style="background: #e0e0e0; color: #666; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s;"
+                  onmouseover="this.style.background='#ff6b6b'; this.style.color='white'"
+                  onmouseout="this.style.background='#e0e0e0'; this.style.color='#666'"
+                  title="إغلاق">
+                  ×
+                </button>
+              </div>
+
+              <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                <!-- Student Name -->
+                <div class="form-field">
+                  <label style="display: block; margin-bottom: 6px; color: #555; font-weight: bold; font-size: 13px;">
+                    <span style="color: #ff6b6b;">*</span> اسم الطالب
+                  </label>
+                  <input type="text" id="studentNameNew" placeholder="أدخل الاسم الكامل" required
+                    style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; font-family: inherit;">
+                </div>
+
+                <!-- Birth Date -->
+                <div class="form-field">
+                  <label style="display: block; margin-bottom: 6px; color: #555; font-weight: bold; font-size: 13px;">
+                    <span style="color: #ff6b6b;">*</span> تاريخ الميلاد
+                  </label>
+                  <input type="date" id="studentBirthDateNew" required
+                    style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; font-family: inherit;">
+                </div>
+
+                <!-- National ID -->
+                <div class="form-field">
+                  <label style="display: block; margin-bottom: 6px; color: #555; font-weight: bold; font-size: 13px;">
+                    رقم الهوية (اختياري)
+                  </label>
+                  <input type="text" id="studentNationalIdNew" placeholder="أدخل رقم الهوية"
+                    style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; font-family: inherit;">
+                </div>
+
+                <!-- Student Phone -->
+                <div class="form-field">
+                  <label style="display: block; margin-bottom: 6px; color: #555; font-weight: bold; font-size: 13px;">
+                    رقم جوال الطالب
+                  </label>
+                  <input type="tel" id="studentPhoneNew" placeholder="05xxxxxxxx" pattern="[0-9]{10}"
+                    style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; font-family: inherit;">
+                </div>
+
+                <!-- Guardian Phone -->
+                <div class="form-field">
+                  <label style="display: block; margin-bottom: 6px; color: #555; font-weight: bold; font-size: 13px;">
+                    <span style="color: #ff6b6b;">*</span> جوال ولي الأمر
+                  </label>
+                  <input type="tel" id="guardianPhoneNew" placeholder="05xxxxxxxx" pattern="[0-9]{10}" required
+                    style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; font-family: inherit;">
+                </div>
+
+                <!-- Student Level -->
+                <div class="form-field">
+                  <label style="display: block; margin-bottom: 6px; color: #555; font-weight: bold; font-size: 13px;">
+                    <span style="color: #ff6b6b;">*</span> المستوى
+                  </label>
+                  <select id="studentLevelNew" required
+                    style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; font-family: inherit; background: white;">
+                    <option value="">-- اختر المستوى --</option>
+                    <option value="hifz">📚 حفظ</option>
+                    <option value="dabt">✨ ضبط</option>
+                    <option value="noorani">🌟 القاعدة النورانية</option>
+                  </select>
+                </div>
+
+                <!-- Class Selection -->
+                <div class="form-field">
+                  <label style="display: block; margin-bottom: 6px; color: #555; font-weight: bold; font-size: 13px;">
+                    <span style="color: #ff6b6b;">*</span> اسم الحلقة
+                  </label>
+                  <select id="classSelectAddNew" required
+                    style="width: 100%; padding: 10px 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; font-family: inherit; background: white;">
+                    <option value="">-- اختر الحلقة --</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Submit Button -->
+              <div style="margin-top: 20px; text-align: center;">
+                <button onclick="addStudentNew()" 
+                  style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 40px; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(102,126,234,0.3); transition: all 0.3s; font-family: inherit;">
+                  ✅ إضافة الطالب
+                </button>
+              </div>
+              
+              <p id="resultNew" style="margin-top: 15px; text-align: center; font-size: 14px; font-weight: bold;"></p>
+            </div>
+            
+          </div>
+          
         </div>
 
         <!-- Tasks Section (Hidden initially) -->
         <div id="tasksSection" class="admin-main-section">
-          <div class="section-header">
-            <h3 class="section-title">
-              <span class="section-icon">📝</span>
-              المهام
-            </h3>
+          
+          <!-- Tasks Header -->
+          <div class="tasks-modern-header">
+            <div class="tasks-header-top">
+              <button class="header-back-btn" onclick="window.switchAdminSection('dashboard')">
+                <span>←</span>
+              </button>
+              <h1 class="tasks-main-title">المهام</h1>
+              <button class="header-notification-btn" onclick="alert('الإشعارات')">
+                <span>🔔</span>
+                <span class="notification-badge">3</span>
+              </button>
+            </div>
           </div>
-          <div style="padding: 40px 20px; text-align: center; color: #999;">
-            <p>سيتم إضافة محتوى المهام هنا لاحقاً</p>
+
+          <!-- Tasks Period Tabs -->
+          <div class="tasks-period-tabs">
+            <button class="period-tab active" data-period="today" onclick="switchTasksPeriod('today')">
+              <span class="tab-label">اليوم</span>
+              <span class="tab-indicator"></span>
+            </button>
+            <button class="period-tab" data-period="month" onclick="switchTasksPeriod('month')">
+              <span class="tab-label">الشهر</span>
+              <span class="tab-indicator"></span>
+            </button>
+            <button class="period-tab" data-period="year" onclick="switchTasksPeriod('year')">
+              <span class="tab-label">السنة</span>
+              <span class="tab-indicator"></span>
+            </button>
+          </div>
+
+          <!-- Tasks Date Info -->
+          <div class="tasks-date-section">
+            <div class="tasks-date-today">اليوم</div>
+            <div class="tasks-date-hijri" id="tasksHijriDate">15 ذو القعدة 1447</div>
+          </div>
+
+          <!-- Tasks Stats Cards -->
+          <div class="tasks-stats-grid">
+            <div class="task-stat-card total">
+              <div class="stat-icon">📋</div>
+              <div class="stat-content">
+                <div class="stat-number" id="totalTasksCount">12</div>
+                <div class="stat-label">إجمالي المهام</div>
+              </div>
+            </div>
+            <div class="task-stat-card in-progress">
+              <div class="stat-icon">⏳</div>
+              <div class="stat-content">
+                <div class="stat-number" id="inProgressTasksCount">5</div>
+                <div class="stat-label">جاري التنفيذ</div>
+              </div>
+            </div>
+            <div class="task-stat-card completed">
+              <div class="stat-icon">✅</div>
+              <div class="stat-content">
+                <div class="stat-number" id="completedTasksCount">6</div>
+                <div class="stat-label">مكتملة</div>
+              </div>
+            </div>
+            <div class="task-stat-card overdue">
+              <div class="stat-icon">⏰</div>
+              <div class="stat-content">
+                <div class="stat-number" id="overdueTasksCount">1</div>
+                <div class="stat-label">متأخرة</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter Button -->
+          <div class="tasks-filter-section">
+            <button class="tasks-filter-btn" onclick="openTasksFilter()">
+              <span class="filter-icon">🔍</span>
+              <span class="filter-text">فلترة المهام</span>
+              <span class="filter-arrow">←</span>
+            </button>
+          </div>
+
+          <!-- Tasks List -->
+          <div class="tasks-list-container">
+            <div class="tasks-list-header">
+              <h3 class="tasks-list-title">قائمة المهام</h3>
+              <span class="tasks-count-badge" id="visibleTasksCount">12 مهمة</span>
+            </div>
+
+            <div class="tasks-cards-list" id="tasksCardsList">
+              
+              <!-- Sample Task Card 1 -->
+              <div class="task-modern-card" data-status="in-progress" data-priority="medium">
+                <div class="task-card-header">
+                  <div class="task-title-row">
+                    <span class="task-priority-dot medium"></span>
+                    <h4 class="task-card-title">متابعة غياب الطلاب</h4>
+                  </div>
+                  <span class="task-status-badge in-progress">جاري التنفيذ</span>
+                </div>
+                
+                <div class="task-card-meta">
+                  <div class="task-meta-item">
+                    <span class="meta-icon">👤</span>
+                    <span class="meta-text">حماد</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">🕘</span>
+                    <span class="meta-text">9:00 ص</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">🔁</span>
+                    <span class="meta-text">يومية</span>
+                  </div>
+                  <div class="task-meta-item priority">
+                    <span class="meta-icon">🔥</span>
+                    <span class="meta-text">متوسطة</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sample Task Card 2 -->
+              <div class="task-modern-card" data-status="completed" data-priority="high">
+                <div class="task-card-header">
+                  <div class="task-title-row">
+                    <span class="task-priority-dot high"></span>
+                    <h4 class="task-card-title">إعداد تقرير الشهر</h4>
+                  </div>
+                  <span class="task-status-badge completed">مكتملة</span>
+                </div>
+                
+                <div class="task-card-meta">
+                  <div class="task-meta-item">
+                    <span class="meta-icon">👤</span>
+                    <span class="meta-text">عبدالمجيد</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">📅</span>
+                    <span class="meta-text">أمس</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">📊</span>
+                    <span class="meta-text">شهرية</span>
+                  </div>
+                  <div class="task-meta-item priority">
+                    <span class="meta-icon">🔥</span>
+                    <span class="meta-text">عالية</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sample Task Card 3 -->
+              <div class="task-modern-card" data-status="overdue" data-priority="high">
+                <div class="task-card-header">
+                  <div class="task-title-row">
+                    <span class="task-priority-dot high"></span>
+                    <h4 class="task-card-title">مراجعة حفظ الطلاب</h4>
+                  </div>
+                  <span class="task-status-badge overdue">متأخرة</span>
+                </div>
+                
+                <div class="task-card-meta">
+                  <div class="task-meta-item">
+                    <span class="meta-icon">👤</span>
+                    <span class="meta-text">إدريس</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">🕐</span>
+                    <span class="meta-text">10:00 ص</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">🔁</span>
+                    <span class="meta-text">يومية</span>
+                  </div>
+                  <div class="task-meta-item priority">
+                    <span class="meta-icon">🔥</span>
+                    <span class="meta-text">عالية</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sample Task Card 4 -->
+              <div class="task-modern-card" data-status="in-progress" data-priority="low">
+                <div class="task-card-header">
+                  <div class="task-title-row">
+                    <span class="task-priority-dot low"></span>
+                    <h4 class="task-card-title">تحديث سجلات الحضور</h4>
+                  </div>
+                  <span class="task-status-badge in-progress">جاري التنفيذ</span>
+                </div>
+                
+                <div class="task-card-meta">
+                  <div class="task-meta-item">
+                    <span class="meta-icon">👤</span>
+                    <span class="meta-text">حمزة</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">🕑</span>
+                    <span class="meta-text">2:00 م</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">📊</span>
+                    <span class="meta-text">شهرية</span>
+                  </div>
+                  <div class="task-meta-item priority">
+                    <span class="meta-icon">🔥</span>
+                    <span class="meta-text">منخفضة</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sample Task Card 5 -->
+              <div class="task-modern-card" data-status="pending" data-priority="medium">
+                <div class="task-card-header">
+                  <div class="task-title-row">
+                    <span class="task-priority-dot medium"></span>
+                    <h4 class="task-card-title">التواصل مع أولياء الأمور</h4>
+                  </div>
+                  <span class="task-status-badge pending">قيد الانتظار</span>
+                </div>
+                
+                <div class="task-card-meta">
+                  <div class="task-meta-item">
+                    <span class="meta-icon">👤</span>
+                    <span class="meta-text">عبدالمجيد</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">📅</span>
+                    <span class="meta-text">غداً</span>
+                  </div>
+                  <div class="task-meta-item">
+                    <span class="meta-icon">📆</span>
+                    <span class="meta-text">سنوية</span>
+                  </div>
+                  <div class="task-meta-item priority">
+                    <span class="meta-icon">🔥</span>
+                    <span class="meta-text">متوسطة</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Tasks Filter Bottom Sheet Modal -->
+        <div id="tasksFilterModal" class="tasks-filter-modal" onclick="closeTasksFilterOnOutside(event)">
+          <div class="tasks-filter-sheet">
+            
+            <!-- Filter Header -->
+            <div class="filter-sheet-header">
+              <h3 class="filter-sheet-title">فلترة المهام</h3>
+              <button class="filter-close-btn" onclick="closeTasksFilter()">✕</button>
+            </div>
+
+            <!-- Filter Content -->
+            <div class="filter-sheet-content">
+              
+              <!-- Status Filter -->
+              <div class="filter-group">
+                <label class="filter-group-label">الحالة</label>
+                <div class="filter-options-grid">
+                  <button class="filter-option-btn active" data-filter="status" data-value="all">
+                    <span class="option-icon">📋</span>
+                    <span>الكل</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="status" data-value="in-progress">
+                    <span class="option-icon">⏳</span>
+                    <span>جاري التنفيذ</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="status" data-value="completed">
+                    <span class="option-icon">✅</span>
+                    <span>مكتملة</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="status" data-value="overdue">
+                    <span class="option-icon">⏰</span>
+                    <span>متأخرة</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Priority Filter -->
+              <div class="filter-group">
+                <label class="filter-group-label">الأولوية</label>
+                <div class="filter-options-grid">
+                  <button class="filter-option-btn active" data-filter="priority" data-value="all">
+                    <span class="option-icon">🎯</span>
+                    <span>الكل</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="priority" data-value="high">
+                    <span class="option-icon">🔴</span>
+                    <span>عالية</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="priority" data-value="medium">
+                    <span class="option-icon">🟠</span>
+                    <span>متوسطة</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="priority" data-value="low">
+                    <span class="option-icon">🟢</span>
+                    <span>منخفضة</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Assignee Filter -->
+              <div class="filter-group">
+                <label class="filter-group-label">المسؤول</label>
+                <div class="filter-options-grid">
+                  <button class="filter-option-btn active" data-filter="assignee" data-value="all">
+                    <span class="option-icon">👥</span>
+                    <span>الكل</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="assignee" data-value="عبدالمجيد">
+                    <span class="option-icon">👤</span>
+                    <span>عبدالمجيد</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="assignee" data-value="إدريس">
+                    <span class="option-icon">👤</span>
+                    <span>إدريس</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="assignee" data-value="حماد">
+                    <span class="option-icon">👤</span>
+                    <span>حماد</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="assignee" data-value="حمزة">
+                    <span class="option-icon">👤</span>
+                    <span>حمزة</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Type Filter -->
+              <div class="filter-group">
+                <label class="filter-group-label">نوع المهمة</label>
+                <div class="filter-options-grid">
+                  <button class="filter-option-btn active" data-filter="type" data-value="all">
+                    <span class="option-icon">📍</span>
+                    <span>الكل</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="type" data-value="daily">
+                    <span class="option-icon">🔁</span>
+                    <span>يومية</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="type" data-value="monthly">
+                    <span class="option-icon">📊</span>
+                    <span>شهرية</span>
+                  </button>
+                  <button class="filter-option-btn" data-filter="type" data-value="yearly">
+                    <span class="option-icon">📆</span>
+                    <span>سنوية</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Date Range Filter -->
+              <div class="filter-group">
+                <label class="filter-group-label">التاريخ</label>
+                <div class="filter-date-inputs">
+                  <div class="date-input-wrapper">
+                    <label class="date-label">من تاريخ</label>
+                    <input type="date" class="filter-date-input" id="filterDateFrom">
+                  </div>
+                  <div class="date-input-wrapper">
+                    <label class="date-label">إلى تاريخ</label>
+                    <input type="date" class="filter-date-input" id="filterDateTo">
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Filter Actions -->
+            <div class="filter-sheet-actions">
+              <button class="filter-reset-btn" onclick="resetTasksFilter()">
+                <span>إعادة تعيين</span>
+              </button>
+              <button class="filter-apply-btn" onclick="applyTasksFilter()">
+                <span>عرض النتائج</span>
+              </button>
+            </div>
+
           </div>
         </div>
 
