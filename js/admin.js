@@ -6121,9 +6121,9 @@ window.saveNewTask = async function() {
       time: time,
       priority: window.currentPriority,
       recurrence: recurrence || 'none',
-      status: 'pending',
-      createdAt: serverTimestamp(),
-      createdBy: 'admin' // You can get current user ID here
+      status: 'in-progress', // Default status for new tasks
+      createdAt: new Date().toISOString(),
+      createdBy: 'admin'
     };
     
     // Save to Firestore (you'll need to set up the collection)
@@ -6132,6 +6132,12 @@ window.saveNewTask = async function() {
     
     // Uncomment when Firebase is ready:
     // await addDoc(collection(db, 'tasks'), taskData);
+    
+    // Add task to DOM immediately
+    addTaskToList(taskData);
+    
+    // Update stats
+    updateTasksStats();
     
     // Show success toast
     showSuccessToast('✅ تم إضافة المهمة بنجاح');
@@ -6148,9 +6154,6 @@ window.saveNewTask = async function() {
       } else if (window.currentTaskType === 'yearly') {
         switchTasksPeriod('year');
       }
-      
-      // Reload tasks (you'll implement this based on your Firebase structure)
-      // loadTasksByPeriod(window.currentTaskType);
     }, 1500);
     
   } catch (error) {
@@ -6158,6 +6161,134 @@ window.saveNewTask = async function() {
     alert('❌ حدث خطأ في حفظ المهمة: ' + error.message);
   }
 };
+
+// Add Task to List (DOM)
+function addTaskToList(taskData) {
+  const tasksCardsList = document.getElementById('tasksCardsList');
+  if (!tasksCardsList) return;
+  
+  // Generate unique ID for the task
+  const taskId = 'task_' + Date.now();
+  
+  // Get type icons
+  const typeIcons = {
+    'daily': '🔁',
+    'monthly': '📊',
+    'yearly': '📆'
+  };
+  
+  const typeLabels = {
+    'daily': 'يومية',
+    'monthly': 'شهرية',
+    'yearly': 'سنوية'
+  };
+  
+  const priorityIcons = {
+    'low': '🟢',
+    'medium': '🟠',
+    'high': '🔴'
+  };
+  
+  const priorityLabels = {
+    'low': 'منخفضة',
+    'medium': 'متوسطة',
+    'high': 'عالية'
+  };
+  
+  const statusBadges = {
+    'pending': { class: 'pending', label: 'قيد الانتظار' },
+    'in-progress': { class: 'in-progress', label: 'جاري التنفيذ' },
+    'completed': { class: 'completed', label: 'مكتملة' },
+    'overdue': { class: 'overdue', label: 'متأخرة' }
+  };
+  
+  // Format time for display
+  const timeFormatted = taskData.time || '00:00';
+  const timeDisplay = timeFormatted.substring(0, 5); // HH:MM format
+  
+  // Create task card HTML
+  const taskCard = document.createElement('div');
+  taskCard.className = 'task-modern-card';
+  taskCard.dataset.status = taskData.status || 'in-progress';
+  taskCard.dataset.priority = taskData.priority || 'medium';
+  taskCard.dataset.type = taskData.type || 'daily';
+  taskCard.dataset.taskId = taskId;
+  
+  const statusBadge = statusBadges[taskData.status] || statusBadges['in-progress'];
+  
+  taskCard.innerHTML = `
+    <div class="task-card-header">
+      <div class="task-title-row">
+        <span class="task-priority-dot ${taskData.priority}"></span>
+        <h4 class="task-card-title">${taskData.title}</h4>
+      </div>
+      <span class="task-status-badge ${statusBadge.class}">${statusBadge.label}</span>
+    </div>
+    
+    <div class="task-card-meta">
+      <div class="task-meta-item">
+        <span class="meta-icon">👤</span>
+        <span class="meta-text">${taskData.assignee}</span>
+      </div>
+      <div class="task-meta-item">
+        <span class="meta-icon">🕘</span>
+        <span class="meta-text">${timeDisplay}</span>
+      </div>
+      <div class="task-meta-item">
+        <span class="meta-icon">${typeIcons[taskData.type]}</span>
+        <span class="meta-text">${typeLabels[taskData.type]}</span>
+      </div>
+      <div class="task-meta-item priority">
+        <span class="meta-icon">${priorityIcons[taskData.priority]}</span>
+        <span class="meta-text">${priorityLabels[taskData.priority]}</span>
+      </div>
+    </div>
+  `;
+  
+  // Add animation
+  taskCard.style.animation = 'slideUp 0.4s ease';
+  
+  // Insert at the beginning of the list
+  tasksCardsList.insertBefore(taskCard, tasksCardsList.firstChild);
+  
+  console.log('Task added to DOM:', taskId);
+}
+
+// Update Tasks Stats
+function updateTasksStats() {
+  const allCards = document.querySelectorAll('.task-modern-card');
+  
+  let total = allCards.length;
+  let inProgress = 0;
+  let completed = 0;
+  let overdue = 0;
+  
+  allCards.forEach(card => {
+    const status = card.dataset.status;
+    if (status === 'in-progress' || status === 'pending') {
+      inProgress++;
+    } else if (status === 'completed') {
+      completed++;
+    } else if (status === 'overdue') {
+      overdue++;
+    }
+  });
+  
+  // Update stat cards
+  const totalEl = document.getElementById('totalTasksCount');
+  const inProgressEl = document.getElementById('inProgressTasksCount');
+  const completedEl = document.getElementById('completedTasksCount');
+  const overdueEl = document.getElementById('overdueTasksCount');
+  const visibleEl = document.getElementById('visibleTasksCount');
+  
+  if (totalEl) totalEl.textContent = total;
+  if (inProgressEl) inProgressEl.textContent = inProgress;
+  if (completedEl) completedEl.textContent = completed;
+  if (overdueEl) overdueEl.textContent = overdue;
+  if (visibleEl) visibleEl.textContent = `${total} مهمة`;
+  
+  console.log('Stats updated:', { total, inProgress, completed, overdue });
+}
 
 // Show Success Toast
 function showSuccessToast(message) {
