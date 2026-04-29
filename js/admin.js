@@ -6316,6 +6316,9 @@ function loadTasksFromStorage() {
       addTaskToList(taskData);
     });
     
+    // Check and update expired tasks
+    checkAndUpdateExpiredTasks();
+    
     // Update stats after loading all tasks
     updateTasksStats();
     
@@ -6335,6 +6338,90 @@ function deleteTaskFromStorage(taskId) {
     console.log('✅ Task deleted from localStorage:', taskId);
   } catch (error) {
     console.error('❌ Error deleting task:', error);
+  }
+}
+
+// Check and update expired tasks
+function checkAndUpdateExpiredTasks() {
+  try {
+    console.log('🔍 Checking for expired tasks...');
+    
+    const tasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of today
+    
+    let tasksToUpdate = [];
+    let tasksToDelete = [];
+    
+    tasks.forEach(task => {
+      if (!task.date) return; // Skip tasks without dates
+      
+      const taskDate = new Date(task.date);
+      taskDate.setHours(0, 0, 0, 0);
+      
+      // If task date is before today (task is expired)
+      if (taskDate < today) {
+        if (task.status === 'completed') {
+          // Completed tasks are removed after their date
+          tasksToDelete.push(task.id);
+          console.log(`🗑️ Auto-deleting completed task: ${task.title}`);
+        } else if (task.status !== 'overdue') {
+          // Incomplete tasks become overdue
+          task.status = 'overdue';
+          tasksToUpdate.push(task);
+          console.log(`⏰ Auto-updating to overdue: ${task.title}`);
+        }
+      }
+    });
+    
+    // Delete completed expired tasks
+    if (tasksToDelete.length > 0) {
+      const updatedTasks = tasks.filter(task => !tasksToDelete.includes(task.id));
+      localStorage.setItem('adminTasks', JSON.stringify(updatedTasks));
+      
+      // Remove from DOM
+      tasksToDelete.forEach(taskId => {
+        const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskCard) {
+          taskCard.style.animation = 'fadeOut 0.3s ease';
+          setTimeout(() => taskCard.remove(), 300);
+        }
+      });
+      
+      console.log(`✅ Deleted ${tasksToDelete.length} completed expired tasks`);
+    }
+    
+    // Update overdue tasks
+    if (tasksToUpdate.length > 0) {
+      // Save updated tasks to localStorage
+      localStorage.setItem('adminTasks', JSON.stringify(tasks));
+      
+      // Update in DOM
+      tasksToUpdate.forEach(task => {
+        const taskCard = document.querySelector(`[data-task-id="${task.id}"]`);
+        if (taskCard) {
+          taskCard.dataset.status = 'overdue';
+          const badge = taskCard.querySelector('.task-status-badge');
+          if (badge) {
+            badge.className = 'task-status-badge overdue';
+            badge.textContent = 'متأخرة';
+            taskCard.style.animation = 'pulse 0.4s ease';
+          }
+        }
+      });
+      
+      console.log(`✅ Updated ${tasksToUpdate.length} tasks to overdue`);
+    }
+    
+    if (tasksToDelete.length > 0 || tasksToUpdate.length > 0) {
+      // Update stats after changes
+      setTimeout(() => {
+        updateTasksStats();
+      }, 350);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error checking expired tasks:', error);
   }
 }
 
