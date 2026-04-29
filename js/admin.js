@@ -5932,14 +5932,9 @@ window.updateTasksHijriDate = function() {
 
 // Load Tasks Stats
 window.loadTasksStats = async function() {
-  // This would fetch real data from Firebase
-  // For now, using sample data from HTML
-  console.log('Loading tasks stats...');
-  
-  // You can implement Firebase queries here to get real stats
-  // Example:
-  // const tasksSnapshot = await getDocs(collection(db, 'tasks'));
-  // Update counts based on actual data
+  // Update stats based on actual DOM tasks
+  updateTasksStats();
+  console.log('✅ Tasks stats loaded');
 };
 
 // Initialize Tasks Page
@@ -6321,6 +6316,9 @@ function loadTasksFromStorage() {
       addTaskToList(taskData);
     });
     
+    // Update stats after loading all tasks
+    updateTasksStats();
+    
     console.log('✅ Tasks loaded successfully');
     
   } catch (error) {
@@ -6476,21 +6474,63 @@ function updateTasksStats() {
     }
   });
   
-  // Update stat cards
+  // Update stat cards with animation
   const totalEl = document.getElementById('totalTasksCount');
   const inProgressEl = document.getElementById('inProgressTasksCount');
   const completedEl = document.getElementById('completedTasksCount');
   const overdueEl = document.getElementById('overdueTasksCount');
   const visibleEl = document.getElementById('visibleTasksCount');
   
-  if (totalEl) totalEl.textContent = total;
-  if (inProgressEl) inProgressEl.textContent = inProgress;
-  if (completedEl) completedEl.textContent = completed;
-  if (overdueEl) overdueEl.textContent = overdue;
+  // Helper function to update with animation
+  const updateWithAnimation = (element, newValue) => {
+    if (element && element.textContent !== String(newValue)) {
+      element.style.animation = 'pulse 0.4s ease';
+      element.textContent = newValue;
+      setTimeout(() => {
+        element.style.animation = '';
+      }, 400);
+    } else if (element) {
+      element.textContent = newValue;
+    }
+  };
+  
+  updateWithAnimation(totalEl, total);
+  updateWithAnimation(inProgressEl, inProgress);
+  updateWithAnimation(completedEl, completed);
+  updateWithAnimation(overdueEl, overdue);
   if (visibleEl) visibleEl.textContent = `${total} مهمة`;
   
-  console.log('Stats updated:', { total, inProgress, completed, overdue });
+  console.log('📊 Stats updated:', { total, inProgress, completed, overdue });
 }
+
+// Clear all tasks (for testing/reset)
+window.clearAllTasks = function() {
+  if (!confirm('⚠️ هل أنت متأكد من حذف جميع المهام؟\n\nسيتم حذف جميع المهام نهائياً من القائمة.')) {
+    return;
+  }
+  
+  try {
+    // Clear from localStorage
+    localStorage.removeItem('adminTasks');
+    
+    // Clear from DOM
+    const tasksList = document.getElementById('tasksCardsList');
+    if (tasksList) {
+      const allTasks = tasksList.querySelectorAll('[data-task-id]');
+      allTasks.forEach(task => task.remove());
+    }
+    
+    // Update stats
+    updateTasksStats();
+    
+    console.log('🗑️ All tasks cleared');
+    alert('✅ تم حذف جميع المهام بنجاح');
+    
+  } catch (error) {
+    console.error('❌ Error clearing tasks:', error);
+    alert('حدث خطأ في حذف المهام');
+  }
+};
 
 // Show Success Toast
 function showSuccessToast(message) {
