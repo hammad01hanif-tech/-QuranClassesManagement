@@ -93,7 +93,8 @@ async function loadClasses() {
   snap.forEach(d => {
     const data = d.data();
     const cid = data.classId || d.id;
-    const label = data.className || cid;
+    // Use teacher name from teacherNames map, fallback to className or cid
+    const label = teacherNames[cid] || data.teacherName || data.className || cid;
     classesData.push({ cid, label });
     
     // Add to all dropdowns immediately (no waiting for attendance check)
@@ -5627,9 +5628,12 @@ window.loadClassesForNewDesign = async function() {
     // Add each class as an option
     classesSnapshot.forEach(doc => {
       const classData = doc.data();
+      const classId = doc.id;
       const option = document.createElement('option');
-      option.value = doc.id;
-      option.textContent = classData.name || doc.id;
+      option.value = classId;
+      // Display teacher name from teacherNames map, fallback to class name or ID
+      const displayName = teacherNames[classId] || classData.teacherName || classData.name || classId;
+      option.textContent = displayName;
       classSelect.appendChild(option);
     });
     
