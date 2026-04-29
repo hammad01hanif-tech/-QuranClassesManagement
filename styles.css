@@ -3975,3 +3975,57 @@ details[open] > summary {
 }
 
 /* END OF ADD NEW TASK PAGE DESIGN */
+
+/* ============================================
+   TASK DROPDOWN MENU STYLES
+   ============================================ */
+
+.task-status-dropdown-container {
+  position: relative;
+}
+
+.task-dropdown-menu {
+  animation: fadeIn 0.2s ease;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.task-dropdown-menu::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 10px;
+  width: 12px;
+  height: 12px;
+  background: white;
+  transform: rotate(45deg);
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Smooth hover transitions for dropdown items */
+.task-dropdown-menu > div {
+  will-change: background;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* END OF TASK DROPDOWN MENU STYLES */

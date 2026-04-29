@@ -5947,6 +5947,9 @@ window.initTasksPage = function() {
   // Update Hijri date
   updateTasksHijriDate();
   
+  // Load saved tasks from localStorage
+  loadTasksFromStorage();
+  
   // Load stats
   loadTasksStats();
   
@@ -6133,6 +6136,9 @@ window.saveNewTask = async function() {
     // Uncomment when Firebase is ready:
     // await addDoc(collection(db, 'tasks'), taskData);
     
+    // Save to localStorage for persistence
+    saveTaskToStorage(taskData);
+    
     // Add task to DOM immediately
     addTaskToList(taskData);
     
@@ -6167,8 +6173,8 @@ function addTaskToList(taskData) {
   const tasksCardsList = document.getElementById('tasksCardsList');
   if (!tasksCardsList) return;
   
-  // Generate unique ID for the task
-  const taskId = 'task_' + Date.now();
+  // Use existing ID or generate new one
+  const taskId = taskData.id || 'task_' + Date.now();
   
   // Get type icons
   const typeIcons = {
@@ -6222,7 +6228,21 @@ function addTaskToList(taskData) {
         <span class="task-priority-dot ${taskData.priority}"></span>
         <h4 class="task-card-title">${taskData.title}</h4>
       </div>
-      <span class="task-status-badge ${statusBadge.class}">${statusBadge.label}</span>
+      <div class="task-status-dropdown-container" style="position: relative;">
+        <span class="task-status-badge ${statusBadge.class}" onclick="toggleTaskDropdown(event, '${taskData.id || taskId}')" style="cursor: pointer; user-select: none;" title="اضغط للخيارات">
+          ${statusBadge.label}
+        </span>
+        <div class="task-dropdown-menu" id="dropdown-${taskData.id || taskId}" style="display: none; position: absolute; top: 100%; left: 0; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); padding: 8px; min-width: 140px; z-index: 1000; margin-top: 5px;">
+          <div onclick="markTaskComplete('${taskData.id || taskId}')" style="padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #333;" onmouseover="this.style.background='#e8f5e9'" onmouseout="this.style.background='transparent'">
+            <span style="font-size: 16px;">✅</span>
+            <span style="font-weight: 600;">مكتملة</span>
+          </div>
+          <div onclick="deleteTask('${taskData.id || taskId}')" style="padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #dc3545;" onmouseover="this.style.background='#ffebee'" onmouseout="this.style.background='transparent'">
+            <span style="font-size: 16px;">🗑️</span>
+            <span style="font-weight: 600;">حذف</span>
+          </div>
+        </div>
+      </div>
     </div>
     
     <div class="task-card-meta">
@@ -6253,6 +6273,188 @@ function addTaskToList(taskData) {
   
   console.log('Task added to DOM:', taskId);
 }
+
+// Save task to localStorage
+function saveTaskToStorage(taskData) {
+  try {
+    // Get existing tasks from localStorage
+    const existingTasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
+    
+    // Add timestamp as unique ID
+    taskData.id = 'task_' + Date.now();
+    
+    // Add new task
+    existingTasks.push(taskData);
+    
+    // Save back to localStorage
+    localStorage.setItem('adminTasks', JSON.stringify(existingTasks));
+    
+    console.log('✅ Task saved to localStorage:', taskData.id);
+  } catch (error) {
+    console.error('❌ Error saving task to localStorage:', error);
+  }
+}
+
+// Load tasks from localStorage
+function loadTasksFromStorage() {
+  try {
+    // Get tasks from localStorage
+    const savedTasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
+    
+    if (savedTasks.length === 0) {
+      console.log('ℹ️ No saved tasks in localStorage');
+      return;
+    }
+    
+    console.log(`📂 Loading ${savedTasks.length} tasks from localStorage...`);
+    
+    // Clear existing task cards (except sample tasks if you want to keep them)
+    const tasksList = document.getElementById('tasksCardsList');
+    if (!tasksList) return;
+    
+    // Remove only dynamically added tasks (those with data-task-id attribute)
+    const dynamicTasks = tasksList.querySelectorAll('[data-task-id]');
+    dynamicTasks.forEach(task => task.remove());
+    
+    // Add all saved tasks to DOM
+    savedTasks.forEach(taskData => {
+      addTaskToList(taskData);
+    });
+    
+    console.log('✅ Tasks loaded successfully');
+    
+  } catch (error) {
+    console.error('❌ Error loading tasks from localStorage:', error);
+  }
+}
+
+// Delete task from storage
+function deleteTaskFromStorage(taskId) {
+  try {
+    const existingTasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
+    const filteredTasks = existingTasks.filter(task => task.id !== taskId);
+    localStorage.setItem('adminTasks', JSON.stringify(filteredTasks));
+    console.log('✅ Task deleted from localStorage:', taskId);
+  } catch (error) {
+    console.error('❌ Error deleting task:', error);
+  }
+}
+
+// Toggle task dropdown menu
+window.toggleTaskDropdown = function(event, taskId) {
+  event.stopPropagation();
+  
+  const dropdown = document.getElementById(`dropdown-${taskId}`);
+  const allDropdowns = document.querySelectorAll('.task-dropdown-menu');
+  
+  // Close all other dropdowns
+  allDropdowns.forEach(dd => {
+    if (dd.id !== `dropdown-${taskId}`) {
+      dd.style.display = 'none';
+    }
+  });
+  
+  // Toggle current dropdown
+  if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+    dropdown.style.display = 'block';
+    dropdown.style.animation = 'fadeIn 0.2s ease';
+  } else {
+    dropdown.style.display = 'none';
+  }
+};
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+  if (!event.target.closest('.task-status-dropdown-container')) {
+    const allDropdowns = document.querySelectorAll('.task-dropdown-menu');
+    allDropdowns.forEach(dd => dd.style.display = 'none');
+  }
+});
+
+// Mark task as complete
+window.markTaskComplete = function(taskId) {
+  try {
+    // Close dropdown
+    const dropdown = document.getElementById(`dropdown-${taskId}`);
+    if (dropdown) dropdown.style.display = 'none';
+    
+    // Update in localStorage
+    const tasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
+    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    
+    if (taskIndex !== -1) {
+      tasks[taskIndex].status = 'completed';
+      localStorage.setItem('adminTasks', JSON.stringify(tasks));
+    }
+    
+    // Update in DOM
+    const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (taskCard) {
+      // Update status badge
+      const badge = taskCard.querySelector('.task-status-badge');
+      if (badge) {
+        badge.className = 'task-status-badge completed';
+        badge.textContent = 'مكتملة';
+      }
+      
+      // Update dataset
+      taskCard.dataset.status = 'completed';
+      
+      // Animate and move to bottom
+      taskCard.style.animation = 'pulse 0.4s ease';
+      
+      setTimeout(() => {
+        const tasksList = document.getElementById('tasksCardsList');
+        if (tasksList) {
+          tasksList.appendChild(taskCard);
+          taskCard.style.animation = 'slideUp 0.4s ease';
+        }
+      }, 400);
+    }
+    
+    // Update stats
+    updateTasksStats();
+    
+    console.log('✅ Task marked as complete:', taskId);
+    
+  } catch (error) {
+    console.error('❌ Error marking task complete:', error);
+    alert('حدث خطأ في تحديث المهمة');
+  }
+};
+
+// Delete task (from UI and storage)
+window.deleteTask = function(taskId) {
+  if (!confirm('هل أنت متأكد من حذف هذه المهمة؟')) {
+    return;
+  }
+  
+  try {
+    // Close dropdown
+    const dropdown = document.getElementById(`dropdown-${taskId}`);
+    if (dropdown) dropdown.style.display = 'none';
+    
+    // Remove from DOM
+    const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (taskCard) {
+      taskCard.style.animation = 'slideDown 0.3s ease';
+      setTimeout(() => {
+        taskCard.remove();
+        // Update stats after removal
+        updateTasksStats();
+      }, 300);
+    }
+    
+    // Remove from localStorage
+    deleteTaskFromStorage(taskId);
+    
+    console.log('✅ Task deleted successfully:', taskId);
+    
+  } catch (error) {
+    console.error('❌ Error deleting task:', error);
+    alert('حدث خطأ في حذف المهمة');
+  }
+};
 
 // Update Tasks Stats
 function updateTasksStats() {
