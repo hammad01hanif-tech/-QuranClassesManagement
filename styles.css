@@ -3656,3 +3656,322 @@ details[open] > summary {
 }
 
 /* END OF MODERN TASKS PAGE DESIGN */
+
+/* ============================================
+   ADD NEW TASK PAGE - MOBILE FIRST DESIGN
+   ============================================ */
+
+/* Add Task Header */
+.add-task-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.add-task-back-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 24px;
+  color: white;
+  backdrop-filter: blur(10px);
+}
+
+.add-task-back-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.add-task-back-btn:active {
+  transform: scale(0.95);
+}
+
+.add-task-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+/* Add Task Form Container */
+.add-task-form-container {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+  overflow-y: auto;
+  height: calc(100vh - 70px);
+}
+
+/* Form Sections */
+.form-section {
+  margin-bottom: 24px;
+}
+
+.form-section.half {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 24px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 10px;
+  padding-right: 4px;
+}
+
+.form-label.required::after {
+  content: ' *';
+  color: #dc3545;
+  font-weight: bold;
+}
+
+/* Form Inputs */
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.3s ease;
+  background: white;
+  color: #333;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: #999;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+/* Segmented Control for Task Type */
+.segmented-control {
+  display: flex;
+  gap: 8px;
+  background: #f0f0f0;
+  padding: 6px;
+  border-radius: 12px;
+}
+
+.segment-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 12px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+}
+
+.segment-btn .segment-icon {
+  font-size: 20px;
+}
+
+.segment-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.segment-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Priority Buttons */
+.priority-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.priority-btn {
+  flex: 1;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+}
+
+.priority-icon {
+  font-size: 24px;
+}
+
+.priority-btn:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.priority-btn.active {
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.priority-btn.low.active {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  border-color: #28a745;
+  color: #155724;
+}
+
+.priority-btn.medium.active {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%);
+  border-color: #ffc107;
+  color: #856404;
+}
+
+.priority-btn.high.active {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  border-color: #dc3545;
+  color: #721c24;
+}
+
+/* Form Submit Section */
+.form-submit-section {
+  margin-top: 32px;
+  margin-bottom: 20px;
+}
+
+.save-task-btn {
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 18px 24px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  font-family: inherit;
+}
+
+.save-task-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+}
+
+.save-task-btn:active {
+  transform: translateY(0);
+}
+
+.btn-icon {
+  font-size: 20px;
+}
+
+/* Success Toast Message */
+.task-success-toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(40, 167, 69, 0.4);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.task-success-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* Responsive Design for Add Task Page */
+@media (min-width: 768px) {
+  .add-task-header {
+    border-radius: 20px 20px 0 0;
+    margin: 0;
+  }
+  
+  .add-task-form-container {
+    padding: 30px 40px;
+  }
+  
+  .add-task-title {
+    font-size: 24px;
+  }
+  
+  .form-row {
+    gap: 20px;
+  }
+  
+  .priority-buttons {
+    gap: 15px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .add-task-form-container {
+    max-width: 700px;
+  }
+}
+
+/* END OF ADD NEW TASK PAGE DESIGN */

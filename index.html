@@ -917,6 +917,125 @@
           </div>
         </div>
 
+        <!-- Add New Task Page (Hidden initially) -->
+        <div id="addTaskPage" class="admin-main-section" style="display: none;">
+          
+          <!-- Add Task Header -->
+          <div class="add-task-header">
+            <button class="add-task-back-btn" onclick="closeAddTaskPage()">
+              <span>✕</span>
+            </button>
+            <h1 class="add-task-title">إضافة مهمة جديدة</h1>
+            <div style="width: 40px;"></div> <!-- Spacer for centering -->
+          </div>
+
+          <!-- Add Task Form Container -->
+          <div class="add-task-form-container">
+            
+            <!-- Task Title -->
+            <div class="form-section">
+              <label class="form-label required">عنوان المهمة</label>
+              <input type="text" id="newTaskTitle" class="form-input" placeholder="اكتب عنوان المهمة" required>
+            </div>
+
+            <!-- Task Description -->
+            <div class="form-section">
+              <label class="form-label">الوصف</label>
+              <textarea id="newTaskDescription" class="form-textarea" rows="4" placeholder="اكتب وصف المهمة (اختياري)"></textarea>
+            </div>
+
+            <!-- Task Type -->
+            <div class="form-section">
+              <label class="form-label required">نوع المهمة</label>
+              <div class="segmented-control">
+                <button class="segment-btn active" data-type="daily" onclick="selectTaskType('daily')">
+                  <span class="segment-icon">🔁</span>
+                  <span>يومية</span>
+                </button>
+                <button class="segment-btn" data-type="monthly" onclick="selectTaskType('monthly')">
+                  <span class="segment-icon">📊</span>
+                  <span>شهرية</span>
+                </button>
+                <button class="segment-btn" data-type="yearly" onclick="selectTaskType('yearly')">
+                  <span class="segment-icon">📆</span>
+                  <span>سنوية</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Assignee -->
+            <div class="form-section">
+              <label class="form-label required">المسؤول</label>
+              <select id="newTaskAssignee" class="form-select">
+                <option value="">-- اختر المسؤول --</option>
+                <option value="الكل">الكل</option>
+                <option value="عبدالمجيد">عبدالمجيد</option>
+                <option value="إدريس">إدريس</option>
+                <option value="حماد">حماد</option>
+                <option value="حمزة">حمزة</option>
+              </select>
+            </div>
+
+            <!-- Date and Time Row -->
+            <div class="form-row">
+              <!-- Date -->
+              <div class="form-section half">
+                <label class="form-label required">التاريخ</label>
+                <input type="date" id="newTaskDate" class="form-input">
+              </div>
+
+              <!-- Time -->
+              <div class="form-section half">
+                <label class="form-label required">الوقت</label>
+                <input type="time" id="newTaskTime" class="form-input">
+              </div>
+            </div>
+
+            <!-- Priority -->
+            <div class="form-section">
+              <label class="form-label required">الأولوية</label>
+              <div class="priority-buttons">
+                <button class="priority-btn low" data-priority="low" onclick="selectPriority('low')">
+                  <span class="priority-icon">🟢</span>
+                  <span>منخفضة</span>
+                </button>
+                <button class="priority-btn medium active" data-priority="medium" onclick="selectPriority('medium')">
+                  <span class="priority-icon">🟠</span>
+                  <span>متوسطة</span>
+                </button>
+                <button class="priority-btn high" data-priority="high" onclick="selectPriority('high')">
+                  <span class="priority-icon">🔴</span>
+                  <span>عالية</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Recurrence -->
+            <div class="form-section">
+              <label class="form-label">التكرار</label>
+              <select id="newTaskRecurrence" class="form-select">
+                <option value="none">بدون تكرار</option>
+                <option value="daily">يومي</option>
+                <option value="weekly">أسبوعي</option>
+                <option value="monthly">شهري</option>
+                <option value="yearly">سنوي</option>
+              </select>
+            </div>
+
+            <!-- Save Button -->
+            <div class="form-submit-section">
+              <button class="save-task-btn" onclick="saveNewTask()">
+                <span class="btn-icon">✅</span>
+                <span>حفظ المهمة</span>
+              </button>
+            </div>
+
+            <!-- Bottom Spacing for better scrolling -->
+            <div style="height: 100px;"></div>
+
+          </div>
+        </div>
+
         <!-- More Section (Hidden initially) -->
         <div id="moreSection" class="admin-main-section">
           <div class="section-header">

@@ -5971,4 +5971,224 @@ window.switchAdminSection = function(sectionName) {
   }
 };
 
+// ========================================
+// ADD NEW TASK PAGE FUNCTIONS
+// ========================================
+
+// Global variables for task form
+window.currentTaskType = 'daily';
+window.currentPriority = 'medium';
+
+// Open Add Task Page
+window.openAddTaskPage = function() {
+  const tasksSection = document.getElementById('tasksSection');
+  const addTaskPage = document.getElementById('addTaskPage');
+  
+  if (tasksSection && addTaskPage) {
+    // Hide tasks list, show add task page
+    tasksSection.style.display = 'none';
+    addTaskPage.style.display = 'block';
+    
+    // Reset form
+    resetTaskForm();
+    
+    // Set default date and time
+    const now = new Date();
+    const dateInput = document.getElementById('newTaskDate');
+    const timeInput = document.getElementById('newTaskTime');
+    
+    if (dateInput) {
+      dateInput.value = now.toISOString().split('T')[0];
+    }
+    
+    if (timeInput) {
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      timeInput.value = `${hours}:${minutes}`;
+    }
+  }
+};
+
+// Close Add Task Page
+window.closeAddTaskPage = function() {
+  const tasksSection = document.getElementById('tasksSection');
+  const addTaskPage = document.getElementById('addTaskPage');
+  
+  if (tasksSection && addTaskPage) {
+    // Show tasks list, hide add task page
+    addTaskPage.style.display = 'none';
+    tasksSection.style.display = 'block';
+  }
+};
+
+// Reset Task Form
+function resetTaskForm() {
+  // Reset text inputs
+  const titleInput = document.getElementById('newTaskTitle');
+  const descInput = document.getElementById('newTaskDescription');
+  const assigneeSelect = document.getElementById('newTaskAssignee');
+  const recurrenceSelect = document.getElementById('newTaskRecurrence');
+  
+  if (titleInput) titleInput.value = '';
+  if (descInput) descInput.value = '';
+  if (assigneeSelect) assigneeSelect.value = '';
+  if (recurrenceSelect) recurrenceSelect.value = 'none';
+  
+  // Reset task type to daily
+  window.currentTaskType = 'daily';
+  document.querySelectorAll('.segment-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.type === 'daily') {
+      btn.classList.add('active');
+    }
+  });
+  
+  // Reset priority to medium
+  window.currentPriority = 'medium';
+  document.querySelectorAll('.priority-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.priority === 'medium') {
+      btn.classList.add('active');
+    }
+  });
+}
+
+// Select Task Type
+window.selectTaskType = function(type) {
+  window.currentTaskType = type;
+  
+  // Update UI
+  document.querySelectorAll('.segment-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.type === type) {
+      btn.classList.add('active');
+    }
+  });
+};
+
+// Select Priority
+window.selectPriority = function(priority) {
+  window.currentPriority = priority;
+  
+  // Update UI
+  document.querySelectorAll('.priority-btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.priority === priority) {
+      btn.classList.add('active');
+    }
+  });
+};
+
+// Save New Task
+window.saveNewTask = async function() {
+  // Get form values
+  const title = document.getElementById('newTaskTitle')?.value.trim();
+  const description = document.getElementById('newTaskDescription')?.value.trim();
+  const assignee = document.getElementById('newTaskAssignee')?.value;
+  const date = document.getElementById('newTaskDate')?.value;
+  const time = document.getElementById('newTaskTime')?.value;
+  const recurrence = document.getElementById('newTaskRecurrence')?.value;
+  
+  // Validation
+  if (!title) {
+    alert('❌ الرجاء إدخال عنوان المهمة');
+    return;
+  }
+  
+  if (!assignee) {
+    alert('❌ الرجاء اختيار المسؤول');
+    return;
+  }
+  
+  if (!date) {
+    alert('❌ الرجاء اختيار التاريخ');
+    return;
+  }
+  
+  if (!time) {
+    alert('❌ الرجاء اختيار الوقت');
+    return;
+  }
+  
+  try {
+    // Prepare task data
+    const taskData = {
+      title: title,
+      description: description || '',
+      type: window.currentTaskType,
+      assignee: assignee,
+      date: date,
+      time: time,
+      priority: window.currentPriority,
+      recurrence: recurrence || 'none',
+      status: 'pending',
+      createdAt: serverTimestamp(),
+      createdBy: 'admin' // You can get current user ID here
+    };
+    
+    // Save to Firestore (you'll need to set up the collection)
+    // For now, we'll just log it and show success message
+    console.log('New task created:', taskData);
+    
+    // Uncomment when Firebase is ready:
+    // await addDoc(collection(db, 'tasks'), taskData);
+    
+    // Show success toast
+    showSuccessToast('✅ تم إضافة المهمة بنجاح');
+    
+    // Close page and return to appropriate tasks view
+    setTimeout(() => {
+      closeAddTaskPage();
+      
+      // Switch to appropriate period tab based on task type
+      if (window.currentTaskType === 'daily') {
+        switchTasksPeriod('today');
+      } else if (window.currentTaskType === 'monthly') {
+        switchTasksPeriod('month');
+      } else if (window.currentTaskType === 'yearly') {
+        switchTasksPeriod('year');
+      }
+      
+      // Reload tasks (you'll implement this based on your Firebase structure)
+      // loadTasksByPeriod(window.currentTaskType);
+    }, 1500);
+    
+  } catch (error) {
+    console.error('Error saving task:', error);
+    alert('❌ حدث خطأ في حفظ المهمة: ' + error.message);
+  }
+};
+
+// Show Success Toast
+function showSuccessToast(message) {
+  // Check if toast already exists
+  let toast = document.querySelector('.task-success-toast');
+  
+  if (!toast) {
+    // Create toast element
+    toast = document.createElement('div');
+    toast.className = 'task-success-toast';
+    document.body.appendChild(toast);
+  }
+  
+  toast.textContent = message;
+  
+  // Show toast
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+  
+  // Hide after 3 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3000);
+}
+
+// Update floating action button to open add task page
+window.showAddTaskModal = function() {
+  openAddTaskPage();
+};
+
+// END OF ADD NEW TASK PAGE FUNCTIONS
+
 // END OF MODERN TASKS PAGE FUNCTIONS
