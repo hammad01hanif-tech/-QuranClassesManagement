@@ -6396,11 +6396,14 @@ function createRecurringTaskCopy(originalTask) {
   taskDate.setHours(0, 0, 0, 0);
   
   if (originalTask.status === 'completed' && taskDate < today) {
-    // Task was completed after its due date - create next instance from today
-    nextDate = calculateNextRecurrenceDate(today.toISOString().split('T')[0], originalTask.recurrence);
+    // Task was completed after its due date (overdue)
+    // Create next instance for TODAY (not tomorrow) because we missed the days in between
+    nextDate = today.toISOString().split('T')[0];
+    console.log(`📅 Overdue task completed - creating instance for today: ${nextDate}`);
   } else {
     // Task completed on time - create next instance from task date
     nextDate = calculateNextRecurrenceDate(originalTask.date, originalTask.recurrence);
+    console.log(`📅 On-time completion - creating instance for: ${nextDate}`);
   }
   
   if (!nextDate) return null;
