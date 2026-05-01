@@ -6341,6 +6341,91 @@ function deleteTaskFromStorage(taskId) {
   }
 }
 
+// Calculate next recurrence date based on recurrence type
+function calculateNextRecurrenceDate(currentDate, recurrenceType) {
+  const nextDate = new Date(currentDate);
+  
+  switch(recurrenceType) {
+    case 'daily':
+      nextDate.setDate(nextDate.getDate() + 1);
+      break;
+    case 'weekly':
+      nextDate.setDate(nextDate.getDate() + 7);
+      break;
+    case 'monthly':
+      nextDate.setMonth(nextDate.getMonth() + 1);
+      break;
+    case 'yearly':
+      nextDate.setFullYear(nextDate.getFullYear() + 1);
+      break;
+    default:
+      return null;
+  }
+  
+  return nextDate.toISOString().split('T')[0];
+}
+
+// Check if there's an overdue instance of this recurring task
+function hasOverdueInstance(originalTaskId, tasks) {
+  return tasks.some(task => 
+    task.originalTaskId === originalTaskId && 
+    task.status === 'overdue'
+  );
+}
+
+// Create a new copy of a recurring task
+function createRecurringTaskCopy(originalTask) {
+  if (!originalTask.recurrence || originalTask.recurrence === 'none') {
+    return null;
+  }
+  
+  const tasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
+  const originalTaskId = originalTask.originalTaskId || originalTask.id;
+  
+  // Check if there's an overdue instance - if yes, don't create new copy
+  if (hasOverdueInstance(originalTaskId, tasks)) {
+    console.log(`⏸️ Skipping recurring task creation - overdue instance exists for: ${originalTask.title}`);
+    return null;
+  }
+  
+  // If task was overdue, next date should be today or appropriate future date
+  let nextDate;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const taskDate = new Date(originalTask.date);
+  taskDate.setHours(0, 0, 0, 0);
+  
+  if (originalTask.status === 'completed' && taskDate < today) {
+    // Task was completed after its due date - create next instance from today
+    nextDate = calculateNextRecurrenceDate(today.toISOString().split('T')[0], originalTask.recurrence);
+  } else {
+    // Task completed on time - create next instance from task date
+    nextDate = calculateNextRecurrenceDate(originalTask.date, originalTask.recurrence);
+  }
+  
+  if (!nextDate) return null;
+  
+  const newTask = {
+    ...originalTask,
+    id: `task_${Date.now()}`,
+    date: nextDate,
+    status: 'in-progress',
+    originalTaskId: originalTaskId,
+    createdAt: new Date().toISOString()
+  };
+  
+  // Save to localStorage
+  tasks.push(newTask);
+  localStorage.setItem('adminTasks', JSON.stringify(tasks));
+  
+  // Add to DOM
+  addTaskToList(newTask);
+  
+  console.log(`🔄 Created recurring task copy: ${newTask.title} for ${nextDate}`);
+  
+  return newTask;
+}
+
 // Check and update expired tasks
 function checkAndUpdateExpiredTasks() {
   try {
@@ -6352,6 +6437,7 @@ function checkAndUpdateExpiredTasks() {
     
     let tasksToUpdate = [];
     let tasksToDelete = [];
+    let recurringTasksToCreate = [];
     
     tasks.forEach(task => {
       if (!task.date) return; // Skip tasks without dates
@@ -6362,6 +6448,15 @@ function checkAndUpdateExpiredTasks() {
       // If task date is before today (task is expired)
       if (taskDate < today) {
         if (task.status === 'completed') {
+          // For completed recurring tasks, create next instance
+          if (task.recurrence && task.recurrence !== 'none') {
+            const originalTaskId = task.originalTaskId || task.id;
+            // Only create if no overdue instance exists
+            if (!hasOverdueInstance(originalTaskId, tasks)) {
+              recurringTasksToCreate.push(task);
+              console.log(`🔄 Will create next instance of: ${task.title}`);
+            }
+          }
           // Completed tasks are removed after their date
           tasksToDelete.push(task.id);
           console.log(`🗑️ Auto-deleting completed task: ${task.title}`);
@@ -6413,7 +6508,15 @@ function checkAndUpdateExpiredTasks() {
       console.log(`✅ Updated ${tasksToUpdate.length} tasks to overdue`);
     }
     
-    if (tasksToDelete.length > 0 || tasksToUpdate.length > 0) {
+    // Create recurring task copies
+    if (recurringTasksToCreate.length > 0) {
+      recurringTasksToCreate.forEach(task => {
+        createRecurringTaskCopy(task);
+      });
+      console.log(`✅ Created ${recurringTasksToCreate.length} recurring task instances`);
+    }
+    
+    if (tasksToDelete.length > 0 || tasksToUpdate.length > 0 || recurringTasksToCreate.length > 0) {
       // Update stats after changes
       setTimeout(() => {
         updateTasksStats();
@@ -6468,8 +6571,18 @@ window.markTaskComplete = function(taskId) {
     const taskIndex = tasks.findIndex(t => t.id === taskId);
     
     if (taskIndex !== -1) {
-      tasks[taskIndex].status = 'completed';
+      const completedTask = tasks[taskIndex];
+      completedTask.status = 'completed';
+      completedTask.completedAt = new Date().toISOString();
       localStorage.setItem('adminTasks', JSON.stringify(tasks));
+      
+      // If task is recurring, create next instance immediately
+      if (completedTask.recurrence && completedTask.recurrence !== 'none') {
+        setTimeout(() => {
+          createRecurringTaskCopy(completedTask);
+          updateTasksStats();
+        }, 500);
+      }
     }
     
     // Update in DOM
