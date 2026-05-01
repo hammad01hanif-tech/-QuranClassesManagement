@@ -6322,8 +6322,12 @@ function addTaskToList(taskData) {
         <span class="meta-text">${timeDisplay}</span>
       </div>
       <div class="task-meta-item">
-        <span class="meta-icon">${typeIcons[taskData.type]}</span>
-        <span class="meta-text">${typeLabels[taskData.type]}</span>
+        ${taskData.recurrence === 'daily' 
+          ? `<span class="meta-icon">🔁</span>
+             <span class="meta-text">يومية</span>`
+          : `<span class="meta-icon">📅</span>
+             <span class="meta-text">${formatAccurateHijriDate(taskData.date)}</span>`
+        }
       </div>
       <div class="task-meta-item priority">
         <span class="meta-icon">${priorityIcons[taskData.priority]}</span>
