@@ -6243,6 +6243,33 @@ function addTaskToList(taskData) {
   // Use existing ID or generate new one
   const taskId = taskData.id || 'task_' + Date.now();
   
+  // Helper function to format Hijri date from Gregorian date string
+  const getHijriDateDisplay = (gregorianDateString) => {
+    try {
+      // Find exact match in accurate Hijri calendar data
+      const hijriEntry = accurateHijriDates.find(entry => entry.gregorian === gregorianDateString);
+      
+      if (hijriEntry) {
+        // Use data from accurate calendar
+        const hijriMonths = [
+          'المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+          'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+          'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+        ];
+        
+        const monthName = hijriMonths[hijriEntry.hijriMonth - 1];
+        return `${hijriEntry.hijriDay} ${monthName} ${hijriEntry.hijriYear} هـ`;
+      } else {
+        // Date not in accurate calendar - show Gregorian as fallback
+        console.warn(`Date ${gregorianDateString} not found in accurate Hijri calendar`);
+        return gregorianDateString;
+      }
+    } catch (error) {
+      console.error('Error converting to Hijri:', error);
+      return gregorianDateString;
+    }
+  };
+  
   // Get type icons
   const typeIcons = {
     'daily': '🔁',
@@ -6326,7 +6353,7 @@ function addTaskToList(taskData) {
           ? `<span class="meta-icon">🔁</span>
              <span class="meta-text">يومية</span>`
           : `<span class="meta-icon">📅</span>
-             <span class="meta-text">${formatAccurateHijriDate(taskData.date)}</span>`
+             <span class="meta-text">${getHijriDateDisplay(taskData.date)}</span>`
         }
       </div>
       <div class="task-meta-item priority">
