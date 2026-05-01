@@ -794,8 +794,20 @@
               <textarea id="newTaskDescription" class="form-textarea" rows="4" placeholder="اكتب وصف المهمة (اختياري)"></textarea>
             </div>
 
-            <!-- Task Type -->
+            <!-- Recurrence (Moved here - after description) -->
             <div class="form-section">
+              <label class="form-label required">التكرار</label>
+              <select id="newTaskRecurrence" class="form-select" onchange="handleRecurrenceChange()">
+                <option value="none">بدون تكرار</option>
+                <option value="daily">يومي</option>
+                <option value="weekly">أسبوعي</option>
+                <option value="monthly">شهري</option>
+                <option value="yearly">سنوي</option>
+              </select>
+            </div>
+
+            <!-- Task Type (conditionally shown) -->
+            <div class="form-section" id="taskTypeSection">
               <label class="form-label required">نوع المهمة</label>
               <div class="segmented-control">
                 <button class="segment-btn active" data-type="daily" onclick="selectTaskType('daily')">
@@ -828,14 +840,14 @@
 
             <!-- Date and Time Row -->
             <div class="form-row">
-              <!-- Date -->
-              <div class="form-section half">
+              <!-- Date (conditionally shown) -->
+              <div class="form-section half" id="taskDateSection">
                 <label class="form-label required">التاريخ</label>
                 <input type="date" id="newTaskDate" class="form-input">
               </div>
 
               <!-- Time -->
-              <div class="form-section half">
+              <div class="form-section half" id="taskTimeSection">
                 <label class="form-label required">الوقت</label>
                 <input type="time" id="newTaskTime" class="form-input">
               </div>
@@ -858,18 +870,6 @@
                   <span>عالية</span>
                 </button>
               </div>
-            </div>
-
-            <!-- Recurrence -->
-            <div class="form-section">
-              <label class="form-label">التكرار</label>
-              <select id="newTaskRecurrence" class="form-select">
-                <option value="none">بدون تكرار</option>
-                <option value="daily">يومي</option>
-                <option value="weekly">أسبوعي</option>
-                <option value="monthly">شهري</option>
-                <option value="yearly">سنوي</option>
-              </select>
             </div>
 
             <!-- Save Button -->

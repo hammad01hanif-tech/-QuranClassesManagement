@@ -6049,7 +6049,75 @@ function resetTaskForm() {
       btn.classList.add('active');
     }
   });
+  
+  // Reset form visibility (show all fields by default)
+  handleRecurrenceChange();
 }
+
+// Handle Recurrence Change - Dynamic Form Logic
+window.handleRecurrenceChange = function() {
+  const recurrence = document.getElementById('newTaskRecurrence')?.value || 'none';
+  const taskTypeSection = document.getElementById('taskTypeSection');
+  const taskDateSection = document.getElementById('taskDateSection');
+  const taskTimeSection = document.getElementById('taskTimeSection');
+  
+  if (recurrence === 'daily') {
+    // For daily recurring tasks: hide task type and date, show only time
+    if (taskTypeSection) {
+      taskTypeSection.style.maxHeight = taskTypeSection.scrollHeight + 'px';
+      setTimeout(() => {
+        taskTypeSection.style.maxHeight = '0px';
+        taskTypeSection.style.opacity = '0';
+        taskTypeSection.style.marginBottom = '0';
+        taskTypeSection.style.overflow = 'hidden';
+      }, 10);
+    }
+    
+    if (taskDateSection) {
+      taskDateSection.style.maxHeight = taskDateSection.scrollHeight + 'px';
+      setTimeout(() => {
+        taskDateSection.style.maxHeight = '0px';
+        taskDateSection.style.opacity = '0';
+        taskDateSection.style.overflow = 'hidden';
+        taskDateSection.style.display = 'none';
+      }, 10);
+    }
+    
+    // Expand time section to full width
+    if (taskTimeSection) {
+      taskTimeSection.classList.remove('half');
+      taskTimeSection.classList.add('full-width');
+    }
+    
+    console.log('📋 Recurring daily task mode - simplified form');
+    
+  } else {
+    // For non-recurring or other recurrence types: show all fields
+    if (taskTypeSection) {
+      taskTypeSection.style.maxHeight = '1000px';
+      taskTypeSection.style.opacity = '1';
+      taskTypeSection.style.marginBottom = '';
+      taskTypeSection.style.overflow = 'visible';
+    }
+    
+    if (taskDateSection) {
+      taskDateSection.style.display = 'block';
+      setTimeout(() => {
+        taskDateSection.style.maxHeight = '1000px';
+        taskDateSection.style.opacity = '1';
+        taskDateSection.style.overflow = 'visible';
+      }, 10);
+    }
+    
+    // Restore half width for date and time
+    if (taskTimeSection) {
+      taskTimeSection.classList.remove('full-width');
+      taskTimeSection.classList.add('half');
+    }
+    
+    console.log('📋 Standard task mode - full form');
+  }
+};
 
 // Select Task Type
 window.selectTaskType = function(type) {
@@ -6098,7 +6166,8 @@ window.saveNewTask = async function() {
     return;
   }
   
-  if (!date) {
+  // Date validation: only required if recurrence is not daily
+  if (recurrence !== 'daily' && !date) {
     alert('❌ الرجاء اختيار التاريخ');
     return;
   }
@@ -6109,13 +6178,16 @@ window.saveNewTask = async function() {
   }
   
   try {
+    // For daily recurring tasks, use today's date automatically
+    const taskDate = recurrence === 'daily' ? new Date().toISOString().split('T')[0] : date;
+    
     // Prepare task data
     const taskData = {
       title: title,
       description: description || '',
-      type: window.currentTaskType,
+      type: window.currentTaskType || 'daily',
       assignee: assignee,
-      date: date,
+      date: taskDate,
       time: time,
       priority: window.currentPriority,
       recurrence: recurrence || 'none',

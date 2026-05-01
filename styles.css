@@ -3721,11 +3721,17 @@ details[open] > summary {
 /* Form Sections */
 .form-section {
   margin-bottom: 24px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .form-section.half {
   flex: 1;
   min-width: 0;
+}
+
+.form-section.full-width {
+  width: 100% !important;
+  flex: 1 1 100%;
 }
 
 .form-row {
