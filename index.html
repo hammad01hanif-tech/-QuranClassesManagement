@@ -54,9 +54,8 @@
       
       <!-- Top Header -->
       <div class="new-admin-header" id="mainAdminHeader">
-        <div class="admin-greeting">
-          <div class="greeting-icon">🌙</div>
-          <div class="greeting-text">السلام عليكم</div>
+        <div class="admin-page-title">
+          <h2 class="page-title-text">صفحة الإدارة</h2>
         </div>
         <div class="admin-header-right">
           <button class="new-notification-btn" onclick="window.toggleAdminNotifications()">
@@ -67,6 +66,10 @@
             <span class="hijri-icon">📅</span>
             <span id="hijriDateText">--</span>
           </div>
+          <button class="logout-btn" onclick="window.logoutFromAdmin()" title="تسجيل الخروج">
+            <span class="logout-icon">🚪</span>
+            <span class="logout-text">خروج</span>
+          </button>
         </div>
       </div>
 

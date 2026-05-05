@@ -2798,6 +2798,22 @@ window.toggleAdminNotifications = function() {
   }
 };
 
+// Logout from admin panel
+window.logoutFromAdmin = function() {
+  // Confirm logout
+  if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+    // Clear any admin session data if exists
+    localStorage.removeItem('adminLoggedIn');
+    sessionStorage.removeItem('adminSession');
+    
+    // Redirect to login or home page
+    window.location.href = 'index.html';
+    
+    // Show success message
+    console.log('✅ تم تسجيل الخروج بنجاح');
+  }
+};
+
 // Load admin notifications
 async function loadAdminNotifications() {
   const notificationsList = document.getElementById('adminNotificationsList');

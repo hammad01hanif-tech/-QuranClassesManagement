@@ -2467,7 +2467,7 @@ details[open] > summary {
 /* Top Header */
 .new-admin-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  padding: 18px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2476,27 +2476,27 @@ details[open] > summary {
   position: sticky;
   top: 0;
   z-index: 100;
+  gap: 20px;
 }
 
-.admin-greeting {
+.admin-page-title {
   display: flex;
   align-items: center;
-  gap: 10px;
 }
 
-.greeting-icon {
-  font-size: 28px;
-}
-
-.greeting-text {
-  font-size: 18px;
-  font-weight: bold;
+.page-title-text {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  color: white;
+  letter-spacing: 0.3px;
 }
 
 .admin-header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  flex-wrap: nowrap;
 }
 
 .new-notification-btn {
@@ -2536,8 +2536,9 @@ details[open] > summary {
 
 .hijri-date-display {
   background: rgba(255,255,255,0.2);
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 20px;
+  white-space: nowrap;
   font-size: 13px;
   display: flex;
   align-items: center;
@@ -2547,6 +2548,43 @@ details[open] > summary {
 
 .hijri-icon {
   font-size: 16px;
+}
+
+/* Logout Button */
+.logout-btn {
+  background: rgba(255,255,255,0.25);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  backdrop-filter: blur(10px);
+}
+
+.logout-btn:hover {
+  background: rgba(255,255,255,0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.logout-btn:active {
+  transform: translateY(0);
+  background: rgba(255,255,255,0.4);
+}
+
+.logout-icon {
+  font-size: 16px;
+}
+
+.logout-text {
+  font-size: 14px;
 }
 
 /* Main Content Area */
@@ -2939,6 +2977,29 @@ details[open] > summary {
 }
 
 /* Responsive Design */
+@media (max-width: 600px) {
+  .new-admin-header {
+    padding: 15px 18px;
+  }
+  
+  .page-title-text {
+    font-size: 18px;
+  }
+  
+  .logout-text {
+    display: none;
+  }
+  
+  .logout-btn {
+    padding: 8px 12px;
+  }
+  
+  .hijri-date-display {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
+
 @media (min-width: 768px) {
   .stats-grid {
     grid-template-columns: repeat(4, 1fr);
