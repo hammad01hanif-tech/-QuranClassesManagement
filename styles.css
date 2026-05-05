@@ -2552,39 +2552,34 @@ details[open] > summary {
 
 /* Logout Button */
 .logout-btn {
-  background: rgba(255,255,255,0.25);
-  border: 1px solid rgba(255,255,255,0.3);
-  padding: 8px 16px;
+  background: rgba(255,255,255,0.2);
+  border: none;
+  padding: 8px 14px;
   border-radius: 20px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
   color: white;
-  font-weight: 600;
   font-size: 14px;
-  backdrop-filter: blur(10px);
+  min-width: 40px;
+  height: 36px;
 }
 
 .logout-btn:hover {
-  background: rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.3);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .logout-btn:active {
-  transform: translateY(0);
-  background: rgba(255,255,255,0.4);
+  transform: scale(0.95);
+  background: rgba(255,255,255,0.35);
 }
 
 .logout-icon {
-  font-size: 16px;
-}
-
-.logout-text {
-  font-size: 14px;
+  font-size: 18px;
 }
 
 /* Main Content Area */
@@ -2986,17 +2981,19 @@ details[open] > summary {
     font-size: 18px;
   }
   
-  .logout-text {
-    display: none;
-  }
-  
-  .logout-btn {
-    padding: 8px 12px;
-  }
-  
   .hijri-date-display {
     font-size: 12px;
     padding: 6px 10px;
+  }
+  
+  .logout-btn {
+    padding: 6px 10px;
+    min-width: 36px;
+    height: 32px;
+  }
+  
+  .logout-icon {
+    font-size: 16px;
   }
 }
 
