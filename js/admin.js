@@ -2803,12 +2803,17 @@ window.toggleAdminNotifications = function() {
 window.logoutFromAdmin = function() {
   // Confirm logout
   if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-    // Clear any admin session data if exists
-    localStorage.removeItem('adminLoggedIn');
-    sessionStorage.removeItem('adminSession');
+    console.log('🚪 Logging out from admin...');
     
-    // Redirect to login or home page
-    window.location.href = 'index.html';
+    // Clear admin session data (correct key name!)
+    sessionStorage.removeItem('loggedInAdmin');
+    localStorage.removeItem('adminLoggedIn');
+    
+    // Hide admin section
+    document.getElementById('adminSection').style.display = 'none';
+    
+    // Show role selection
+    document.getElementById('roleSelection').style.display = 'flex';
     
     // Show success message
     console.log('✅ تم تسجيل الخروج بنجاح');
