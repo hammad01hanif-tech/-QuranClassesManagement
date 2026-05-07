@@ -6238,8 +6238,12 @@ window.saveNewTask = async function() {
     const taskId = await saveTaskToStorage(taskData);
     taskData.id = taskId; // Update local copy with the generated ID
     
-    // Add task to DOM immediately
+    // Add to DOM immediately for instant feedback (optimistic update)
     addTaskToList(taskData);
+    
+    // Track this task to prevent duplicate when listener fires
+    locallyAddedTaskIds.add(taskId);
+    console.log('✅ Task added with optimistic update, ID:', taskId);
     
     // Update stats
     updateTasksStats();
@@ -6483,6 +6487,8 @@ async function loadTasksFromStorage() {
 
 // Setup real-time listener for automatic cross-device sync
 let tasksUnsubscribe = null;
+let locallyAddedTaskIds = new Set(); // Track tasks added locally to prevent duplicates
+
 function setupTasksRealtimeListener() {
   try {
     // Unsubscribe from previous listener if exists
@@ -6503,7 +6509,14 @@ function setupTasksRealtimeListener() {
           console.log(`🔄 Change type: ${change.type}, Task: ${taskData.title}`);
           
           if (change.type === 'added') {
-            // Check if task already exists in DOM (avoid duplicates on initial load)
+            // Check if task was just added locally (optimistic update)
+            if (locallyAddedTaskIds.has(taskData.id)) {
+              console.log('⏩ Task added locally, skipping listener duplicate:', taskData.title);
+              locallyAddedTaskIds.delete(taskData.id); // Remove from tracking
+              return;
+            }
+            
+            // Check if task already exists in DOM (avoid duplicates)
             const existingCard = document.querySelector(`[data-task-id="${taskData.id}"]`);
             if (!existingCard) {
               console.log('➕ Real-time: Task added -', taskData.title);
