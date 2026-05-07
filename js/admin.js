@@ -5285,49 +5285,66 @@ window.loadDashboardTasks = async function() {
       return;
     }
     
-    // Filter and sort tasks
+    // Collect all tasks
     const allTasks = [];
     tasksSnapshot.forEach(doc => {
       const task = { id: doc.id, ...doc.data() };
       allTasks.push(task);
     });
     
-    // Filter tasks for today (including daily recurring tasks)
+    // Count today's tasks only (for the counter)
     const todayTasks = allTasks.filter(task => {
-      // Include daily recurring tasks
       if (task.recurrence === 'daily') return true;
-      
-      // Include tasks with today's date
       if (task.date === todayString) return true;
-      
       return false;
     });
+    document.getElementById('todayTasksCount').textContent = todayTasks.length;
     
-    // Sort by priority (high -> medium -> low) and status (in-progress first)
+    // Filter tasks for dashboard display (exclude old completed tasks)
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayString = yesterday.toISOString().split('T')[0];
+    
+    const displayTasks = allTasks.filter(task => {
+      // Exclude completed tasks older than yesterday
+      if (task.status === 'completed' && task.date < yesterdayString) {
+        return false;
+      }
+      return true;
+    });
+    
+    // Sort by priority FIRST (high -> medium -> low), then by status
     const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
-    const statusOrder = { 'in-progress': 4, 'pending': 3, 'overdue': 2, 'completed': 1 };
+    const statusOrder = { 'in-progress': 4, 'overdue': 3, 'pending': 2, 'completed': 1 };
     
-    todayTasks.sort((a, b) => {
-      // First by status
-      const statusDiff = (statusOrder[b.status] || 0) - (statusOrder[a.status] || 0);
-      if (statusDiff !== 0) return statusDiff;
-      
-      // Then by priority
+    displayTasks.sort((a, b) => {
+      // First by priority (most important!)
       const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
       if (priorityDiff !== 0) return priorityDiff;
       
-      // Then by time
+      // Then by status (in-progress first)
+      const statusDiff = (statusOrder[b.status] || 0) - (statusOrder[a.status] || 0);
+      if (statusDiff !== 0) return statusDiff;
+      
+      // Then by date (closer dates first)
+      if (a.date && b.date) {
+        return a.date.localeCompare(b.date);
+      }
+      
+      // Finally by time
       return (a.time || '').localeCompare(b.time || '');
     });
     
-    // Update count
-    document.getElementById('todayTasksCount').textContent = todayTasks.length;
+    // Take top 3 tasks (regardless of date)
+    const topTasks = displayTasks.slice(0, 3);
     
-    // Take top 3 tasks
-    const topTasks = todayTasks.slice(0, 3);
+    console.log(`📊 Dashboard: ${todayTasks.length} today's tasks, showing top ${topTasks.length} by priority`);
+    topTasks.forEach((task, index) => {
+      console.log(`  ${index + 1}. [${task.priority?.toUpperCase()}] ${task.title} (${task.status})`);
+    });
     
     if (topTasks.length === 0) {
-      todayTasksList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">لا توجد مهام اليوم</div>';
+      todayTasksList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">لا توجد مهام</div>';
       return;
     }
     
