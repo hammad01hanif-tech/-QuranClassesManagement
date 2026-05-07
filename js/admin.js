@@ -5295,10 +5295,21 @@ window.loadDashboardStats = async function() {
     // Check students in each class (for debugging)
     if (totalStudents === 0 && totalClasses > 0) {
       console.log('\n🔍 DEBUG: Checking students in each class...');
+      let hasStudents = false;
       for (const classDoc of classesSnapshot.docs) {
         const classId = classDoc.id;
         const studentsInClass = await getDocs(collection(db, 'classes', classId, 'students'));
         console.log(`   📚 ${classId}: ${studentsInClass.size} students`);
+        if (studentsInClass.size > 0) hasStudents = true;
+      }
+      
+      if (!hasStudents) {
+        console.log('\n⚠️ ===============================================');
+        console.log('⚠️  NO STUDENTS DATA IN FIRESTORE DATABASE');
+        console.log('⚠️ ===============================================');
+        console.log('💡 Solution: Add students using Teacher section or Admin section');
+        console.log('📖 Note: This is NOT a code error - database is simply empty');
+        console.log('⚠️ ===============================================\n');
       }
     }
     
@@ -5330,13 +5341,15 @@ window.loadDashboardTasks = async function() {
     }
     console.log('✅ todayTasksList element found');
     
-    // Get today's date
+    // Get today's date (use local timezone, not UTC)
     const today = new Date();
-    const originalDate = new Date(today); // Save original for logging
-    today.setHours(0, 0, 0, 0);
-    const todayString = today.toISOString().split('T')[0];
-    console.log(`📅 Today's date: ${todayString}`);
-    console.log(`📅 System date: ${originalDate.toLocaleString('ar-SA')} (${originalDate.toISOString()})`);
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
+    
+    console.log(`📅 Today's date (local): ${todayString}`);
+    console.log(`📅 System date: ${today.toLocaleString('ar-SA')} (UTC: ${today.toISOString()})`);
     
     // Get all tasks from Firestore
     console.log('🔍 Fetching all tasks from Firestore...');
