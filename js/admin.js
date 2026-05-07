@@ -5243,23 +5243,34 @@ window.loadDashboardStats = async function() {
     console.log('📌 Function: loadDashboardStats() called');
     
     // Count total students from ALL classes
-    console.log('🔍 Step 1: Getting students from all classes using collectionGroup...');
-    const studentsSnapshot = await getDocs(collectionGroup(db, 'students'));
-    const totalStudents = studentsSnapshot.size;
-    console.log(`📊 Raw students count from Firestore: ${totalStudents}`);
-    console.log(`📊 Number of student documents found: ${studentsSnapshot.docs.length}`);
+    console.log('🔍 Step 1: Getting students from all classes...');
+    console.log('📍 Reading from: users collection (role: student)');
+    
+    // Fetch all users and filter students
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    const allUsers = [];
+    usersSnapshot.forEach(doc => {
+      allUsers.push({ id: doc.id, ...doc.data() });
+    });
+    
+    // Filter only students
+    const students = allUsers.filter(user => user.role === 'student');
+    const totalStudents = students.length;
+    
+    console.log(`📊 Total users in database: ${allUsers.length}`);
+    console.log(`📊 Students found (role=student): ${totalStudents}`);
+    console.log(`📊 Other users: ${allUsers.length - totalStudents}`);
     
     // Log first few students to verify data exists
-    if (studentsSnapshot.docs.length > 0) {
-      console.log('📝 First 3 students (sample):');
-      studentsSnapshot.docs.slice(0, 3).forEach((doc, index) => {
-        const studentData = doc.data();
-        console.log(`   ${index + 1}. ID: ${doc.id}, Name: ${studentData.name || 'N/A'}, Class: ${doc.ref.parent.parent?.id || 'Unknown'}`);
+    if (totalStudents > 0) {
+      console.log('📝 First 5 students (sample):');
+      students.slice(0, 5).forEach((student, index) => {
+        console.log(`   ${index + 1}. ID: ${student.id || student.userId}, Name: ${student.name || 'N/A'}, Class: ${student.classId || 'Unknown'}`);
       });
     } else {
       console.warn('⚠️ WARNING: No students found in Firestore!');
-      console.log('💡 TIP: Check if students are added as subcollections under classes/');
-      console.log('💡 Expected structure: classes/{classId}/students/{studentId}');
+      console.log('💡 TIP: Check if students are added in users collection with role: "student"');
+      console.log('💡 Expected structure: users/{userId} with field role: "student"');
     }
     
     document.getElementById('totalStudentsCount').textContent = totalStudents;
@@ -5293,24 +5304,30 @@ window.loadDashboardStats = async function() {
     console.log('📋 Classes list:', classNames.join(', ') || 'No classes');
     
     // Check students in each class (for debugging)
-    if (totalStudents === 0 && totalClasses > 0) {
-      console.log('\n🔍 DEBUG: Checking students in each class...');
-      let hasStudents = false;
-      for (const classDoc of classesSnapshot.docs) {
-        const classId = classDoc.id;
-        const studentsInClass = await getDocs(collection(db, 'classes', classId, 'students'));
-        console.log(`   📚 ${classId}: ${studentsInClass.size} students`);
-        if (studentsInClass.size > 0) hasStudents = true;
-      }
+    if (ount students per class (for debugging)
+    if (totalClasses > 0) {
+      console.log('\n🔍 DEBUG: Counting students in each class...');
       
-      if (!hasStudents) {
-        console.log('\n⚠️ ===============================================');
-        console.log('⚠️  NO STUDENTS DATA IN FIRESTORE DATABASE');
-        console.log('⚠️ ===============================================');
-        console.log('💡 Solution: Add students using Teacher section or Admin section');
-        console.log('📖 Note: This is NOT a code error - database is simply empty');
-        console.log('⚠️ ===============================================\n');
-      }
+      // Group students by class
+      const studentsByClass = {};
+      students.forEach(student => {
+        const classId = student.classId;
+        if (classId) {
+          studentsByClass[classId] = (studentsByClass[classId] || 0) + 1;
+        }
+      });
+      
+      // Display count for each class
+      classesSnapshot.forEach(doc => {
+        const classId = doc.id;
+        const count = studentsByClass[classId] || 0;
+        const className = doc.data().className || doc.data().classId || classId;
+        console.log(`   📚 ${classId} (${className}): ${count} students`);
+      });
+      
+      const studentsWithoutClass = students.filter(s => !s.classId).length;
+      if (studentsWithoutClass > 0) {
+        console.log(`   ⚠️ Students without classId: ${studentsWithoutClass}`
     }
     
     // Load today's tasks from Firestore
@@ -5537,36 +5554,58 @@ function setupDashboardTasksListener() {
 
 // Setup real-time listener for dashboard statistics (students & classes)
 let dashboardStatsUnsubscribe = null;
+let dashboardUsersUnsubscribe = null;
+
 function setupDashboardStatsListener() {
-  // Unsubscribe from previous listener if exists
+  // Unsubscribe from previous listeners if exist
   if (dashboardStatsUnsubscribe) {
     dashboardStatsUnsubscribe();
   }
+  if (dashboardUsersUnsubscribe) {
+    dashboardUsersUnsubscribe();
+  }
   
-  console.log('🔄 Setting up dashboard stats listener...');
+  console.log('🔄 Setting up dashboard stats listeners...');
   
   // Listen to changes in classes collection
   dashboardStatsUnsubscribe = onSnapshot(
     collection(db, 'classes'),
     (snapshot) => {
-      console.log('📡 Dashboard stats update received');
-      
-      // Reload only the stats (not tasks)
+      console.log('📡 Dashboard classes update received');
       reloadDashboardCounts();
     },
     (error) => {
-      console.error('❌ Dashboard stats listener error:', error);
+      console.error('❌ Dashboard classes listener error:', error);
     }
   );
   
-  console.log('✅ Dashboard stats real-time sync active');
+  // Listen to changes in users collection (for students count)
+  dashboardUsersUnsubscribe = onSnapshot(
+    collection(db, 'users'),
+    (snapshot) => {
+      console.log('📡 Dashboard users/students update received');
+      reloadDashboardCounts();
+    },
+    (error) => {
+      console.error('❌ Dashboard users listener error:', error);
+    }
+  );
+  
+  console.log('✅ Dashboard stats real-time sync active (classes + users)');
 }
 
 // Reload dashboard counts only (without tasks)
-async function reloadDashboardCounts() {
-  try {
-    console.log('\n🔄 ====== RELOADING DASHBOARD COUNTS ======');
-    console.log('📍 Function: reloadDashboardCounts() called (triggered by listener)');
+async function reloadDashbo from users collection
+    console.log('🔍 Fetching students count from users collection...');
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    const students = [];
+    usersSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.role === 'student') {
+        students.push(data);
+      }
+    });
+    const totalStudents = students.lengthunts() called (triggered by listener)');
     
     // Count total students
     console.log('🔍 Fetching students count...');
