@@ -5249,8 +5249,8 @@ window.loadDashboardStats = async function() {
     const totalClasses = classesSnapshot.size;
     document.getElementById('totalClassesCount').textContent = totalClasses;
     
-    // Today's tasks count (placeholder - replace with actual data)
-    document.getElementById('todayTasksCount').textContent = '3';
+    // Load today's tasks from Firestore
+    await loadDashboardTasks();
     
     // Today's absent count (placeholder - replace with actual data)
     document.getElementById('todayAbsentCount').textContent = '0';
@@ -5259,6 +5259,169 @@ window.loadDashboardStats = async function() {
     console.error('Error loading dashboard stats:', error);
   }
 };
+
+// Load today's tasks for dashboard (top 3 important tasks)
+window.loadDashboardTasks = async function() {
+  try {
+    console.log('📥 Loading dashboard tasks...');
+    
+    const todayTasksList = document.getElementById('todayTasksList');
+    if (!todayTasksList) {
+      console.error('❌ todayTasksList element not found');
+      return;
+    }
+    
+    // Get today's date
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayString = today.toISOString().split('T')[0];
+    
+    // Get all tasks from Firestore
+    const tasksSnapshot = await getDocs(collection(db, 'tasks'));
+    
+    if (tasksSnapshot.empty) {
+      todayTasksList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">لا توجد مهام اليوم</div>';
+      document.getElementById('todayTasksCount').textContent = '0';
+      return;
+    }
+    
+    // Filter and sort tasks
+    const allTasks = [];
+    tasksSnapshot.forEach(doc => {
+      const task = { id: doc.id, ...doc.data() };
+      allTasks.push(task);
+    });
+    
+    // Filter tasks for today (including daily recurring tasks)
+    const todayTasks = allTasks.filter(task => {
+      // Include daily recurring tasks
+      if (task.recurrence === 'daily') return true;
+      
+      // Include tasks with today's date
+      if (task.date === todayString) return true;
+      
+      return false;
+    });
+    
+    // Sort by priority (high -> medium -> low) and status (in-progress first)
+    const priorityOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+    const statusOrder = { 'in-progress': 4, 'pending': 3, 'overdue': 2, 'completed': 1 };
+    
+    todayTasks.sort((a, b) => {
+      // First by status
+      const statusDiff = (statusOrder[b.status] || 0) - (statusOrder[a.status] || 0);
+      if (statusDiff !== 0) return statusDiff;
+      
+      // Then by priority
+      const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+      if (priorityDiff !== 0) return priorityDiff;
+      
+      // Then by time
+      return (a.time || '').localeCompare(b.time || '');
+    });
+    
+    // Update count
+    document.getElementById('todayTasksCount').textContent = todayTasks.length;
+    
+    // Take top 3 tasks
+    const topTasks = todayTasks.slice(0, 3);
+    
+    if (topTasks.length === 0) {
+      todayTasksList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">لا توجد مهام اليوم</div>';
+      return;
+    }
+    
+    // Clear existing tasks
+    todayTasksList.innerHTML = '';
+    
+    // Create task items
+    topTasks.forEach(task => {
+      const taskItem = createDashboardTaskItem(task);
+      todayTasksList.appendChild(taskItem);
+    });
+    
+    console.log(`✅ Loaded ${topTasks.length} dashboard tasks`);
+    
+  } catch (error) {
+    console.error('❌ Error loading dashboard tasks:', error);
+  }
+};
+
+// Create dashboard task item HTML
+function createDashboardTaskItem(task) {
+  const taskItem = document.createElement('div');
+  
+  // Map status to class names
+  const statusClass = task.status === 'completed' ? 'completed' :
+                      task.status === 'overdue' ? 'overdue' :
+                      task.status === 'in-progress' ? 'in-progress' : 'not-started';
+  
+  const statusText = task.status === 'completed' ? 'مكتملة' :
+                     task.status === 'overdue' ? 'متأخرة' :
+                     task.status === 'in-progress' ? 'جاري التنفيذ' : 'لم تبدأ';
+  
+  // Format time (HH:MM)
+  const timeFormatted = task.time ? task.time.substring(0, 5) : '00:00';
+  
+  // Priority icon
+  const priorityIcons = {
+    'high': '🔴',
+    'medium': '🟠',
+    'low': '🟢'
+  };
+  const priorityIcon = priorityIcons[task.priority] || '🟠';
+  
+  taskItem.className = `task-item ${statusClass}`;
+  taskItem.innerHTML = `
+    <div class="task-main">
+      <div class="task-status-dot"></div>
+      <div class="task-details">
+        <div class="task-name">${task.title}</div>
+        <div class="task-meta">
+          <span class="task-assignee">👤 ${task.assignee || 'غير محدد'}</span>
+          <span class="task-time">⏰ ${timeFormatted}</span>
+          <span class="task-priority" style="margin-right: 8px;">${priorityIcon}</span>
+        </div>
+      </div>
+    </div>
+    <div class="task-badge ${statusClass}">${statusText}</div>
+  `;
+  
+  // Add click event to navigate to task details
+  taskItem.style.cursor = 'pointer';
+  taskItem.addEventListener('click', function() {
+    window.switchAdminSection('tasks');
+  });
+  
+  return taskItem;
+}
+
+// Setup real-time listener for dashboard tasks
+let dashboardTasksUnsubscribe = null;
+function setupDashboardTasksListener() {
+  // Unsubscribe from previous listener if exists
+  if (dashboardTasksUnsubscribe) {
+    dashboardTasksUnsubscribe();
+  }
+  
+  console.log('🔄 Setting up dashboard tasks listener...');
+  
+  // Listen to changes in tasks collection
+  dashboardTasksUnsubscribe = onSnapshot(
+    collection(db, 'tasks'),
+    (snapshot) => {
+      console.log('📡 Dashboard tasks update received');
+      
+      // Reload dashboard tasks when any change occurs
+      window.loadDashboardTasks();
+    },
+    (error) => {
+      console.error('❌ Dashboard tasks listener error:', error);
+    }
+  );
+  
+  console.log('✅ Dashboard tasks real-time sync active');
+}
 
 // Initialize new design when admin section is shown
 window.initNewAdminDesign = function() {
@@ -5274,8 +5437,11 @@ window.initNewAdminDesign = function() {
   // Update Hijri date
   window.updateNewAdminHijriDate();
   
-  // Load dashboard stats
+  // Load dashboard stats and tasks
   window.loadDashboardStats();
+  
+  // Setup real-time listener for dashboard tasks
+  setupDashboardTasksListener();
   
   // Set default section to dashboard
   window.switchAdminSection('dashboard');
