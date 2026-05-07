@@ -37,10 +37,14 @@ window.selectRole = function(role) {
     updateDateTime();
     initAdmin();
     
-    // Initialize new mobile-first design
-    if (window.initNewAdminDesign) {
-      window.initNewAdminDesign();
-    }
+    // Initialize new mobile-first design (wait for DOM and modules to load)
+    setTimeout(() => {
+      if (window.initNewAdminDesign) {
+        window.initNewAdminDesign();
+      } else {
+        console.error('❌ initNewAdminDesign not found!');
+      }
+    }, 100);
   } else if (role === 'teacher') {
     document.getElementById('teacherSection').style.display = 'block';
     document.getElementById('teacherLogin').style.display = 'block';
