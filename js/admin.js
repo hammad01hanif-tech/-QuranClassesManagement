@@ -6230,20 +6230,23 @@ window.saveNewTask = async function() {
       createdBy: 'admin'
     };
     
-    // Save to Firestore (you'll need to set up the collection)
-    // For now, we'll just log it and show success message
     console.log('New task created:', taskData);
     
-    // Save to Firestore
-    const taskId = await saveTaskToStorage(taskData);
-    taskData.id = taskId; // Update local copy with the generated ID
+    // Generate task ID first
+    const taskId = 'task_' + Date.now();
+    taskData.id = taskId;
+    
+    // Track this task BEFORE saving to prevent duplicate when listener fires
+    locallyAddedTaskIds.add(taskId);
+    console.log('🔒 Task ID tracked before saving:', taskId);
     
     // Add to DOM immediately for instant feedback (optimistic update)
     addTaskToList(taskData);
+    console.log('✅ Task added with optimistic update');
     
-    // Track this task to prevent duplicate when listener fires
-    locallyAddedTaskIds.add(taskId);
-    console.log('✅ Task added with optimistic update, ID:', taskId);
+    // Save to Firestore (async - listener will be ignored via Set)
+    await saveTaskToStorage(taskData);
+    console.log('💾 Task saved to Firestore');
     
     // Update stats
     updateTasksStats();
@@ -6411,8 +6414,8 @@ function addTaskToList(taskData) {
 // Save task to Firestore
 async function saveTaskToStorage(taskData) {
   try {
-    // Generate unique ID
-    const taskId = 'task_' + Date.now();
+    // Use existing ID if present, otherwise generate new one
+    const taskId = taskData.id || 'task_' + Date.now();
     taskData.id = taskId;
     
     // Save to Firestore
