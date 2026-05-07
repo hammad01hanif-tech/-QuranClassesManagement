@@ -5239,24 +5239,39 @@ window.showAddTaskModal = function() {
 // Load dashboard statistics
 window.loadDashboardStats = async function() {
   try {
-    // Count total students
+    console.log('📊 Loading dashboard statistics...');
+    
+    // Count total students from ALL classes
     const studentsSnapshot = await getDocs(collectionGroup(db, 'students'));
     const totalStudents = studentsSnapshot.size;
     document.getElementById('totalStudentsCount').textContent = totalStudents;
+    console.log(`✅ Total students: ${totalStudents}`);
     
     // Count total classes
     const classesSnapshot = await getDocs(collection(db, 'classes'));
     const totalClasses = classesSnapshot.size;
     document.getElementById('totalClassesCount').textContent = totalClasses;
+    console.log(`✅ Total classes: ${totalClasses}`);
+    
+    // List all classes for verification
+    const classNames = [];
+    classesSnapshot.forEach(doc => {
+      const data = doc.data();
+      classNames.push(data.className || data.classId || doc.id);
+    });
+    console.log('📚 Classes:', classNames.join(', '));
     
     // Load today's tasks from Firestore
     await loadDashboardTasks();
     
-    // Today's absent count (placeholder - replace with actual data)
-    document.getElementById('todayAbsentCount').textContent = '0';
+    // Today's absent count (will be implemented later)
+    document.getElementById('todayAbsentCount').textContent = '-';
+    
+    console.log('✅ Dashboard statistics loaded successfully');
     
   } catch (error) {
-    console.error('Error loading dashboard stats:', error);
+    console.error('❌ Error loading dashboard stats:', error);
+    console.error('Error details:', error.message);
   }
 };
 
@@ -5440,6 +5455,52 @@ function setupDashboardTasksListener() {
   console.log('✅ Dashboard tasks real-time sync active');
 }
 
+// Setup real-time listener for dashboard statistics (students & classes)
+let dashboardStatsUnsubscribe = null;
+function setupDashboardStatsListener() {
+  // Unsubscribe from previous listener if exists
+  if (dashboardStatsUnsubscribe) {
+    dashboardStatsUnsubscribe();
+  }
+  
+  console.log('🔄 Setting up dashboard stats listener...');
+  
+  // Listen to changes in classes collection
+  dashboardStatsUnsubscribe = onSnapshot(
+    collection(db, 'classes'),
+    (snapshot) => {
+      console.log('📡 Dashboard stats update received');
+      
+      // Reload only the stats (not tasks)
+      reloadDashboardCounts();
+    },
+    (error) => {
+      console.error('❌ Dashboard stats listener error:', error);
+    }
+  );
+  
+  console.log('✅ Dashboard stats real-time sync active');
+}
+
+// Reload dashboard counts only (without tasks)
+async function reloadDashboardCounts() {
+  try {
+    // Count total students
+    const studentsSnapshot = await getDocs(collectionGroup(db, 'students'));
+    const totalStudents = studentsSnapshot.size;
+    document.getElementById('totalStudentsCount').textContent = totalStudents;
+    
+    // Count total classes
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const totalClasses = classesSnapshot.size;
+    document.getElementById('totalClassesCount').textContent = totalClasses;
+    
+    console.log(`📊 Stats updated: ${totalStudents} students, ${totalClasses} classes`);
+  } catch (error) {
+    console.error('❌ Error reloading dashboard counts:', error);
+  }
+}
+
 // Initialize new design when admin section is shown
 window.initNewAdminDesign = function() {
   // Show new design, hide old design
@@ -5457,8 +5518,9 @@ window.initNewAdminDesign = function() {
   // Load dashboard stats and tasks
   window.loadDashboardStats();
   
-  // Setup real-time listener for dashboard tasks
+  // Setup real-time listeners for dashboard
   setupDashboardTasksListener();
+  setupDashboardStatsListener();
   
   // Set default section to dashboard
   window.switchAdminSection('dashboard');
