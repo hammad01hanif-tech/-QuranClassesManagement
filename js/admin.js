@@ -5239,35 +5239,63 @@ window.showAddTaskModal = function() {
 // Load dashboard statistics
 window.loadDashboardStats = async function() {
   try {
-    console.log('📊 Loading dashboard statistics...');
+    console.log('\n📊 ====== LOADING DASHBOARD STATISTICS ======');
+    console.log('📌 Function: loadDashboardStats() called');
     
     // Count total students from ALL classes
+    console.log('🔍 Step 1: Getting students from all classes using collectionGroup...');
     const studentsSnapshot = await getDocs(collectionGroup(db, 'students'));
     const totalStudents = studentsSnapshot.size;
+    console.log(`📊 Raw students count from Firestore: ${totalStudents}`);
+    console.log(`📊 Number of student documents found: ${studentsSnapshot.docs.length}`);
+    
+    // Log first few students to verify data exists
+    if (studentsSnapshot.docs.length > 0) {
+      console.log('📝 First 3 students (sample):');
+      studentsSnapshot.docs.slice(0, 3).forEach((doc, index) => {
+        const studentData = doc.data();
+        console.log(`   ${index + 1}. ID: ${doc.id}, Name: ${studentData.name || 'N/A'}, Class: ${doc.ref.parent.parent?.id || 'Unknown'}`);
+      });
+    } else {
+      console.warn('⚠️ WARNING: No students found in Firestore!');
+    }
+    
     document.getElementById('totalStudentsCount').textContent = totalStudents;
-    console.log(`✅ Total students: ${totalStudents}`);
+    console.log(`✅ Updated DOM: totalStudentsCount = ${totalStudents}`);
     
     // Count total classes
+    console.log('\n🔍 Step 2: Getting classes from Firestore...');
     const classesSnapshot = await getDocs(collection(db, 'classes'));
     const totalClasses = classesSnapshot.size;
-    document.getElementById('totalClassesCount').textContent = totalClasses;
-    console.log(`✅ Total classes: ${totalClasses}`);
+    console.log(`📊 Raw classes count from Firestore: ${totalClasses}`);
+    console.log(`📊 Number of class documents found: ${classesSnapshot.docs.length}`);
     
     // List all classes for verification
     const classNames = [];
-    classesSnapshot.forEach(doc => {
-      const data = doc.data();
-      classNames.push(data.className || data.classId || doc.id);
-    });
-    console.log('📚 Classes:', classNames.join(', '));
+    if (classesSnapshot.docs.length > 0) {
+      console.log('📝 All classes in system:');
+      classesSnapshot.forEach((doc, index) => {
+        const data = doc.data();
+        const className = data.className || data.classId || doc.id;
+        classNames.push(className);
+        console.log(`   ${index + 1}. ID: ${doc.id}, Name: ${className}`);
+      });
+    } else {
+      console.warn('⚠️ WARNING: No classes found in Firestore!');
+    }
+    
+    document.getElementById('totalClassesCount').textContent = totalClasses;
+    console.log(`✅ Updated DOM: totalClassesCount = ${totalClasses}`);
+    console.log('📋 Classes list:', classNames.join(', ') || 'No classes');
     
     // Load today's tasks from Firestore
+    console.log('\n🔍 Step 3: Loading dashboard tasks...');
     await loadDashboardTasks();
     
     // Today's absent count (will be implemented later)
     document.getElementById('todayAbsentCount').textContent = '-';
     
-    console.log('✅ Dashboard statistics loaded successfully');
+    console.log('\n✅ ====== DASHBOARD STATISTICS LOADED SUCCESSFULLY ======\n');
     
   } catch (error) {
     console.error('❌ Error loading dashboard stats:', error);
@@ -5278,23 +5306,31 @@ window.loadDashboardStats = async function() {
 // Load today's tasks for dashboard (top 3 important tasks)
 window.loadDashboardTasks = async function() {
   try {
-    console.log('📥 Loading dashboard tasks...');
+    console.log('\n📥 ====== LOADING DASHBOARD TASKS ======');
+    console.log('📌 Function: loadDashboardTasks() called');
     
     const todayTasksList = document.getElementById('todayTasksList');
     if (!todayTasksList) {
-      console.error('❌ todayTasksList element not found');
+      console.error('❌ ERROR: todayTasksList element not found in DOM!');
       return;
     }
+    console.log('✅ todayTasksList element found');
     
     // Get today's date
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayString = today.toISOString().split('T')[0];
+    console.log(`📅 Today's date: ${todayString}`);
     
     // Get all tasks from Firestore
+    console.log('🔍 Fetching all tasks from Firestore...');
     const tasksSnapshot = await getDocs(collection(db, 'tasks'));
     
+    console.log(`📊 Total tasks in Firestore: ${tasksSnapshot.size}`);
+    console.log(`📊 Task documents found: ${tasksSnapshot.docs.length}`);
+    
     if (tasksSnapshot.empty) {
+      console.warn('⚠️ WARNING: No tasks found in Firestore!');
       todayTasksList.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">لا توجد مهام اليوم</div>';
       document.getElementById('todayTasksCount').textContent = '0';
       return;
@@ -5302,18 +5338,26 @@ window.loadDashboardTasks = async function() {
     
     // Collect all tasks
     const allTasks = [];
-    tasksSnapshot.forEach(doc => {
+    console.log('📝 All tasks in system:');
+    tasksSnapshot.forEach((doc, index) => {
       const task = { id: doc.id, ...doc.data() };
       allTasks.push(task);
+      console.log(`   ${index + 1}. [${task.priority?.toUpperCase() || 'NO-PRIORITY'}] ${task.title || 'No title'} - Status: ${task.status || 'N/A'}, Date: ${task.date || 'N/A'}`);
     });
     
     // Count today's tasks only (for the counter)
+    console.log(`\n🔍 Filtering tasks for today (${todayString})...`);
     const todayTasks = allTasks.filter(task => {
       if (task.recurrence === 'daily') return true;
       if (task.date === todayString) return true;
       return false;
     });
+    console.log(`📊 Today's tasks count: ${todayTasks.length}`);
+    todayTasks.forEach((task, index) => {
+      console.log(`   ${index + 1}. ${task.title} (${task.recurrence === 'daily' ? 'Daily' : task.date})`);
+    });
     document.getElementById('todayTasksCount').textContent = todayTasks.length;
+    console.log(`✅ Updated DOM: todayTasksCount = ${todayTasks.length}`);
     
     // Filter tasks for dashboard display (exclude old completed tasks)
     const yesterday = new Date(today);
@@ -5353,9 +5397,14 @@ window.loadDashboardTasks = async function() {
     // Take top 3 tasks (regardless of date)
     const topTasks = displayTasks.slice(0, 3);
     
-    console.log(`📊 Dashboard: ${todayTasks.length} today's tasks, showing top ${topTasks.length} by priority`);
+    console.log(`\n📊 FINAL RESULT:`);
+    console.log(`   - Total tasks in system: ${allTasks.length}`);
+    console.log(`   - Today's tasks: ${todayTasks.length}`);
+    console.log(`   - Tasks to display (after filter): ${displayTasks.length}`);
+    console.log(`   - Top 3 tasks by priority: ${topTasks.length}`);
+    console.log('\n🏆 Top 3 Tasks to Display:');
     topTasks.forEach((task, index) => {
-      console.log(`  ${index + 1}. [${task.priority?.toUpperCase()}] ${task.title} (${task.status})`);
+      console.log(`   ${index + 1}. [${task.priority?.toUpperCase()}] ${task.title} (${task.status}) - Date: ${task.date || 'N/A'}`);
     });
     
     if (topTasks.length === 0) {
@@ -5485,17 +5534,25 @@ function setupDashboardStatsListener() {
 // Reload dashboard counts only (without tasks)
 async function reloadDashboardCounts() {
   try {
+    console.log('\n🔄 ====== RELOADING DASHBOARD COUNTS ======');
+    console.log('📍 Function: reloadDashboardCounts() called (triggered by listener)');
+    
     // Count total students
+    console.log('🔍 Fetching students count...');
     const studentsSnapshot = await getDocs(collectionGroup(db, 'students'));
     const totalStudents = studentsSnapshot.size;
+    console.log(`📊 Students found: ${totalStudents}`);
     document.getElementById('totalStudentsCount').textContent = totalStudents;
     
     // Count total classes
+    console.log('🔍 Fetching classes count...');
     const classesSnapshot = await getDocs(collection(db, 'classes'));
     const totalClasses = classesSnapshot.size;
+    console.log(`📊 Classes found: ${totalClasses}`);
     document.getElementById('totalClassesCount').textContent = totalClasses;
     
-    console.log(`📊 Stats updated: ${totalStudents} students, ${totalClasses} classes`);
+    console.log(`✅ Stats updated successfully: ${totalStudents} students, ${totalClasses} classes`);
+    console.log('✅ ====== DASHBOARD COUNTS RELOADED ======\n');
   } catch (error) {
     console.error('❌ Error reloading dashboard counts:', error);
   }
@@ -5503,37 +5560,45 @@ async function reloadDashboardCounts() {
 
 // Initialize new design when admin section is shown
 window.initNewAdminDesign = function() {
+  console.log('\n🚀 ====== INITIALIZING NEW ADMIN DESIGN ======');
+  console.log('📍 Function: initNewAdminDesign() called');
+  
   // Show new design, hide old design
   const newDesign = document.getElementById('newAdminDesign');
   const oldDesign = document.getElementById('oldAdminDesign');
   
+  console.log('🔍 Checking DOM elements:');
+  console.log(`   - newAdminDesign: ${newDesign ? '✅ Found' : '❌ Not Found'}`);
+  console.log(`   - oldAdminDesign: ${oldDesign ? '✅ Found' : '❌ Not Found'}`);
+  
   if (newDesign && oldDesign) {
     newDesign.style.display = 'block';
     oldDesign.style.display = 'none';
+    console.log('✅ Design switched: New design shown, old design hidden');
+  } else {
+    console.error('❌ ERROR: Cannot switch designs - elements not found!');
   }
   
   // Update Hijri date
+  console.log('📅 Updating Hijri date...');
   window.updateNewAdminHijriDate();
   
   // Load dashboard stats and tasks
+  console.log('📊 Loading dashboard statistics and tasks...');
   window.loadDashboardStats();
   
   // Setup real-time listeners for dashboard
+  console.log('🔄 Setting up real-time listeners...');
   setupDashboardTasksListener();
   setupDashboardStatsListener();
+  console.log('✅ Real-time listeners activated');
   
   // Set default section to dashboard
+  console.log('🏠 Setting default section to dashboard...');
   window.switchAdminSection('dashboard');
+  
+  console.log('✅ ====== NEW ADMIN DESIGN INITIALIZED ======\n');
 };
-
-// Call init function when admin section is loaded
-// This will be triggered from main.js when role is selected
-if (document.getElementById('adminSection')) {
-  // Wait for DOM to be fully loaded
-  setTimeout(() => {
-    window.initNewAdminDesign();
-  }, 100);
-}
 
 // END OF NEW MOBILE-FIRST DESIGN FUNCTIONS
 
