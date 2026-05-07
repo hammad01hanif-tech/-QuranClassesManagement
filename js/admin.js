@@ -5303,8 +5303,7 @@ window.loadDashboardStats = async function() {
     console.log(`✅ Updated DOM: totalClassesCount = ${totalClasses}`);
     console.log('📋 Classes list:', classNames.join(', ') || 'No classes');
     
-    // Check students in each class (for debugging)
-    if (ount students per class (for debugging)
+    // Count students per class (for debugging)
     if (totalClasses > 0) {
       console.log('\n🔍 DEBUG: Counting students in each class...');
       
@@ -5327,7 +5326,8 @@ window.loadDashboardStats = async function() {
       
       const studentsWithoutClass = students.filter(s => !s.classId).length;
       if (studentsWithoutClass > 0) {
-        console.log(`   ⚠️ Students without classId: ${studentsWithoutClass}`
+        console.log(`   ⚠️ Students without classId: ${studentsWithoutClass}`);
+      }
     }
     
     // Load today's tasks from Firestore
@@ -5595,7 +5595,12 @@ function setupDashboardStatsListener() {
 }
 
 // Reload dashboard counts only (without tasks)
-async function reloadDashbo from users collection
+async function reloadDashboardCounts() {
+  try {
+    console.log('\n🔄 ====== RELOADING DASHBOARD COUNTS ======');
+    console.log('📍 Function: reloadDashboardCounts() called (triggered by listener)');
+    
+    // Count total students from users collection
     console.log('🔍 Fetching students count from users collection...');
     const usersSnapshot = await getDocs(collection(db, 'users'));
     const students = [];
@@ -5605,12 +5610,7 @@ async function reloadDashbo from users collection
         students.push(data);
       }
     });
-    const totalStudents = students.lengthunts() called (triggered by listener)');
-    
-    // Count total students
-    console.log('🔍 Fetching students count...');
-    const studentsSnapshot = await getDocs(collectionGroup(db, 'students'));
-    const totalStudents = studentsSnapshot.size;
+    const totalStudents = students.length;
     console.log(`📊 Students found: ${totalStudents}`);
     document.getElementById('totalStudentsCount').textContent = totalStudents;
     
