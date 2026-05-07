@@ -15,7 +15,8 @@ import {
   arrayUnion,
   deleteDoc,
   arrayRemove,
-  deleteField
+  deleteField,
+  onSnapshot
 } from '../firebase-config.js';
 
 import { calculateRevisionPages } from './quran-juz-data.js';
@@ -5954,20 +5955,32 @@ window.loadTasksStats = async function() {
 };
 
 // Initialize Tasks Page
-window.initTasksPage = function() {
-  // Update Hijri date
-  updateTasksHijriDate();
-  
-  // Load saved tasks from localStorage
-  loadTasksFromStorage();
-  
-  // Load stats
-  loadTasksStats();
-  
-  // Set default period to today
-  switchTasksPeriod('today');
-  
-  console.log('Tasks page initialized');
+window.initTasksPage = async function() {
+  try {
+    console.log('🔧 Initializing Tasks Page...');
+    
+    // Update Hijri date
+    updateTasksHijriDate();
+    
+    // Load saved tasks from Firestore
+    console.log('📥 Loading tasks from Firestore...');
+    await loadTasksFromStorage();
+    
+    // Load stats
+    loadTasksStats();
+    
+    // Set default period to today
+    switchTasksPeriod('today');
+    
+    // Setup real-time listener for automatic sync across devices
+    console.log('🔄 Setting up real-time listener...');
+    setupTasksRealtimeListener();
+    
+    console.log('✅ Tasks page initialized with real-time sync');
+  } catch (error) {
+    console.error('❌ Error initializing tasks page:', error);
+    alert('حدث خطأ في تحميل المهام. تأكد من اتصالك بالإنترنت.');
+  }
 };
 
 // Call init when switching to tasks section
@@ -5978,9 +5991,14 @@ window.switchAdminSection = function(sectionName) {
   
   // Initialize tasks page if switching to it
   if (sectionName === 'tasks') {
+    console.log('📋 Switching to tasks section...');
     // Small delay to ensure DOM is ready
-    setTimeout(() => {
-      initTasksPage();
+    setTimeout(async () => {
+      try {
+        await initTasksPage();
+      } catch (error) {
+        console.error('❌ Error in initTasksPage:', error);
+      }
     }, 100);
   }
 };
@@ -6216,11 +6234,9 @@ window.saveNewTask = async function() {
     // For now, we'll just log it and show success message
     console.log('New task created:', taskData);
     
-    // Uncomment when Firebase is ready:
-    // await addDoc(collection(db, 'tasks'), taskData);
-    
-    // Save to localStorage for persistence
-    saveTaskToStorage(taskData);
+    // Save to Firestore
+    const taskId = await saveTaskToStorage(taskData);
+    taskData.id = taskId; // Update local copy with the generated ID
     
     // Add task to DOM immediately
     addTaskToList(taskData);
@@ -6388,75 +6404,177 @@ function addTaskToList(taskData) {
   console.log('Task added to DOM:', taskId);
 }
 
-// Save task to localStorage
-function saveTaskToStorage(taskData) {
+// Save task to Firestore
+async function saveTaskToStorage(taskData) {
   try {
-    // Get existing tasks from localStorage
-    const existingTasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
+    // Generate unique ID
+    const taskId = 'task_' + Date.now();
+    taskData.id = taskId;
     
-    // Add timestamp as unique ID
-    taskData.id = 'task_' + Date.now();
+    // Save to Firestore
+    await setDoc(firestoreDoc(db, 'tasks', taskId), {
+      ...taskData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
     
-    // Add new task
-    existingTasks.push(taskData);
-    
-    // Save back to localStorage
-    localStorage.setItem('adminTasks', JSON.stringify(existingTasks));
-    
-    console.log('✅ Task saved to localStorage:', taskData.id);
+    console.log('✅ Task saved to Firestore:', taskId);
+    return taskId;
   } catch (error) {
-    console.error('❌ Error saving task to localStorage:', error);
+    console.error('❌ Error saving task to Firestore:', error);
+    throw error;
   }
 }
 
-// Load tasks from localStorage
-function loadTasksFromStorage() {
+// Load tasks from Firestore
+async function loadTasksFromStorage() {
   try {
-    // Get tasks from localStorage
-    const savedTasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
+    console.log('📡 Connecting to Firestore...');
     
-    if (savedTasks.length === 0) {
-      console.log('ℹ️ No saved tasks in localStorage');
+    // Get tasks from Firestore
+    const tasksSnapshot = await getDocs(collection(db, 'tasks'));
+    
+    if (tasksSnapshot.empty) {
+      console.log('ℹ️ No saved tasks in Firestore (collection is empty)');
       return;
     }
     
-    console.log(`📂 Loading ${savedTasks.length} tasks from localStorage...`);
+    const savedTasks = [];
+    tasksSnapshot.forEach(doc => {
+      const taskData = { id: doc.id, ...doc.data() };
+      savedTasks.push(taskData);
+      console.log('📄 Loaded task:', taskData.title || taskData.id);
+    });
     
-    // Clear existing task cards (except sample tasks if you want to keep them)
+    console.log(`📂 Loading ${savedTasks.length} tasks from Firestore...`);
+    
+    // Clear existing task cards
     const tasksList = document.getElementById('tasksCardsList');
-    if (!tasksList) return;
+    if (!tasksList) {
+      console.error('❌ tasksCardsList element not found!');
+      return;
+    }
     
-    // Remove only dynamically added tasks (those with data-task-id attribute)
+    // Remove only dynamically added tasks
     const dynamicTasks = tasksList.querySelectorAll('[data-task-id]');
+    console.log(`🗑️ Removing ${dynamicTasks.length} existing task cards...`);
     dynamicTasks.forEach(task => task.remove());
     
     // Add all saved tasks to DOM
     savedTasks.forEach(taskData => {
+      console.log('➕ Adding task to DOM:', taskData.title);
       addTaskToList(taskData);
     });
     
     // Check and update expired tasks
-    checkAndUpdateExpiredTasks();
+    await checkAndUpdateExpiredTasks();
     
     // Update stats after loading all tasks
     updateTasksStats();
     
-    console.log('✅ Tasks loaded successfully');
+    console.log('✅ Tasks loaded successfully from Firestore');
     
   } catch (error) {
-    console.error('❌ Error loading tasks from localStorage:', error);
+    console.error('❌ Error loading tasks from Firestore:', error);
+    console.error('Error details:', error.message);
+    throw error;
   }
 }
 
-// Delete task from storage
-function deleteTaskFromStorage(taskId) {
+// Setup real-time listener for automatic cross-device sync
+let tasksUnsubscribe = null;
+function setupTasksRealtimeListener() {
   try {
-    const existingTasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
-    const filteredTasks = existingTasks.filter(task => task.id !== taskId);
-    localStorage.setItem('adminTasks', JSON.stringify(filteredTasks));
-    console.log('✅ Task deleted from localStorage:', taskId);
+    // Unsubscribe from previous listener if exists
+    if (tasksUnsubscribe) {
+      console.log('🔄 Unsubscribing from previous listener...');
+      tasksUnsubscribe();
+    }
+    
+    console.log('🔄 Setting up real-time tasks sync...');
+    
+    // Listen to all changes in tasks collection
+    tasksUnsubscribe = onSnapshot(
+      collection(db, 'tasks'), 
+      (snapshot) => {
+        console.log('📡 Real-time update received:', snapshot.docChanges().length, 'changes');
+        snapshot.docChanges().forEach((change) => {
+          const taskData = { id: change.doc.id, ...change.doc.data() };
+          console.log(`🔄 Change type: ${change.type}, Task: ${taskData.title}`);
+          
+          if (change.type === 'added') {
+            // Check if task already exists in DOM (avoid duplicates on initial load)
+            const existingCard = document.querySelector(`[data-task-id="${taskData.id}"]`);
+            if (!existingCard) {
+              console.log('➕ Real-time: Task added -', taskData.title);
+              addTaskToList(taskData);
+              updateTasksStats();
+            } else {
+              console.log('⏩ Task already in DOM, skipping:', taskData.title);
+            }
+          }
+      
+      if (change.type === 'modified') {
+        console.log('✏️ Real-time: Task modified -', taskData.title);
+        const taskCard = document.querySelector(`[data-task-id="${taskData.id}"]`);
+        if (taskCard) {
+          // Update status badge
+          const badge = taskCard.querySelector('.task-status-badge');
+          if (badge) {
+            badge.className = `task-status-badge ${taskData.status}`;
+            badge.textContent = 
+              taskData.status === 'completed' ? 'مكتملة' :
+              taskData.status === 'overdue' ? 'متأخرة' :
+              taskData.status === 'in-progress' ? 'جارية' : 'جديدة';
+          }
+          
+          // Update dataset
+          taskCard.dataset.status = taskData.status;
+          
+          // Update title and description if changed
+          const titleEl = taskCard.querySelector('.task-modern-title');
+          if (titleEl) titleEl.textContent = taskData.title;
+          
+          const descEl = taskCard.querySelector('.task-modern-description');
+          if (descEl) descEl.textContent = taskData.description || 'لا يوجد وصف';
+          
+          updateTasksStats();
+        }
+      }
+      
+      if (change.type === 'removed') {
+        console.log('🗑️ Real-time: Task removed -', taskData.title);
+        const taskCard = document.querySelector(`[data-task-id="${taskData.id}"]`);
+        if (taskCard) {
+          taskCard.style.animation = 'fadeOut 0.3s ease';
+          setTimeout(() => {
+            taskCard.remove();
+            updateTasksStats();
+          }, 300);
+        }
+        }
+      });
+    }, 
+    (error) => {
+      console.error('❌ Real-time listener error:', error);
+      console.error('Error details:', error.message);
+    });
+    
+    console.log('✅ Real-time sync active - tasks will update automatically across all devices');
+  } catch (error) {
+    console.error('❌ Error setting up real-time listener:', error);
+    console.error('Error details:', error.message);
+  }
+}
+
+// Delete task from Firestore
+async function deleteTaskFromStorage(taskId) {
+  try {
+    await deleteDoc(firestoreDoc(db, 'tasks', taskId));
+    console.log('✅ Task deleted from Firestore:', taskId);
   } catch (error) {
     console.error('❌ Error deleting task:', error);
+    throw error;
   }
 }
 
@@ -6485,24 +6603,33 @@ function calculateNextRecurrenceDate(currentDate, recurrenceType) {
 }
 
 // Check if there's an overdue instance of this recurring task
-function hasOverdueInstance(originalTaskId, tasks) {
-  return tasks.some(task => 
-    task.originalTaskId === originalTaskId && 
-    task.status === 'overdue'
-  );
+async function hasOverdueInstance(originalTaskId) {
+  try {
+    const tasksSnapshot = await getDocs(
+      query(
+        collection(db, 'tasks'),
+        where('originalTaskId', '==', originalTaskId),
+        where('status', '==', 'overdue')
+      )
+    );
+    return !tasksSnapshot.empty;
+  } catch (error) {
+    console.error('❌ Error checking overdue tasks:', error);
+    return false;
+  }
 }
 
 // Create a new copy of a recurring task
-function createRecurringTaskCopy(originalTask) {
+async function createRecurringTaskCopy(originalTask) {
   if (!originalTask.recurrence || originalTask.recurrence === 'none') {
     return null;
   }
   
-  const tasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
   const originalTaskId = originalTask.originalTaskId || originalTask.id;
   
   // Check if there's an overdue instance - if yes, don't create new copy
-  if (hasOverdueInstance(originalTaskId, tasks)) {
+  const hasOverdue = await hasOverdueInstance(originalTaskId);
+  if (hasOverdue) {
     console.log(`⏸️ Skipping recurring task creation - overdue instance exists for: ${originalTask.title}`);
     return null;
   }
@@ -6536,16 +6663,24 @@ function createRecurringTaskCopy(originalTask) {
     createdAt: new Date().toISOString()
   };
   
-  // Save to localStorage
-  tasks.push(newTask);
-  localStorage.setItem('adminTasks', JSON.stringify(tasks));
-  
-  // Add to DOM
-  addTaskToList(newTask);
-  
-  console.log(`🔄 Created recurring task copy: ${newTask.title} for ${nextDate}`);
-  
-  return newTask;
+  // Save to Firestore
+  try {
+    await setDoc(firestoreDoc(db, 'tasks', newTask.id), {
+      ...newTask,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    // Add to DOM
+    addTaskToList(newTask);
+    
+    console.log(`🔄 Created recurring task copy: ${newTask.title} for ${nextDate}`);
+    
+    return newTask;
+  } catch (error) {
+    console.error('❌ Error creating recurring task:', error);
+    return null;
+  }
 }
 
 // Check and update expired tasks
@@ -6682,26 +6817,33 @@ document.addEventListener('click', function(event) {
 });
 
 // Mark task as complete
-window.markTaskComplete = function(taskId) {
+window.markTaskComplete = async function(taskId) {
   try {
     // Close dropdown
     const dropdown = document.getElementById(`dropdown-${taskId}`);
     if (dropdown) dropdown.style.display = 'none';
     
-    // Update in localStorage
-    const tasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
-    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    // Get task from Firestore
+    const taskSnapshot = await getDocs(query(
+      collection(db, 'tasks'),
+      where('id', '==', taskId)
+    ));
     
-    if (taskIndex !== -1) {
-      const completedTask = tasks[taskIndex];
-      completedTask.status = 'completed';
-      completedTask.completedAt = new Date().toISOString();
-      localStorage.setItem('adminTasks', JSON.stringify(tasks));
+    if (!taskSnapshot.empty) {
+      const taskDoc = taskSnapshot.docs[0];
+      const completedTask = { id: taskDoc.id, ...taskDoc.data() };
+      
+      // Update in Firestore
+      await updateDoc(firestoreDoc(db, 'tasks', taskId), {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
       
       // If task is recurring, create next instance immediately
       if (completedTask.recurrence && completedTask.recurrence !== 'none') {
-        setTimeout(() => {
-          createRecurringTaskCopy(completedTask);
+        setTimeout(async () => {
+          await createRecurringTaskCopy(completedTask);
           updateTasksStats();
         }, 500);
       }
@@ -6744,7 +6886,7 @@ window.markTaskComplete = function(taskId) {
 };
 
 // Delete task (from UI and storage)
-window.deleteTask = function(taskId) {
+window.deleteTask = async function(taskId) {
   if (!confirm('هل أنت متأكد من حذف هذه المهمة؟')) {
     return;
   }
@@ -6765,8 +6907,8 @@ window.deleteTask = function(taskId) {
       }, 300);
     }
     
-    // Remove from localStorage
-    deleteTaskFromStorage(taskId);
+    // Remove from Firestore
+    await deleteTaskFromStorage(taskId);
     
     console.log('✅ Task deleted successfully:', taskId);
     
