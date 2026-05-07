@@ -5258,6 +5258,8 @@ window.loadDashboardStats = async function() {
       });
     } else {
       console.warn('⚠️ WARNING: No students found in Firestore!');
+      console.log('💡 TIP: Check if students are added as subcollections under classes/');
+      console.log('💡 Expected structure: classes/{classId}/students/{studentId}');
     }
     
     document.getElementById('totalStudentsCount').textContent = totalStudents;
@@ -5274,11 +5276,13 @@ window.loadDashboardStats = async function() {
     const classNames = [];
     if (classesSnapshot.docs.length > 0) {
       console.log('📝 All classes in system:');
-      classesSnapshot.forEach((doc, index) => {
+      let classIndex = 0;
+      classesSnapshot.forEach(doc => {
+        classIndex++;
         const data = doc.data();
         const className = data.className || data.classId || doc.id;
         classNames.push(className);
-        console.log(`   ${index + 1}. ID: ${doc.id}, Name: ${className}`);
+        console.log(`   ${classIndex}. ID: ${doc.id}, Name: ${className}`);
       });
     } else {
       console.warn('⚠️ WARNING: No classes found in Firestore!');
@@ -5287,6 +5291,16 @@ window.loadDashboardStats = async function() {
     document.getElementById('totalClassesCount').textContent = totalClasses;
     console.log(`✅ Updated DOM: totalClassesCount = ${totalClasses}`);
     console.log('📋 Classes list:', classNames.join(', ') || 'No classes');
+    
+    // Check students in each class (for debugging)
+    if (totalStudents === 0 && totalClasses > 0) {
+      console.log('\n🔍 DEBUG: Checking students in each class...');
+      for (const classDoc of classesSnapshot.docs) {
+        const classId = classDoc.id;
+        const studentsInClass = await getDocs(collection(db, 'classes', classId, 'students'));
+        console.log(`   📚 ${classId}: ${studentsInClass.size} students`);
+      }
+    }
     
     // Load today's tasks from Firestore
     console.log('\n🔍 Step 3: Loading dashboard tasks...');
@@ -5318,9 +5332,11 @@ window.loadDashboardTasks = async function() {
     
     // Get today's date
     const today = new Date();
+    const originalDate = new Date(today); // Save original for logging
     today.setHours(0, 0, 0, 0);
     const todayString = today.toISOString().split('T')[0];
     console.log(`📅 Today's date: ${todayString}`);
+    console.log(`📅 System date: ${originalDate.toLocaleString('ar-SA')} (${originalDate.toISOString()})`);
     
     // Get all tasks from Firestore
     console.log('🔍 Fetching all tasks from Firestore...');
@@ -5339,10 +5355,12 @@ window.loadDashboardTasks = async function() {
     // Collect all tasks
     const allTasks = [];
     console.log('📝 All tasks in system:');
-    tasksSnapshot.forEach((doc, index) => {
+    let taskIndex = 0;
+    tasksSnapshot.forEach(doc => {
+      taskIndex++;
       const task = { id: doc.id, ...doc.data() };
       allTasks.push(task);
-      console.log(`   ${index + 1}. [${task.priority?.toUpperCase() || 'NO-PRIORITY'}] ${task.title || 'No title'} - Status: ${task.status || 'N/A'}, Date: ${task.date || 'N/A'}`);
+      console.log(`   ${taskIndex}. [${task.priority?.toUpperCase() || 'NO-PRIORITY'}] ${task.title || 'No title'} - Status: ${task.status || 'N/A'}, Date: ${task.date || 'N/A'}`);
     });
     
     // Count today's tasks only (for the counter)
