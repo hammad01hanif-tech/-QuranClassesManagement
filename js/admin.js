@@ -7506,8 +7506,9 @@ function initializeHijriDateDropdowns() {
   
   // Smart month population: Start from current month and go forward
   // Show remaining months of current year, then next year from month 1
-  const currentMonth = currentHijri.month;
-  const currentYear = currentHijri.year;
+  const currentMonth = currentHijri.hijriMonth;
+  const currentYear = currentHijri.hijriYear;
+  const currentDay = currentHijri.hijriDay;
   
   // Add remaining months of current year (from current month to month 12)
   for (let month = currentMonth; month <= 12; month++) {
@@ -7534,14 +7535,18 @@ function initializeHijriDateDropdowns() {
   }
   
   // Set current date as default
-  daySelect.value = currentHijri.day;
+  daySelect.value = currentDay;
   monthSelect.value = `${currentYear}-${currentMonth}`;
   yearSelect.value = currentYear;
   
   console.log('✅ [WAITING] Smart Hijri date dropdowns initialized:', {
     currentDate: currentHijri,
+    currentDay: currentDay,
+    currentMonth: currentMonth,
+    currentYear: currentYear,
     monthsFrom: `${currentMonth}-${currentYear}`,
-    monthsTo: `${currentMonth - 1}-${currentYear + 1}`
+    monthsTo: `${currentMonth - 1}-${currentYear + 1}`,
+    totalMonthOptions: monthSelect.options.length - 1
   });
 }
 
