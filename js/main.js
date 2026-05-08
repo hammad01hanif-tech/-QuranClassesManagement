@@ -38,9 +38,9 @@ window.selectRole = function(role) {
     initAdmin();
     
     // Initialize new mobile-first design (wait for DOM and modules to load)
-    setTimeout(() => {
+    setTimeout(async () => {
       if (window.initNewAdminDesign) {
-        window.initNewAdminDesign();
+        await window.initNewAdminDesign();
       } else {
         console.error('❌ initNewAdminDesign not found!');
       }
@@ -585,7 +585,34 @@ window.viewerShowStats = function() {
 };
 
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   console.log('Main.js loaded - selectRole is available');
   updateDateTime();
+  
+  // Check if admin was logged in (restore session after page refresh)
+  const wasAdminLoggedIn = sessionStorage.getItem('loggedInAdmin');
+  if (wasAdminLoggedIn === 'true') {
+    console.log('🔄 Restoring admin session after page refresh...');
+    
+    // Hide role selection
+    document.getElementById('roleSelection').style.display = 'none';
+    
+    // Show admin section
+    document.getElementById('adminSection').style.display = 'block';
+    
+    // Initialize admin
+    await initAdmin();
+    console.log('✅ initAdmin() completed');
+    
+    // Initialize new admin design after ensuring everything is ready
+    setTimeout(async () => {
+      if (window.initNewAdminDesign) {
+        console.log('✅ Calling initNewAdminDesign after session restore');
+        await window.initNewAdminDesign();
+        console.log('✅ initNewAdminDesign() completed');
+      } else {
+        console.error('❌ initNewAdminDesign not found after session restore!');
+      }
+    }, 300);
+  }
 });

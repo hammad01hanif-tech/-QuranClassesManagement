@@ -5631,7 +5631,7 @@ async function reloadDashboardCounts() {
 }
 
 // Initialize new design when admin section is shown
-window.initNewAdminDesign = function() {
+window.initNewAdminDesign = async function() {
   console.log('\n🚀 ====== INITIALIZING NEW ADMIN DESIGN ======');
   console.log('📍 Function: initNewAdminDesign() called');
   
@@ -5655,9 +5655,14 @@ window.initNewAdminDesign = function() {
   console.log('📅 Updating Hijri date...');
   window.updateNewAdminHijriDate();
   
-  // Load dashboard stats and tasks
+  // Load dashboard stats and tasks (wait for completion)
   console.log('📊 Loading dashboard statistics and tasks...');
-  window.loadDashboardStats();
+  try {
+    await window.loadDashboardStats();
+    console.log('✅ Dashboard stats loaded successfully');
+  } catch (error) {
+    console.error('❌ Error loading dashboard stats:', error);
+  }
   
   // Setup real-time listeners for dashboard
   console.log('🔄 Setting up real-time listeners...');
