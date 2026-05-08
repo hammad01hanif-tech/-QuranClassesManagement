@@ -7708,7 +7708,7 @@ window.saveWaitingStudent = async function() {
     const registrationDateHijri = `${regDay} ${hijriMonths[actualRegMonth - 1]} ${actualRegYear}`;
     
     // Convert Hijri date to Gregorian for accurate sorting
-    const registrationDateGregorian = hijriToGregorian(actualRegYear, actualRegMonth, parseInt(regDay));
+    const registrationDateGregorian = convertHijriToGregorian(actualRegYear, actualRegMonth, parseInt(regDay));
     
     // Create student object
     const studentData = {
@@ -7878,11 +7878,25 @@ function displayWaitingStudents(students) {
     return;
   }
   
-  // Build HTML for students with queue number
-  let html = '<div style="display: grid; gap: 12px;">';
+  // Build HTML table for students
+  let html = `
+    <div style="background: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 15px rgba(0,0,0,0.08); overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <th style="padding: 14px 12px; text-align: center; border-radius: 10px 0 0 0; font-weight: 600; font-size: 13px; white-space: nowrap;">#</th>
+            <th style="padding: 14px 16px; text-align: right; font-weight: 600; font-size: 13px;">اسم الطالب</th>
+            <th style="padding: 14px 12px; text-align: center; font-weight: 600; font-size: 13px; white-space: nowrap;">تاريخ التسجيل</th>
+            <th style="padding: 14px 12px; text-align: center; font-weight: 600; font-size: 13px;">المستوى</th>
+            <th style="padding: 14px 12px; text-align: center; font-weight: 600; font-size: 13px;">الأولوية</th>
+            <th style="padding: 14px 12px; text-align: center; border-radius: 0 10px 0 0; font-weight: 600; font-size: 13px;">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
   
   students.forEach((student, index) => {
-    const queueNumber = index + 1; // رقم الدور في الانتظار
+    const queueNumber = index + 1;
     
     const priorityEmoji = {
       urgent: '🔴',
@@ -7892,7 +7906,7 @@ function displayWaitingStudents(students) {
     
     const priorityLabel = {
       urgent: 'عاجل',
-      high: 'أولوية عالية',
+      high: 'أولوية',
       normal: 'عادي'
     };
     
@@ -7902,122 +7916,61 @@ function displayWaitingStudents(students) {
       normal: '#667eea'
     };
     
-    // Format level text
     const levelText = {
-      'hifz': '📚 حفظ',
-      'dabt': '✨ ضبط',
-      'noorani': '🌟 القاعدة النورانية'
+      'hifz': 'حفظ',
+      'dabt': 'ضبط',
+      'noorani': 'نورانية'
     };
     
-    // Format date
-    const addedDate = new Date(student.addedDate);
-    const dateStr = addedDate.toLocaleDateString('ar-EG', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-    
-    // Format birth date if exists
-    let birthDateStr = 'غير محدد';
-    if (student.birthDate) {
-      const birthDate = new Date(student.birthDate);
-      birthDateStr = birthDate.toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    }
+    const rowBg = index % 2 === 0 ? '#f8f9ff' : '#ffffff';
     
     html += `
-      <div style="background: white; border-radius: 15px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-right: 4px solid ${priorityColor[student.priority]}; position: relative;">
-        
-        <!-- Queue Number Badge -->
-        <div style="position: absolute; top: -10px; left: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(102,126,234,0.4);">
+      <tr style="background: ${rowBg}; border-bottom: 1px solid #e9ecef; transition: all 0.2s;" onmouseover="this.style.background='#f0f3ff'" onmouseout="this.style.background='${rowBg}'">
+        <td style="padding: 14px 12px; text-align: center; font-weight: 700; font-size: 15px; color: #667eea;">
           ${queueNumber}
-        </div>
-        
-        <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 12px;">
-          <div style="flex: 1;">
-            <h3 style="margin: 0 0 6px 0; font-size: 17px; font-weight: 600; color: #1a1a1a;">
-              👤 ${student.name}
-            </h3>
-            <p style="margin: 0; font-size: 13px; color: #666;">
-              📞 ${student.guardianPhone}
-            </p>
-            ${student.studentPhone ? `
-              <p style="margin: 4px 0 0 0; font-size: 12px; color: #999;">
-                📱 طالب: ${student.studentPhone}
-              </p>
-            ` : ''}
+        </td>
+        <td style="padding: 14px 16px; text-align: right;">
+          <div style="font-weight: 600; font-size: 14px; color: #1a1a1a; margin-bottom: 4px;">
+            👤 ${student.name}
           </div>
-          <span style="background: ${priorityColor[student.priority]}15; color: ${priorityColor[student.priority]}; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+          <div style="font-size: 12px; color: #666;">
+            📞 ${student.guardianPhone}
+          </div>
+        </td>
+        <td style="padding: 14px 12px; text-align: center;">
+          <div style="font-weight: 600; font-size: 13px; color: #667eea; white-space: nowrap;">
+            📅 ${student.registrationDateHijri || 'غير محدد'}
+          </div>
+        </td>
+        <td style="padding: 14px 12px; text-align: center;">
+          <span style="background: #f0f3ff; color: #667eea; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; display: inline-block;">
+            ${levelText[student.level] || student.level || 'غير محدد'}
+          </span>
+        </td>
+        <td style="padding: 14px 12px; text-align: center;">
+          <span style="background: ${priorityColor[student.priority]}15; color: ${priorityColor[student.priority]}; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; display: inline-block; white-space: nowrap;">
             ${priorityEmoji[student.priority]} ${priorityLabel[student.priority]}
           </span>
-        </div>
-        
-        <!-- Registration Date Hijri - Prominent Display -->
-        ${student.registrationDateHijri ? `
-          <div style="background: linear-gradient(135deg, #f5f7ff 0%, #ede9fe 100%); padding: 12px; border-radius: 10px; margin-bottom: 12px; text-align: center; border: 2px solid #e0e0ff;">
-            <p style="margin: 0; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 1px;">تاريخ التسجيل</p>
-            <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700; color: #667eea;">
-              📅 ${student.registrationDateHijri}
-            </p>
-          </div>
-        ` : ''}
-        
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-radius: 10px;">
-          <div>
-            <p style="margin: 0; font-size: 12px; color: #999;">العمر</p>
-            <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 600; color: #333;">${student.age ? student.age + ' سنة' : 'غير محدد'}</p>
-          </div>
-          <div>
-            <p style="margin: 0; font-size: 12px; color: #999;">المستوى</p>
-            <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 600; color: #333;">${levelText[student.level] || student.level || 'غير محدد'}</p>
-          </div>
-          <div>
-            <p style="margin: 0; font-size: 12px; color: #999;">تاريخ الميلاد</p>
-            <p style="margin: 4px 0 0 0; font-size: 13px; font-weight: 500; color: #333;">${birthDateStr}</p>
-          </div>
-          ${student.nationalId ? `
-          <div>
-            <p style="margin: 0; font-size: 12px; color: #999;">رقم الهوية</p>
-            <p style="margin: 4px 0 0 0; font-size: 13px; font-weight: 500; color: #333;">${student.nationalId}</p>
-          </div>
-          ` : ''}
-        </div>
-        
-        ${student.suggestedClassId ? `
-          <div style="background: #e6f7ff; padding: 10px; border-radius: 8px; margin-bottom: 12px;">
-            <p style="margin: 0; font-size: 12px; color: #0066cc;">
-              🎯 الحلقة المقترحة: <strong>${student.suggestedClassId}</strong>
-            </p>
-          </div>
-        ` : ''}
-        
-        ${student.notes ? `
-          <p style="margin: 0 0 12px 0; padding: 10px; background: #fffbea; border-radius: 8px; font-size: 13px; color: #666;">
-            📝 ${student.notes}
-          </p>
-        ` : ''}
-        
-        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #e9ecef;">
-          <span style="font-size: 12px; color: #999;">
-            📆 ${dateStr}
-          </span>
-          <div style="display: flex; gap: 8px;">
-            <button onclick="contactWaitingStudent('${student.id}')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
-              📞 تواصل
+        </td>
+        <td style="padding: 14px 12px; text-align: center;">
+          <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+            <button onclick="contactWaitingStudent('${student.id}')" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#218838'" onmouseout="this.style.background='#28a745'">
+              📞
             </button>
-            <button onclick="deleteWaitingStudent('${student.id}')" style="background: #f8f9fa; color: #dc3545; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
-              🗑️ حذف
+            <button onclick="deleteWaitingStudent('${student.id}')" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#c82333'" onmouseout="this.style.background='#dc3545'">
+              🗑️
             </button>
           </div>
-        </div>
-      </div>
+        </td>
+      </tr>
     `;
   });
   
-  html += '</div>';
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
   listContainer.innerHTML = html;
 }
 
