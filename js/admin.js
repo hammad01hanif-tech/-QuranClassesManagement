@@ -7462,18 +7462,72 @@ window.openAddWaitingStudent = async function() {
     if (form) form.reset();
     document.getElementById('waitingStudentAge').value = ''; // Clear calculated age
     
-    // Set current Hijri date for registration
-    const hijriDateInput = document.getElementById('waitingRegistrationHijri');
-    if (hijriDateInput) {
-      const currentHijri = formatHijriDate(new Date());
-      hijriDateInput.value = currentHijri;
-      console.log('📅 [WAITING] Registration date set:', currentHijri);
-    }
+    // Initialize Hijri date dropdowns with current date
+    initializeHijriDateDropdowns();
     
     // Load classes list
     await loadClassesForWaitingStudent();
   }
 };
+
+// Initialize Hijri Date Dropdowns
+function initializeHijriDateDropdowns() {
+  console.log('📅 [WAITING] Initializing Hijri date dropdowns...');
+  
+  const daySelect = document.getElementById('waitingRegDay');
+  const monthSelect = document.getElementById('waitingRegMonth');
+  const yearSelect = document.getElementById('waitingRegYear');
+  
+  if (!daySelect || !monthSelect || !yearSelect) return;
+  
+  // Get current Hijri date
+  const currentHijri = getCurrentHijriDate();
+  console.log('📅 Current Hijri:', currentHijri);
+  
+  // Hijri month names
+  const hijriMonths = [
+    'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+    'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+    'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+  ];
+  
+  // Clear existing options except first
+  daySelect.innerHTML = '<option value="">اليوم</option>';
+  monthSelect.innerHTML = '<option value="">الشهر</option>';
+  yearSelect.innerHTML = '<option value="">السنة</option>';
+  
+  // Populate days (1-30)
+  for (let day = 1; day <= 30; day++) {
+    const option = document.createElement('option');
+    option.value = day;
+    option.textContent = day;
+    daySelect.appendChild(option);
+  }
+  
+  // Populate months
+  hijriMonths.forEach((monthName, index) => {
+    const option = document.createElement('option');
+    option.value = index + 1;
+    option.textContent = `${index + 1} - ${monthName}`;
+    monthSelect.appendChild(option);
+  });
+  
+  // Populate years (current year ± 2 years)
+  const currentYear = currentHijri.year;
+  for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    yearSelect.appendChild(option);
+  }
+  
+  // Set current date as default
+  daySelect.value = currentHijri.day;
+  monthSelect.value = currentHijri.month;
+  yearSelect.value = currentHijri.year;
+  
+  console.log('✅ [WAITING] Hijri date dropdowns initialized:', currentHijri);
+}
 
 // Load Classes for Waiting Student Selection
 async function loadClassesForWaitingStudent() {
@@ -7551,6 +7605,11 @@ window.saveWaitingStudent = async function() {
   const studentPhone = document.getElementById('waitingStudentPhone').value.trim();
   const notes = document.getElementById('waitingStudentNotes').value.trim();
   
+  // Get Hijri registration date from dropdowns
+  const regDay = document.getElementById('waitingRegDay').value;
+  const regMonth = document.getElementById('waitingRegMonth').value;
+  const regYear = document.getElementById('waitingRegYear').value;
+  
   // Get selected priority
   const priorityInputs = document.querySelectorAll('input[name="waitingPriority"]');
   let priority = 'normal';
@@ -7573,6 +7632,11 @@ window.saveWaitingStudent = async function() {
   
   if (!guardianPhone) {
     alert('⚠️ الرجاء إدخال رقم ولي الأمر');
+    return;
+  }
+  
+  if (!regDay || !regMonth || !regYear) {
+    alert('⚠️ الرجاء اختيار تاريخ التسجيل الهجري كاملاً');
     return;
   }
   
@@ -7604,8 +7668,16 @@ window.saveWaitingStudent = async function() {
       numericAge--;
     }
     
-    // Get registration date in Hijri format
-    const registrationDateHijri = formatHijriDate(today);
+    // Format registration date in Hijri
+    const hijriMonths = [
+      'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+    ];
+    const registrationDateHijri = `${regDay} ${hijriMonths[regMonth - 1]} ${regYear}`;
+    
+    // Convert Hijri date to Gregorian for accurate sorting
+    const registrationDateGregorian = hijriToGregorian(parseInt(regYear), parseInt(regMonth), parseInt(regDay));
     
     // Create student object
     const studentData = {
@@ -7616,9 +7688,12 @@ window.saveWaitingStudent = async function() {
       guardianPhone: guardianPhone,
       priority: priority,
       registrationDateHijri: registrationDateHijri,
-      addedDate: new Date().toISOString(),
+      registrationDay: parseInt(regDay),
+      registrationMonth: parseInt(regMonth),
+      registrationYear: parseInt(regYear),
+      addedDate: registrationDateGregorian ? registrationDateGregorian.toISOString() : new Date().toISOString(),
       addedBy: auth.currentUser.uid,
-      status: 'waiting' // for future use: assigned/contacted/cancelled
+      status: 'waiting'
     };
     
     // Add optional fields

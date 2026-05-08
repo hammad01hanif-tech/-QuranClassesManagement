@@ -1086,10 +1086,20 @@
               <h3 class="form-section-title">📅 معلومات التسجيل</h3>
               
               <div class="form-group">
-                <label class="form-label">تاريخ التسجيل الهجري</label>
-                <input type="text" class="form-input" id="waitingRegistrationHijri" readonly style="background: linear-gradient(135deg, #f5f7ff 0%, #ede9fe 100%); font-weight: 600; color: #667eea; text-align: center; cursor: not-allowed;">
+                <label class="form-label">تاريخ التسجيل الهجري *</label>
+                <div class="hijri-date-picker">
+                  <select class="hijri-select" id="waitingRegDay" required>
+                    <option value="">اليوم</option>
+                  </select>
+                  <select class="hijri-select" id="waitingRegMonth" required>
+                    <option value="">الشهر</option>
+                  </select>
+                  <select class="hijri-select" id="waitingRegYear" required>
+                    <option value="">السنة</option>
+                  </select>
+                </div>
                 <p style="margin: 8px 0 0 0; font-size: 12px; color: #999; text-align: center;">
-                  📌 يتم حساب تاريخ التسجيل تلقائياً، وهو أساس ترتيب قائمة الانتظار
+                  📌 تاريخ التسجيل هو أساس ترتيب قائمة الانتظار
                 </p>
               </div>
             </div>
