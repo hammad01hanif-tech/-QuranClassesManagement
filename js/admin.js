@@ -8283,6 +8283,13 @@ window.confirmJoinWaitingStudentToClass = async function(studentId) {
     const newStudentRef = await addDoc(collection(db, 'users'), newStudentData);
     console.log('✅ [WAITING] Student added to users collection:', newStudentRef.id);
     
+    // Update class document to add student ID
+    const classDocRef = firestoreDoc(db, 'classes', classId);
+    await updateDoc(classDocRef, {
+      studentIds: arrayUnion(newStudentRef.id)
+    });
+    console.log('✅ [WAITING] Student added to class studentIds array');
+    
     // Delete from waiting list
     await deleteDoc(doc(db, 'waitingStudents', studentId));
     console.log('✅ [WAITING] Student removed from waiting list');
