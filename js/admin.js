@@ -8010,57 +8010,26 @@ function displayWaitingStudents(students) {
       normal: '#667eea'
     };
     
-    const levelText = {
-      'hifz': 'حفظ',
-      'dabt': 'ضبط',
-      'noorani': 'نورانية'
-    };
+    // Simplified mobile card - just name and date
+    const studentDataJson = JSON.stringify(student).replace(/"/g, '&quot;');
     
     html += `
-      <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-right: 4px solid ${priorityColor[student.priority]}; position: relative;">
+      <div onclick='openWaitingStudentModal(${studentDataJson})' style="background: white; border-radius: 12px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-right: 4px solid ${priorityColor[student.priority]}; position: relative; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'">
         
         <!-- Queue Number Badge -->
-        <div style="position: absolute; top: -8px; left: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; box-shadow: 0 4px 10px rgba(102,126,234,0.4);">
+        <div style="position: absolute; top: -8px; left: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; box-shadow: 0 3px 8px rgba(102,126,234,0.4);">
           ${queueNumber}
         </div>
         
-        <div style="margin-bottom: 12px;">
-          <h3 style="margin: 0 0 6px 0; font-size: 16px; font-weight: 600; color: #1a1a1a;">
+        <div>
+          <h3 style="margin: 0 0 8px 0; font-size: 15px; font-weight: 600; color: #1a1a1a;">
             👤 ${student.name}
           </h3>
-          <p style="margin: 0; font-size: 13px; color: #666;">
-            📞 ${student.guardianPhone}
+          <p style="margin: 0; font-size: 13px; color: #667eea; font-weight: 500;">
+            📅 ${student.registrationDateHijri || 'غير محدد'}
           </p>
         </div>
         
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px;">
-          <div style="background: #f8f9ff; padding: 10px; border-radius: 8px;">
-            <p style="margin: 0; font-size: 11px; color: #999;">تاريخ التسجيل</p>
-            <p style="margin: 4px 0 0 0; font-size: 12px; font-weight: 600; color: #667eea;">
-              ${student.registrationDateHijri || 'غير محدد'}
-            </p>
-          </div>
-          <div style="background: #f8f9ff; padding: 10px; border-radius: 8px;">
-            <p style="margin: 0; font-size: 11px; color: #999;">المستوى</p>
-            <p style="margin: 4px 0 0 0; font-size: 12px; font-weight: 600; color: #333;">
-              ${levelText[student.level] || student.level || 'غير محدد'}
-            </p>
-          </div>
-        </div>
-        
-        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #e9ecef;">
-          <span style="background: ${priorityColor[student.priority]}15; color: ${priorityColor[student.priority]}; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;">
-            ${priorityEmoji[student.priority]} ${priorityLabel[student.priority]}
-          </span>
-          <div style="display: flex; gap: 8px;">
-            <button onclick="contactWaitingStudent('${student.id}')" style="background: #28a745; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
-              📞
-            </button>
-            <button onclick="deleteWaitingStudent('${student.id}')" style="background: #dc3545; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
-              🗑️
-            </button>
-          </div>
-        </div>
       </div>
     `;
   });
@@ -8070,6 +8039,264 @@ function displayWaitingStudents(students) {
   `;
   listContainer.innerHTML = html;
 }
+
+// Open Waiting Student Modal with Details
+window.openWaitingStudentModal = function(studentData) {
+  console.log('📋 [WAITING] Opening modal for student:', studentData);
+  
+  const modal = document.getElementById('waitingStudentModal');
+  const modalContent = document.getElementById('waitingStudentModalContent');
+  
+  if (!modal || !modalContent) return;
+  
+  const priorityEmoji = {
+    urgent: '🔴',
+    high: '⭐',
+    normal: '🔵'
+  };
+  
+  const priorityLabel = {
+    urgent: 'عاجل',
+    high: 'أولوية عالية',
+    normal: 'عادي'
+  };
+  
+  const priorityColor = {
+    urgent: '#dc3545',
+    high: '#ffc107',
+    normal: '#667eea'
+  };
+  
+  const levelText = {
+    'hifz': 'حفظ',
+    'dabt': 'ضبط',
+    'noorani': 'نورانية'
+  };
+  
+  modalContent.innerHTML = `
+    <div style="text-align: center; margin-bottom: 20px;">
+      <h2 style="margin: 0 0 8px 0; font-size: 18px; color: #1a1a1a;">
+        👤 ${studentData.name}
+      </h2>
+      <span style="background: ${priorityColor[studentData.priority]}15; color: ${priorityColor[studentData.priority]}; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-block;">
+        ${priorityEmoji[studentData.priority]} ${priorityLabel[studentData.priority]}
+      </span>
+    </div>
+    
+    <div style="background: #f8f9ff; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+      <div style="display: grid; gap: 12px;">
+        
+        <div>
+          <p style="margin: 0 0 4px 0; font-size: 12px; color: #999;">تاريخ التسجيل</p>
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #667eea;">
+            📅 ${studentData.registrationDateHijri || 'غير محدد'}
+          </p>
+        </div>
+        
+        <div>
+          <p style="margin: 0 0 4px 0; font-size: 12px; color: #999;">رقم جوال ولي الأمر</p>
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #333;">
+            📞 ${studentData.guardianPhone}
+          </p>
+        </div>
+        
+        ${studentData.studentPhone ? `
+        <div>
+          <p style="margin: 0 0 4px 0; font-size: 12px; color: #999;">رقم جوال الطالب</p>
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #333;">
+            📱 ${studentData.studentPhone}
+          </p>
+        </div>
+        ` : ''}
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+          <div>
+            <p style="margin: 0 0 4px 0; font-size: 12px; color: #999;">العمر</p>
+            <p style="margin: 0; font-size: 14px; font-weight: 600; color: #333;">
+              ${studentData.age ? studentData.age + ' سنة' : 'غير محدد'}
+            </p>
+          </div>
+          <div>
+            <p style="margin: 0 0 4px 0; font-size: 12px; color: #999;">المستوى</p>
+            <p style="margin: 0; font-size: 14px; font-weight: 600; color: #333;">
+              ${levelText[studentData.level] || studentData.level || 'غير محدد'}
+            </p>
+          </div>
+        </div>
+        
+        ${studentData.nationalId ? `
+        <div>
+          <p style="margin: 0 0 4px 0; font-size: 12px; color: #999;">رقم الهوية</p>
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #333;">
+            🆔 ${studentData.nationalId}
+          </p>
+        </div>
+        ` : ''}
+        
+        ${studentData.notes ? `
+        <div>
+          <p style="margin: 0 0 4px 0; font-size: 12px; color: #999;">ملاحظات</p>
+          <p style="margin: 0; font-size: 13px; color: #666; background: #fffbea; padding: 10px; border-radius: 8px;">
+            📝 ${studentData.notes}
+          </p>
+        </div>
+        ` : ''}
+        
+      </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div style="display: grid; gap: 10px;">
+      <button onclick="joinWaitingStudentToClass('${studentData.id}')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(40,167,69,0.3)'" onmouseout="this.style.transform=''; this.style.boxShadow=''">
+        ✅ انضم للحلقة
+      </button>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <button onclick="contactWaitingStudent('${studentData.id}')" style="background: #667eea; color: white; border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;">
+          📞 تواصل
+        </button>
+        <button onclick="if(confirm('⚠️ هل أنت متأكد من الحذف؟')) { deleteWaitingStudent('${studentData.id}'); closeWaitingStudentModal(); }" style="background: #dc3545; color: white; border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;">
+          🗑️ حذف
+        </button>
+      </div>
+    </div>
+  `;
+  
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+};
+
+// Close Waiting Student Modal
+window.closeWaitingStudentModal = function() {
+  const modal = document.getElementById('waitingStudentModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+};
+
+// Join Waiting Student to Class
+window.joinWaitingStudentToClass = async function(studentId) {
+  console.log('🎓 [WAITING] Joining student to class:', studentId);
+  
+  try {
+    // Get student data
+    const studentDoc = await getDoc(doc(db, 'waitingStudents', studentId));
+    if (!studentDoc.exists()) {
+      alert('❌ الطالب غير موجود');
+      return;
+    }
+    
+    const studentData = studentDoc.data();
+    
+    // Get all classes
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    if (classesSnapshot.empty) {
+      alert('❌ لا توجد حلقات متاحة');
+      return;
+    }
+    
+    // Build classes options
+    let classesHTML = '<option value="">اختر الحلقة</option>';
+    classesSnapshot.forEach(doc => {
+      const classData = doc.data();
+      classesHTML += `<option value="${doc.id}">${classData.name || doc.id}</option>`;
+    });
+    
+    // Show modal to select class
+    const modalContent = document.getElementById('waitingStudentModalContent');
+    modalContent.innerHTML = `
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h3 style="margin: 0 0 8px 0; font-size: 17px; color: #1a1a1a;">اختر الحلقة</h3>
+        <p style="margin: 0; font-size: 13px; color: #666;">اختر الحلقة المناسبة للطالب ${studentData.name}</p>
+      </div>
+      
+      <select id="selectedClassForWaiting" style="width: 100%; padding: 14px; border: 2px solid #e9ecef; border-radius: 12px; font-size: 15px; margin-bottom: 16px; background: white;">
+        ${classesHTML}
+      </select>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <button onclick="confirmJoinWaitingStudentToClass('${studentId}')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;">
+          ✅ تأكيد
+        </button>
+        <button onclick="closeWaitingStudentModal()" style="background: #6c757d; color: white; border: none; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;">
+          ✖️ إلغاء
+        </button>
+      </div>
+    `;
+    
+  } catch (error) {
+    console.error('❌ [WAITING] Error loading classes:', error);
+    alert('❌ حدث خطأ: ' + error.message);
+  }
+};
+
+// Confirm Join Waiting Student to Class
+window.confirmJoinWaitingStudentToClass = async function(studentId) {
+  const classSelect = document.getElementById('selectedClassForWaiting');
+  const classId = classSelect.value;
+  
+  if (!classId) {
+    alert('⚠️ الرجاء اختيار الحلقة');
+    return;
+  }
+  
+  try {
+    console.log('💾 [WAITING] Moving student to class:', { studentId, classId });
+    
+    // Get student data from waiting list
+    const waitingStudentDoc = await getDoc(doc(db, 'waitingStudents', studentId));
+    if (!waitingStudentDoc.exists()) {
+      alert('❌ الطالب غير موجود في قائمة الانتظار');
+      return;
+    }
+    
+    const studentData = waitingStudentDoc.data();
+    
+    // Get class data to get teacher info
+    const classDoc = await getDoc(doc(db, 'classes', classId));
+    if (!classDoc.exists()) {
+      alert('❌ الحلقة غير موجودة');
+      return;
+    }
+    
+    const classData = classDoc.data();
+    
+    // Create new student in users collection
+    const newStudentData = {
+      name: studentData.name,
+      birthDate: studentData.birthDate || null,
+      age: studentData.age || null,
+      nationalId: studentData.nationalId || null,
+      level: studentData.level,
+      class: classId,
+      teacher: classData.teacher || 'غير محدد',
+      guardianPhone: studentData.guardianPhone,
+      studentPhone: studentData.studentPhone || null,
+      notes: studentData.notes || null,
+      addedDate: new Date().toISOString(),
+      addedFrom: 'waitingList',
+      status: 'active'
+    };
+    
+    // Add to users collection
+    const newStudentRef = await addDoc(collection(db, 'users'), newStudentData);
+    console.log('✅ [WAITING] Student added to users collection:', newStudentRef.id);
+    
+    // Delete from waiting list
+    await deleteDoc(doc(db, 'waitingStudents', studentId));
+    console.log('✅ [WAITING] Student removed from waiting list');
+    
+    // Close modal and reload
+    closeWaitingStudentModal();
+    showSuccessToast('✅ تم إضافة الطالب للحلقة بنجاح');
+    loadWaitingStudents();
+    
+  } catch (error) {
+    console.error('❌ [WAITING] Error joining student to class:', error);
+    alert('❌ حدث خطأ: ' + error.message);
+  }
+};
 
 // Contact Waiting Student
 window.contactWaitingStudent = function(studentId) {
