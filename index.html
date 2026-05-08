@@ -896,8 +896,240 @@
               المزيد
             </h3>
           </div>
-          <div style="padding: 40px 20px; text-align: center; color: #999;">
-            <p>سيتم إضافة الإعدادات والخيارات الإضافية هنا</p>
+
+          <!-- More Menu Grid -->
+          <div class="more-menu-grid">
+            
+            <!-- Waiting Students Card -->
+            <div class="more-menu-card" onclick="window.openWaitingStudentsSection()">
+              <div class="more-card-icon">⏳</div>
+              <div class="more-card-content">
+                <h4 class="more-card-title">طلاب الانتظار</h4>
+                <p class="more-card-desc">إدارة قائمة طلاب الانتظار</p>
+              </div>
+              <div class="more-card-badge">12</div>
+              <div class="more-card-arrow">←</div>
+            </div>
+
+            <!-- Settings Card (Coming Soon) -->
+            <div class="more-menu-card disabled">
+              <div class="more-card-icon">⚙️</div>
+              <div class="more-card-content">
+                <h4 class="more-card-title">الإعدادات</h4>
+                <p class="more-card-desc">إعدادات النظام</p>
+              </div>
+              <div class="more-card-arrow">←</div>
+            </div>
+
+            <!-- Reports Card (Coming Soon) -->
+            <div class="more-menu-card disabled">
+              <div class="more-card-icon">📊</div>
+              <div class="more-card-content">
+                <h4 class="more-card-title">التقارير</h4>
+                <p class="more-card-desc">تقارير شاملة</p>
+              </div>
+              <div class="more-card-arrow">←</div>
+            </div>
+
+            <!-- Notifications Card (Coming Soon) -->
+            <div class="more-menu-card disabled">
+              <div class="more-card-icon">🔔</div>
+              <div class="more-card-content">
+                <h4 class="more-card-title">الإشعارات</h4>
+                <p class="more-card-desc">إدارة الإشعارات</p>
+              </div>
+              <div class="more-card-arrow">←</div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Waiting Students Section (Full Page) -->
+        <div id="waitingStudentsSection" class="admin-full-page-section" style="display: none;">
+          
+          <!-- Header with Back Button -->
+          <div class="full-page-header">
+            <button class="back-btn" onclick="window.closeWaitingStudentsSection()">
+              <span class="back-arrow">→</span>
+            </button>
+            <h2 class="full-page-title">⏳ طلاب الانتظار</h2>
+            <div class="header-spacer"></div>
+          </div>
+
+          <!-- Add Button -->
+          <div class="action-section">
+            <button class="primary-action-btn" onclick="window.openAddWaitingStudent()">
+              <span class="btn-icon">➕</span>
+              <span class="btn-text">إضافة طالب انتظار</span>
+            </button>
+          </div>
+
+          <!-- Search and Filter -->
+          <div class="search-filter-bar">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" class="search-input" placeholder="ابحث عن طالب..." id="searchWaitingStudents" oninput="window.searchWaitingStudents(event)">
+            </div>
+            <button class="filter-btn" onclick="window.filterWaitingStudents()">
+              <span>فلترة</span>
+              <span style="font-size: 18px;">⚙️</span>
+            </button>
+          </div>
+
+          <!-- Stats Cards -->
+          <div class="waiting-stats-grid">
+            <div class="waiting-stat-card">
+              <div class="stat-icon">⏳</div>
+              <div class="stat-number" id="totalWaitingCount">0</div>
+              <div class="stat-label">إجمالي الطلاب</div>
+            </div>
+            <div class="waiting-stat-card priority">
+              <div class="stat-icon">⭐</div>
+              <div class="stat-number" id="priorityWaitingCount">0</div>
+              <div class="stat-label">ذو أولوية</div>
+            </div>
+            <div class="waiting-stat-card recent">
+              <div class="stat-icon">🆕</div>
+              <div class="stat-number" id="recentWaitingCount">0</div>
+              <div class="stat-label">هذا الأسبوع</div>
+            </div>
+          </div>
+
+          <!-- Waiting Students List -->
+          <div class="waiting-students-list" id="waitingStudentsList">
+            <!-- Students will be loaded here -->
+            <div class="empty-state">
+              <div class="empty-icon">⏳</div>
+              <h3 class="empty-title">لا يوجد طلاب في قائمة الانتظار</h3>
+              <p class="empty-desc">ابدأ بإضافة طلاب جدد لقائمة الانتظار</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Add Waiting Student Page (Full Page) -->
+        <div id="addWaitingStudentPage" class="admin-full-page-section" style="display: none;">
+          
+          <!-- Header with Back Button -->
+          <div class="full-page-header">
+            <button class="back-btn" onclick="window.closeAddWaitingStudent()">
+              <span class="back-arrow">→</span>
+            </button>
+            <h2 class="full-page-title">➕ إضافة طالب انتظار</h2>
+            <div class="header-spacer"></div>
+          </div>
+
+          <!-- Form Section -->
+          <div class="form-container">
+            
+            <!-- Student Information Section -->
+            <div class="form-section">
+              <h3 class="form-section-title">📝 معلومات الطالب</h3>
+              
+              <div class="form-group">
+                <label class="form-label">الاسم الكامل *</label>
+                <input type="text" class="form-input" id="waitingStudentName" placeholder="أدخل اسم الطالب الكامل" required>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">تاريخ الميلاد *</label>
+                  <input type="date" class="form-input" id="waitingStudentBirthDate" onchange="calculateWaitingStudentAge()" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">العمر</label>
+                  <input type="text" class="form-input" id="waitingStudentAge" placeholder="يحسب تلقائياً" readonly style="background: #f8f9fa;">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">رقم الهوية (اختياري)</label>
+                <input type="text" class="form-input" id="waitingStudentNationalId" placeholder="أدخل رقم الهوية">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">المستوى *</label>
+                  <select class="form-input" id="waitingStudentLevel" required>
+                    <option value="">اختر المستوى</option>
+                    <option value="hifz">📚 حفظ</option>
+                    <option value="dabt">✨ ضبط</option>
+                    <option value="noorani">🌟 القاعدة النورانية</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">الحلقة (اختياري)</label>
+                  <select class="form-input" id="waitingStudentClass">
+                    <option value="">لم يتم التحديد بعد</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contact Information Section -->
+            <div class="form-section">
+              <h3 class="form-section-title">📞 معلومات التواصل</h3>
+              
+              <div class="form-group">
+                <label class="form-label">رقم جوال ولي الأمر *</label>
+                <input type="tel" class="form-input" id="waitingGuardianPhone" placeholder="05xxxxxxxx" pattern="[0-9]{10}" maxlength="10" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">رقم جوال الطالب (اختياري)</label>
+                <input type="tel" class="form-input" id="waitingStudentPhone" placeholder="05xxxxxxxx" pattern="[0-9]{10}" maxlength="10">
+              </div>
+            </div>
+
+            <!-- Priority Section -->
+            <div class="form-section">
+              <h3 class="form-section-title">⭐ الأولوية</h3>
+              
+              <div class="priority-options">
+                <label class="priority-option">
+                  <input type="radio" name="waitingPriority" value="normal" checked>
+                  <span class="priority-card">
+                    <span class="priority-icon">🔵</span>
+                    <span class="priority-name">عادي</span>
+                  </span>
+                </label>
+                <label class="priority-option">
+                  <input type="radio" name="waitingPriority" value="high">
+                  <span class="priority-card">
+                    <span class="priority-icon">⭐</span>
+                    <span class="priority-name">عالي</span>
+                  </span>
+                </label>
+                <label class="priority-option">
+                  <input type="radio" name="waitingPriority" value="urgent">
+                  <span class="priority-card">
+                    <span class="priority-icon">🔴</span>
+                    <span class="priority-name">عاجل</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="form-section">
+              <h3 class="form-section-title">📋 ملاحظات</h3>
+              
+              <div class="form-group">
+                <textarea class="form-textarea" id="waitingStudentNotes" placeholder="أي ملاحظات إضافية..." rows="4"></textarea>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="form-actions">
+              <button class="submit-btn" onclick="window.saveWaitingStudent()">
+                <span class="btn-icon">✅</span>
+                <span class="btn-text">إضافة للقائمة</span>
+              </button>
+            </div>
+
+            <!-- Bottom Spacing -->
+            <div style="height: 40px;"></div>
+
           </div>
         </div>
 

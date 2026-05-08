@@ -7430,3 +7430,541 @@ window.showAddTaskModal = function() {
 // END OF ADD NEW TASK PAGE FUNCTIONS
 
 // END OF MODERN TASKS PAGE FUNCTIONS
+
+// ============================================
+// WAITING STUDENTS SECTION FUNCTIONS
+// ============================================
+
+// Open Waiting Students Section
+window.openWaitingStudentsSection = function() {
+  const waitingSection = document.getElementById('waitingStudentsSection');
+  if (waitingSection) {
+    waitingSection.style.display = 'block';
+    loadWaitingStudents();
+  }
+};
+
+// Close Waiting Students Section
+window.closeWaitingStudentsSection = function() {
+  const waitingSection = document.getElementById('waitingStudentsSection');
+  if (waitingSection) {
+    waitingSection.style.display = 'none';
+  }
+};
+
+// Open Add Waiting Student Page
+window.openAddWaitingStudent = async function() {
+  const addPage = document.getElementById('addWaitingStudentPage');
+  if (addPage) {
+    addPage.style.display = 'block';
+    // Reset form
+    const form = document.getElementById('waitingStudentForm');
+    if (form) form.reset();
+    document.getElementById('waitingStudentAge').value = ''; // Clear calculated age
+    
+    // Load classes list
+    await loadClassesForWaitingStudent();
+  }
+};
+
+// Load Classes for Waiting Student Selection
+async function loadClassesForWaitingStudent() {
+  try {
+    const classSelect = document.getElementById('waitingStudentClass');
+    if (!classSelect) return;
+    
+    // Clear existing options except the first one
+    classSelect.innerHTML = '<option value="">لم يتم التحديد بعد</option>';
+    
+    // Get all classes
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    
+    classesSnapshot.forEach(doc => {
+      const classData = doc.data();
+      const option = document.createElement('option');
+      option.value = doc.id;
+      option.textContent = classData.name || doc.id;
+      classSelect.appendChild(option);
+    });
+    
+    console.log('✅ [WAITING] Classes loaded for selection');
+  } catch (error) {
+    console.error('❌ [WAITING] Error loading classes:', error);
+  }
+}
+
+// Calculate Age from Birth Date for Waiting Student
+window.calculateWaitingStudentAge = function() {
+  const birthDateInput = document.getElementById('waitingStudentBirthDate');
+  const ageInput = document.getElementById('waitingStudentAge');
+  
+  if (!birthDateInput || !ageInput) return;
+  
+  const birthDate = birthDateInput.value;
+  if (!birthDate) {
+    ageInput.value = '';
+    return;
+  }
+  
+  const birthDateObj = new Date(birthDate);
+  const today = new Date();
+  
+  let age = today.getFullYear() - birthDateObj.getFullYear();
+  const monthDiff = today.getMonth() - birthDateObj.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
+    age--;
+  }
+  
+  ageInput.value = age + ' سنة';
+  console.log('📅 [WAITING] Age calculated:', age);
+};
+
+// Close Add Waiting Student Page
+window.closeAddWaitingStudent = function() {
+  const addPage = document.getElementById('addWaitingStudentPage');
+  if (addPage) {
+    addPage.style.display = 'none';
+  }
+};
+
+// Save Waiting Student
+window.saveWaitingStudent = async function() {
+  console.log('💾 [WAITING] Starting save waiting student...');
+  
+  // Get form values
+  const name = document.getElementById('waitingStudentName').value.trim();
+  const birthDate = document.getElementById('waitingStudentBirthDate').value;
+  const age = document.getElementById('waitingStudentAge').value.trim();
+  const nationalId = document.getElementById('waitingStudentNationalId').value.trim();
+  const level = document.getElementById('waitingStudentLevel').value;
+  const classId = document.getElementById('waitingStudentClass').value;
+  const guardianPhone = document.getElementById('waitingGuardianPhone').value.trim();
+  const studentPhone = document.getElementById('waitingStudentPhone').value.trim();
+  const notes = document.getElementById('waitingStudentNotes').value.trim();
+  
+  // Get selected priority
+  const priorityInputs = document.querySelectorAll('input[name="waitingPriority"]');
+  let priority = 'normal';
+  priorityInputs.forEach(input => {
+    if (input.checked) {
+      priority = input.value;
+    }
+  });
+  
+  // Validation
+  if (!name) {
+    alert('⚠️ الرجاء إدخال اسم الطالب');
+    return;
+  }
+  
+  if (!birthDate) {
+    alert('⚠️ الرجاء اختيار تاريخ الميلاد');
+    return;
+  }
+  
+  if (!guardianPhone) {
+    alert('⚠️ الرجاء إدخال رقم ولي الأمر');
+    return;
+  }
+  
+  // Validate phone formats
+  if (guardianPhone && !/^[0-9]{10}$/.test(guardianPhone)) {
+    alert('⚠️ رقم جوال ولي الأمر يجب أن يكون 10 أرقام');
+    return;
+  }
+  
+  if (studentPhone && !/^[0-9]{10}$/.test(studentPhone)) {
+    alert('⚠️ رقم جوال الطالب يجب أن يكون 10 أرقام');
+    return;
+  }
+  
+  if (!level) {
+    alert('⚠️ الرجاء اختيار المستوى');
+    return;
+  }
+  
+  try {
+    console.log('📝 [WAITING] Creating student data...', { name, priority, level });
+    
+    // Calculate numeric age from birth date
+    const birthDateObj = new Date(birthDate);
+    const today = new Date();
+    let numericAge = today.getFullYear() - birthDateObj.getFullYear();
+    const monthDiff = today.getMonth() - birthDateObj.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
+      numericAge--;
+    }
+    
+    // Create student object
+    const studentData = {
+      name: name,
+      birthDate: birthDate,
+      age: numericAge,
+      level: level,
+      guardianPhone: guardianPhone,
+      priority: priority,
+      addedDate: new Date().toISOString(),
+      addedBy: auth.currentUser.uid,
+      status: 'waiting' // for future use: assigned/contacted/cancelled
+    };
+    
+    // Add optional fields
+    if (nationalId) {
+      studentData.nationalId = nationalId;
+    }
+    if (studentPhone) {
+      studentData.studentPhone = studentPhone;
+    }
+    if (classId) {
+      studentData.suggestedClassId = classId; // Save as suggestion, not final assignment
+    }
+    if (notes) {
+      studentData.notes = notes;
+    }
+    
+    // Save to Firestore
+    const docRef = await addDoc(collection(db, 'waitingStudents'), studentData);
+    console.log('✅ [WAITING] Student saved successfully! ID:', docRef.id);
+    
+    // Show success message
+    showSuccessToast('✅ تمت إضافة الطالب إلى قائمة الانتظار');
+    
+    // Close add page
+    closeAddWaitingStudent();
+    
+    // Reload waiting students list
+    loadWaitingStudents();
+    
+  } catch (error) {
+    console.error('❌ [WAITING] Error saving student:', error);
+    alert('❌ حدث خطأ أثناء الحفظ: ' + error.message);
+  }
+};
+
+// Load Waiting Students
+window.loadWaitingStudents = async function() {
+  console.log('📥 [WAITING] Loading waiting students...');
+  
+  try {
+    // Query waiting students sorted by priority and date
+    const q = query(
+      collection(db, 'waitingStudents'),
+      where('status', '==', 'waiting'),
+      orderBy('addedDate', 'desc')
+    );
+    
+    const snapshot = await getDocs(q);
+    console.log('📊 [WAITING] Found students:', snapshot.size);
+    
+    const students = [];
+    snapshot.forEach(doc => {
+      students.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    // Sort by priority (urgent > high > normal)
+    students.sort((a, b) => {
+      const priorityOrder = { urgent: 0, high: 1, normal: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+    
+    // Update stats
+    updateWaitingStats(students);
+    
+    // Display students
+    displayWaitingStudents(students);
+    
+  } catch (error) {
+    console.error('❌ [WAITING] Error loading students:', error);
+    // Show empty state on error
+    const listContainer = document.getElementById('waitingStudentsList');
+    if (listContainer) {
+      listContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">❌</div>
+          <h3 class="empty-title">حدث خطأ</h3>
+          <p class="empty-desc">${error.message}</p>
+        </div>
+      `;
+    }
+  }
+};
+
+// Update Waiting Stats
+function updateWaitingStats(students) {
+  console.log('📈 [WAITING] Updating stats...', students.length);
+  
+  // Total waiting
+  const totalElement = document.querySelector('#waitingStudentsSection .waiting-stat-card:nth-child(1) .stat-number');
+  if (totalElement) {
+    totalElement.textContent = students.length;
+  }
+  
+  // Priority count (urgent + high)
+  const priorityCount = students.filter(s => s.priority === 'urgent' || s.priority === 'high').length;
+  const priorityElement = document.querySelector('#waitingStudentsSection .waiting-stat-card:nth-child(2) .stat-number');
+  if (priorityElement) {
+    priorityElement.textContent = priorityCount;
+  }
+  
+  // Recent (last 7 days)
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const recentCount = students.filter(s => {
+    const addedDate = new Date(s.addedDate);
+    return addedDate >= oneWeekAgo;
+  }).length;
+  const recentElement = document.querySelector('#waitingStudentsSection .waiting-stat-card:nth-child(3) .stat-number');
+  if (recentElement) {
+    recentElement.textContent = recentCount;
+  }
+  
+  // Update badge in more menu
+  const badge = document.querySelector('.more-menu-card .more-card-badge');
+  if (badge) {
+    badge.textContent = students.length;
+  }
+}
+
+// Display Waiting Students
+function displayWaitingStudents(students) {
+  console.log('🖼️ [WAITING] Displaying students...', students.length);
+  
+  const listContainer = document.getElementById('waitingStudentsList');
+  if (!listContainer) return;
+  
+  if (students.length === 0) {
+    listContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⏳</div>
+        <h3 class="empty-title">لا يوجد طلاب في قائمة الانتظار</h3>
+        <p class="empty-desc">اضغط على "إضافة طالب انتظار" لإضافة طالب جديد</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Build HTML for students
+  let html = '<div style="display: grid; gap: 12px;">';
+  
+  students.forEach(student => {
+    const priorityEmoji = {
+      urgent: '🔴',
+      high: '⭐',
+      normal: '🔵'
+    };
+    
+    const priorityLabel = {
+      urgent: 'عاجل',
+      high: 'أولوية عالية',
+      normal: 'عادي'
+    };
+    
+    const priorityColor = {
+      urgent: '#dc3545',
+      high: '#ffc107',
+      normal: '#667eea'
+    };
+    
+    // Format level text
+    const levelText = {
+      'hifz': '📚 حفظ',
+      'dabt': '✨ ضبط',
+      'noorani': '🌟 القاعدة النورانية'
+    };
+    
+    // Format date
+    const addedDate = new Date(student.addedDate);
+    const dateStr = addedDate.toLocaleDateString('ar-EG', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    // Format birth date if exists
+    let birthDateStr = 'غير محدد';
+    if (student.birthDate) {
+      const birthDate = new Date(student.birthDate);
+      birthDateStr = birthDate.toLocaleDateString('ar-EG', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+    
+    html += `
+      <div style="background: white; border-radius: 15px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-right: 4px solid ${priorityColor[student.priority]};">
+        <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 12px;">
+          <div style="flex: 1;">
+            <h3 style="margin: 0 0 6px 0; font-size: 17px; font-weight: 600; color: #1a1a1a;">
+              👤 ${student.name}
+            </h3>
+            <p style="margin: 0; font-size: 13px; color: #666;">
+              📞 ${student.guardianPhone}
+            </p>
+            ${student.studentPhone ? `
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #999;">
+                📱 طالب: ${student.studentPhone}
+              </p>
+            ` : ''}
+          </div>
+          <span style="background: ${priorityColor[student.priority]}15; color: ${priorityColor[student.priority]}; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+            ${priorityEmoji[student.priority]} ${priorityLabel[student.priority]}
+          </span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-radius: 10px;">
+          <div>
+            <p style="margin: 0; font-size: 12px; color: #999;">العمر</p>
+            <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 600; color: #333;">${student.age ? student.age + ' سنة' : 'غير محدد'}</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-size: 12px; color: #999;">المستوى</p>
+            <p style="margin: 4px 0 0 0; font-size: 14px; font-weight: 600; color: #333;">${levelText[student.level] || student.level || 'غير محدد'}</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-size: 12px; color: #999;">تاريخ الميلاد</p>
+            <p style="margin: 4px 0 0 0; font-size: 13px; font-weight: 500; color: #333;">${birthDateStr}</p>
+          </div>
+          ${student.nationalId ? `
+          <div>
+            <p style="margin: 0; font-size: 12px; color: #999;">رقم الهوية</p>
+            <p style="margin: 4px 0 0 0; font-size: 13px; font-weight: 500; color: #333;">${student.nationalId}</p>
+          </div>
+          ` : ''}
+        </div>
+        
+        ${student.suggestedClassId ? `
+          <div style="background: #e6f7ff; padding: 10px; border-radius: 8px; margin-bottom: 12px;">
+            <p style="margin: 0; font-size: 12px; color: #0066cc;">
+              🎯 الحلقة المقترحة: <strong>${student.suggestedClassId}</strong>
+            </p>
+          </div>
+        ` : ''}
+        
+        ${student.notes ? `
+          <p style="margin: 0 0 12px 0; padding: 10px; background: #fffbea; border-radius: 8px; font-size: 13px; color: #666;">
+            📝 ${student.notes}
+          </p>
+        ` : ''}
+        
+        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #e9ecef;">
+          <span style="font-size: 12px; color: #999;">
+            📅 ${dateStr}
+          </span>
+          <div style="display: flex; gap: 8px;">
+            <button onclick="contactWaitingStudent('${student.id}')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+              📞 تواصل
+            </button>
+            <button onclick="deleteWaitingStudent('${student.id}')" style="background: #f8f9fa; color: #dc3545; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+              🗑️ حذف
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  listContainer.innerHTML = html;
+}
+
+// Contact Waiting Student
+window.contactWaitingStudent = function(studentId) {
+  console.log('📞 [WAITING] Contacting student:', studentId);
+  alert('🚧 هذه الميزة قيد التطوير\nيمكنك التواصل مع الطالب مباشرة عبر رقم الجوال');
+  // TODO: Implement call or WhatsApp integration
+};
+
+// Delete Waiting Student
+window.deleteWaitingStudent = async function(studentId) {
+  console.log('🗑️ [WAITING] Deleting student:', studentId);
+  
+  const confirmDelete = confirm('⚠️ هل أنت متأكد من حذف هذا الطالب من قائمة الانتظار؟');
+  if (!confirmDelete) return;
+  
+  try {
+    await deleteDoc(doc(db, 'waitingStudents', studentId));
+    console.log('✅ [WAITING] Student deleted successfully');
+    
+    showSuccessToast('✅ تم حذف الطالب من قائمة الانتظار');
+    
+    // Reload list
+    loadWaitingStudents();
+    
+  } catch (error) {
+    console.error('❌ [WAITING] Error deleting student:', error);
+    alert('❌ حدث خطأ أثناء الحذف: ' + error.message);
+  }
+};
+
+// Filter Waiting Students
+window.filterWaitingStudents = function() {
+  console.log('🔍 [WAITING] Opening filter options...');
+  alert('🚧 الفلترة حسب الأولوية والتاريخ\nقريبًا...');
+  // TODO: Implement filter modal
+};
+
+// Search Waiting Students
+window.searchWaitingStudents = function(event) {
+  const searchTerm = event.target.value.toLowerCase().trim();
+  console.log('🔍 [WAITING] Searching for:', searchTerm);
+  
+  if (searchTerm === '') {
+    loadWaitingStudents(); // Reset to full list
+    return;
+  }
+  
+  // Filter students by search term
+  // This would be more efficient with a filtered query, but for simplicity:
+  const allCards = document.querySelectorAll('#waitingStudentsList > div > div');
+  allCards.forEach(card => {
+    const text = card.textContent.toLowerCase();
+    if (text.includes(searchTerm)) {
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+};
+
+// Setup Real-time Listener for Waiting Students
+let waitingStudentsUnsubscribe = null;
+
+function setupWaitingStudentsListener() {
+  console.log('👂 [WAITING] Setting up real-time listener...');
+  
+  const q = query(
+    collection(db, 'waitingStudents'),
+    where('status', '==', 'waiting')
+  );
+  
+  waitingStudentsUnsubscribe = onSnapshot(q, (snapshot) => {
+    console.log('🔄 [WAITING] Real-time update received!', snapshot.size, 'students');
+    
+    // Only reload if section is visible
+    const section = document.getElementById('waitingStudentsSection');
+    if (section && section.style.display !== 'none') {
+      loadWaitingStudents();
+    } else {
+      // Update badge count only
+      const badge = document.querySelector('.more-menu-card .more-card-badge');
+      if (badge) {
+        badge.textContent = snapshot.size;
+      }
+    }
+  });
+}
+
+// Initialize waiting students listener when page loads
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof db !== 'undefined') {
+    setupWaitingStudentsListener();
+    console.log('✅ [WAITING] Listener initialized');
+  }
+});
+
+// END OF WAITING STUDENTS SECTION FUNCTIONS
