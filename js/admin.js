@@ -7879,9 +7879,20 @@ function displayWaitingStudents(students) {
     return;
   }
   
-  // Build HTML table for students
+  // Build HTML with both desktop table and mobile cards views
   let html = `
-    <div style="background: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 15px rgba(0,0,0,0.08); overflow-x: auto;">
+    <style>
+      .waiting-table-container { display: block; }
+      .waiting-cards-container { display: none; }
+      
+      @media (max-width: 768px) {
+        .waiting-table-container { display: none; }
+        .waiting-cards-container { display: block; }
+      }
+    </style>
+    
+    <!-- Desktop: Table View -->
+    <div class="waiting-table-container" style="background: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 15px rgba(0,0,0,0.08); overflow-x: auto;">
       <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
         <thead>
           <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
@@ -7925,6 +7936,7 @@ function displayWaitingStudents(students) {
     
     const rowBg = index % 2 === 0 ? '#f8f9ff' : '#ffffff';
     
+    // Desktop table row
     html += `
       <tr style="background: ${rowBg}; border-bottom: 1px solid #e9ecef; transition: all 0.2s;" onmouseover="this.style.background='#f0f3ff'" onmouseout="this.style.background='${rowBg}'">
         <td style="padding: 14px 12px; text-align: center; font-weight: 700; font-size: 15px; color: #667eea;">
@@ -7970,6 +7982,90 @@ function displayWaitingStudents(students) {
   html += `
         </tbody>
       </table>
+    </div>
+    
+    <!-- Mobile: Cards View -->
+    <div class="waiting-cards-container" style="display: grid; gap: 12px;">
+  `;
+  
+  // Mobile cards
+  students.forEach((student, index) => {
+    const queueNumber = index + 1;
+    
+    const priorityEmoji = {
+      urgent: '🔴',
+      high: '⭐',
+      normal: '🔵'
+    };
+    
+    const priorityLabel = {
+      urgent: 'عاجل',
+      high: 'أولوية',
+      normal: 'عادي'
+    };
+    
+    const priorityColor = {
+      urgent: '#dc3545',
+      high: '#ffc107',
+      normal: '#667eea'
+    };
+    
+    const levelText = {
+      'hifz': 'حفظ',
+      'dabt': 'ضبط',
+      'noorani': 'نورانية'
+    };
+    
+    html += `
+      <div style="background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-right: 4px solid ${priorityColor[student.priority]}; position: relative;">
+        
+        <!-- Queue Number Badge -->
+        <div style="position: absolute; top: -8px; left: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; box-shadow: 0 4px 10px rgba(102,126,234,0.4);">
+          ${queueNumber}
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+          <h3 style="margin: 0 0 6px 0; font-size: 16px; font-weight: 600; color: #1a1a1a;">
+            👤 ${student.name}
+          </h3>
+          <p style="margin: 0; font-size: 13px; color: #666;">
+            📞 ${student.guardianPhone}
+          </p>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px;">
+          <div style="background: #f8f9ff; padding: 10px; border-radius: 8px;">
+            <p style="margin: 0; font-size: 11px; color: #999;">تاريخ التسجيل</p>
+            <p style="margin: 4px 0 0 0; font-size: 12px; font-weight: 600; color: #667eea;">
+              ${student.registrationDateHijri || 'غير محدد'}
+            </p>
+          </div>
+          <div style="background: #f8f9ff; padding: 10px; border-radius: 8px;">
+            <p style="margin: 0; font-size: 11px; color: #999;">المستوى</p>
+            <p style="margin: 4px 0 0 0; font-size: 12px; font-weight: 600; color: #333;">
+              ${levelText[student.level] || student.level || 'غير محدد'}
+            </p>
+          </div>
+        </div>
+        
+        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #e9ecef;">
+          <span style="background: ${priorityColor[student.priority]}15; color: ${priorityColor[student.priority]}; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;">
+            ${priorityEmoji[student.priority]} ${priorityLabel[student.priority]}
+          </span>
+          <div style="display: flex; gap: 8px;">
+            <button onclick="contactWaitingStudent('${student.id}')" style="background: #28a745; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+              📞
+            </button>
+            <button onclick="deleteWaitingStudent('${student.id}')" style="background: #dc3545; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
+              🗑️
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `
     </div>
   `;
   listContainer.innerHTML = html;
