@@ -9,7 +9,6 @@ import {
   doc as firestoreDoc, 
   query, 
   where, 
-  orderBy,
   limit,
   setDoc, 
   serverTimestamp,
@@ -7767,11 +7766,10 @@ window.loadWaitingStudents = async function() {
   console.log('📥 [WAITING] Loading waiting students...');
   
   try {
-    // Query waiting students sorted by addedDate (earliest first)
+    // Query waiting students (سنقوم بالترتيب يدوياً في JavaScript)
     const q = query(
       collection(db, 'waitingStudents'),
-      where('status', '==', 'waiting'),
-      orderBy('addedDate', 'asc') // أقدم تسجيل أولاً
+      where('status', '==', 'waiting')
     );
     
     const snapshot = await getDocs(q);
