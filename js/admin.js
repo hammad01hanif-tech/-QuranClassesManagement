@@ -8265,11 +8265,12 @@ window.confirmJoinWaitingStudentToClass = async function(studentId) {
     // Create new student in users collection
     const newStudentData = {
       name: studentData.name,
+      role: 'student',
       birthDate: studentData.birthDate || null,
       age: studentData.age || null,
       nationalId: studentData.nationalId || null,
       level: studentData.level,
-      class: classId,
+      classId: classId,
       teacher: classData.teacher || 'غير محدد',
       guardianPhone: studentData.guardianPhone,
       studentPhone: studentData.studentPhone || null,
