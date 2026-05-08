@@ -7724,7 +7724,7 @@ window.saveWaitingStudent = async function() {
       registrationMonth: actualRegMonth,
       registrationYear: actualRegYear,
       addedDate: registrationDateGregorian ? registrationDateGregorian.toISOString() : new Date().toISOString(),
-      addedBy: auth.currentUser.uid,
+      addedBy: 'admin',
       status: 'waiting'
     };
     
