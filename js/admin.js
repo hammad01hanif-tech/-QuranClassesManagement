@@ -8262,8 +8262,13 @@ window.confirmJoinWaitingStudentToClass = async function(studentId) {
     
     const classData = classDoc.data();
     
+    // Generate custom student ID
+    const randomNumber = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+    const customUserId = `${classId}_${randomNumber}`;
+    
     // Create new student in users collection
     const newStudentData = {
+      userId: customUserId,
       name: studentData.name,
       role: 'student',
       birthDate: studentData.birthDate || null,
@@ -8280,14 +8285,14 @@ window.confirmJoinWaitingStudentToClass = async function(studentId) {
       status: 'active'
     };
     
-    // Add to users collection
-    const newStudentRef = await addDoc(collection(db, 'users'), newStudentData);
-    console.log('✅ [WAITING] Student added to users collection:', newStudentRef.id);
+    // Add to users collection with custom ID
+    await setDoc(firestoreDoc(db, 'users', customUserId), newStudentData);
+    console.log('✅ [WAITING] Student added to users collection:', customUserId);
     
     // Update class document to add student ID
     const classDocRef = firestoreDoc(db, 'classes', classId);
     await updateDoc(classDocRef, {
-      studentIds: arrayUnion(newStudentRef.id)
+      studentIds: arrayUnion(customUserId)
     });
     console.log('✅ [WAITING] Student added to class studentIds array');
     
