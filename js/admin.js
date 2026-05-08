@@ -7462,6 +7462,14 @@ window.openAddWaitingStudent = async function() {
     if (form) form.reset();
     document.getElementById('waitingStudentAge').value = ''; // Clear calculated age
     
+    // Set current Hijri date for registration
+    const hijriDateInput = document.getElementById('waitingRegistrationHijri');
+    if (hijriDateInput) {
+      const currentHijri = formatHijriDate(new Date());
+      hijriDateInput.value = currentHijri;
+      console.log('📅 [WAITING] Registration date set:', currentHijri);
+    }
+    
     // Load classes list
     await loadClassesForWaitingStudent();
   }
@@ -7596,6 +7604,9 @@ window.saveWaitingStudent = async function() {
       numericAge--;
     }
     
+    // Get registration date in Hijri format
+    const registrationDateHijri = formatHijriDate(today);
+    
     // Create student object
     const studentData = {
       name: name,
@@ -7604,6 +7615,7 @@ window.saveWaitingStudent = async function() {
       level: level,
       guardianPhone: guardianPhone,
       priority: priority,
+      registrationDateHijri: registrationDateHijri,
       addedDate: new Date().toISOString(),
       addedBy: auth.currentUser.uid,
       status: 'waiting' // for future use: assigned/contacted/cancelled
@@ -7647,11 +7659,11 @@ window.loadWaitingStudents = async function() {
   console.log('📥 [WAITING] Loading waiting students...');
   
   try {
-    // Query waiting students sorted by priority and date
+    // Query waiting students sorted by addedDate (earliest first)
     const q = query(
       collection(db, 'waitingStudents'),
       where('status', '==', 'waiting'),
-      orderBy('addedDate', 'desc')
+      orderBy('addedDate', 'asc') // أقدم تسجيل أولاً
     );
     
     const snapshot = await getDocs(q);
@@ -7665,11 +7677,24 @@ window.loadWaitingStudents = async function() {
       });
     });
     
-    // Sort by priority (urgent > high > normal)
+    // Sort by priority first, then by registration date
+    // Priority order: urgent (0) > high (1) > normal (2)
+    // Within same priority, earlier registration comes first
     students.sort((a, b) => {
       const priorityOrder = { urgent: 0, high: 1, normal: 2 };
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
+      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      
+      if (priorityDiff !== 0) {
+        return priorityDiff; // Sort by priority first
+      }
+      
+      // If same priority, sort by registration date (earliest first)
+      const dateA = new Date(a.addedDate);
+      const dateB = new Date(b.addedDate);
+      return dateA - dateB;
     });
+    
+    console.log('✅ [WAITING] Students sorted by priority and registration date');
     
     // Update stats
     updateWaitingStats(students);
@@ -7747,10 +7772,12 @@ function displayWaitingStudents(students) {
     return;
   }
   
-  // Build HTML for students
+  // Build HTML for students with queue number
   let html = '<div style="display: grid; gap: 12px;">';
   
-  students.forEach(student => {
+  students.forEach((student, index) => {
+    const queueNumber = index + 1; // رقم الدور في الانتظار
+    
     const priorityEmoji = {
       urgent: '🔴',
       high: '⭐',
@@ -7796,7 +7823,13 @@ function displayWaitingStudents(students) {
     }
     
     html += `
-      <div style="background: white; border-radius: 15px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-right: 4px solid ${priorityColor[student.priority]};">
+      <div style="background: white; border-radius: 15px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-right: 4px solid ${priorityColor[student.priority]}; position: relative;">
+        
+        <!-- Queue Number Badge -->
+        <div style="position: absolute; top: -10px; left: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(102,126,234,0.4);">
+          ${queueNumber}
+        </div>
+        
         <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 12px;">
           <div style="flex: 1;">
             <h3 style="margin: 0 0 6px 0; font-size: 17px; font-weight: 600; color: #1a1a1a;">
@@ -7815,6 +7848,16 @@ function displayWaitingStudents(students) {
             ${priorityEmoji[student.priority]} ${priorityLabel[student.priority]}
           </span>
         </div>
+        
+        <!-- Registration Date Hijri - Prominent Display -->
+        ${student.registrationDateHijri ? `
+          <div style="background: linear-gradient(135deg, #f5f7ff 0%, #ede9fe 100%); padding: 12px; border-radius: 10px; margin-bottom: 12px; text-align: center; border: 2px solid #e0e0ff;">
+            <p style="margin: 0; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 1px;">تاريخ التسجيل</p>
+            <p style="margin: 6px 0 0 0; font-size: 16px; font-weight: 700; color: #667eea;">
+              📅 ${student.registrationDateHijri}
+            </p>
+          </div>
+        ` : ''}
         
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-radius: 10px;">
           <div>
@@ -7853,7 +7896,7 @@ function displayWaitingStudents(students) {
         
         <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #e9ecef;">
           <span style="font-size: 12px; color: #999;">
-            📅 ${dateStr}
+            📆 ${dateStr}
           </span>
           <div style="display: flex; gap: 8px;">
             <button onclick="contactWaitingStudent('${student.id}')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">
