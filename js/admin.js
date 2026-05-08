@@ -7472,7 +7472,7 @@ window.openAddWaitingStudent = async function() {
 
 // Initialize Hijri Date Dropdowns
 function initializeHijriDateDropdowns() {
-  console.log('📅 [WAITING] Initializing Hijri date dropdowns...');
+  console.log('📅 [WAITING] Initializing smart Hijri date dropdowns...');
   
   const daySelect = document.getElementById('waitingRegDay');
   const monthSelect = document.getElementById('waitingRegMonth');
@@ -7504,17 +7504,29 @@ function initializeHijriDateDropdowns() {
     daySelect.appendChild(option);
   }
   
-  // Populate months
-  hijriMonths.forEach((monthName, index) => {
-    const option = document.createElement('option');
-    option.value = index + 1;
-    option.textContent = `${index + 1} - ${monthName}`;
-    monthSelect.appendChild(option);
-  });
-  
-  // Populate years (current year ± 2 years)
+  // Smart month population: Start from current month and go forward
+  // Show remaining months of current year, then next year from month 1
+  const currentMonth = currentHijri.month;
   const currentYear = currentHijri.year;
-  for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+  
+  // Add remaining months of current year (from current month to month 12)
+  for (let month = currentMonth; month <= 12; month++) {
+    const option = document.createElement('option');
+    option.value = `${currentYear}-${month}`;
+    option.textContent = `${month} - ${hijriMonths[month - 1]} ${currentYear}`;
+    monthSelect.appendChild(option);
+  }
+  
+  // Add all months of next year (from month 1 to month before current)
+  for (let month = 1; month < currentMonth; month++) {
+    const option = document.createElement('option');
+    option.value = `${currentYear + 1}-${month}`;
+    option.textContent = `${month} - ${hijriMonths[month - 1]} ${currentYear + 1}`;
+    monthSelect.appendChild(option);
+  }
+  
+  // Populate years (current year to +5 years)
+  for (let year = currentYear; year <= currentYear + 5; year++) {
     const option = document.createElement('option');
     option.value = year;
     option.textContent = year;
@@ -7523,10 +7535,14 @@ function initializeHijriDateDropdowns() {
   
   // Set current date as default
   daySelect.value = currentHijri.day;
-  monthSelect.value = currentHijri.month;
-  yearSelect.value = currentHijri.year;
+  monthSelect.value = `${currentYear}-${currentMonth}`;
+  yearSelect.value = currentYear;
   
-  console.log('✅ [WAITING] Hijri date dropdowns initialized:', currentHijri);
+  console.log('✅ [WAITING] Smart Hijri date dropdowns initialized:', {
+    currentDate: currentHijri,
+    monthsFrom: `${currentMonth}-${currentYear}`,
+    monthsTo: `${currentMonth - 1}-${currentYear + 1}`
+  });
 }
 
 // Load Classes for Waiting Student Selection
@@ -7607,8 +7623,18 @@ window.saveWaitingStudent = async function() {
   
   // Get Hijri registration date from dropdowns
   const regDay = document.getElementById('waitingRegDay').value;
-  const regMonth = document.getElementById('waitingRegMonth').value;
+  const regMonthValue = document.getElementById('waitingRegMonth').value; // Format: "year-month"
   const regYear = document.getElementById('waitingRegYear').value;
+  
+  // Extract year and month from month dropdown value
+  let actualRegYear = parseInt(regYear);
+  let actualRegMonth = null;
+  
+  if (regMonthValue && regMonthValue.includes('-')) {
+    const [yearFromMonth, month] = regMonthValue.split('-');
+    actualRegYear = parseInt(yearFromMonth);
+    actualRegMonth = parseInt(month);
+  }
   
   // Get selected priority
   const priorityInputs = document.querySelectorAll('input[name="waitingPriority"]');
@@ -7635,7 +7661,7 @@ window.saveWaitingStudent = async function() {
     return;
   }
   
-  if (!regDay || !regMonth || !regYear) {
+  if (!regDay || !regMonthValue || !actualRegMonth) {
     alert('⚠️ الرجاء اختيار تاريخ التسجيل الهجري كاملاً');
     return;
   }
@@ -7674,10 +7700,10 @@ window.saveWaitingStudent = async function() {
       'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
       'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
     ];
-    const registrationDateHijri = `${regDay} ${hijriMonths[regMonth - 1]} ${regYear}`;
+    const registrationDateHijri = `${regDay} ${hijriMonths[actualRegMonth - 1]} ${actualRegYear}`;
     
     // Convert Hijri date to Gregorian for accurate sorting
-    const registrationDateGregorian = hijriToGregorian(parseInt(regYear), parseInt(regMonth), parseInt(regDay));
+    const registrationDateGregorian = hijriToGregorian(actualRegYear, actualRegMonth, parseInt(regDay));
     
     // Create student object
     const studentData = {
@@ -7689,8 +7715,8 @@ window.saveWaitingStudent = async function() {
       priority: priority,
       registrationDateHijri: registrationDateHijri,
       registrationDay: parseInt(regDay),
-      registrationMonth: parseInt(regMonth),
-      registrationYear: parseInt(regYear),
+      registrationMonth: actualRegMonth,
+      registrationYear: actualRegYear,
       addedDate: registrationDateGregorian ? registrationDateGregorian.toISOString() : new Date().toISOString(),
       addedBy: auth.currentUser.uid,
       status: 'waiting'
