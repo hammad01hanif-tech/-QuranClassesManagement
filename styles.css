@@ -4679,7 +4679,6 @@ details[open] > summary {
 
 /* Viewer Design Container */
 .new-viewer-design {
-  display: block !important;
   min-height: 100vh;
   background: #f8f9fa;
   padding-bottom: 80px;

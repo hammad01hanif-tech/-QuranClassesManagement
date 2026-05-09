@@ -10,7 +10,8 @@ console.log('✅ Main.js is loading - defining window.selectRole');
 
 // Global role selection function - defined immediately
 window.selectRole = function(role) {
-  console.log('Selected role:', role);
+  console.log('🎯 ========== selectRole called ==========');
+  console.log('🎯 Selected role:', role);
   
   // Hide role selection
   document.getElementById('roleSelection').style.display = 'none';
@@ -20,6 +21,17 @@ window.selectRole = function(role) {
   document.getElementById('teacherSection').style.display = 'none';
   document.getElementById('studentSection').style.display = 'none';
   document.getElementById('viewerSection').style.display = 'none';
+  
+  // Hide new viewer design
+  const newViewerDesign = document.getElementById('newViewerDesign');
+  console.log('🎯 newViewerDesign element found:', !!newViewerDesign);
+  if (newViewerDesign) {
+    console.log('🎯 newViewerDesign display BEFORE hiding:', newViewerDesign.style.display);
+    newViewerDesign.style.display = 'none';
+    console.log('🎯 newViewerDesign display AFTER hiding:', newViewerDesign.style.display);
+  } else {
+    console.error('❌ newViewerDesign element NOT FOUND!');
+  }
   
   if (role === 'admin') {
     // Admin password verification
@@ -55,9 +67,33 @@ window.selectRole = function(role) {
     document.getElementById('studentDashboard').style.display = 'none';
     loadTeachersForStudent(); // Load teachers list
   } else if (role === 'viewer') {
+    console.log('🎯 ========== VIEWER ROLE SELECTED ==========');
+    
     document.getElementById('viewerSection').style.display = 'block';
+    console.log('🎯 viewerSection display set to: block');
+    
     document.getElementById('viewerLogin').style.display = 'block';
+    console.log('🎯 viewerLogin display set to: block');
+    
     document.getElementById('viewerDashboard').style.display = 'none';
+    console.log('🎯 viewerDashboard display set to: none');
+    
+    // Hide new design until login
+    const newViewerDesign2 = document.getElementById('newViewerDesign');
+    console.log('🎯 Checking newViewerDesign again in viewer section:', !!newViewerDesign2);
+    if (newViewerDesign2) {
+      console.log('🎯 newViewerDesign2 display BEFORE hiding:', newViewerDesign2.style.display);
+      console.log('🎯 newViewerDesign2 computed display BEFORE:', window.getComputedStyle(newViewerDesign2).display);
+      newViewerDesign2.style.display = 'none';
+      console.log('🎯 newViewerDesign2 display AFTER hiding:', newViewerDesign2.style.display);
+      console.log('🎯 newViewerDesign2 computed display AFTER:', window.getComputedStyle(newViewerDesign2).display);
+      console.log('🎯 newViewerDesign2 parent element:', newViewerDesign2.parentElement?.id);
+      console.log('🎯 newViewerDesign2 classList:', newViewerDesign2.classList.toString());
+    } else {
+      console.error('❌ newViewerDesign2 element NOT FOUND in viewer section!');
+    }
+    
+    console.log('🎯 ========== END VIEWER ROLE ==========');
   }
 };
 
@@ -112,6 +148,12 @@ window.showRoleSelection = function() {
   const studentDashboard = document.getElementById('studentDashboard');
   if (studentLogin) studentLogin.style.display = 'none';
   if (studentDashboard) studentDashboard.style.display = 'none';
+  
+  // Hide new viewer design
+  const newViewerDesign = document.getElementById('newViewerDesign');
+  if (newViewerDesign) {
+    newViewerDesign.style.display = 'none';
+  }
 };
 
 // Logout function
@@ -436,14 +478,21 @@ function restoreUserSession() {
   if (loggedInViewer && loggedInViewerName) {
     console.log('🔄 Restoring viewer session:', loggedInViewer);
     
-    // Hide role selection and show viewer dashboard
+    // Hide role selection and show viewer section
     document.getElementById('roleSelection').style.display = 'none';
     document.getElementById('viewerSection').style.display = 'block';
     document.getElementById('viewerLogin').style.display = 'none';
-    document.getElementById('viewerDashboard').style.display = 'block';
+    
+    // Show new design
+    const newViewerDesign = document.getElementById('newViewerDesign');
+    if (newViewerDesign) {
+      newViewerDesign.style.display = 'block';
+    }
+    
+    // Update Hijri date
+    updateViewerHijriDate();
     
     // Initialize viewer dashboard
-    updateDateTime();
     initViewer();
     
     return; // Exit early
