@@ -3026,41 +3026,30 @@ window.showPastReports = async function(selectedMonthFilter = 'current-month') {
     // Sort by date ascending (oldest first - from start of month to end)
     completeReports.sort((a, b) => a.dateId.localeCompare(b.dateId));
     
-    // Get current Hijri year
-    const today = new Date();
-    const hijriFormatter = new Intl.DateTimeFormat('en-SA-u-ca-islamic', {
-      year: 'numeric',
-      month: '2-digit',
-      timeZone: 'Asia/Riyadh'
-    });
-    const parts = hijriFormatter.formatToParts(today);
-    const currentHijriYear = parts.find(p => p.type === 'year').value;
-    const currentHijriMonth = parts.find(p => p.type === 'month').value;
+    // Import accurate Hijri dates to get available months
+    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
     
-    // Generate all months of current Hijri year
+    // Extract unique year-month combinations from accurate dates
+    const availableMonths = new Map();
     const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-    const allMonths = [];
     
-    // Add all months from current year
-    for (let i = 1; i <= 12; i++) {
-      const monthKey = `${currentHijriYear}-${String(i).padStart(2, '0')}`;
-      allMonths.push({
-        key: monthKey,
-        name: hijriMonths[i - 1],
-        year: currentHijriYear
-      });
-    }
+    accurateHijriDates.forEach(entry => {
+      const monthKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
+      if (!availableMonths.has(monthKey)) {
+        availableMonths.set(monthKey, {
+          key: monthKey,
+          year: entry.hijriYear,
+          month: entry.hijriMonth,
+          name: hijriMonths[entry.hijriMonth - 1]
+        });
+      }
+    });
     
-    // Add previous year months (last 3 months)
-    const prevYear = String(parseInt(currentHijriYear) - 1);
-    for (let i = 10; i <= 12; i++) {
-      const monthKey = `${prevYear}-${String(i).padStart(2, '0')}`;
-      allMonths.unshift({
-        key: monthKey,
-        name: hijriMonths[i - 1],
-        year: prevYear
-      });
-    }
+    // Convert to sorted array
+    const allMonths = Array.from(availableMonths.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
     
     // Create compact student info card with monthly score
     const { rank, score } = getStudentRankAndScore(currentTeacherStudentId);

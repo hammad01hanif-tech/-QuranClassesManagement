@@ -420,45 +420,49 @@ window.showStudentAttendance = async function() {
   const modal = document.getElementById('studentAttendancePanel');
   modal.style.display = 'block';
   
-  // Populate month filter with months from Rajab to Dhul Hijjah
-  populateStudentAttendanceMonthFilter();
+  // Populate month filter with available months from accurate dates
+  await populateStudentAttendanceMonthFilter();
   
   // Load attendance for current month by default
   await loadStudentAttendanceByMonth();
 };
 
 // Populate month filter dropdown
-function populateStudentAttendanceMonthFilter() {
+async function populateStudentAttendanceMonthFilter() {
   const filterSelect = document.getElementById('studentAttendanceMonthFilter');
   
-  // Get current Hijri year
-  const today = new Date();
-  const hijriFormatter = new Intl.DateTimeFormat('en-SA-u-ca-islamic', {
-    year: 'numeric',
-    month: '2-digit',
-    timeZone: 'Asia/Riyadh'
-  });
-  const parts = hijriFormatter.formatToParts(today);
-  const currentHijriYear = parts.find(p => p.type === 'year').value;
+  // Import accurate Hijri dates to get available months
+  const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
   
-  // Hijri months from Rajab (7) to Dhul Hijjah (12)
-  const hijriMonths = [
-    { number: 7, name: 'رجب' },
-    { number: 8, name: 'شعبان' },
-    { number: 9, name: 'رمضان' },
-    { number: 10, name: 'شوال' },
-    { number: 11, name: 'ذو القعدة' },
-    { number: 12, name: 'ذو الحجة' }
-  ];
+  // Extract unique year-month combinations from accurate dates
+  const availableMonths = new Map();
+  const hijriMonthNames = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  accurateHijriDates.forEach(entry => {
+    const monthKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
+    if (!availableMonths.has(monthKey)) {
+      availableMonths.set(monthKey, {
+        number: entry.hijriMonth,
+        name: hijriMonthNames[entry.hijriMonth - 1],
+        year: entry.hijriYear
+      });
+    }
+  });
+  
+  // Convert to sorted array
+  const sortedMonths = Array.from(availableMonths.values()).sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return a.number - b.number;
+  });
   
   // Clear and rebuild options
   filterSelect.innerHTML = '<option value="current-month">الشهر الحالي</option>';
   
-  hijriMonths.forEach(month => {
-    const monthKey = `${currentHijriYear}-${String(month.number).padStart(2, '0')}`;
+  sortedMonths.forEach(month => {
+    const monthKey = `${month.year}-${String(month.number).padStart(2, '0')}`;
     const option = document.createElement('option');
     option.value = monthKey;
-    option.textContent = `${month.name} ${currentHijriYear}هـ`;
+    option.textContent = `${month.name} ${month.year}هـ`;
     filterSelect.appendChild(option);
   });
 }

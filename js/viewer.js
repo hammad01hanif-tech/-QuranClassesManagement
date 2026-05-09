@@ -2859,29 +2859,40 @@ window.toggleReportDateInputs = function() {
 // Show class (teacher) report options
 window.showClassReportOptions = async function() {
   try {
-    // Get current Hijri date for month options
+    // Import accurate Hijri dates to get available months
+    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
+    
+    // Get current Hijri date
     const today = getTodayForStorage();
-    const todayParts = today.split('-');
-    const currentYear = todayParts[0];
-    const currentMonth = todayParts[1];
     
-    // Generate month options
+    // Extract unique year-month combinations from accurate dates
+    const availableMonths = new Map();
     const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    
+    accurateHijriDates.forEach(entry => {
+      const monthKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
+      if (!availableMonths.has(monthKey)) {
+        availableMonths.set(monthKey, {
+          year: entry.hijriYear,
+          month: entry.hijriMonth,
+          name: hijriMonths[entry.hijriMonth - 1]
+        });
+      }
+    });
+    
+    // Convert to sorted array
+    const sortedMonths = Array.from(availableMonths.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+    
+    // Generate month options HTML
     let monthOptions = '';
-    
-    // Add current year months
-    for (let i = 1; i <= 12; i++) {
-      const monthKey = `${currentYear}-${String(i).padStart(2, '0')}`;
-      const isSelected = String(i).padStart(2, '0') === currentMonth ? 'selected' : '';
-      monthOptions += `<option value="${monthKey}" ${isSelected}>${hijriMonths[i-1]} ${currentYear}</option>`;
-    }
-    
-    // Add previous year months (last 3)
-    const prevYear = String(parseInt(currentYear) - 1);
-    for (let i = 10; i <= 12; i++) {
-      const monthKey = `${prevYear}-${String(i).padStart(2, '0')}`;
-      monthOptions += `<option value="${monthKey}">${hijriMonths[i-1]} ${prevYear}</option>`;
-    }
+    sortedMonths.forEach(m => {
+      const monthKey = `${m.year}-${String(m.month).padStart(2, '0')}`;
+      const isSelected = today.startsWith(monthKey) ? 'selected' : '';
+      monthOptions += `<option value="${monthKey}" ${isSelected}>${m.name} ${m.year}</option>`;
+    });
     
     // قائمة المعلمين الثابتة (نفس القائمة المستخدمة في النظام)
     const teachers = {

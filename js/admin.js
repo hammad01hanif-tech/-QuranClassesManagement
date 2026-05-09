@@ -1310,44 +1310,52 @@ async function populateHijriDateRangeFilters() {
     
     const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
     const today = getTodayForStorage();
-    const todayParts = today.split('-');
-    const currentMonth = parseInt(todayParts[1]);
     
     const monthSelector = document.getElementById('adminReportsMonthSelector');
     
     if (!monthSelector) return;
     
-    // Clear and populate month selector - Starting from Dhul Qidah 1447
+    // Extract unique year-month combinations from accurate dates
+    const availableMonths = new Set();
+    accurateHijriDates.forEach(entry => {
+      const monthKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
+      availableMonths.add(monthKey);
+    });
+    
+    // Convert to sorted array
+    const sortedMonths = Array.from(availableMonths).sort();
+    
+    // Clear and populate month selector dynamically
     monthSelector.innerHTML = '<option value="">-- اختر الشهر --</option>';
     
-    // Add Dhul Qidah and Dhul Hijjah 1447
-    const option11 = document.createElement('option');
-    option11.value = '1447-11';
-    option11.textContent = 'ذو القعدة 1447';
-    if (currentMonth === 11) option11.selected = true;
-    monthSelector.appendChild(option11);
-    
-    const option12 = document.createElement('option');
-    option12.value = '1447-12';
-    option12.textContent = 'ذو الحجة 1447';
-    if (currentMonth === 12) option12.selected = true;
-    monthSelector.appendChild(option12);
-    
-    // Add year separator for 1448
-    const separator = document.createElement('option');
-    separator.disabled = true;
-    separator.textContent = '────── 1448 هـ ──────';
-    separator.style.textAlign = 'center';
-    separator.style.fontSize = '11px';
-    separator.style.color = '#999';
-    monthSelector.appendChild(separator);
-    
-    // Add all months for 1448
-    hijriMonths.forEach((monthName, index) => {
-      const monthNum = index + 1;
+    let currentYear = null;
+    sortedMonths.forEach(monthKey => {
+      const [year, month] = monthKey.split('-');
+      const monthNum = parseInt(month);
+      
+      // Add year separator when year changes
+      if (currentYear !== parseInt(year)) {
+        if (currentYear !== null) {
+          const separator = document.createElement('option');
+          separator.disabled = true;
+          separator.textContent = `────── ${year} هـ ──────`;
+          separator.style.textAlign = 'center';
+          separator.style.fontSize = '11px';
+          separator.style.color = '#999';
+          monthSelector.appendChild(separator);
+        }
+        currentYear = parseInt(year);
+      }
+      
       const option = document.createElement('option');
-      option.value = `1448-${monthNum}`;
-      option.textContent = monthName;
+      option.value = monthKey;
+      option.textContent = `${hijriMonths[monthNum - 1]} ${year}`;
+      
+      // Select current month if it matches
+      if (today.startsWith(monthKey)) {
+        option.selected = true;
+      }
+      
       monthSelector.appendChild(option);
     });
     
@@ -3795,6 +3803,7 @@ window.loadAbsenceReportForClass = async function() {
     // Get today's Hijri date
     const today = getTodayForStorage(); // e.g., "1447-11-02"
     const todayParts = today.split('-');
+    const currentYear = parseInt(todayParts[0]);
     const currentMonth = parseInt(todayParts[1]);
     
     // Build date options from accurate Hijri dates
@@ -3802,20 +3811,43 @@ window.loadAbsenceReportForClass = async function() {
     const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
     const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     
-    // Build month options - Starting from Dhul Qidah 1447
+    // Build month options dynamically from available dates
     let monthOptions = '<option value="">-- اختر الشهر --</option>';
     
-    // Add Dhul Qidah and Dhul Hijjah 1447
-    monthOptions += `<option value="1447-11" ${currentMonth === 11 ? 'selected' : ''}>ذو القعدة 1447</option>`;
-    monthOptions += `<option value="1447-12" ${currentMonth === 12 ? 'selected' : ''}>ذو الحجة 1447</option>`;
+    // Extract unique year-month combinations
+    const availableMonths = new Map();
+    accurateHijriDates.forEach(entry => {
+      const monthKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
+      if (!availableMonths.has(monthKey)) {
+        availableMonths.set(monthKey, {
+          year: entry.hijriYear,
+          month: entry.hijriMonth,
+          name: hijriMonths[entry.hijriMonth - 1]
+        });
+      }
+    });
     
-    // Add year separator
-    monthOptions += '<option disabled style="text-align: center; font-size: 11px; color: #999;">────── 1448 هـ ──────</option>';
+    // Convert to sorted array
+    const sortedMonths = Array.from(availableMonths.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
     
-    // Add all months for 1448
-    hijriMonths.forEach((monthName, index) => {
-      const monthNum = index + 1;
-      monthOptions += `<option value="1448-${monthNum}">${monthName}</option>`;
+    // Build month options with year separators
+    let lastYear = null;
+    sortedMonths.forEach(m => {
+      // Add year separator when year changes
+      if (lastYear !== m.year) {
+        if (lastYear !== null) {
+          // Add separator before new year except for first year
+          monthOptions += `<option disabled style="text-align: center; font-size: 11px; color: #999;">────── ${m.year} هـ ──────</option>`;
+        }
+        lastYear = m.year;
+      }
+      
+      const monthKey = `${m.year}-${String(m.month).padStart(2, '0')}`;
+      const isSelected = (m.year === currentYear && m.month === currentMonth) ? 'selected' : '';
+      monthOptions += `<option value="${monthKey}" ${isSelected}>${m.name} ${m.year}</option>`;
     });
     
     // Build students options
@@ -4979,9 +5011,40 @@ window.showAbsentWithoutExcuseModal = async function() {
   // Get current Hijri date
   const todayHijri = getTodayForStorage(); // YYYY-MM-DD format
   const parts = todayHijri.split('-');
-  const currentYear = parts[0];
-  const currentMonth = parts[1];
+  const currentYear = parseInt(parts[0]);
+  const currentMonth = parseInt(parts[1]);
   const currentDay = parts[2];
+  
+  // Import accurate Hijri dates to get available months
+  const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
+  
+  // Extract unique year-month combinations
+  const availableMonths = new Map(); // Map to store year-month with month names
+  const hijriMonthNames = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  accurateHijriDates.forEach(entry => {
+    const monthKey = `${entry.hijriYear}-${entry.hijriMonth}`;
+    if (!availableMonths.has(monthKey)) {
+      availableMonths.set(monthKey, {
+        year: entry.hijriYear,
+        month: entry.hijriMonth,
+        name: hijriMonthNames[entry.hijriMonth - 1]
+      });
+    }
+  });
+  
+  // Convert to sorted array
+  const sortedMonths = Array.from(availableMonths.values()).sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return a.month - b.month;
+  });
+  
+  // Generate month options HTML
+  const monthOptionsHTML = sortedMonths.map(m => {
+    const value = `${m.year}-${m.month}`;
+    const selected = (m.year === currentYear && m.month === currentMonth) ? 'selected' : '';
+    return `<option value="${value}" ${selected}>${m.name} ${m.year}</option>`;
+  }).join('');
   
   // Show modal
   if (modal) {
@@ -4992,15 +5055,14 @@ window.showAbsentWithoutExcuseModal = async function() {
   content.innerHTML = `
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
       <div style="text-align: center; color: white; font-size: 14px; font-weight: bold; margin-bottom: 12px;">
-        📅 اختر التاريخ الميلادي لعرض تقرير الغياب
+        📅 اختر التاريخ الهجري لعرض تقرير الغياب
       </div>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
         <div>
           <label style="display: block; color: white; font-size: 12px; margin-bottom: 5px; font-weight: bold;">الشهر</label>
           <select id="absentMonthSelect" style="width: 100%; padding: 10px; border: 2px solid white; border-radius: 8px; font-size: 14px; font-weight: bold; background: white; color: #333;">
-            <option value="11" ${currentMonth === '11' ? 'selected' : ''}>ذو القعدة</option>
-            <option value="12" ${currentMonth === '12' ? 'selected' : ''}>ذو الحجة</option>
+            ${monthOptionsHTML}
           </select>
         </div>
         
@@ -5009,7 +5071,8 @@ window.showAbsentWithoutExcuseModal = async function() {
           <select id="absentDaySelect" style="width: 100%; padding: 10px; border: 2px solid white; border-radius: 8px; font-size: 14px; font-weight: bold; background: white; color: #333;">
             ${Array.from({length: 30}, (_, i) => i + 1).map(day => {
               const dayStr = day.toString().padStart(2, '0');
-              return `<option value="${dayStr}" ${currentDay === dayStr ? 'selected' : ''}>${day}</option>`;
+              const selected = currentDay === dayStr ? 'selected' : '';
+              return `<option value="${dayStr}" ${selected}>${day}</option>`;
             }).join('')}
           </select>
         </div>
@@ -5027,9 +5090,12 @@ window.showAbsentWithoutExcuseModal = async function() {
   
   // Add event listener to the button
   document.getElementById('loadAbsentReportBtn').addEventListener('click', async () => {
-    const month = document.getElementById('absentMonthSelect').value;
+    const monthValue = document.getElementById('absentMonthSelect').value;
     const day = document.getElementById('absentDaySelect').value;
-    const selectedDate = `${currentYear}-${month}-${day}`;
+    
+    // Parse year and month from value
+    const [year, month] = monthValue.split('-');
+    const selectedDate = `${year}-${month.padStart(2, '0')}-${day}`;
     
     await loadAbsentReportForDate(selectedDate);
   });
