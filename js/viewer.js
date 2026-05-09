@@ -242,12 +242,21 @@ function populateJuzNumbers() {
 }
 
 // Load teachers list
-async function loadViewerTeachers() {
+async function loadViewerTeachers(selectElementId = null) {
   const teacherSelect = document.getElementById('viewerTeacherSelect');
   const reportTeacherSelect = document.getElementById('viewerReportTeacherSelect');
   
-  teacherSelect.innerHTML = '<option value="">-- اختر المعلم --</option>';
-  reportTeacherSelect.innerHTML = '<option value="">-- اختر المعلم --</option>';
+  // If specific element ID provided, only load that one
+  if (selectElementId) {
+    const targetSelect = document.getElementById(selectElementId);
+    if (targetSelect) {
+      targetSelect.innerHTML = '<option value="">-- اختر المعلم --</option>';
+    }
+  } else {
+    // Load both if no specific ID provided
+    if (teacherSelect) teacherSelect.innerHTML = '<option value="">-- اختر المعلم --</option>';
+    if (reportTeacherSelect) reportTeacherSelect.innerHTML = '<option value="">-- اختر المعلم --</option>';
+  }
   
   const teachers = {
     'ABD01': 'عبدالرحمن السيسي',
@@ -264,18 +273,38 @@ async function loadViewerTeachers() {
     'SLM01': 'سلمان رفيق'
   };
   
-  for (const [id, name] of Object.entries(teachers)) {
-    const option1 = document.createElement('option');
-    option1.value = id;
-    option1.textContent = `${id} - ${name}`;
-    teacherSelect.appendChild(option1);
-    
-    const option2 = document.createElement('option');
-    option2.value = id;
-    option2.textContent = `${id} - ${name}`;
-    reportTeacherSelect.appendChild(option2);
-  }
+  // Add options to relevant selects
+  const selectsToUpdate = selectElementId 
+    ? [document.getElementById(selectElementId)].filter(Boolean)
+    : [teacherSelect, reportTeacherSelect].filter(Boolean);
+  
+  selectsToUpdate.forEach(select => {
+    for (const [id, name] of Object.entries(teachers)) {
+      const option = document.createElement('option');
+      option.value = id;
+      option.textContent = `${id} - ${name}`;
+      select.appendChild(option);
+    }
+  });
 }
+
+// Make it global
+window.loadViewerTeachers = loadViewerTeachers;
+
+// Load Juz numbers (1-30)
+window.loadViewerJuzNumbers = function() {
+  const juzSelect = document.getElementById('viewerJuzNumber');
+  if (!juzSelect) return;
+  
+  juzSelect.innerHTML = '<option value="">-- اختر الجزء --</option>';
+  
+  for (let i = 1; i <= 30; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = `الجزء ${i}`;
+    juzSelect.appendChild(option);
+  }
+};
 
 // Load students by selected teacher
 window.loadStudentsByTeacher = async function() {

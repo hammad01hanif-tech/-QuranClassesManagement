@@ -477,10 +477,12 @@ window.loginViewer = function() {
   // Login successful
   errorDiv.style.display = 'none';
   document.getElementById('viewerLogin').style.display = 'none';
-  document.getElementById('viewerDashboard').style.display = 'block';
   
-  // Update date and time
-  updateDateTime();
+  // Show new design
+  document.getElementById('newViewerDesign').style.display = 'block';
+  
+  // Update Hijri date
+  updateViewerHijriDate();
   
   // Initialize viewer
   initViewer();
@@ -488,6 +490,68 @@ window.loginViewer = function() {
   // Store logged in viewer
   sessionStorage.setItem('loggedInViewer', viewerId);
   sessionStorage.setItem('loggedInViewerName', 'مازن البلوشي');
+};
+
+// Update Viewer Hijri Date
+function updateViewerHijriDate() {
+  const dateText = document.getElementById('viewerHijriDateText');
+  if (!dateText) return;
+  
+  try {
+    const today = new Date();
+    const formatter = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Asia/Riyadh'
+    });
+    dateText.textContent = formatter.format(today);
+  } catch (error) {
+    console.error('Error formatting Hijri date:', error);
+    dateText.textContent = 'التاريخ الهجري';
+  }
+}
+
+// Switch Viewer Section
+window.switchViewerSection = function(section) {
+  // Hide all sections
+  const sections = document.querySelectorAll('.viewer-main-section');
+  sections.forEach(s => s.classList.remove('active-section'));
+  
+  // Show selected section
+  const sectionMap = {
+    'home': 'viewerHomeSection',
+    'reports': 'viewerReportsSection',
+    'register': 'viewerRegisterSection',
+    'tasks': 'viewerTasksSection',
+    'more': 'viewerMoreSection'
+  };
+  
+  const targetSection = document.getElementById(sectionMap[section]);
+  if (targetSection) {
+    targetSection.classList.add('active-section');
+  }
+  
+  // Update nav buttons
+  const navButtons = document.querySelectorAll('.bottom-nav-bar .nav-item');
+  navButtons.forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('data-section') === section) {
+      btn.classList.add('active');
+    }
+  });
+  
+  // Special actions for each section
+  if (section === 'home') {
+    window.loadDailyQueue();
+  } else if (section === 'reports') {
+    // Load teachers for reports
+    window.loadViewerTeachers('viewerReportTeacherSelect');
+  } else if (section === 'register') {
+    // Load teachers for registration
+    window.loadViewerTeachers('viewerTeacherSelect');
+    window.loadViewerJuzNumbers();
+  }
 };
 
 // Show Juz List

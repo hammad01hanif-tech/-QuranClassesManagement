@@ -2777,7 +2777,321 @@
       <button class="back-btn" onclick="window.showRoleSelection()">رجوع</button>
     </div>
 
-    <!-- Viewer Dashboard (hidden until login) -->
+    <!-- NEW VIEWER DESIGN (Mobile-First) -->
+    <div id="newViewerDesign" class="new-viewer-design" style="display:none;">
+      
+      <!-- Top Header -->
+      <div class="new-viewer-header">
+        <div class="viewer-page-title">
+          <h2 class="page-title-text">عارض الأجزاء</h2>
+        </div>
+        <div class="viewer-header-right">
+          <button class="new-notification-btn" onclick="window.toggleViewerInbox()">
+            <span class="notif-icon">🔔</span>
+            <span id="newViewerNotificationBadge" class="notification-dot" style="display: none;"></span>
+          </button>
+          <div class="hijri-date-display" id="newViewerHijriDate">
+            <span class="hijri-icon">📅</span>
+            <span id="viewerHijriDateText">--</span>
+          </div>
+          <button class="logout-btn" onclick="window.logout()" title="تسجيل الخروج">
+            <span class="logout-icon">🚪</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="new-viewer-content">
+        
+        <!-- Home Section (Main Page) -->
+        <div id="viewerHomeSection" class="viewer-main-section active-section">
+          
+          <!-- Welcome Card -->
+          <div class="welcome-card">
+            <h2 style="margin: 0 0 10px 0; font-size: 22px;">📊 جدول الطلاب الجاهزين للعرض</h2>
+            <p style="margin: 0; opacity: 0.9;">مرحباً بك - مازن البلوشي</p>
+          </div>
+
+          <!-- Daily Queue Table -->
+          <div class="content-card">
+            <div class="card-header">
+              <h3 class="card-title">📋 الطلاب الجاهزين اليوم</h3>
+              <div class="card-actions">
+                <button class="icon-btn" onclick="window.loadDailyQueue()" title="تحديث القائمة">
+                  <span>🔄</span>
+                </button>
+                <button class="icon-btn" onclick="window.showJuzReportOptions()" title="تصدير تقرير">
+                  <span>📥</span>
+                </button>
+              </div>
+            </div>
+            <div id="dailyQueueContainer" class="table-container">
+              <p style="text-align: center; color: #999; padding: 20px;">جاري التحميل...</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Reports Section -->
+        <div id="viewerReportsSection" class="viewer-main-section">
+          
+          <div class="section-header">
+            <h2>📊 تقارير أجزاء الطلاب</h2>
+            <p>عرض وإدارة تقارير حفظ الأجزاء</p>
+          </div>
+
+          <div class="content-card">
+            <div class="card-header">
+              <h3 class="card-title">🔍 بحث عن تقارير الطالب</h3>
+            </div>
+            
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">👨‍🏫 اختر المعلم</label>
+                <select id="viewerReportTeacherSelect" class="form-select" onchange="window.loadViewerStudentsByTeacher()">
+                  <option value="">-- اختر المعلم --</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">👨‍🎓 اختر الطالب</label>
+                <select id="viewerReportStudentSelect" class="form-select" onchange="window.loadViewerJuzReports()">
+                  <option value="">-- اختر الطالب --</option>
+                </select>
+              </div>
+            </div>
+            
+            <div id="viewerReportsContainer" style="margin-top: 20px;">
+              <p style="text-align: center; color: #999; padding: 40px;">اختر المعلم والطالب لعرض التقارير</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Register New Section -->
+        <div id="viewerRegisterSection" class="viewer-main-section">
+          
+          <div class="section-header">
+            <h2>➕ تسجيل طالب جديد للعرض</h2>
+            <p>إضافة طالب جاهز لعرض الجزء</p>
+          </div>
+
+          <div class="content-card">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">👨‍🏫 اسم المعلم</label>
+                <select id="viewerTeacherSelect" class="form-select" onchange="window.loadStudentsByTeacher()">
+                  <option value="">-- اختر المعلم --</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">👨‍🎓 اسم الطالب</label>
+                <select id="viewerStudentSelect" class="form-select">
+                  <option value="">-- اختر المعلم أولاً --</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">📖 رقم الجزء</label>
+                <select id="viewerJuzNumber" class="form-select">
+                  <option value="">-- اختر الجزء --</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">📅 تاريخ آخر درس عند المعلم (هجري)</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="viewerLastLessonDate" class="form-input" placeholder="DD-MM-YYYY" style="flex: 1; text-align: center;">
+                  <button class="btn-secondary" onclick="document.getElementById('viewerLastLessonDate').value = window.getTodayHijriSimple()">
+                    📅 اليوم
+                  </button>
+                </div>
+                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">مثال: 9-11-1447 (اليوم-الشهر-السنة)</small>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">📆 تاريخ العرض عند العارض (هجري) - اختياري</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="viewerDisplayDate" class="form-input" placeholder="DD-MM-YYYY" style="flex: 1; text-align: center;">
+                  <button class="btn-secondary" onclick="document.getElementById('viewerDisplayDate').value = window.getTodayHijriSimple()">
+                    📅 اليوم
+                  </button>
+                  <button class="btn-primary" onclick="window.openHijriCalendar('viewerDisplayDate')">
+                    📆 تقويم
+                  </button>
+                </div>
+                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">سيتم إضافته لاحقاً بعد العرض</small>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">👤 اسم العارض</label>
+                <select id="viewerName" class="form-select">
+                  <option value="مازن البلوشي" selected>مازن البلوشي</option>
+                  <option value="بدر بن عفيف">بدر بن عفيف</option>
+                  <option value="محمد عثمان">محمد عثمان</option>
+                  <option value="سليمان موسى">سليمان موسى</option>
+                  <option value="فيض مهاجر">فيض مهاجر</option>
+                  <option value="إبراهيم الطارقي">إبراهيم الطارقي</option>
+                </select>
+              </div>
+            </div>
+            
+            <div style="margin-top: 25px;">
+              <button class="btn-success" onclick="window.saveNewJuzDisplay()" style="width: 100%; padding: 15px; font-size: 18px;">
+                💾 حفظ التسجيل
+              </button>
+            </div>
+            
+            <div id="viewerNewJuzMessage" class="message-box" style="margin-top: 15px; display: none;"></div>
+          </div>
+
+        </div>
+
+        <!-- Tasks Section -->
+        <div id="viewerTasksSection" class="viewer-main-section">
+          
+          <div class="section-header">
+            <h2>📝 المهام</h2>
+            <p>إدارة المهام والتذكيرات</p>
+          </div>
+
+          <div class="content-card">
+            <div style="text-align: center; padding: 60px 20px;">
+              <div style="font-size: 48px; margin-bottom: 15px;">📝</div>
+              <h3 style="color: #999; margin: 0 0 10px 0;">قسم المهام</h3>
+              <p style="color: #bbb; margin: 0;">سيتم إضافة المهام قريباً</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- More Section -->
+        <div id="viewerMoreSection" class="viewer-main-section">
+          
+          <div class="section-header">
+            <h2>⋯ المزيد</h2>
+            <p>إعدادات وخيارات إضافية</p>
+          </div>
+
+          <div class="content-card">
+            <div class="more-menu">
+              <button class="more-menu-item" onclick="window.showJuzReportOptions()">
+                <span class="more-icon">📊</span>
+                <div class="more-text">
+                  <div class="more-title">تقرير شامل</div>
+                  <div class="more-desc">تصدير تقرير PDF شامل</div>
+                </div>
+                <span class="more-arrow">◀</span>
+              </button>
+              
+              <button class="more-menu-item" onclick="window.showClassReportOptions()">
+                <span class="more-icon">👥</span>
+                <div class="more-text">
+                  <div class="more-title">تقرير حلقة</div>
+                  <div class="more-desc">تقرير أجزاء حلقة معينة</div>
+                </div>
+                <span class="more-arrow">◀</span>
+              </button>
+
+              <button class="more-menu-item" onclick="window.toggleViewerInbox()">
+                <span class="more-icon">🔔</span>
+                <div class="more-text">
+                  <div class="more-title">الإشعارات</div>
+                  <div class="more-desc">عرض جميع الإشعارات</div>
+                </div>
+                <span class="more-arrow">◀</span>
+              </button>
+
+              <button class="more-menu-item" onclick="window.logout()">
+                <span class="more-icon" style="color: #dc3545;">🚪</span>
+                <div class="more-text">
+                  <div class="more-title" style="color: #dc3545;">تسجيل الخروج</div>
+                  <div class="more-desc">الخروج من حساب العارض</div>
+                </div>
+                <span class="more-arrow">◀</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Bottom Navigation Bar -->
+      <div class="bottom-nav-bar">
+        <button class="nav-item active" onclick="window.switchViewerSection('home')" data-section="home">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label">الرئيسية</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchViewerSection('reports')" data-section="reports">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">التقارير</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchViewerSection('register')" data-section="register">
+          <span class="nav-icon">➕</span>
+          <span class="nav-label">تسجيل جديد</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchViewerSection('tasks')" data-section="tasks">
+          <span class="nav-icon">📝</span>
+          <span class="nav-label">المهام</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchViewerSection('more')" data-section="more">
+          <span class="nav-icon">⋯</span>
+          <span class="nav-label">المزيد</span>
+        </button>
+      </div>
+
+      <!-- Viewer Inbox Modal -->
+      <div id="viewerInboxModal" class="notifications-modal" style="display: none;">
+        <div class="notifications-modal-overlay" onclick="window.toggleViewerInbox()"></div>
+        <div class="notifications-modal-content">
+          <div class="notifications-modal-header">
+            <h3>🔔 صندوق الإشعارات</h3>
+            <button onclick="window.toggleViewerInbox()" class="close-modal-btn">✖</button>
+          </div>
+          <div id="viewerInboxNotificationsList" class="notifications-list">
+            <p style="text-align: center; color: #999; padding: 20px;">لا توجد إشعارات جديدة</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hijri Calendar Modal -->
+      <div id="hijriCalendarModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+        <div class="modal-content" style="max-width: 450px; padding: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center;">
+            <h3 style="margin: 0; font-size: 20px; font-weight: bold;">📅 التقويم الهجري</h3>
+          </div>
+          
+          <div style="padding: 20px; background: white;">
+            <!-- Month/Year Navigation -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+              <button onclick="window.changeHijriMonth(-1)" style="padding: 8px 15px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 18px;">◀</button>
+              <div style="text-align: center;">
+                <div id="hijriMonthYear" style="font-size: 18px; font-weight: bold; color: #333;"></div>
+              </div>
+              <button onclick="window.changeHijriMonth(1)" style="padding: 8px 15px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 18px;">▶</button>
+            </div>
+            
+            <!-- Calendar Grid -->
+            <div id="hijriCalendarGrid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 20px;"></div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 10px;">
+              <button onclick="window.selectTodayHijri()" style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">اليوم</button>
+              <button onclick="document.getElementById('hijriCalendarModal').style.display = 'none'" style="flex: 1; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">إلغاء</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- OLD Viewer Dashboard (kept for backward compatibility) -->
     <div id="viewerDashboard" style="display:none;">
       <div class="admin-header">
         <div class="admin-header-title">
