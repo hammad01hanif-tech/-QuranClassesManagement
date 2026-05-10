@@ -13,6 +13,30 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <!-- html2canvas for converting HTML to image -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <!-- Temporary selectRole stub (will be replaced by main.js after loading) -->
+  <script>
+    // Temporary function to prevent errors before main.js loads
+    window.selectRole = function(role) {
+      console.log('⏳ Please wait, loading...', role);
+      // Check every 100ms if the real function is loaded
+      let attempts = 0;
+      const maxAttempts = 50; // 5 seconds max
+      const checkInterval = setInterval(() => {
+        attempts++;
+        // Check if main.js has loaded by looking for a different function
+        if (window.selectRoleReady || attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          if (window.selectRoleReady) {
+            console.log('✅ Main.js loaded, retrying role selection');
+            window.selectRole(role);
+          } else {
+            alert('❌ حدث خطأ في التحميل. يرجى تحديث الصفحة.');
+          }
+        }
+      }, 100);
+    };
+  </script>
 </head>
 <body>
   
@@ -3511,7 +3535,23 @@
     </div>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <!-- Load main JavaScript modules with proper initialization -->
+  <script type="module">
+    // Import and initialize all modules
+    import './app.js';
+    
+    // Log when modules are fully loaded
+    console.log('✅ All modules loaded successfully');
+    
+    // Wait a tiny bit for window.selectRole to be defined by main.js
+    setTimeout(() => {
+      if (typeof window.selectRole === 'function') {
+        console.log('✅ selectRole is ready!');
+      } else {
+        console.error('❌ selectRole not found after module load');
+      }
+    }, 100);
+  </script>
   <script type="module" src="js/mobile-ui.js"></script>
 </body>
 </html>
