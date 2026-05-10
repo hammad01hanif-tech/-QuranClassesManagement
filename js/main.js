@@ -608,18 +608,6 @@ window.switchViewerSection = function(section) {
     }
   }
 };
-  
-  // Special actions for each section
-  if (section === 'home') {
-    window.loadDailyQueue();
-  } else if (section === 'reports') {
-    // Load teachers for reports
-    window.loadViewerTeachers('viewerReportTeacherSelect');
-  } else if (section === 'register') {
-    // Initialize registration forms
-    initializeRegistrationForm('hizb');
-  }
-};
 
 // Show Juz List
 window.viewerShowJuzList = function() {
