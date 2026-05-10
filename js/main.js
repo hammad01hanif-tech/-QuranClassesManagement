@@ -780,8 +780,8 @@ async function initializeRegistrationForm(type) {
     loadJuzNumbersForReg();
   }
   
-  // Load Hijri date dropdowns
-  loadHijriDateDropdowns(type);
+  // Load Hijri date dropdowns (smart + auto-fill today's date)
+  await loadHijriDateDropdowns(type);
 }
 
 /**
@@ -934,9 +934,9 @@ window.loadStagesByPathway = async function() {
 };
 
 /**
- * Load Hijri date dropdowns (Day, Month, Year)
+ * Load Hijri date dropdowns (Day, Month, Year) - SMART version from accurateHijriDates
  */
-function loadHijriDateDropdowns(type) {
+async function loadHijriDateDropdowns(type) {
   const prefix = `reg${type.charAt(0).toUpperCase() + type.slice(1)}`;
   
   const daySelect = document.getElementById(`${prefix}Day`);
@@ -945,46 +945,83 @@ function loadHijriDateDropdowns(type) {
   
   if (!daySelect || !monthSelect || !yearSelect) return;
   
-  // Load days (1-30)
-  daySelect.innerHTML = '<option value="">اليوم</option>';
-  for (let i = 1; i <= 30; i++) {
-    const option = document.createElement('option');
-    option.value = i;
-    option.textContent = i;
-    daySelect.appendChild(option);
-  }
-  
-  // Load months (1-12)
-  monthSelect.innerHTML = '<option value="">الشهر</option>';
-  const monthNames = [
-    '1 - محرم',
-    '2 - صفر',
-    '3 - ربيع الأول',
-    '4 - ربيع الثاني',
-    '5 - جمادى الأولى',
-    '6 - جمادى الآخرة',
-    '7 - رجب',
-    '8 - شعبان',
-    '9 - رمضان',
-    '10 - شوال',
-    '11 - ذو القعدة',
-    '12 - ذو الحجة'
-  ];
-  
-  monthNames.forEach((name, index) => {
-    const option = document.createElement('option');
-    option.value = index + 1;
-    option.textContent = name;
-    monthSelect.appendChild(option);
-  });
-  
-  // Load years (1446-1450)
-  yearSelect.innerHTML = '<option value="">السنة</option>';
-  for (let i = 1446; i <= 1450; i++) {
-    const option = document.createElement('option');
-    option.value = i;
-    option.textContent = i;
-    yearSelect.appendChild(option);
+  try {
+    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
+    
+    // Extract unique months and years from accurateHijriDates
+    const uniqueMonths = new Set();
+    const uniqueYears = new Set();
+    const monthYearCombinations = new Map(); // Store month-year pairs with their names
+    
+    accurateHijriDates.forEach(entry => {
+      uniqueMonths.add(entry.hijriMonth);
+      uniqueYears.add(entry.hijriYear);
+      const key = `${entry.hijriYear}-${entry.hijriMonth}`;
+      if (!monthYearCombinations.has(key)) {
+        monthYearCombinations.set(key, {
+          month: entry.hijriMonth,
+          year: entry.hijriYear
+        });
+      }
+    });
+    
+    // Load days (1-30)
+    daySelect.innerHTML = '<option value="">اليوم</option>';
+    for (let i = 1; i <= 30; i++) {
+      const option = document.createElement('option');
+      option.value = i;
+      option.textContent = i;
+      daySelect.appendChild(option);
+    }
+    
+    // Load months - only available ones
+    monthSelect.innerHTML = '<option value="">الشهر</option>';
+    const monthNames = [
+      'محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني',
+      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+    ];
+    
+    // Sort months and add them
+    const sortedMonths = Array.from(uniqueMonths).sort((a, b) => a - b);
+    sortedMonths.forEach(monthNum => {
+      const option = document.createElement('option');
+      option.value = monthNum;
+      option.textContent = `${monthNum} - ${monthNames[monthNum - 1]}`;
+      monthSelect.appendChild(option);
+    });
+    
+    // Load years - only available ones
+    yearSelect.innerHTML = '<option value="">السنة</option>';
+    const sortedYears = Array.from(uniqueYears).sort((a, b) => a - b);
+    sortedYears.forEach(year => {
+      const option = document.createElement('option');
+      option.value = year;
+      option.textContent = year;
+      yearSelect.appendChild(option);
+    });
+    
+    // After loading dropdowns, load today's date automatically
+    await setTodayDateForReg(type);
+    
+  } catch (error) {
+    console.error('Error loading smart Hijri date dropdowns:', error);
+    
+    // Fallback: Load basic options
+    daySelect.innerHTML = '<option value="">اليوم</option>';
+    for (let i = 1; i <= 30; i++) {
+      daySelect.innerHTML += `<option value="${i}">${i}</option>`;
+    }
+    
+    monthSelect.innerHTML = '<option value="">الشهر</option>';
+    for (let i = 1; i <= 12; i++) {
+      monthSelect.innerHTML += `<option value="${i}">${i}</option>`;
+    }
+    
+    yearSelect.innerHTML = '<option value="">السنة</option>';
+    for (let i = 1447; i <= 1448; i++) {
+      yearSelect.innerHTML += `<option value="${i}">${i}</option>`;
+    }
   }
 }
 
@@ -999,15 +1036,20 @@ window.setTodayDateForReg = async function(type) {
     const today = getTodayAccurateHijri();
     
     if (today) {
-      const [day, month, year] = today.split('-');
+      // today is an object with: hijriDay, hijriMonth, hijriYear
+      const day = today.hijriDay;
+      const month = today.hijriMonth;
+      const year = today.hijriYear;
       
       const daySelect = document.getElementById(`${prefix}Day`);
       const monthSelect = document.getElementById(`${prefix}Month`);
       const yearSelect = document.getElementById(`${prefix}Year`);
       
-      if (daySelect) daySelect.value = parseInt(day);
-      if (monthSelect) monthSelect.value = parseInt(month);
-      if (yearSelect) yearSelect.value = parseInt(year);
+      if (daySelect) daySelect.value = day;
+      if (monthSelect) monthSelect.value = month;
+      if (yearSelect) yearSelect.value = year;
+      
+      console.log(`✅ تم تعيين التاريخ الهجري: ${day}/${month}/${year}`);
     }
   } catch (error) {
     console.error('Error setting today date:', error);
