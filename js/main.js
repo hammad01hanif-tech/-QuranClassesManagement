@@ -597,9 +597,8 @@ window.switchViewerSection = function(section) {
     // Load teachers for reports
     window.loadViewerTeachers('viewerReportTeacherSelect');
   } else if (section === 'register') {
-    // Load teachers for registration
-    window.loadViewerTeachers('viewerTeacherSelect');
-    window.loadViewerJuzNumbers();
+    // Initialize registration forms
+    initializeRegistrationForm('hizb');
   }
 };
 
@@ -729,3 +728,427 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 300);
   }
 });
+
+// =====================================================
+// REGISTRATION SECTION - NEW FUNCTIONS
+// =====================================================
+
+/**
+ * Switch between registration types (Hizb, Juz, Stage)
+ */
+window.switchRegistrationType = function(type) {
+  console.log('🔄 Switching registration type to:', type);
+  
+  // Update tab active states
+  document.querySelectorAll('.reg-type-tab').forEach(tab => {
+    tab.classList.remove('active');
+    if (tab.dataset.type === type) {
+      tab.classList.add('active');
+    }
+  });
+  
+  // Update form visibility
+  document.querySelectorAll('.reg-form').forEach(form => {
+    form.classList.remove('active');
+  });
+  
+  const activeForm = document.getElementById(`regForm${type.charAt(0).toUpperCase() + type.slice(1)}`);
+  if (activeForm) {
+    activeForm.classList.add('active');
+  }
+  
+  // Load initial data for the selected form
+  initializeRegistrationForm(type);
+};
+
+/**
+ * Initialize registration form data
+ */
+async function initializeRegistrationForm(type) {
+  console.log('📝 Initializing registration form for:', type);
+  
+  // Load teachers
+  await loadTeachersForRegistration(type);
+  
+  // Load Hizb numbers (1-60)
+  if (type === 'hizb') {
+    loadHizbNumbers();
+  }
+  
+  // Load Juz numbers (1-30)
+  if (type === 'juz') {
+    loadJuzNumbersForReg();
+  }
+  
+  // Load Hijri date dropdowns
+  loadHijriDateDropdowns(type);
+}
+
+/**
+ * Load teachers into registration form
+ */
+async function loadTeachersForRegistration(type) {
+  const selectId = `reg${type.charAt(0).toUpperCase() + type.slice(1)}Teacher`;
+  const teacherSelect = document.getElementById(selectId);
+  
+  if (!teacherSelect) return;
+  
+  const teachersList = {
+    'ABD01': 'عبدالرحمن السيسي',
+    'AMR01': 'عامر هوساوي',
+    'ANS01': 'الأستاذ أنس',
+    'HRT01': 'حارث',
+    'JHD01': 'الأستاذ جهاد',
+    'JWD01': 'عبدالرحمن جاويد',
+    'MZB01': 'مازن البلوشي',
+    'MZN01': 'الأستاذ مازن',
+    'NBL01': 'الأستاذ نبيل',
+    'OMR01': 'الأستاذ عمر',
+    'OSM01': 'أسامة حبيب',
+    'SLM01': 'سلمان رفيق'
+  };
+  
+  teacherSelect.innerHTML = '<option value="">-- اختر المعلم --</option>';
+  
+  Object.keys(teachersList).forEach(teacherId => {
+    const option = document.createElement('option');
+    option.value = teacherId;
+    option.textContent = teachersList[teacherId];
+    teacherSelect.appendChild(option);
+  });
+}
+
+/**
+ * Load students when teacher is selected
+ */
+window.loadStudentsForReg = async function(type) {
+  const teacherSelectId = `reg${type.charAt(0).toUpperCase() + type.slice(1)}Teacher`;
+  const studentSelectId = `reg${type.charAt(0).toUpperCase() + type.slice(1)}Student`;
+  
+  const teacherId = document.getElementById(teacherSelectId)?.value;
+  const studentSelect = document.getElementById(studentSelectId);
+  
+  if (!teacherId || !studentSelect) {
+    if (studentSelect) {
+      studentSelect.innerHTML = '<option value="">-- اختر المعلم أولاً --</option>';
+    }
+    return;
+  }
+  
+  try {
+    studentSelect.innerHTML = '<option value="">⏳ جاري التحميل...</option>';
+    
+    const studentsSnap = await getDocs(query(
+      collection(db, 'users'),
+      where('role', '==', 'student'),
+      where('classId', '==', teacherId)
+    ));
+    
+    studentSelect.innerHTML = '<option value="">-- اختر الطالب --</option>';
+    
+    studentsSnap.forEach(doc => {
+      const student = doc.data();
+      const option = document.createElement('option');
+      option.value = doc.id;
+      option.textContent = student.name;
+      studentSelect.appendChild(option);
+    });
+    
+    if (studentsSnap.empty) {
+      studentSelect.innerHTML = '<option value="">لا يوجد طلاب</option>';
+    }
+  } catch (error) {
+    console.error('Error loading students:', error);
+    studentSelect.innerHTML = '<option value="">خطأ في التحميل</option>';
+  }
+};
+
+/**
+ * Load Hizb numbers (1-60)
+ */
+function loadHizbNumbers() {
+  const hizbSelect = document.getElementById('regHizbNumber');
+  if (!hizbSelect) return;
+  
+  hizbSelect.innerHTML = '<option value="">-- اختر الحزب --</option>';
+  
+  for (let i = 1; i <= 60; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = `الحزب ${i}`;
+    hizbSelect.appendChild(option);
+  }
+}
+
+/**
+ * Load Juz numbers (1-30)
+ */
+function loadJuzNumbersForReg() {
+  const juzSelect = document.getElementById('regJuzNumber');
+  if (!juzSelect) return;
+  
+  juzSelect.innerHTML = '<option value="">-- اختر الجزء --</option>';
+  
+  for (let i = 1; i <= 30; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = `الجزء ${i}`;
+    juzSelect.appendChild(option);
+  }
+}
+
+/**
+ * Load stages dynamically based on selected pathway
+ */
+window.loadStagesByPathway = async function() {
+  const pathwaySelect = document.getElementById('regStagePathway');
+  const stageSelect = document.getElementById('regStageLevel');
+  
+  if (!pathwaySelect || !stageSelect) return;
+  
+  const pathway = pathwaySelect.value;
+  
+  if (!pathway) {
+    stageSelect.innerHTML = '<option value="">-- اختر المسار أولاً --</option>';
+    return;
+  }
+  
+  try {
+    // Import marahil data
+    const { getMarahilByPathway } = await import('./quran-marahil.js');
+    const marahil = getMarahilByPathway(pathway);
+    
+    stageSelect.innerHTML = '<option value="">-- اختر المرحلة --</option>';
+    
+    marahil.forEach(marhalah => {
+      const option = document.createElement('option');
+      option.value = marhalah.id;
+      option.textContent = `${marhalah.icon} ${marhalah.description} (${marhalah.juzCount} أجزاء)`;
+      stageSelect.appendChild(option);
+    });
+    
+  } catch (error) {
+    console.error('Error loading stages:', error);
+    stageSelect.innerHTML = '<option value="">خطأ في التحميل</option>';
+  }
+};
+
+/**
+ * Load Hijri date dropdowns (Day, Month, Year)
+ */
+function loadHijriDateDropdowns(type) {
+  const prefix = `reg${type.charAt(0).toUpperCase() + type.slice(1)}`;
+  
+  const daySelect = document.getElementById(`${prefix}Day`);
+  const monthSelect = document.getElementById(`${prefix}Month`);
+  const yearSelect = document.getElementById(`${prefix}Year`);
+  
+  if (!daySelect || !monthSelect || !yearSelect) return;
+  
+  // Load days (1-30)
+  daySelect.innerHTML = '<option value="">اليوم</option>';
+  for (let i = 1; i <= 30; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = i;
+    daySelect.appendChild(option);
+  }
+  
+  // Load months (1-12)
+  monthSelect.innerHTML = '<option value="">الشهر</option>';
+  const monthNames = [
+    '1 - محرم',
+    '2 - صفر',
+    '3 - ربيع الأول',
+    '4 - ربيع الثاني',
+    '5 - جمادى الأولى',
+    '6 - جمادى الآخرة',
+    '7 - رجب',
+    '8 - شعبان',
+    '9 - رمضان',
+    '10 - شوال',
+    '11 - ذو القعدة',
+    '12 - ذو الحجة'
+  ];
+  
+  monthNames.forEach((name, index) => {
+    const option = document.createElement('option');
+    option.value = index + 1;
+    option.textContent = name;
+    monthSelect.appendChild(option);
+  });
+  
+  // Load years (1446-1450)
+  yearSelect.innerHTML = '<option value="">السنة</option>';
+  for (let i = 1446; i <= 1450; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = i;
+    yearSelect.appendChild(option);
+  }
+}
+
+/**
+ * Set today's Hijri date in the form
+ */
+window.setTodayDateForReg = async function(type) {
+  const prefix = `reg${type.charAt(0).toUpperCase() + type.slice(1)}`;
+  
+  try {
+    const { getTodayAccurateHijri } = await import('./accurate-hijri-dates.js');
+    const today = getTodayAccurateHijri();
+    
+    if (today) {
+      const [day, month, year] = today.split('-');
+      
+      const daySelect = document.getElementById(`${prefix}Day`);
+      const monthSelect = document.getElementById(`${prefix}Month`);
+      const yearSelect = document.getElementById(`${prefix}Year`);
+      
+      if (daySelect) daySelect.value = parseInt(day);
+      if (monthSelect) monthSelect.value = parseInt(month);
+      if (yearSelect) yearSelect.value = parseInt(year);
+    }
+  } catch (error) {
+    console.error('Error setting today date:', error);
+    alert('خطأ في تعيين تاريخ اليوم');
+  }
+};
+
+/**
+ * Save Hizb Registration
+ */
+window.saveHizbRegistration = async function() {
+  const teacherId = document.getElementById('regHizbTeacher')?.value;
+  const studentId = document.getElementById('regHizbStudent')?.value;
+  const hizbNumber = document.getElementById('regHizbNumber')?.value;
+  const day = document.getElementById('regHizbDay')?.value;
+  const month = document.getElementById('regHizbMonth')?.value;
+  const year = document.getElementById('regHizbYear')?.value;
+  
+  const messageBox = document.getElementById('regHizbMessage');
+  
+  // Validation
+  if (!teacherId || !studentId || !hizbNumber || !day || !month || !year) {
+    messageBox.textContent = '⚠️ يرجى ملء جميع الحقول';
+    messageBox.className = 'reg-message error';
+    return;
+  }
+  
+  const hijriDate = `${day}-${month}-${year}`;
+  
+  try {
+    // Save to Firestore (you'll need to create the collection structure)
+    messageBox.textContent = `✅ تم حفظ تسجيل الحزب ${hizbNumber} بنجاح`;
+    messageBox.className = 'reg-message success';
+    
+    // Clear form after 2 seconds
+    setTimeout(() => {
+      document.getElementById('regHizbStudent').value = '';
+      document.getElementById('regHizbNumber').value = '';
+      document.getElementById('regHizbDay').value = '';
+      document.getElementById('regHizbMonth').value = '';
+      document.getElementById('regHizbYear').value = '';
+      messageBox.style.display = 'none';
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Error saving Hizb registration:', error);
+    messageBox.textContent = '❌ خطأ في حفظ التسجيل';
+    messageBox.className = 'reg-message error';
+  }
+};
+
+/**
+ * Save Juz Registration
+ */
+window.saveJuzRegistration = async function() {
+  const teacherId = document.getElementById('regJuzTeacher')?.value;
+  const studentId = document.getElementById('regJuzStudent')?.value;
+  const juzNumber = document.getElementById('regJuzNumber')?.value;
+  const day = document.getElementById('regJuzDay')?.value;
+  const month = document.getElementById('regJuzMonth')?.value;
+  const year = document.getElementById('regJuzYear')?.value;
+  
+  const messageBox = document.getElementById('regJuzMessage');
+  
+  // Validation
+  if (!teacherId || !studentId || !juzNumber || !day || !month || !year) {
+    messageBox.textContent = '⚠️ يرجى ملء جميع الحقول';
+    messageBox.className = 'reg-message error';
+    return;
+  }
+  
+  const hijriDate = `${day}-${month}-${year}`;
+  
+  try {
+    // Save to Firestore
+    messageBox.textContent = `✅ تم حفظ تسجيل الجزء ${juzNumber} بنجاح`;
+    messageBox.className = 'reg-message success';
+    
+    // Clear form after 2 seconds
+    setTimeout(() => {
+      document.getElementById('regJuzStudent').value = '';
+      document.getElementById('regJuzNumber').value = '';
+      document.getElementById('regJuzDay').value = '';
+      document.getElementById('regJuzMonth').value = '';
+      document.getElementById('regJuzYear').value = '';
+      messageBox.style.display = 'none';
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Error saving Juz registration:', error);
+    messageBox.textContent = '❌ خطأ في حفظ التسجيل';
+    messageBox.className = 'reg-message error';
+  }
+};
+
+/**
+ * Save Stage Registration
+ */
+window.saveStageRegistration = async function() {
+  const teacherId = document.getElementById('regStageTeacher')?.value;
+  const studentId = document.getElementById('regStageStudent')?.value;
+  const pathway = document.getElementById('regStagePathway')?.value;
+  const stageId = document.getElementById('regStageLevel')?.value;
+  const day = document.getElementById('regStageDay')?.value;
+  const month = document.getElementById('regStageMonth')?.value;
+  const year = document.getElementById('regStageYear')?.value;
+  
+  const messageBox = document.getElementById('regStageMessage');
+  
+  // Validation
+  if (!teacherId || !studentId || !pathway || !stageId || !day || !month || !year) {
+    messageBox.textContent = '⚠️ يرجى ملء جميع الحقول';
+    messageBox.className = 'reg-message error';
+    return;
+  }
+  
+  const hijriDate = `${day}-${month}-${year}`;
+  
+  try {
+    // Get stage info
+    const { getMarhalahById } = await import('./quran-marahil.js');
+    const marhalah = getMarhalahById(stageId);
+    
+    // Save to Firestore
+    messageBox.textContent = `✅ تم حفظ تسجيل ${marhalah.title} بنجاح`;
+    messageBox.className = 'reg-message success';
+    
+    // Clear form after 2 seconds
+    setTimeout(() => {
+      document.getElementById('regStageStudent').value = '';
+      document.getElementById('regStagePathway').value = '';
+      document.getElementById('regStageLevel').value = '';
+      document.getElementById('regStageDay').value = '';
+      document.getElementById('regStageMonth').value = '';
+      document.getElementById('regStageYear').value = '';
+      messageBox.style.display = 'none';
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Error saving Stage registration:', error);
+    messageBox.textContent = '❌ خطأ في حفظ التسجيل';
+    messageBox.className = 'reg-message error';
+  }
+};

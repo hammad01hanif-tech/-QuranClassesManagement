@@ -2871,79 +2871,218 @@
         <!-- Register New Section -->
         <div id="viewerRegisterSection" class="viewer-main-section">
           
-          <div class="section-header">
-            <h2>➕ تسجيل طالب جديد للعرض</h2>
-            <p>إضافة طالب جاهز لعرض الجزء</p>
+          <!-- Registration Type Selector (Tabs) -->
+          <div class="reg-type-selector">
+            <button class="reg-type-tab active" data-type="hizb" onclick="window.switchRegistrationType('hizb')">
+              <span class="tab-icon">📗</span>
+              <span class="tab-text">تسجيل حزب</span>
+            </button>
+            <button class="reg-type-tab" data-type="juz" onclick="window.switchRegistrationType('juz')">
+              <span class="tab-icon">📘</span>
+              <span class="tab-text">تسجيل جزء</span>
+            </button>
+            <button class="reg-type-tab" data-type="stage" onclick="window.switchRegistrationType('stage')">
+              <span class="tab-icon">🏆</span>
+              <span class="tab-text">تسجيل مرحلة</span>
+            </button>
           </div>
 
-          <div class="content-card">
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label">👨‍🏫 اسم المعلم</label>
-                <select id="viewerTeacherSelect" class="form-select" onchange="window.loadStudentsByTeacher()">
-                  <option value="">-- اختر المعلم --</option>
-                </select>
+          <!-- Form Container -->
+          <div class="reg-forms-container">
+            
+            <!-- ==================== HIZB REGISTRATION FORM ==================== -->
+            <div id="regFormHizb" class="reg-form active">
+              <div class="reg-form-header">
+                <h3 class="reg-form-title">📗 تسجيل حزب جديد</h3>
+                <p class="reg-form-subtitle">تسجيل إنجاز حفظ حزب قرآني</p>
               </div>
-              
-              <div class="form-group">
-                <label class="form-label">👨‍🎓 اسم الطالب</label>
-                <select id="viewerStudentSelect" class="form-select">
-                  <option value="">-- اختر المعلم أولاً --</option>
-                </select>
-              </div>
-              
-              <div class="form-group">
-                <label class="form-label">📖 رقم الجزء</label>
-                <select id="viewerJuzNumber" class="form-select">
-                  <option value="">-- اختر الجزء --</option>
-                </select>
-              </div>
-              
-              <div class="form-group">
-                <label class="form-label">📅 تاريخ آخر درس عند المعلم (هجري)</label>
-                <div style="display: flex; gap: 8px;">
-                  <input type="text" id="viewerLastLessonDate" class="form-input" placeholder="DD-MM-YYYY" style="flex: 1; text-align: center;">
-                  <button class="btn-secondary" onclick="document.getElementById('viewerLastLessonDate').value = window.getTodayHijriSimple()">
-                    📅 اليوم
+
+              <div class="reg-form-body">
+                <!-- Teacher -->
+                <div class="reg-field">
+                  <label class="reg-label">👨‍🏫 اسم المعلم</label>
+                  <select id="regHizbTeacher" class="reg-select" onchange="window.loadStudentsForReg('hizb')">
+                    <option value="">-- اختر المعلم --</option>
+                  </select>
+                </div>
+
+                <!-- Student -->
+                <div class="reg-field">
+                  <label class="reg-label">👨‍🎓 اسم الطالب</label>
+                  <select id="regHizbStudent" class="reg-select">
+                    <option value="">-- اختر المعلم أولاً --</option>
+                  </select>
+                </div>
+
+                <!-- Hizb Number -->
+                <div class="reg-field">
+                  <label class="reg-label">📖 رقم الحزب</label>
+                  <select id="regHizbNumber" class="reg-select">
+                    <option value="">-- اختر الحزب --</option>
+                  </select>
+                </div>
+
+                <!-- Date (3 dropdowns) -->
+                <div class="reg-field">
+                  <label class="reg-label">📅 تاريخ آخر درس (هجري)</label>
+                  <div class="date-picker-group">
+                    <select id="regHizbDay" class="date-select">
+                      <option value="">اليوم</option>
+                    </select>
+                    <select id="regHizbMonth" class="date-select">
+                      <option value="">الشهر</option>
+                    </select>
+                    <select id="regHizbYear" class="date-select">
+                      <option value="">السنة</option>
+                    </select>
+                  </div>
+                  <button class="date-today-btn" onclick="window.setTodayDateForReg('hizb')">
+                    📅 تعيين تاريخ اليوم
                   </button>
                 </div>
-                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">مثال: 9-11-1447 (اليوم-الشهر-السنة)</small>
               </div>
-              
-              <div class="form-group">
-                <label class="form-label">📆 تاريخ العرض عند العارض (هجري) - اختياري</label>
-                <div style="display: flex; gap: 8px;">
-                  <input type="text" id="viewerDisplayDate" class="form-input" placeholder="DD-MM-YYYY" style="flex: 1; text-align: center;">
-                  <button class="btn-secondary" onclick="document.getElementById('viewerDisplayDate').value = window.getTodayHijriSimple()">
-                    📅 اليوم
-                  </button>
-                  <button class="btn-primary" onclick="window.openHijriCalendar('viewerDisplayDate')">
-                    📆 تقويم
+
+              <div class="reg-form-footer">
+                <button class="reg-submit-btn" onclick="window.saveHizbRegistration()">
+                  ✅ حفظ التسجيل
+                </button>
+              </div>
+
+              <div id="regHizbMessage" class="reg-message"></div>
+            </div>
+
+            <!-- ==================== JUZ REGISTRATION FORM ==================== -->
+            <div id="regFormJuz" class="reg-form">
+              <div class="reg-form-header">
+                <h3 class="reg-form-title">📘 تسجيل جزء جديد</h3>
+                <p class="reg-form-subtitle">تسجيل إنجاز حفظ جزء قرآني</p>
+              </div>
+
+              <div class="reg-form-body">
+                <!-- Teacher -->
+                <div class="reg-field">
+                  <label class="reg-label">👨‍🏫 اسم المعلم</label>
+                  <select id="regJuzTeacher" class="reg-select" onchange="window.loadStudentsForReg('juz')">
+                    <option value="">-- اختر المعلم --</option>
+                  </select>
+                </div>
+
+                <!-- Student -->
+                <div class="reg-field">
+                  <label class="reg-label">👨‍🎓 اسم الطالب</label>
+                  <select id="regJuzStudent" class="reg-select">
+                    <option value="">-- اختر المعلم أولاً --</option>
+                  </select>
+                </div>
+
+                <!-- Juz Number -->
+                <div class="reg-field">
+                  <label class="reg-label">📖 رقم الجزء</label>
+                  <select id="regJuzNumber" class="reg-select">
+                    <option value="">-- اختر الجزء --</option>
+                  </select>
+                </div>
+
+                <!-- Date (3 dropdowns) -->
+                <div class="reg-field">
+                  <label class="reg-label">📅 تاريخ آخر درس (هجري)</label>
+                  <div class="date-picker-group">
+                    <select id="regJuzDay" class="date-select">
+                      <option value="">اليوم</option>
+                    </select>
+                    <select id="regJuzMonth" class="date-select">
+                      <option value="">الشهر</option>
+                    </select>
+                    <select id="regJuzYear" class="date-select">
+                      <option value="">السنة</option>
+                    </select>
+                  </div>
+                  <button class="date-today-btn" onclick="window.setTodayDateForReg('juz')">
+                    📅 تعيين تاريخ اليوم
                   </button>
                 </div>
-                <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">سيتم إضافته لاحقاً بعد العرض</small>
               </div>
-              
-              <div class="form-group">
-                <label class="form-label">👤 اسم العارض</label>
-                <select id="viewerName" class="form-select">
-                  <option value="مازن البلوشي" selected>مازن البلوشي</option>
-                  <option value="بدر بن عفيف">بدر بن عفيف</option>
-                  <option value="محمد عثمان">محمد عثمان</option>
-                  <option value="سليمان موسى">سليمان موسى</option>
-                  <option value="فيض مهاجر">فيض مهاجر</option>
-                  <option value="إبراهيم الطارقي">إبراهيم الطارقي</option>
-                </select>
+
+              <div class="reg-form-footer">
+                <button class="reg-submit-btn" onclick="window.saveJuzRegistration()">
+                  ✅ حفظ التسجيل
+                </button>
               </div>
+
+              <div id="regJuzMessage" class="reg-message"></div>
             </div>
-            
-            <div style="margin-top: 25px;">
-              <button class="btn-success" onclick="window.saveNewJuzDisplay()" style="width: 100%; padding: 15px; font-size: 18px;">
-                💾 حفظ التسجيل
-              </button>
+
+            <!-- ==================== STAGE REGISTRATION FORM ==================== -->
+            <div id="regFormStage" class="reg-form">
+              <div class="reg-form-header">
+                <h3 class="reg-form-title">🏆 تسجيل مرحلة جديدة</h3>
+                <p class="reg-form-subtitle">تسجيل إنجاز إتمام مرحلة كاملة</p>
+              </div>
+
+              <div class="reg-form-body">
+                <!-- Teacher -->
+                <div class="reg-field">
+                  <label class="reg-label">👨‍🏫 اسم المعلم</label>
+                  <select id="regStageTeacher" class="reg-select" onchange="window.loadStudentsForReg('stage')">
+                    <option value="">-- اختر المعلم --</option>
+                  </select>
+                </div>
+
+                <!-- Student -->
+                <div class="reg-field">
+                  <label class="reg-label">👨‍🎓 اسم الطالب</label>
+                  <select id="regStageStudent" class="reg-select">
+                    <option value="">-- اختر المعلم أولاً --</option>
+                  </select>
+                </div>
+
+                <!-- Pathway Type -->
+                <div class="reg-field">
+                  <label class="reg-label">🛤️ نوع المسار</label>
+                  <select id="regStagePathway" class="reg-select" onchange="window.loadStagesByPathway()">
+                    <option value="">-- اختر المسار --</option>
+                    <option value="nas-to-baqarah">⬅️ من الناس إلى البقرة</option>
+                    <option value="baqarah-to-nas">➡️ من البقرة إلى الناس</option>
+                  </select>
+                </div>
+
+                <!-- Stage Level (Dynamic based on pathway) -->
+                <div class="reg-field">
+                  <label class="reg-label">📊 المرحلة</label>
+                  <select id="regStageLevel" class="reg-select">
+                    <option value="">-- اختر المسار أولاً --</option>
+                  </select>
+                </div>
+
+                <!-- Date (3 dropdowns) -->
+                <div class="reg-field">
+                  <label class="reg-label">📅 تاريخ آخر درس (هجري)</label>
+                  <div class="date-picker-group">
+                    <select id="regStageDay" class="date-select">
+                      <option value="">اليوم</option>
+                    </select>
+                    <select id="regStageMonth" class="date-select">
+                      <option value="">الشهر</option>
+                    </select>
+                    <select id="regStageYear" class="date-select">
+                      <option value="">السنة</option>
+                    </select>
+                  </div>
+                  <button class="date-today-btn" onclick="window.setTodayDateForReg('stage')">
+                    📅 تعيين تاريخ اليوم
+                  </button>
+                </div>
+              </div>
+
+              <div class="reg-form-footer">
+                <button class="reg-submit-btn" onclick="window.saveStageRegistration()">
+                  ✅ حفظ التسجيل
+                </button>
+              </div>
+
+              <div id="regStageMessage" class="reg-message"></div>
             </div>
-            
-            <div id="viewerNewJuzMessage" class="message-box" style="margin-top: 15px; display: none;"></div>
+
           </div>
 
         </div>
