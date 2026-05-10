@@ -5468,3 +5468,132 @@ details[open] > summary {
     font-size: 13px;
   }
 }
+
+
+/* ============================================================
+   QUEUE TYPE SELECTOR (Similar to Registration Type Selector)
+   ============================================================ */
+
+/* Queue Type Selector (Tabs) */
+.queue-type-selector {
+  display: flex;
+  gap: 12px;
+  padding: 20px 16px;
+  background: #fff;
+  border-bottom: 2px solid #f0f0f0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  margin-bottom: 20px;
+}
+
+.queue-type-selector::-webkit-scrollbar {
+  display: none;
+}
+
+.queue-type-tab {
+  flex: 1;
+  min-width: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Cairo', sans-serif;
+}
+
+.queue-type-tab:hover {
+  background: #fff;
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.queue-type-tab.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  color: white;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+}
+
+.queue-type-tab.active .tab-icon {
+  transform: scale(1.2);
+}
+
+.queue-type-tab.active .tab-text {
+  color: white;
+}
+
+/* Queue Tables Container */
+.queue-tables-container {
+  background: #f8f9fa;
+}
+
+/* Individual Queue Table Container */
+.queue-table-container {
+  display: none;
+  animation: fadeInSlide 0.4s ease;
+}
+
+.queue-table-container.active {
+  display: block;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .queue-type-selector {
+    gap: 8px;
+    padding: 16px 12px;
+  }
+
+  .queue-type-tab {
+    min-width: 95px;
+    padding: 14px 10px;
+  }
+
+  .tab-icon {
+    font-size: 24px;
+  }
+
+  .tab-text {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .queue-type-selector {
+    gap: 6px;
+    padding: 12px 8px;
+  }
+
+  .queue-type-tab {
+    min-width: 85px;
+    padding: 12px 8px;
+    gap: 6px;
+  }
+
+  .tab-icon {
+    font-size: 22px;
+  }
+
+  .tab-text {
+    font-size: 12px;
+  }
+}
+

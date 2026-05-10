@@ -1760,6 +1760,180 @@ window.openQueueReport = async function(reportId) {
   }
 };
 
+/**
+ * Load Hizb Queue (similar to loadDailyQueue but for Ahzab)
+ */
+window.loadHizbQueue = async function() {
+  const container = document.getElementById('hizbQueueContainer');
+  
+  if (!container) return;
+  
+  container.innerHTML = '<p style="text-align: center; color: #667eea; padding: 20px;">⏳ جاري تحميل جدول الأحزاب...</p>';
+  
+  try {
+    console.log('📗 Loading hizb queue...');
+    const startTime = performance.now();
+    
+    // Get today's Hijri date
+    const todayHijri = getTodayForStorage(); // Returns YYYY-MM-DD
+    
+    // Get all hizbDisplays that don't have displayDate yet (pending displays)
+    const q = query(
+      collection(db, 'hizbDisplays'),
+      where('status', '==', 'incomplete')
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">✅ لا توجد طلاب في قائمة انتظار الأحزاب</p>';
+      return;
+    }
+    
+    // Process students
+    const queue = [];
+    
+    // Get teacher names from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teacherNamesMap = {};
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
+    });
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const reportId = doc.id;
+      
+      // Only include if displayDate is empty or null
+      if (!data.displayDate || data.displayDate === '') {
+        // Smart priority calculation:
+        // - If student has attempted (failed), use lastAttemptDate
+        // - Otherwise, use lastLessonDate
+        let priorityDate = data.lastLessonDate;
+        let daysSinceAttempt = 0;
+        let daysSinceLesson = 0;
+        
+        // Always calculate days since last lesson (used as secondary sort)
+        daysSinceLesson = calculateHijriDaysDifference(data.lastLessonDate, todayHijri);
+        
+        if (data.lastAttemptDate) {
+          // Student has attempted before - use last attempt date for priority
+          priorityDate = data.lastAttemptDate;
+          daysSinceAttempt = calculateHijriDaysDifference(data.lastAttemptDate, todayHijri);
+        } else {
+          // New student - never attempted - use last lesson date
+          daysSinceAttempt = daysSinceLesson;
+        }
+        
+        // Get teacher name from classes collection based on teacherId
+        const teacherName = teacherNamesMap[data.teacherId] || data.teacherName || 'غير محدد';
+        
+        queue.push({
+          reportId: reportId,
+          studentId: data.studentId,
+          studentName: data.studentName,
+          teacherId: data.teacherId,
+          teacherName: teacherName,
+          hizbNumber: data.hizbNumber,
+          lastLessonDate: data.lastLessonDate,
+          lastAttemptDate: data.lastAttemptDate || null,
+          failedAttempts: data.failedAttempts || [],
+          priorityDate: priorityDate,
+          daysSinceAttempt: daysSinceAttempt,
+          daysSinceLesson: daysSinceLesson
+        });
+      }
+    });
+    
+    // Sort by two criteria (same logic as Juz Queue)
+    queue.sort((a, b) => {
+      if (b.daysSinceAttempt !== a.daysSinceAttempt) {
+        return b.daysSinceAttempt - a.daysSinceAttempt;
+      }
+      return b.daysSinceLesson - a.daysSinceLesson;
+    });
+    
+    const endTime = performance.now();
+    console.log(`✅ Hizb queue loaded in ${Math.round(endTime - startTime)}ms`);
+    console.log(`📊 Total students in hizb queue: ${queue.length}`);
+    
+    // Build table HTML
+    if (queue.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">✅ لا توجد طلاب في قائمة انتظار الأحزاب</p>';
+      return;
+    }
+    
+    let tableHTML = `
+      <table class="keep-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <th style="padding: 12px; text-align: right; border-radius: 8px 0 0 0;">#</th>
+            <th style="padding: 12px; text-align: right;">اسم الطالب</th>
+            <th style="padding: 12px; text-align: right;">اسم المعلم</th>
+            <th style="padding: 12px; text-align: center;">الحزب</th>
+            <th style="padding: 12px; text-align: center; border-radius: 0 8px 0 0;">منذ</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    queue.forEach((student, index) => {
+      const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      // Color based on days since LESSON
+      const priorityColor = student.daysSinceLesson >= 7 ? '#dc3545' : student.daysSinceLesson >= 5 ? '#ffc107' : '#28a745';
+      // Display days since LESSON
+      const daysText = student.daysSinceLesson === 1 ? 'يوم واحد' : student.daysSinceLesson === 2 ? 'يومان' : `${student.daysSinceLesson} أيام`;
+      
+      // Extract Arabic name only
+      const displayName = extractArabicName(student.studentName);
+      
+      tableHTML += `
+        <tr onclick="window.showHizbDisplayOptions('${student.reportId}', '${student.studentName}', ${student.hizbNumber})" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
+          <td style="padding: 12px; font-weight: bold; color: #667eea;">${index + 1}</td>
+          <td style="padding: 12px; font-weight: bold;">${displayName}</td>
+          <td style="padding: 12px; color: #666;">${student.teacherName}</td>
+          <td style="padding: 12px; text-align: center; font-weight: bold; color: #764ba2;">الحزب ${student.hizbNumber}</td>
+          <td style="padding: 12px; text-align: center;">
+            <span style="padding: 5px 12px; background: ${priorityColor}; color: white; border-radius: 15px; font-weight: bold; font-size: 13px;">
+              ${daysText}
+            </span>
+          </td>
+        </tr>
+      `;
+    });
+    
+    tableHTML += '</tbody></table>';
+    
+    container.innerHTML = tableHTML;
+    
+  } catch (error) {
+    console.error('Error loading hizb queue:', error);
+    container.innerHTML = '<p style="text-align: center; color: #dc3545; padding: 20px;">❌ حدث خطأ في تحميل جدول الأحزاب</p>';
+  }
+};
+
+/**
+ * Show Hizb Display Options Popup (Placeholder for now)
+ */
+window.showHizbDisplayOptions = async function(reportId, studentName, hizbNumber) {
+  alert(`🚧 نظام عرض الأحزاب قيد التطوير
+  
+سيتم إضافة وظائف كاملة لعرض الأحزاب قريباً بإذن الله.
+
+تفاصيل:
+الطالب: ${studentName}
+الحزب: ${hizbNumber}`);
+};
+
+/**
+ * Show Hizb Report Options (Placeholder for now)
+ */
+window.showHizbReportOptions = function() {
+  alert('🚧 نظام تصدير تقارير الأحزاب قيد التطوير\n\nسيتم إضافة هذه الميزة قريباً بإذن الله');
+};
+
 // Show Juz Display Options Popup
 window.showJuzDisplayOptions = async function(reportId, studentName, juzNumber) {
   try {

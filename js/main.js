@@ -590,6 +590,21 @@ window.switchViewerSection = function(section) {
     }
   });
   
+  // Load section-specific data
+  if (section === 'home') {
+    // Initialize queue tabs and load first tab (Hizb)
+    window.switchQueueType('hizb');
+  } else if (section === 'register') {
+    // Initialize registration form
+    window.switchRegistrationType('hizb');
+  } else if (section === 'reports') {
+    // Load reports if needed
+    if (typeof window.loadViewerReports === 'function') {
+      window.loadViewerReports();
+    }
+  }
+};
+  
   // Special actions for each section
   if (section === 'home') {
     window.loadDailyQueue();
@@ -759,6 +774,61 @@ window.switchRegistrationType = function(type) {
   
   // Load initial data for the selected form
   initializeRegistrationForm(type);
+};
+
+/**
+ * Switch Queue Type (Hizb, Juz, Stage)
+ */
+window.switchQueueType = function(type) {
+  console.log('🔄 Switching queue type to:', type);
+  
+  // Update tab active states
+  document.querySelectorAll('.queue-type-tab').forEach(tab => {
+    tab.classList.remove('active');
+    if (tab.dataset.type === type) {
+      tab.classList.add('active');
+    }
+  });
+  
+  // Update table visibility
+  document.querySelectorAll('.queue-table-container').forEach(container => {
+    container.classList.remove('active');
+  });
+  
+  const activeContainer = document.getElementById(`queueTable${type.charAt(0).toUpperCase() + type.slice(1)}`);
+  if (activeContainer) {
+    activeContainer.classList.add('active');
+  }
+  
+  // Load queue data based on type
+  if (type === 'hizb') {
+    // Check if hizbQueueContainer is empty or has only loading message
+    const hizbContainer = document.getElementById('hizbQueueContainer');
+    if (hizbContainer && (hizbContainer.children.length === 0 || 
+        hizbContainer.querySelector('.loading-message') || 
+        hizbContainer.textContent.includes('جاري تحميل'))) {
+      if (typeof window.loadHizbQueue === 'function') {
+        window.loadHizbQueue();
+      } else {
+        console.warn('⚠️ loadHizbQueue function not yet implemented');
+        hizbContainer.innerHTML = `
+          <div style="text-align: center; padding: 40px 20px;">
+            <p style="color: #999; font-size: 15px;">نظام عرض الأحزاب قيد التطوير 🔧</p>
+          </div>
+        `;
+      }
+    }
+  } else if (type === 'juz') {
+    // Load Juz queue if not already loaded
+    const juzContainer = document.getElementById('dailyQueueContainer');
+    if (juzContainer && (juzContainer.children.length === 0 || 
+        juzContainer.textContent.includes('جاري التحميل'))) {
+      if (typeof window.loadDailyQueue === 'function') {
+        window.loadDailyQueue();
+      }
+    }
+  }
+  // Stage tab doesn't need loading (placeholder only)
 };
 
 /**

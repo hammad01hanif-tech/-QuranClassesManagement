@@ -2809,25 +2809,92 @@
           <!-- Welcome Card -->
           <div class="welcome-card">
             <h2 style="margin: 0 0 10px 0; font-size: 22px;">📊 جدول الطلاب الجاهزين للعرض</h2>
-            <p style="margin: 0; opacity: 0.9;">مرحباً بك - مازن البلوشي</p>
+            <p style="margin: 0; opacity: 0.9;">جميع الطلاب المسجلين والجاهزين لعرض إنجازاتهم القرآنية</p>
           </div>
 
-          <!-- Daily Queue Table -->
-          <div class="content-card">
-            <div class="card-header">
-              <h3 class="card-title">📋 الطلاب الجاهزين اليوم</h3>
-              <div class="card-actions">
-                <button class="icon-btn" onclick="window.loadDailyQueue()" title="تحديث القائمة">
-                  <span>🔄</span>
-                </button>
-                <button class="icon-btn" onclick="window.showJuzReportOptions()" title="تصدير تقرير">
-                  <span>📥</span>
-                </button>
+          <!-- Queue Type Selector (Tabs) -->
+          <div class="queue-type-selector">
+            <button class="queue-type-tab active" data-type="hizb" onclick="window.switchQueueType('hizb')">
+              <span class="tab-icon">📗</span>
+              <span class="tab-text">عرض الحزب</span>
+            </button>
+            <button class="queue-type-tab" data-type="juz" onclick="window.switchQueueType('juz')">
+              <span class="tab-icon">📘</span>
+              <span class="tab-text">عرض الجزء</span>
+            </button>
+            <button class="queue-type-tab" data-type="stage" onclick="window.switchQueueType('stage')">
+              <span class="tab-icon">🏆</span>
+              <span class="tab-text">عرض المرحلة</span>
+            </button>
+          </div>
+
+          <!-- Queue Tables Container -->
+          <div class="queue-tables-container">
+            
+            <!-- ==================== HIZB QUEUE TABLE ==================== -->
+            <div id="queueTableHizb" class="queue-table-container active">
+              <div class="content-card">
+                <div class="card-header">
+                  <h3 class="card-title">📗 طلاب جاهزون لعرض الحزب</h3>
+                  <div class="card-actions">
+                    <button class="icon-btn" onclick="window.loadHizbQueue()" title="تحديث القائمة">
+                      <span>🔄</span>
+                    </button>
+                    <button class="icon-btn" onclick="window.showHizbReportOptions()" title="تصدير تقرير">
+                      <span>📥</span>
+                    </button>
+                  </div>
+                </div>
+                <div id="hizbQueueContainer" class="table-container">
+                  <p style="text-align: center; color: #999; padding: 20px;">جاري تحميل جدول طلاب الأحزاب...</p>
+                </div>
               </div>
             </div>
-            <div id="dailyQueueContainer" class="table-container">
-              <p style="text-align: center; color: #999; padding: 20px;">جاري التحميل...</p>
+
+            <!-- ==================== JUZ QUEUE TABLE ==================== -->
+            <div id="queueTableJuz" class="queue-table-container">
+              <div class="content-card">
+                <div class="card-header">
+                  <h3 class="card-title">📘 طلاب جاهزون لعرض الجزء</h3>
+                  <div class="card-actions">
+                    <button class="icon-btn" onclick="window.loadDailyQueue()" title="تحديث القائمة">
+                      <span>🔄</span>
+                    </button>
+                    <button class="icon-btn" onclick="window.showJuzReportOptions()" title="تصدير تقرير">
+                      <span>📥</span>
+                    </button>
+                  </div>
+                </div>
+                <div id="dailyQueueContainer" class="table-container">
+                  <p style="text-align: center; color: #999; padding: 20px;">جاري التحميل...</p>
+                </div>
+              </div>
             </div>
+
+            <!-- ==================== STAGE QUEUE TABLE ==================== -->
+            <div id="queueTableStage" class="queue-table-container">
+              <div class="content-card">
+                <div class="card-header">
+                  <h3 class="card-title">🏆 طلاب جاهزون لعرض المرحلة</h3>
+                  <div class="card-actions">
+                    <button class="icon-btn" disabled title="غير متاح حالياً">
+                      <span>🔄</span>
+                    </button>
+                    <button class="icon-btn" disabled title="غير متاح حالياً">
+                      <span>📥</span>
+                    </button>
+                  </div>
+                </div>
+                <div id="stageQueueContainer" class="table-container">
+                  <div style="text-align: center; padding: 60px 20px;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">🏗️</div>
+                    <h3 style="margin: 0 0 10px 0; color: #667eea;">قريباً...</h3>
+                    <p style="margin: 0; color: #999;">سيتم إضافة نظام عرض المراحل قريباً بإذن الله</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
 
         </div>
