@@ -3,7 +3,7 @@ import { initAdmin } from './admin.js';
 import { initTeacher, stopNotificationsListener } from './teacher.js';
 import { initViewer, stopViewerNotificationsListener } from './viewer.js';
 import { initStudent, stopStudentNotificationsListener } from './student.js';
-import { db, collection, getDocs, getDoc, doc, query, where } from '../firebase-config.js';
+import { db, collection, getDocs, getDoc, doc, query, where, setDoc, addDoc, serverTimestamp } from '../firebase-config.js';
 import { formatAccurateHijriDate, getTodayAccurateHijri } from './accurate-hijri-dates.js';
 
 console.log('✅ Main.js is loading - defining window.selectRole');
@@ -1125,7 +1125,7 @@ window.setTodayDateForReg = async function(type) {
 window.saveHizbRegistration = async function() {
   const teacherId = document.getElementById('regHizbTeacher')?.value;
   const studentId = document.getElementById('regHizbStudent')?.value;
-  const hizbNumber = document.getElementById('regHizbNumber')?.value;
+  const hizbNumber = parseInt(document.getElementById('regHizbNumber')?.value);
   const day = document.getElementById('regHizbDay')?.value;
   const month = document.getElementById('regHizbMonth')?.value;
   const year = document.getElementById('regHizbYear')?.value;
@@ -1136,15 +1136,55 @@ window.saveHizbRegistration = async function() {
   if (!teacherId || !studentId || !hizbNumber || !day || !month || !year) {
     messageBox.textContent = '⚠️ يرجى ملء جميع الحقول';
     messageBox.className = 'reg-message error';
+    messageBox.style.display = 'block';
     return;
   }
   
-  const hijriDate = `${day}-${month}-${year}`;
+  const hijriDate = `${year}-${month}-${day}`; // Format: YYYY-MM-DD for storage
   
   try {
-    // Save to Firestore (you'll need to create the collection structure)
-    messageBox.textContent = `✅ تم حفظ تسجيل الحزب ${hizbNumber} بنجاح`;
+    // Get student and teacher names
+    const teacherSelect = document.getElementById('regHizbTeacher');
+    const studentSelect = document.getElementById('regHizbStudent');
+    const teacherName = teacherSelect.options[teacherSelect.selectedIndex]?.text || 'غير محدد';
+    const studentName = studentSelect.options[studentSelect.selectedIndex]?.text || 'غير محدد';
+    
+    console.log('💾 Saving Hizb registration:', {
+      studentId, studentName, teacherId, teacherName, hizbNumber, hijriDate
+    });
+    
+    // Create hizbDisplay document for display queue
+    const hizbDisplayData = {
+      studentId: studentId,
+      studentName: studentName,
+      teacherId: teacherId,
+      teacherName: teacherName,
+      hizbNumber: hizbNumber,
+      lastLessonDate: hijriDate,
+      lastAttemptDate: null,
+      displayDate: '', // Empty until viewer completes
+      viewerName: '',
+      viewerId: '',
+      status: 'incomplete',
+      failedAttempts: [],
+      notes: [],
+      createdAt: serverTimestamp(),
+      createdFromRegistration: true
+    };
+    
+    // Save to Firestore hizbDisplays collection
+    await addDoc(collection(db, 'hizbDisplays'), hizbDisplayData);
+    
+    console.log('✅ Hizb display created successfully');
+    
+    messageBox.textContent = `✅ تم حفظ تسجيل الحزب ${hizbNumber} بنجاح وإضافته لجدول العرض`;
     messageBox.className = 'reg-message success';
+    messageBox.style.display = 'block';
+    
+    // Reload Hizb queue if it's visible
+    if (typeof window.loadHizbQueue === 'function') {
+      setTimeout(() => window.loadHizbQueue(), 500);
+    }
     
     // Clear form after 2 seconds
     setTimeout(() => {
@@ -1157,9 +1197,10 @@ window.saveHizbRegistration = async function() {
     }, 2000);
     
   } catch (error) {
-    console.error('Error saving Hizb registration:', error);
-    messageBox.textContent = '❌ خطأ في حفظ التسجيل';
+    console.error('❌ Error saving Hizb registration:', error);
+    messageBox.textContent = '❌ خطأ في حفظ التسجيل: ' + error.message;
     messageBox.className = 'reg-message error';
+    messageBox.style.display = 'block';
   }
 };
 
@@ -1169,7 +1210,7 @@ window.saveHizbRegistration = async function() {
 window.saveJuzRegistration = async function() {
   const teacherId = document.getElementById('regJuzTeacher')?.value;
   const studentId = document.getElementById('regJuzStudent')?.value;
-  const juzNumber = document.getElementById('regJuzNumber')?.value;
+  const juzNumber = parseInt(document.getElementById('regJuzNumber')?.value);
   const day = document.getElementById('regJuzDay')?.value;
   const month = document.getElementById('regJuzMonth')?.value;
   const year = document.getElementById('regJuzYear')?.value;
@@ -1180,15 +1221,55 @@ window.saveJuzRegistration = async function() {
   if (!teacherId || !studentId || !juzNumber || !day || !month || !year) {
     messageBox.textContent = '⚠️ يرجى ملء جميع الحقول';
     messageBox.className = 'reg-message error';
+    messageBox.style.display = 'block';
     return;
   }
   
-  const hijriDate = `${day}-${month}-${year}`;
+  const hijriDate = `${year}-${month}-${day}`; // Format: YYYY-MM-DD for storage
   
   try {
-    // Save to Firestore
-    messageBox.textContent = `✅ تم حفظ تسجيل الجزء ${juzNumber} بنجاح`;
+    // Get student and teacher names
+    const teacherSelect = document.getElementById('regJuzTeacher');
+    const studentSelect = document.getElementById('regJuzStudent');
+    const teacherName = teacherSelect.options[teacherSelect.selectedIndex]?.text || 'غير محدد';
+    const studentName = studentSelect.options[studentSelect.selectedIndex]?.text || 'غير محدد';
+    
+    console.log('💾 Saving Juz registration:', {
+      studentId, studentName, teacherId, teacherName, juzNumber, hijriDate
+    });
+    
+    // Create juzDisplay document for display queue
+    const juzDisplayData = {
+      studentId: studentId,
+      studentName: studentName,
+      teacherId: teacherId,
+      teacherName: teacherName,
+      juzNumber: juzNumber,
+      lastLessonDate: hijriDate,
+      lastAttemptDate: null,
+      displayDate: '', // Empty until viewer completes
+      viewerName: '',
+      viewerId: '',
+      status: 'incomplete',
+      failedAttempts: [],
+      notes: [],
+      createdAt: serverTimestamp(),
+      createdFromRegistration: true
+    };
+    
+    // Save to Firestore juzDisplays collection
+    await addDoc(collection(db, 'juzDisplays'), juzDisplayData);
+    
+    console.log('✅ Juz display created successfully');
+    
+    messageBox.textContent = `✅ تم حفظ تسجيل الجزء ${juzNumber} بنجاح وإضافته لجدول العرض`;
     messageBox.className = 'reg-message success';
+    messageBox.style.display = 'block';
+    
+    // Reload Juz queue if it's visible
+    if (typeof window.loadDailyQueue === 'function') {
+      setTimeout(() => window.loadDailyQueue(), 500);
+    }
     
     // Clear form after 2 seconds
     setTimeout(() => {
@@ -1201,9 +1282,10 @@ window.saveJuzRegistration = async function() {
     }, 2000);
     
   } catch (error) {
-    console.error('Error saving Juz registration:', error);
-    messageBox.textContent = '❌ خطأ في حفظ التسجيل';
+    console.error('❌ Error saving Juz registration:', error);
+    messageBox.textContent = '❌ خطأ في حفظ التسجيل: ' + error.message;
     messageBox.className = 'reg-message error';
+    messageBox.style.display = 'block';
   }
 };
 
