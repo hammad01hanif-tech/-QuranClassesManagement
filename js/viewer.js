@@ -1081,19 +1081,12 @@ window.sendHizbReportToTeacher = async function(reportId) {
     // Format display date from YYYY-MM-DD to DD-MM-YYYY
     const displayDateFormatted = formatDateForDisplay(data.displayDate);
     
-    // Get Hizb data for surah range
+    // Get Hizb data description
     const hizbInfo = quranHizbData.find(h => h.number === data.hizbNumber);
-    let hizbRange = '';
-    if (hizbInfo && hizbInfo.surahs && hizbInfo.surahs.length > 0) {
-      const firstSurah = hizbInfo.surahs[0].name;
-      const lastSurah = hizbInfo.surahs[hizbInfo.surahs.length - 1].name;
-      hizbRange = `من سورة ${firstSurah} إلى سورة ${lastSurah}`;
-    } else {
-      hizbRange = 'غير محدد';
-    }
+    const hizbDescription = hizbInfo ? hizbInfo.description : 'غير محدد';
     
     // Create notification message with new format
-    const notificationMessage = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbRange}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
+    const notificationMessage = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbDescription}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
     
     console.log('📤 Sending Hizb notification:', {
       teacherId: data.teacherId,
@@ -1163,19 +1156,12 @@ window.shareHizbReport = async function(reportId) {
     // Format display date from YYYY-MM-DD to DD-MM-YYYY
     const displayDateFormatted = formatDateForDisplay(data.displayDate);
     
-    // Get Hizb data for surah range
+    // Get Hizb data description
     const hizbInfo = quranHizbData.find(h => h.number === data.hizbNumber);
-    let hizbRange = '';
-    if (hizbInfo && hizbInfo.surahs && hizbInfo.surahs.length > 0) {
-      const firstSurah = hizbInfo.surahs[0].name;
-      const lastSurah = hizbInfo.surahs[hizbInfo.surahs.length - 1].name;
-      hizbRange = `من سورة ${firstSurah} إلى سورة ${lastSurah}`;
-    } else {
-      hizbRange = 'غير محدد';
-    }
+    const hizbDescription = hizbInfo ? hizbInfo.description : 'غير محدد';
     
     // Create shareable text with new format
-    const shareText = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbRange}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
+    const shareText = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbDescription}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
     
     // Copy to clipboard
     await navigator.clipboard.writeText(shareText);
