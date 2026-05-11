@@ -971,8 +971,16 @@ window.sendReportToTeacher = async function(reportId) {
     // Format display date from YYYY-MM-DD to DD-MM-YYYY
     const displayDateFormatted = formatDateForDisplay(data.displayDate);
     
+    // Calculate duration in days
+    const durationDays = calculateHijriDaysDifference(data.lastLessonDate, data.displayDate);
+    const durationText = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
+    
+    // Calculate total attempts (failed attempts + final success)
+    const failedAttempts = data.failedAttempts || [];
+    const totalAttempts = failedAttempts.length + 1;
+    
     // Create notification message with new format
-    const notificationMessage = `🎉 *رسالة اجتياز جزء* 🎉\n\nتم بحمد الله اجتياز الجزء بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
+    const notificationMessage = `🎉 *رسالة اجتياز جزء* 🎉\n\nتم بحمد الله اجتياز الجزء بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${displayDateFormatted}\n⏱️ المدة المستغرقة: ${durationText}\n🔄 عدد مرات التسميع: ${totalAttempts}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
     
     console.log('📤 Sending notification:', {
       teacherId: data.teacherId,
@@ -1040,8 +1048,16 @@ window.shareReport = async function(reportId) {
     // Format display date from YYYY-MM-DD to DD-MM-YYYY
     const displayDateFormatted = formatDateForDisplay(data.displayDate);
     
+    // Calculate duration in days
+    const durationDays = calculateHijriDaysDifference(data.lastLessonDate, data.displayDate);
+    const durationText = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
+    
+    // Calculate total attempts (failed attempts + final success)
+    const failedAttempts = data.failedAttempts || [];
+    const totalAttempts = failedAttempts.length + 1;
+    
     // Create shareable text with new format
-    const shareText = `🎉 *رسالة اجتياز جزء* 🎉\n\nتم بحمد الله اجتياز الجزء بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
+    const shareText = `🎉 *رسالة اجتياز جزء* 🎉\n\nتم بحمد الله اجتياز الجزء بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${displayDateFormatted}\n⏱️ المدة المستغرقة: ${durationText}\n🔄 عدد مرات التسميع: ${totalAttempts}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
     
     // Copy to clipboard
     await navigator.clipboard.writeText(shareText);
@@ -1085,8 +1101,16 @@ window.sendHizbReportToTeacher = async function(reportId) {
     const hizbInfo = quranHizbData.find(h => h.number === data.hizbNumber);
     const hizbDescription = hizbInfo ? hizbInfo.description : 'غير محدد';
     
+    // Calculate duration in days
+    const durationDays = calculateHijriDaysDifference(data.lastLessonDate, data.displayDate);
+    const durationText = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
+    
+    // Calculate total attempts (failed attempts + final success)
+    const failedAttempts = data.failedAttempts || [];
+    const totalAttempts = failedAttempts.length + 1;
+    
     // Create notification message with new format
-    const notificationMessage = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbDescription}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
+    const notificationMessage = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbDescription}\n📅 تاريخ العرض: ${displayDateFormatted}\n⏱️ المدة المستغرقة: ${durationText}\n🔄 عدد مرات التسميع: ${totalAttempts}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
     
     console.log('📤 Sending Hizb notification:', {
       teacherId: data.teacherId,
@@ -1160,8 +1184,16 @@ window.shareHizbReport = async function(reportId) {
     const hizbInfo = quranHizbData.find(h => h.number === data.hizbNumber);
     const hizbDescription = hizbInfo ? hizbInfo.description : 'غير محدد';
     
+    // Calculate duration in days
+    const durationDays = calculateHijriDaysDifference(data.lastLessonDate, data.displayDate);
+    const durationText = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
+    
+    // Calculate total attempts (failed attempts + final success)
+    const failedAttempts = data.failedAttempts || [];
+    const totalAttempts = failedAttempts.length + 1;
+    
     // Create shareable text with new format
-    const shareText = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbDescription}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
+    const shareText = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbDescription}\n📅 تاريخ العرض: ${displayDateFormatted}\n⏱️ المدة المستغرقة: ${durationText}\n🔄 عدد مرات التسميع: ${totalAttempts}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
     
     // Copy to clipboard
     await navigator.clipboard.writeText(shareText);
