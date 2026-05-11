@@ -2290,17 +2290,387 @@ window.handleHizbPass = async function(reportId) {
     
     console.log('✅ Hizb viewer name updated:', viewerName);
     
-    // Show success and ask for display date (placeholder for now)
-    alert(`✅ تم تسجيل اجتياز الحزب بنجاح!\n\nالعارض: ${viewerName}\n\n🚧 سيتم إضافة نظام تسجيل تاريخ العرض قريباً`);
-    
-    // Reload Hizb queue
-    if (typeof window.loadHizbQueue === 'function') {
-      await window.loadHizbQueue();
-    }
+    // Open display date form modal (instead of showing alert)
+    await showDisplayDateModal(reportId, 'hizb', viewerName);
     
   } catch (error) {
     console.error('Error handling Hizb pass:', error);
     alert('❌ حدث خطأ في تسجيل اجتياز الحزب');
+  }
+};
+
+/**
+ * Show Display Date Modal - Universal modal for recording display date after passing Juz or Hizb
+ * @param {string} reportId - The report ID
+ * @param {string} type - 'juz' or 'hizb'
+ * @param {string} viewerName - The name of the viewer who evaluated
+ */
+async function showDisplayDateModal(reportId, type, viewerName) {
+  try {
+    console.log(`📅 Opening display date modal for ${type} report:`, reportId);
+    
+    // Validate type
+    if (!['juz', 'hizb'].includes(type)) {
+      console.error('Invalid type:', type);
+      alert('❌ نوع غير صحيح');
+      return;
+    }
+    
+    // Get collection name based on type
+    const collectionName = type === 'juz' ? 'juzDisplays' : 'hizbDisplays';
+    
+    // Fetch report data
+    const reportDoc = await getDoc(doc(db, collectionName, reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const reportData = reportDoc.data();
+    const studentName = reportData.studentName;
+    const itemNumber = type === 'juz' ? reportData.juzNumber : reportData.hizbNumber;
+    const itemLabel = type === 'juz' ? 'الجزء' : 'الحزب';
+    
+    // Create overlay
+    const overlayId = `displayDateModal_${type}_${reportId}`;
+    const existingOverlay = document.getElementById(overlayId);
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.id = overlayId;
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10003;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    overlay.innerHTML = `
+      <style>
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(30px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .date-input-field {
+          width: 100%;
+          padding: 12px;
+          border: 2px solid #dee2e6;
+          border-radius: 8px;
+          font-size: 16px;
+          text-align: center;
+          direction: ltr;
+          transition: all 0.2s;
+        }
+        .date-input-field:focus {
+          outline: none;
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .modal-action-btn {
+          padding: 12px 24px;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.2s;
+          margin: 5px;
+        }
+        .modal-action-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .today-btn {
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+        }
+        .save-btn {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+        }
+        .close-btn {
+          background: #dc3545;
+          color: white;
+        }
+        .action-buttons-container {
+          display: none;
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 2px solid #f0f0f0;
+        }
+      </style>
+      
+      <div style="
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        animation: slideUp 0.3s ease;
+        direction: rtl;
+      ">
+        <h2 style="
+          color: #667eea;
+          margin: 0 0 10px 0;
+          text-align: center;
+          font-size: 22px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        ">
+          📅 تسجيل اجتياز ${itemLabel} ${itemNumber}
+        </h2>
+        
+        <div style="text-align: center; margin-bottom: 20px; color: #666; font-size: 14px;">
+          <div style="margin-bottom: 5px;">
+            <strong>الطالب:</strong> ${extractArabicName(studentName)}
+          </div>
+          <div>
+            <strong>العارض:</strong> ${viewerName}
+          </div>
+        </div>
+        
+        <div id="formContainer_${reportId}">
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333; font-size: 14px;">
+              📅 تاريخ العرض (هجري):
+            </label>
+            <input 
+              type="text" 
+              id="displayDateInput_${reportId}" 
+              class="date-input-field"
+              placeholder="DD-MM-YYYY (مثال: 5-6-1447)"
+              autocomplete="off"
+            />
+          </div>
+          
+          <div style="text-align: center; margin-bottom: 20px;">
+            <button onclick="setTodayDateInModal('${reportId}')" class="modal-action-btn today-btn">
+              📅 اليوم
+            </button>
+          </div>
+          
+          <button onclick="saveDisplayDateFromModal('${reportId}', '${type}')" class="modal-action-btn save-btn" style="width: 100%;">
+            💾 حفظ وإنهاء
+          </button>
+        </div>
+        
+        <div id="successContainer_${reportId}" class="action-buttons-container">
+          <div style="text-align: center; margin-bottom: 15px; color: #28a745; font-size: 16px; font-weight: bold;">
+            ✅ تم حفظ تاريخ العرض بنجاح!
+          </div>
+          
+          <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+            <button onclick="sendReportToTeacherFromModal('${reportId}', '${type}')" class="modal-action-btn" style="background: #28a745; color: white; flex: 1; min-width: 200px;">
+              📤 إرسال للمعلم
+            </button>
+            <button onclick="shareReportFromModal('${reportId}', '${type}')" class="modal-action-btn" style="background: #17a2b8; color: white; flex: 1; min-width: 200px;">
+              📋 مشاركة التقرير
+            </button>
+            <button onclick="editReportFromModal('${reportId}', '${type}')" class="modal-action-btn" style="background: #ffc107; color: #333; flex: 1; min-width: 200px;">
+              ✏️ تعديل البيانات
+            </button>
+          </div>
+        </div>
+        
+        <button onclick="document.getElementById('${overlayId}').remove()" class="modal-action-btn close-btn" style="width: 100%; margin-top: 15px;">
+          إغلاق
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error showing display date modal:', error);
+    alert('❌ حدث خطأ في عرض نموذج تسجيل التاريخ');
+  }
+}
+
+/**
+ * Set today's date in the modal input field
+ */
+window.setTodayDateInModal = function(reportId) {
+  const input = document.getElementById(`displayDateInput_${reportId}`);
+  if (input) {
+    const todayAccurate = getTodayForStorage(); // YYYY-MM-DD
+    const [year, month, day] = todayAccurate.split('-');
+    const todayDisplay = `${day}-${month}-${year}`; // DD-MM-YYYY
+    input.value = todayDisplay;
+    input.focus();
+  }
+};
+
+/**
+ * Save display date from modal
+ */
+window.saveDisplayDateFromModal = async function(reportId, type) {
+  try {
+    const input = document.getElementById(`displayDateInput_${reportId}`);
+    let displayDate = input.value.trim();
+    
+    if (!displayDate) {
+      alert('يرجى إدخال تاريخ العرض أو الضغط على زر "اليوم"');
+      return;
+    }
+    
+    // Normalize date format to YYYY-MM-DD for storage
+    const normalizedDate = normalizeDateFormat(displayDate);
+    
+    if (!normalizedDate) {
+      alert('❌ صيغة التاريخ غير صحيحة!\nالرجاء استخدام: DD-MM-YYYY\nمثال: 5-6-1447');
+      return;
+    }
+    
+    // Get collection name
+    const collectionName = type === 'juz' ? 'juzDisplays' : 'hizbDisplays';
+    
+    // Get current report data to calculate attempts
+    const reportDoc = await getDoc(doc(db, collectionName, reportId));
+    const currentData = reportDoc.data();
+    const failedAttempts = currentData.failedAttempts || [];
+    
+    // Calculate total attempts = 1 (current success) + failed attempts
+    const totalAttempts = failedAttempts.length + 1;
+    
+    // Update Firestore
+    await updateDoc(doc(db, collectionName, reportId), {
+      displayDate: normalizedDate, // Store in YYYY-MM-DD format
+      status: 'completed',
+      attemptsCount: totalAttempts,
+      updatedAt: serverTimestamp()
+    });
+    
+    console.log(`✅ ${type} display date saved:`, normalizedDate);
+    
+    // Hide form, show success and action buttons
+    const formContainer = document.getElementById(`formContainer_${reportId}`);
+    const successContainer = document.getElementById(`successContainer_${reportId}`);
+    
+    if (formContainer) formContainer.style.display = 'none';
+    if (successContainer) successContainer.style.display = 'block';
+    
+    // Reload appropriate queue (student removed from queue)
+    if (type === 'juz') {
+      await loadDailyQueue();
+    } else {
+      await loadHizbQueue();
+    }
+    
+  } catch (error) {
+    console.error('Error saving display date:', error);
+    alert('❌ حدث خطأ في حفظ تاريخ العرض');
+  }
+};
+
+/**
+ * Send report to teacher from modal
+ */
+window.sendReportToTeacherFromModal = async function(reportId, type) {
+  try {
+    // Close modal first
+    const overlayId = `displayDateModal_${type}_${reportId}`;
+    const overlay = document.getElementById(overlayId);
+    if (overlay) overlay.remove();
+    
+    // Call existing send function based on type
+    if (type === 'juz') {
+      if (typeof window.sendReportToTeacher === 'function') {
+        await window.sendReportToTeacher(reportId);
+      } else {
+        alert('🚧 وظيفة الإرسال قيد التطوير');
+      }
+    } else {
+      // For Hizb, we need to implement or check if function exists
+      if (typeof window.sendHizbReportToTeacher === 'function') {
+        await window.sendHizbReportToTeacher(reportId);
+      } else {
+        alert('🚧 وظيفة إرسال تقرير الحزب قيد التطوير');
+      }
+    }
+  } catch (error) {
+    console.error('Error sending report:', error);
+    alert('❌ حدث خطأ في إرسال التقرير');
+  }
+};
+
+/**
+ * Share report from modal
+ */
+window.shareReportFromModal = async function(reportId, type) {
+  try {
+    // Close modal first
+    const overlayId = `displayDateModal_${type}_${reportId}`;
+    const overlay = document.getElementById(overlayId);
+    if (overlay) overlay.remove();
+    
+    // Call existing share function based on type
+    if (type === 'juz') {
+      if (typeof window.shareReport === 'function') {
+        await window.shareReport(reportId);
+      } else {
+        alert('🚧 وظيفة المشاركة قيد التطوير');
+      }
+    } else {
+      // For Hizb, we need to implement or check if function exists
+      if (typeof window.shareHizbReport === 'function') {
+        await window.shareHizbReport(reportId);
+      } else {
+        alert('🚧 وظيفة مشاركة تقرير الحزب قيد التطوير');
+      }
+    }
+  } catch (error) {
+    console.error('Error sharing report:', error);
+    alert('❌ حدث خطأ في مشاركة التقرير');
+  }
+};
+
+/**
+ * Edit report from modal
+ */
+window.editReportFromModal = function(reportId, type) {
+  try {
+    // Close modal first
+    const overlayId = `displayDateModal_${type}_${reportId}`;
+    const overlay = document.getElementById(overlayId);
+    if (overlay) overlay.remove();
+    
+    // Reopen the appropriate options modal
+    if (type === 'juz') {
+      // We need to get student name and juz number - open report in reports tab
+      window.openQueueReport(reportId);
+    } else {
+      // For Hizb, we can reopen showHizbDisplayOptions
+      // But we need student name and hizbNumber - let's open report
+      alert('🚧 للتعديل، يرجى الذهاب لقسم التقارير واختيار الطالب والمعلم');
+    }
+  } catch (error) {
+    console.error('Error editing report:', error);
+    alert('❌ حدث خطأ في فتح نموذج التعديل');
   }
 };
 
@@ -2980,8 +3350,8 @@ window.handleJuzPass = async function(reportId) {
     
     console.log('✅ Viewer name updated:', viewerName);
     
-    // Open the report (same as openQueueReport)
-    await window.openQueueReport(reportId);
+    // Open display date form modal (instead of going to reports tab)
+    await showDisplayDateModal(reportId, 'juz', viewerName);
     
   } catch (error) {
     console.error('Error handling pass:', error);
