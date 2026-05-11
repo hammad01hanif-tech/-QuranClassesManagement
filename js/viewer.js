@@ -17,6 +17,7 @@ import {
 
 import { getTodayForStorage, getCurrentHijriDate, formatHijriDate, getHijriDayName } from './hijri-date.js';
 import { accurateHijriDates, gregorianToAccurateHijri, accurateHijriToGregorian } from './accurate-hijri-dates.js';
+import { quranHizbData } from './quran-hizb-data.js';
 
 let viewerNotificationsListener = null;
 
@@ -964,19 +965,14 @@ window.sendReportToTeacher = async function(reportId) {
       return;
     }
     
-    // Calculate duration
-    const durationDays = calculateHijriDaysDifference(data.lastLessonDate, data.displayDate);
-    const durationText = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
-    
-    // Get failed attempts count
-    const attemptCount = (data.failedAttempts && data.failedAttempts.length) || 0;
-    const totalAttempts = attemptCount + 1; // Include the final successful attempt
-    
     // Extract Arabic name only for display
     const arabicName = extractArabicName(data.studentName);
     
-    // Create notification message
-    const notificationMessage = `🎉 رسالة اجتياز\n\n✅ الطالب: ${arabicName}\n👨‍🏫 المعلم: ${data.teacherName || 'غير محدد'}\n📖 الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${data.displayDate}\n⏱️ المدة المستغرقة: ${durationText}\n👤 العارض: ${data.viewerName}\n🔄 عدد مرات التسميع: ${totalAttempts}`;
+    // Format display date from YYYY-MM-DD to DD-MM-YYYY
+    const displayDateFormatted = formatDateForDisplay(data.displayDate);
+    
+    // Create notification message with new format
+    const notificationMessage = `🎉 *رسالة اجتياز جزء* 🎉\n\nتم بحمد الله اجتياز الجزء بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
     
     console.log('📤 Sending notification:', {
       teacherId: data.teacherId,
@@ -993,10 +989,8 @@ window.sendReportToTeacher = async function(reportId) {
       teacherName: data.teacherName || 'غير محدد',
       juzNumber: data.juzNumber,
       displayDate: data.displayDate,
-      duration: durationText,
       viewerName: data.viewerName,
       viewerId: data.viewerId || 'MZNBL01',
-      totalAttempts: totalAttempts,
       message: notificationMessage,
       createdAt: serverTimestamp(),
       read: false
@@ -1013,17 +1007,8 @@ window.sendReportToTeacher = async function(reportId) {
     });
     console.log('✅ Student notification saved for studentId:', data.studentId);
     
-    // Show success message
-    const messageDiv = document.getElementById(`reportMessage_${reportId}`);
-    messageDiv.style.display = 'block';
-    messageDiv.style.background = '#d4edda';
-    messageDiv.style.color = '#155724';
-    messageDiv.style.border = '1px solid #c3e6cb';
-    messageDiv.innerHTML = '✅ تم إرسال التقرير للمعلم والطالب بنجاح!';
-    
-    setTimeout(() => {
-      messageDiv.style.display = 'none';
-    }, 3000);
+    // Show success alert
+    alert('✅ تم إرسال التقرير للمعلم والطالب بنجاح!');
     
   } catch (error) {
     console.error('Error sending report:', error);
@@ -1049,81 +1034,157 @@ window.shareReport = async function(reportId) {
       return;
     }
     
-    // Calculate duration
-    const durationDays = calculateHijriDaysDifference(data.lastLessonDate, data.displayDate);
-    const durationText = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
-    
-    // Get failed attempts count
-    const attemptCount = (data.failedAttempts && data.failedAttempts.length) || 0;
-    const totalAttempts = attemptCount + 1; // Include the final successful attempt
-    
     // Extract Arabic name only for display
     const arabicName = extractArabicName(data.studentName);
     
-    // Create shareable text
-    const shareText = `━━━━━━━━━━━━━━━━━━━━
-🎉 رسالة اجتياز
-━━━━━━━━━━━━━━━━━━━━
-
-✅ الطالب: ${arabicName}
-👨‍🏫 المعلم: ${data.teacherName || 'غير محدد'}
-📖 الجزء: ${data.juzNumber}
-📅 تاريخ العرض: ${data.displayDate}
-⏱️ المدة المستغرقة: ${durationText}
-👤 العارض: ${data.viewerName}
-🔄 عدد مرات التسميع: ${totalAttempts}`;
+    // Format display date from YYYY-MM-DD to DD-MM-YYYY
+    const displayDateFormatted = formatDateForDisplay(data.displayDate);
     
-    // Save notification for teacher
-    await setDoc(doc(collection(db, 'teacherNotifications')), {
-      type: 'juz_shared',
-      teacherId: data.teacherId,
-      studentId: data.studentId,
-      studentName: data.studentName,
-      teacherName: data.teacherName || 'غير محدد',
-      juzNumber: data.juzNumber,
-      displayDate: data.displayDate,
-      duration: durationText,
-      viewerName: data.viewerName,
-      totalAttempts: totalAttempts,
-      message: shareText,
-      createdAt: serverTimestamp(),
-      read: false
-    });
-    
-    // Save notification for student
-    await setDoc(doc(collection(db, 'studentNotifications')), {
-      type: 'juz_shared',
-      studentId: data.studentId,
-      teacherId: data.teacherId,
-      studentName: data.studentName,
-      teacherName: data.teacherName || 'غير محدد',
-      juzNumber: data.juzNumber,
-      displayDate: data.displayDate,
-      duration: durationText,
-      viewerName: data.viewerName,
-      totalAttempts: totalAttempts,
-      message: shareText,
-      createdAt: serverTimestamp(),
-      read: false
-    });
+    // Create shareable text with new format
+    const shareText = `🎉 *رسالة اجتياز جزء* 🎉\n\nتم بحمد الله اجتياز الجزء بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الجزء: ${data.juzNumber}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
     
     // Copy to clipboard
     await navigator.clipboard.writeText(shareText);
     
-    // Show success message
-    const messageDiv = document.getElementById(`reportMessage_${reportId}`);
-    messageDiv.style.display = 'block';
-    messageDiv.style.background = '#d1ecf1';
-    messageDiv.style.color = '#0c5460';
-    messageDiv.style.border = '1px solid #bee5eb';
-    messageDiv.innerHTML = '📋 تم نسخ التقرير وإرساله للمعلم والطالب!';
-    
-    setTimeout(() => {
-      messageDiv.style.display = 'none';
-    }, 3000);
+    // Show success alert
+    alert('📋 تم نسخ التقرير إلى الحافظة!');
     
   } catch (error) {
     console.error('Error sharing report:', error);
+    alert('❌ حدث خطأ في نسخ التقرير');
+  }
+};
+
+/**
+ * Send Hizb report to teacher and student
+ */
+window.sendHizbReportToTeacher = async function(reportId) {
+  try {
+    // Get report data
+    const reportDoc = await getDocs(query(collection(db, 'hizbDisplays'), where('__name__', '==', reportId)));
+    if (reportDoc.empty) {
+      alert('❌ لم يتم العثور على التقرير');
+      return;
+    }
+    
+    const data = reportDoc.docs[0].data();
+    
+    // Verify display date exists
+    if (!data.displayDate) {
+      alert('⚠️ يرجى إضافة تاريخ العرض أولاً');
+      return;
+    }
+    
+    // Extract Arabic name only for display
+    const arabicName = extractArabicName(data.studentName);
+    
+    // Format display date from YYYY-MM-DD to DD-MM-YYYY
+    const displayDateFormatted = formatDateForDisplay(data.displayDate);
+    
+    // Get Hizb data for surah range
+    const hizbInfo = quranHizbData.find(h => h.number === data.hizbNumber);
+    let hizbRange = '';
+    if (hizbInfo && hizbInfo.surahs && hizbInfo.surahs.length > 0) {
+      const firstSurah = hizbInfo.surahs[0].name;
+      const lastSurah = hizbInfo.surahs[hizbInfo.surahs.length - 1].name;
+      hizbRange = `من سورة ${firstSurah} إلى سورة ${lastSurah}`;
+    } else {
+      hizbRange = 'غير محدد';
+    }
+    
+    // Create notification message with new format
+    const notificationMessage = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbRange}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
+    
+    console.log('📤 Sending Hizb notification:', {
+      teacherId: data.teacherId,
+      studentId: data.studentId,
+      teacherName: data.teacherName,
+      message: notificationMessage
+    });
+    
+    const notificationData = {
+      type: 'hizb_passed',
+      teacherId: data.teacherId,
+      studentId: data.studentId,
+      studentName: data.studentName,
+      teacherName: data.teacherName || 'غير محدد',
+      hizbNumber: data.hizbNumber,
+      displayDate: data.displayDate,
+      viewerName: data.viewerName,
+      viewerId: data.viewerId || 'MZNBL01',
+      message: notificationMessage,
+      createdAt: serverTimestamp(),
+      read: false
+    };
+    
+    // Save to teacherNotifications collection
+    await setDoc(doc(collection(db, 'teacherNotifications')), notificationData);
+    console.log('✅ Teacher notification saved');
+    
+    // Save to studentNotifications collection (for the student)
+    await setDoc(doc(collection(db, 'studentNotifications')), {
+      ...notificationData,
+      studentId: data.studentId
+    });
+    console.log('✅ Student notification saved for studentId:', data.studentId);
+    
+    // Show success alert
+    alert('✅ تم إرسال التقرير للمعلم والطالب بنجاح!');
+    
+  } catch (error) {
+    console.error('Error sending Hizb report:', error);
+    alert('❌ حدث خطأ في إرسال التقرير');
+  }
+};
+
+/**
+ * Share Hizb report (copy to clipboard)
+ */
+window.shareHizbReport = async function(reportId) {
+  try {
+    // Get report data
+    const reportDoc = await getDocs(query(collection(db, 'hizbDisplays'), where('__name__', '==', reportId)));
+    if (reportDoc.empty) {
+      alert('❌ لم يتم العثور على التقرير');
+      return;
+    }
+    
+    const data = reportDoc.docs[0].data();
+    
+    // Verify display date exists
+    if (!data.displayDate) {
+      alert('⚠️ يرجى إضافة تاريخ العرض أولاً');
+      return;
+    }
+    
+    // Extract Arabic name only for display
+    const arabicName = extractArabicName(data.studentName);
+    
+    // Format display date from YYYY-MM-DD to DD-MM-YYYY
+    const displayDateFormatted = formatDateForDisplay(data.displayDate);
+    
+    // Get Hizb data for surah range
+    const hizbInfo = quranHizbData.find(h => h.number === data.hizbNumber);
+    let hizbRange = '';
+    if (hizbInfo && hizbInfo.surahs && hizbInfo.surahs.length > 0) {
+      const firstSurah = hizbInfo.surahs[0].name;
+      const lastSurah = hizbInfo.surahs[hizbInfo.surahs.length - 1].name;
+      hizbRange = `من سورة ${firstSurah} إلى سورة ${lastSurah}`;
+    } else {
+      hizbRange = 'غير محدد';
+    }
+    
+    // Create shareable text with new format
+    const shareText = `🎉 *رسالة اجتياز حزب* 🎉\n\nتم بحمد الله اجتياز الحزب بنجاح ✅\n\n👤 اسم الطالب: ${arabicName}\n👨‍🏫 اسم المعلم: ${data.teacherName || 'غير محدد'}\n📖 رقم الحزب: ${data.hizbNumber}\n📚 مقدار الحزب: ${hizbRange}\n📅 تاريخ العرض: ${displayDateFormatted}\n🎙️ المستمع: الشيخ ${data.viewerName}`;
+    
+    // Copy to clipboard
+    await navigator.clipboard.writeText(shareText);
+    
+    // Show success alert
+    alert('📋 تم نسخ التقرير إلى الحافظة!');
+    
+  } catch (error) {
+    console.error('Error sharing Hizb report:', error);
     alert('❌ حدث خطأ في نسخ التقرير');
   }
 };
@@ -2599,18 +2660,9 @@ window.sendReportToTeacherFromModal = async function(reportId, type) {
     
     // Call existing send function based on type
     if (type === 'juz') {
-      if (typeof window.sendReportToTeacher === 'function') {
-        await window.sendReportToTeacher(reportId);
-      } else {
-        alert('🚧 وظيفة الإرسال قيد التطوير');
-      }
+      await window.sendReportToTeacher(reportId);
     } else {
-      // For Hizb, we need to implement or check if function exists
-      if (typeof window.sendHizbReportToTeacher === 'function') {
-        await window.sendHizbReportToTeacher(reportId);
-      } else {
-        alert('🚧 وظيفة إرسال تقرير الحزب قيد التطوير');
-      }
+      await window.sendHizbReportToTeacher(reportId);
     }
   } catch (error) {
     console.error('Error sending report:', error);
@@ -2630,18 +2682,9 @@ window.shareReportFromModal = async function(reportId, type) {
     
     // Call existing share function based on type
     if (type === 'juz') {
-      if (typeof window.shareReport === 'function') {
-        await window.shareReport(reportId);
-      } else {
-        alert('🚧 وظيفة المشاركة قيد التطوير');
-      }
+      await window.shareReport(reportId);
     } else {
-      // For Hizb, we need to implement or check if function exists
-      if (typeof window.shareHizbReport === 'function') {
-        await window.shareHizbReport(reportId);
-      } else {
-        alert('🚧 وظيفة مشاركة تقرير الحزب قيد التطوير');
-      }
+      await window.shareHizbReport(reportId);
     }
   } catch (error) {
     console.error('Error sharing report:', error);
