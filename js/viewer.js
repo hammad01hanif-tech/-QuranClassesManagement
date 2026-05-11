@@ -1918,13 +1918,340 @@ window.loadHizbQueue = async function() {
  * Show Hizb Display Options Popup (Placeholder for now)
  */
 window.showHizbDisplayOptions = async function(reportId, studentName, hizbNumber) {
-  alert(`🚧 نظام عرض الأحزاب قيد التطوير
-  
-سيتم إضافة وظائف كاملة لعرض الأحزاب قريباً بإذن الله.
-
-تفاصيل:
-الطالب: ${studentName}
-الحزب: ${hizbNumber}`);
+  try {
+    console.log('📗 Opening options for Hizb report:', reportId);
+    
+    // Get report data from hizbDisplays collection
+    const reportDoc = await getDoc(doc(db, 'hizbDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const reportData = reportDoc.data();
+    const previousNotes = reportData.notes || [];
+    const failedAttempts = reportData.failedAttempts || [];
+    const lastAttemptDate = reportData.lastAttemptDate;
+    const lastLessonDate = reportData.lastLessonDate;
+    
+    // Format dates in Hijri
+    let lastAttemptHtml = '';
+    if (lastAttemptDate && failedAttempts.length > 0) {
+      const formattedAttemptDate = formatDateForDisplay(lastAttemptDate); // DD-MM-YYYY
+      // Convert Hijri to Gregorian to get day name
+      const attemptGregorianDate = accurateHijriToGregorian(lastAttemptDate);
+      const attemptDayName = getHijriDayName(attemptGregorianDate);
+      lastAttemptHtml = `
+        <div onclick="window.showHizbAttemptsHistory('${reportId}')" style="background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-right: 3px solid #ffc107; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#ffe082'" onmouseout="this.style.background='#fff3cd'">
+          <div style="font-size: 12px; color: #856404; margin-bottom: 3px;">
+            <strong>📅 آخر محاولة تسميع:</strong> <span style="font-size: 10px; opacity: 0.8;">(اضغط لعرض السجل)</span>
+          </div>
+          <div style="font-size: 14px; font-weight: bold; color: #333;">
+            ${attemptDayName} - ${formattedAttemptDate}
+          </div>
+          <div style="font-size: 11px; color: #856404; margin-top: 3px;">
+            📊 إجمالي المحاولات: ${failedAttempts.length}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Format last lesson date
+    const formattedLessonDate = formatDateForDisplay(lastLessonDate);
+    // Convert Hijri to Gregorian to get day name
+    const lessonGregorianDate = accurateHijriToGregorian(lastLessonDate);
+    const lessonDayName = getHijriDayName(lessonGregorianDate);
+    
+    // Display attempts count
+    let attemptsCountHtml = '';
+    if (failedAttempts.length > 0) {
+      const totalAttempts = failedAttempts.length;
+      const attemptsColor = totalAttempts === 1 ? '#ffc107' : totalAttempts === 2 ? '#ff9800' : '#dc3545';
+      attemptsCountHtml = `
+        <div style="background: ${attemptsColor}; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center;">
+          <div style="font-size: 12px; color: white; margin-bottom: 2px;">
+            عدد مرات التسميع حتى الآن
+          </div>
+          <div style="font-size: 20px; font-weight: bold; color: white;">
+            🔄 ${totalAttempts} ${totalAttempts === 1 ? 'مرة' : totalAttempts === 2 ? 'مرتان' : 'مرات'}
+          </div>
+          <div style="font-size: 11px; color: white; margin-top: 2px; opacity: 0.9;">
+            (لم يجتاز بعد)
+          </div>
+        </div>
+      `;
+    } else {
+      attemptsCountHtml = `
+        <div style="background: #d4edda; padding: 10px; border-radius: 6px; margin-bottom: 10px; text-align: center; border: 2px solid #28a745;">
+          <div style="font-size: 13px; color: #155724; font-weight: bold;">
+            ✨ أول محاولة تسميع
+          </div>
+        </div>
+      `;
+    }
+    
+    // Create popup overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'hizbDisplayOptionsOverlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      backdrop-filter: blur(3px);
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    // Create popup container
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      width: 90%;
+      max-width: 420px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+      animation: slideUp 0.3s ease;
+      direction: rtl;
+    `;
+    
+    popup.innerHTML = `
+      <style>
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(30px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .option-btn {
+          padding: 12px 20px;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.2s;
+          width: 100%;
+          margin-bottom: 8px;
+        }
+        .option-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .pass-btn {
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+        }
+        .fail-btn {
+          background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+          color: white;
+        }
+        .notes-section {
+          background: #f8f9fa;
+          border-radius: 8px;
+          padding: 15px;
+          margin-top: 12px;
+        }
+        .new-note-input {
+          width: 100%;
+          min-height: 80px;
+          padding: 10px;
+          border: 2px solid #ddd;
+          border-radius: 6px;
+          font-size: 13px;
+          font-family: inherit;
+          resize: vertical;
+          transition: border 0.3s;
+        }
+        .new-note-input:focus {
+          outline: none;
+          border-color: #667eea;
+        }
+        .save-note-btn {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 8px 16px;
+          border: none;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: bold;
+          cursor: pointer;
+          margin-top: 8px;
+          transition: all 0.2s;
+        }
+        .save-note-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .previous-notes {
+          margin-top: 12px;
+          max-height: 180px;
+          overflow-y: auto;
+        }
+        .note-item {
+          background: white;
+          padding: 10px;
+          border-radius: 6px;
+          margin-bottom: 8px;
+          border-right: 3px solid #667eea;
+        }
+        .note-date {
+          font-size: 11px;
+          color: #666;
+          margin-bottom: 4px;
+        }
+        .note-text {
+          font-size: 13px;
+          color: #333;
+          line-height: 1.5;
+        }
+        .close-btn {
+          background: #6c757d;
+          color: white;
+          padding: 8px 16px;
+          border: none;
+          border-radius: 6px;
+          font-size: 13px;
+          cursor: pointer;
+          margin-top: 12px;
+          width: 100%;
+        }
+        .close-btn:hover {
+          background: #5a6268;
+        }
+        .tags-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+          margin-bottom: 10px;
+        }
+        .note-tag {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 5px 10px;
+          border-radius: 12px;
+          font-size: 11px;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        .note-tag:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+        .note-tag:active {
+          transform: translateY(0);
+        }
+      </style>
+      
+      <h2 style="color: #667eea; margin-bottom: 8px; font-size: 18px; text-align: center;">
+        📗 خيارات عرض الحزب
+      </h2>
+      
+      <div style="text-align: center; color: #666; margin-bottom: 12px; padding: 10px; background: #e3f2fd; border-radius: 6px;">
+        <div style="font-weight: bold; font-size: 15px; color: #333;">${studentName}</div>
+        <div style="margin-top: 3px; color: #764ba2; font-weight: bold; font-size: 14px;">الحزب ${hizbNumber}</div>
+      </div>
+      
+      <div style="background: #e8f5e9; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-right: 3px solid #28a745;">
+        <div style="font-size: 12px; color: #2e7d32; margin-bottom: 3px;">
+          <strong>📚 تاريخ آخر درس:</strong>
+        </div>
+        <div style="font-size: 14px; font-weight: bold; color: #333;">
+          ${lessonDayName} - ${formattedLessonDate}
+        </div>
+      </div>
+      
+      ${lastAttemptHtml}
+      ${attemptsCountHtml}
+      
+      <div style="margin-bottom: 12px;">
+        <button class="option-btn pass-btn" onclick="window.handleHizbPass('${reportId}')">
+          ✅ اجتاز
+        </button>
+        
+        <button class="option-btn fail-btn" onclick="window.handleHizbFail('${reportId}')">
+          ❌ لم يجتاز
+        </button>
+      </div>
+      
+      <div class="notes-section">
+        <h3 style="color: #667eea; margin-bottom: 10px; font-size: 15px;">
+          📝 الملاحظات
+        </h3>
+        
+        <div style="margin-bottom: 8px;">
+          <div style="font-size: 11px; color: #666; margin-bottom: 5px;">🏷️ اختصارات سريعة:</div>
+          <div class="tags-container">
+            <button class="note-tag" onclick="window.addHizbNoteTag('ضعف في التجويد')">ضعف في التجويد</button>
+            <button class="note-tag" onclick="window.addHizbNoteTag('ضعف في الحفظ')">ضعف في الحفظ</button>
+            <button class="note-tag" onclick="window.addHizbNoteTag('القراءة سريعة')">القراءة سريعة</button>
+            <button class="note-tag" onclick="window.addHizbNoteTag('ألحان جلية كثيرة')">ألحان جلية كثيرة</button>
+          </div>
+        </div>
+        
+        <textarea 
+          id="newHizbNoteInput" 
+          class="new-note-input" 
+          placeholder="أضف ملاحظة جديدة..."
+        ></textarea>
+        
+        <button class="save-note-btn" onclick="window.saveHizbNote('${reportId}')">
+          💾 حفظ الملاحظة
+        </button>
+        
+        <div class="previous-notes" id="previousHizbNotesList">
+          ${previousNotes.length === 0 ? 
+            '<p style="text-align: center; color: #999; padding: 12px; font-size: 13px;">لا توجد ملاحظات سابقة</p>' :
+            previousNotes.map(note => `
+              <div class="note-item">
+                <div class="note-date">${note.date || 'غير محدد'}</div>
+                <div class="note-text">${note.text}</div>
+              </div>
+            `).join('')
+          }
+        </div>
+      </div>
+      
+      <button onclick="window.handleRemoveFromHizbQueue('${reportId}', '${studentName}')" 
+              style="background: #dc3545; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; margin-top: 12px; width: 100%; transition: all 0.2s;" 
+              onmouseover="this.style.background='#c82333'" 
+              onmouseout="this.style.background='#dc3545'">
+        🗑️ حذف من القائمة
+      </button>
+      
+      <button class="close-btn" onclick="document.getElementById('hizbDisplayOptionsOverlay').remove()">
+        إغلاق
+      </button>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error showing Hizb options:', error);
+    alert('❌ حدث خطأ في عرض خيارات الحزب');
+  }
 };
 
 /**
@@ -1932,6 +2259,360 @@ window.showHizbDisplayOptions = async function(reportId, studentName, hizbNumber
  */
 window.showHizbReportOptions = function() {
   alert('🚧 نظام تصدير تقارير الأحزاب قيد التطوير\n\nسيتم إضافة هذه الميزة قريباً بإذن الله');
+};
+
+/**
+ * Handle Hizb Pass - Opens report for updating display date
+ */
+window.handleHizbPass = async function(reportId) {
+  try {
+    console.log('✅ Hizb Pass clicked for report:', reportId);
+    
+    // Close the options popup
+    const overlay = document.getElementById('hizbDisplayOptionsOverlay');
+    if (overlay) {
+      overlay.remove();
+    }
+    
+    // Select viewer name
+    const viewerName = await selectViewerName('مازن البلوشي');
+    
+    if (!viewerName) {
+      console.log('❌ User cancelled viewer selection');
+      return;
+    }
+    
+    // Update viewerName in the report
+    await updateDoc(doc(db, 'hizbDisplays', reportId), {
+      viewerName: viewerName,
+      updatedAt: serverTimestamp()
+    });
+    
+    console.log('✅ Hizb viewer name updated:', viewerName);
+    
+    // Show success and ask for display date (placeholder for now)
+    alert(`✅ تم تسجيل اجتياز الحزب بنجاح!\n\nالعارض: ${viewerName}\n\n🚧 سيتم إضافة نظام تسجيل تاريخ العرض قريباً`);
+    
+    // Reload Hizb queue
+    if (typeof window.loadHizbQueue === 'function') {
+      await window.loadHizbQueue();
+    }
+    
+  } catch (error) {
+    console.error('Error handling Hizb pass:', error);
+    alert('❌ حدث خطأ في تسجيل اجتياز الحزب');
+  }
+};
+
+/**
+ * Handle Hizb Fail - Records failed attempt and moves to bottom of queue
+ */
+window.handleHizbFail = async function(reportId) {
+  try {
+    console.log('❌ Hizb Fail clicked for report:', reportId);
+    
+    // Select viewer name first
+    const viewerName = await selectViewerName('مازن البلوشي');
+    
+    if (!viewerName) {
+      console.log('❌ User cancelled viewer selection');
+      return;
+    }
+    
+    // Show attempt details form
+    const attemptDetails = await showAttemptDetailsForm(viewerName);
+    
+    if (!attemptDetails) {
+      console.log('❌ User cancelled attempt details');
+      return;
+    }
+    
+    // Get current report data from hizbDisplays
+    const reportDoc = await getDoc(doc(db, 'hizbDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const currentData = reportDoc.data();
+    const failedAttempts = currentData.failedAttempts || [];
+    
+    // Add failed attempt record with full details
+    const failedAttempt = {
+      attemptNumber: failedAttempts.length + 1,
+      date: getTodayForStorage(), // YYYY-MM-DD format
+      timestamp: new Date(),
+      viewerName: viewerName,
+      warnings: attemptDetails.warnings,
+      mistakes: attemptDetails.mistakes,
+      majorMelodies: attemptDetails.majorMelodies
+    };
+    
+    failedAttempts.push(failedAttempt);
+    
+    // Update report: record failed attempt with lastAttemptDate and viewerName
+    await updateDoc(doc(db, 'hizbDisplays', reportId), {
+      failedAttempts: failedAttempts,
+      lastAttemptDate: getTodayForStorage(),
+      viewerName: viewerName,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Close popup
+    const overlay = document.getElementById('hizbDisplayOptionsOverlay');
+    if (overlay) {
+      overlay.remove();
+    }
+    
+    // Reload Hizb queue to show updated order
+    if (typeof window.loadHizbQueue === 'function') {
+      await window.loadHizbQueue();
+    }
+    
+    // Show success message
+    alert(
+      `✅ تم تسجيل محاولة فاشلة للحزب\n\n` +
+      `📊 التفاصيل:\n` +
+      `• العارض: ${viewerName}\n` +
+      `• رقم المحاولة: ${failedAttempt.attemptNumber}\n` +
+      `• التنبيهات: ${attemptDetails.warnings}\n` +
+      `• الغلطات: ${attemptDetails.mistakes}\n` +
+      `• الألحان الجلية: ${attemptDetails.majorMelodies}\n\n` +
+      `تم نقل الطالب لأسفل القائمة`
+    );
+    
+  } catch (error) {
+    console.error('Error handling Hizb fail:', error);
+    alert('❌ حدث خطأ في تسجيل المحاولة الفاشلة للحزب');
+  }
+};
+
+/**
+ * Handle Remove from Hizb Queue - Delete student from Hizb queue completely
+ */
+window.handleRemoveFromHizbQueue = async function(reportId, studentName) {
+  try {
+    // Confirm deletion
+    const confirmed = confirm(
+      `⚠️ تأكيد الحذف\n\n` +
+      `هل أنت متأكد من حذف الطالب:\n"${studentName}"\n\n` +
+      `من قائمة الجاهزين لعرض الحزب؟\n\n` +
+      `⚠️ سيتم حذف جميع البيانات المرتبطة بهذا الحزب\n` +
+      `(الملاحظات، المحاولات الفاشلة، إلخ...)\n\n` +
+      `هذا الإجراء لا يمكن التراجع عنه!`
+    );
+    
+    if (!confirmed) {
+      console.log('❌ User cancelled deletion');
+      return;
+    }
+    
+    console.log('🗑️ Deleting Hizb report:', reportId);
+    
+    // Delete the document from hizbDisplays collection
+    await deleteDoc(doc(db, 'hizbDisplays', reportId));
+    
+    console.log('✅ Hizb report deleted successfully');
+    
+    // Close the popup
+    const overlay = document.getElementById('hizbDisplayOptionsOverlay');
+    if (overlay) {
+      overlay.remove();
+    }
+    
+    // Reload Hizb queue to show updated list
+    if (typeof window.loadHizbQueue === 'function') {
+      await window.loadHizbQueue();
+    }
+    
+    // Show success message
+    alert(`✅ تم حذف الطالب من قائمة الأحزاب بنجاح\n\n${studentName}`);
+    
+  } catch (error) {
+    console.error('Error removing from Hizb queue:', error);
+    alert('❌ حدث خطأ في حذف الطالب من قائمة الأحزاب');
+  }
+};
+
+/**
+ * Add note tag to Hizb note input
+ */
+window.addHizbNoteTag = function(tag) {
+  const input = document.getElementById('newHizbNoteInput');
+  if (input) {
+    const currentValue = input.value.trim();
+    input.value = currentValue ? `${currentValue}\n• ${tag}` : `• ${tag}`;
+    input.focus();
+  }
+};
+
+/**
+ * Save Hizb note
+ */
+window.saveHizbNote = async function(reportId) {
+  try {
+    const input = document.getElementById('newHizbNoteInput');
+    const noteText = input.value.trim();
+    
+    if (!noteText) {
+      alert('⚠️ يرجى كتابة ملاحظة أولاً');
+      return;
+    }
+    
+    // Get current notes
+    const reportDoc = await getDoc(doc(db, 'hizbDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const currentNotes = reportDoc.data().notes || [];
+    
+    // Add new note
+    const newNote = {
+      text: noteText,
+      date: getTodayForStorage(),
+      timestamp: new Date()
+    };
+    
+    currentNotes.push(newNote);
+    
+    // Update in Firestore
+    await updateDoc(doc(db, 'hizbDisplays', reportId), {
+      notes: currentNotes,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Clear input
+    input.value = '';
+    
+    // Reload notes list
+    const notesList = document.getElementById('previousHizbNotesList');
+    if (notesList) {
+      notesList.innerHTML = currentNotes.map(note => `
+        <div class="note-item">
+          <div class="note-date">${note.date || 'غير محدد'}</div>
+          <div class="note-text">${note.text}</div>
+        </div>
+      `).join('');
+    }
+    
+    alert('✅ تم حفظ الملاحظة بنجاح');
+    
+  } catch (error) {
+    console.error('Error saving Hizb note:', error);
+    alert('❌ حدث خطأ في حفظ الملاحظة');
+  }
+};
+
+/**
+ * Show Hizb Attempts History
+ */
+window.showHizbAttemptsHistory = async function(reportId) {
+  try {
+    const reportDoc = await getDoc(doc(db, 'hizbDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التقرير غير موجود');
+      return;
+    }
+    
+    const failedAttempts = reportDoc.data().failedAttempts || [];
+    
+    if (failedAttempts.length === 0) {
+      alert('ℹ️ لا توجد محاولات سابقة لهذا الحزب');
+      return;
+    }
+    
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10001;
+      backdrop-filter: blur(3px);
+    `;
+    
+    // Create popup
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 70vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      direction: rtl;
+    `;
+    
+    let attemptsHtml = `
+      <h2 style="color: #667eea; margin-bottom: 15px; text-align: center;">
+        📊 سجل المحاولات الفاشلة - الحزب
+      </h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <th style="padding: 10px; text-align: center; border-radius: 6px 0 0 0;">#</th>
+            <th style="padding: 10px; text-align: right;">التاريخ</th>
+            <th style="padding: 10px; text-align: right;">العارض</th>
+            <th style="padding: 10px; text-align: center;">⚠️</th>
+            <th style="padding: 10px; text-align: center;">❌</th>
+            <th style="padding: 10px; text-align: center; border-radius: 0 6px 0 0;">🎵</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    failedAttempts.forEach((attempt, index) => {
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      const formattedDate = formatDateForDisplay(attempt.date);
+      
+      attemptsHtml += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 10px; text-align: center; font-weight: bold; color: #667eea;">${attempt.attemptNumber}</td>
+          <td style="padding: 10px; font-size: 13px;">${formattedDate}</td>
+          <td style="padding: 10px; font-size: 13px;">${attempt.viewerName}</td>
+          <td style="padding: 10px; text-align: center; font-weight: bold; color: #ffc107;">${attempt.warnings || 0}</td>
+          <td style="padding: 10px; text-align: center; font-weight: bold; color: #dc3545;">${attempt.mistakes || 0}</td>
+          <td style="padding: 10px; text-align: center; font-weight: bold; color: #e83e8c;">${attempt.majorMelodies || 0}</td>
+        </tr>
+      `;
+    });
+    
+    attemptsHtml += `
+        </tbody>
+      </table>
+      <button onclick="this.closest('div').parentElement.remove()" 
+              style="background: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; margin-top: 15px; width: 100%;">
+        إغلاق
+      </button>
+    `;
+    
+    popup.innerHTML = attemptsHtml;
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error showing Hizb attempts history:', error);
+    alert('❌ حدث خطأ في عرض سجل المحاولات');
+  }
 };
 
 // Show Juz Display Options Popup
