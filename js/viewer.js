@@ -5251,8 +5251,7 @@ window.openReportModal = function(reportType) {
  */
 window.showGeneralReportFor = function(reportType) {
   if (reportType === 'hizb') {
-    alert('🚧 وظيفة التقرير العام للأحزاب قيد التطوير');
-    // Will implement similar to generateJuzReport
+    showHizbGeneralReportModal();
   } else if (reportType === 'juz') {
     // Use existing function
     window.showGeneralReportOptions();
@@ -5264,8 +5263,7 @@ window.showGeneralReportFor = function(reportType) {
  */
 window.showClassReportFor = function(reportType) {
   if (reportType === 'hizb') {
-    alert('🚧 وظيفة تقرير حلقة الأحزاب قيد التطوير');
-    // Will implement similar to generateClassReport
+    showHizbClassReportModal();
   } else if (reportType === 'juz') {
     // Use existing function
     window.showClassReportOptions();
@@ -5276,9 +5274,1119 @@ window.showClassReportFor = function(reportType) {
  * Show student report options for specific type
  */
 window.showStudentReportFor = function(reportType) {
-  alert('🚧 تقارير الطلاب الفردية قيد التطوير\nيمكنك حالياً الحصول على سجل الطالب من القسم الرئيسي');
-  // Will be implemented with student grid visualization
+  if (reportType === 'hizb') {
+    showHizbStudentReportModal();
+  } else if (reportType === 'juz') {
+    alert('🚧 تقارير الطلاب الفردية للأجزاء قيد التطوير');
+  }
 };
+
+// ==========================================
+// HIZB REPORTS MODALS - Advanced System
+// ==========================================
+
+/**
+ * Generate Hijri months options for select dropdowns
+ */
+function generateHijriMonthsOptions() {
+  if (!accurateHijriDates || !Array.isArray(accurateHijriDates)) {
+    console.error('accurateHijriDates not available');
+    return '<option value="">لا توجد بيانات</option>';
+  }
+  
+  let options = '<option value="">-- اختر الشهر --</option>';
+  
+  const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  
+  // Extract unique year-month combinations
+  const availableMonths = new Map();
+  accurateHijriDates.forEach(entry => {
+    const monthKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
+    if (!availableMonths.has(monthKey)) {
+      availableMonths.set(monthKey, {
+        year: entry.hijriYear,
+        month: entry.hijriMonth,
+        name: hijriMonths[entry.hijriMonth - 1]
+      });
+    }
+  });
+  
+  // Sort by year and month (newest first)
+  const sortedMonths = Array.from(availableMonths.values()).sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return b.month - a.month;
+  });
+  
+  sortedMonths.forEach(m => {
+    const value = `${m.year}-${String(m.month).padStart(2, '0')}`;
+    const label = `${m.name} ${m.year}`;
+    options += `<option value="${value}">${label}</option>`;
+  });
+  
+  return options;
+}
+
+/**
+ * Generate years options
+ */
+function generateHijriYearsOptions() {
+  if (!accurateHijriDates) return '<option value="">السنة</option>';
+  
+  // Extract unique years
+  const yearsSet = new Set();
+  accurateHijriDates.forEach(entry => {
+    yearsSet.add(entry.hijriYear);
+  });
+  
+  const years = Array.from(yearsSet).sort((a, b) => b - a);
+  let options = '<option value="">السنة</option>';
+  
+  years.forEach(year => {
+    options += `<option value="${year}">${year}</option>`;
+  });
+  
+  return options;
+}
+
+/**
+ * Generate months options for year
+ */
+function generateMonthsForYear() {
+  const hijriMonths = [
+    'المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+    'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+    'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+  ];
+  
+  let options = '<option value="">الشهر</option>';
+  hijriMonths.forEach((month, index) => {
+    const value = String(index + 1).padStart(2, '0');
+    options += `<option value="${value}">${month}</option>`;
+  });
+  
+  return options;
+}
+
+/**
+ * Update days dropdown based on selected year and month
+ */
+function updateDaysForDatePicker(yearId, monthId, dayId) {
+  const yearSelect = document.getElementById(yearId);
+  const monthSelect = document.getElementById(monthId);
+  const daySelect = document.getElementById(dayId);
+  
+  if (!yearSelect || !monthSelect || !daySelect) return;
+  
+  const year = yearSelect.value;
+  const monthNum = monthSelect.value;
+  
+  if (!year || !monthNum) {
+    daySelect.innerHTML = '<option value="">اليوم</option>';
+    return;
+  }
+  
+  // Find days count for this month from accurateHijriDates
+  const monthKey = `${year}-${monthNum}`;
+  const daysInMonth = accurateHijriDates.filter(entry => {
+    const entryKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
+    return entryKey === monthKey;
+  });
+  
+  const daysCount = daysInMonth.length > 0 ? daysInMonth.length : 30;
+  
+  const currentDay = daySelect.value;
+  daySelect.innerHTML = '<option value="">اليوم</option>';
+  
+  for (let i = 1; i <= daysCount; i++) {
+    const option = document.createElement('option');
+    option.value = String(i).padStart(2, '0');
+    option.textContent = i;
+    if (currentDay === option.value) {
+      option.selected = true;
+    }
+    daySelect.appendChild(option);
+  }
+}
+
+/**
+ * Show Hizb General Report Modal
+ */
+function showHizbGeneralReportModal() {
+  const overlay = document.createElement('div');
+  overlay.id = 'hizbGeneralModal';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10001;
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+    overflow-y: auto;
+    padding: 20px;
+  `;
+  
+  overlay.innerHTML = `
+    <div style="background: white; border-radius: 25px; width: 100%; max-width: 550px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); direction: rtl; overflow: hidden; margin: auto;">
+      <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .luxury-select {
+          width: 100%;
+          padding: 14px 18px;
+          border: 2px solid #e2e8f0;
+          border-radius: 12px;
+          font-size: 15px;
+          font-family: 'Cairo', sans-serif;
+          background: white;
+          color: #2d3748;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: left 15px center;
+          padding-left: 40px;
+        }
+        
+        .luxury-select:hover {
+          border-color: #667eea;
+          box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+          transform: translateY(-1px);
+        }
+        
+        .luxury-select:focus {
+          outline: none;
+          border-color: #667eea;
+          box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+        }
+        
+        .date-picker-row {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+        }
+        
+        .date-picker-small {
+          padding: 12px;
+          text-align: center;
+          font-size: 14px;
+        }
+        
+        .period-section {
+          display: none;
+          animation: fadeInSlide 0.3s ease;
+        }
+        
+        .period-section.active {
+          display: block;
+        }
+        
+        @keyframes fadeInSlide {
+          from { opacity: 0; transform: translateX(20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .export-button {
+          width: 100%;
+          padding: 16px;
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+          border: none;
+          border-radius: 12px;
+          font-size: 17px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.3s;
+          box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+        }
+        
+        .export-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+        }
+        
+        .export-button:active {
+          transform: translateY(0);
+        }
+      </style>
+      
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">
+        <div style="font-size: 52px; margin-bottom: 12px;">📊</div>
+        <h2 style="margin: 0; font-size: 26px; font-weight: 700;">التقرير العام للأحزاب</h2>
+        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 14px;">اختر الفترة الزمنية لتصدير التقرير</p>
+      </div>
+      
+      <!-- Body -->
+      <div style="padding: 30px;">
+        
+        <!-- Period Type Selection -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            📅 نوع الفترة
+          </label>
+          <select class="luxury-select" id="hizbGenPeriodType" onchange="window.toggleHizbGenPeriod()">
+            <option value="month">شهر محدد</option>
+            <option value="custom">فترة مخصصة</option>
+          </select>
+        </div>
+        
+        <!-- Month Selection -->
+        <div id="hizbGenMonthSection" class="period-section active">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            🗓️ اختر الشهر الهجري
+          </label>
+          <select class="luxury-select" id="hizbGenMonth" style="font-size: 14px;">
+            ${generateHijriMonthsOptions()}
+          </select>
+        </div>
+        
+        <!-- Custom Range Selection -->
+        <div id="hizbGenCustomSection" class="period-section">
+          
+          <!-- From Date -->
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+              📅 من تاريخ
+            </label>
+            <div class="date-picker-row">
+              <select class="luxury-select date-picker-small" id="hizbGenFromDay">
+                <option value="">اليوم</option>
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbGenFromMonth" onchange="window.updateDaysForDatePicker('hizbGenFromYear', 'hizbGenFromMonth', 'hizbGenFromDay')">
+                ${generateMonthsForYear()}
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbGenFromYear" onchange="window.updateDaysForDatePicker('hizbGenFromYear', 'hizbGenFromMonth', 'hizbGenFromDay')">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
+          </div>
+          
+          <!-- To Date -->
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+              📅 إلى تاريخ
+            </label>
+            <div class="date-picker-row">
+              <select class="luxury-select date-picker-small" id="hizbGenToDay">
+                <option value="">اليوم</option>
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbGenToMonth" onchange="window.updateDaysForDatePicker('hizbGenToYear', 'hizbGenToMonth', 'hizbGenToDay')">
+                ${generateMonthsForYear()}
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbGenToYear" onchange="window.updateDaysForDatePicker('hizbGenToYear', 'hizbGenToMonth', 'hizbGenToDay')">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- Export Button -->
+        <button class="export-button" onclick="window.exportHizbGeneralReport()">
+          <span style="font-size: 24px;">📥</span>
+          <span>تصدير التقرير</span>
+        </button>
+        
+        <!-- Cancel Button -->
+        <button onclick="document.getElementById('hizbGeneralModal').remove();" 
+          style="width: 100%; padding: 12px; margin-top: 12px; background: #f1f3f5; color: #495057; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          ❌ إلغاء
+        </button>
+        
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+}
+
+/**
+ * Toggle period type for Hizb General Report
+ */
+window.toggleHizbGenPeriod = function() {
+  const type = document.getElementById('hizbGenPeriodType')?.value;
+  const monthSection = document.getElementById('hizbGenMonthSection');
+  const customSection = document.getElementById('hizbGenCustomSection');
+  
+  if (type === 'month') {
+    monthSection?.classList.add('active');
+    customSection?.classList.remove('active');
+  } else {
+    monthSection?.classList.remove('active');
+    customSection?.classList.add('active');
+  }
+};
+
+/**
+ * Export Hizb General Report
+ */
+window.exportHizbGeneralReport = function() {
+  const periodType = document.getElementById('hizbGenPeriodType')?.value;
+  
+  if (periodType === 'month') {
+    const month = document.getElementById('hizbGenMonth')?.value;
+    if (!month) {
+      alert('⚠️ الرجاء اختيار الشهر');
+      return;
+    }
+    console.log('Exporting Hizb general report for month:', month);
+    alert('🚧 وظيفة تصدير التقرير العام قيد التطوير\nالفترة المختارة: ' + month);
+  } else {
+    const fromYear = document.getElementById('hizbGenFromYear')?.value;
+    const fromMonth = document.getElementById('hizbGenFromMonth')?.value;
+    const fromDay = document.getElementById('hizbGenFromDay')?.value;
+    const toYear = document.getElementById('hizbGenToYear')?.value;
+    const toMonth = document.getElementById('hizbGenToMonth')?.value;
+    const toDay = document.getElementById('hizbGenToDay')?.value;
+    
+    if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
+      alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
+      return;
+    }
+    
+    const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+    const toDate = `${toYear}-${toMonth}-${toDay}`;
+    
+    console.log('Exporting Hizb general report from', fromDate, 'to', toDate);
+    alert(`🚧 وظيفة تصدير التقرير العام قيد التطوير\nمن: ${fromDate}\nإلى: ${toDate}`);
+  }
+  
+  document.getElementById('hizbGeneralModal')?.remove();
+};
+
+/**
+ * Show Hizb Class Report Modal
+ */
+async function showHizbClassReportModal() {
+  // Get teachers list
+  const teachers = await getTeachersList();
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'hizbClassModal';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10001;
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+    overflow-y: auto;
+    padding: 20px;
+  `;
+  
+  let teachersOptions = '<option value="">-- اختر المعلم --</option>';
+  teachers.forEach(teacher => {
+    teachersOptions += `<option value="${teacher}">${teacher}</option>`;
+  });
+  
+  overlay.innerHTML = `
+    <div style="background: white; border-radius: 25px; width: 100%; max-width: 550px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); direction: rtl; overflow: hidden; margin: auto;">
+      <style>
+        ${getModalStyles()}
+      </style>
+      
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">
+        <div style="font-size: 52px; margin-bottom: 12px;">👥</div>
+        <h2 style="margin: 0; font-size: 26px; font-weight: 700;">تقرير حلقة معينة</h2>
+        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 14px;">اختر المعلم والفترة الزمنية</p>
+      </div>
+      
+      <!-- Body -->
+      <div style="padding: 30px;">
+        
+        <!-- Teacher Selection -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            👨‍🏫 اختر المعلم (الحلقة)
+          </label>
+          <select class="luxury-select" id="hizbClassTeacher">
+            ${teachersOptions}
+          </select>
+        </div>
+        
+        <!-- Period Type Selection -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            📅 نوع الفترة
+          </label>
+          <select class="luxury-select" id="hizbClassPeriodType" onchange="window.toggleHizbClassPeriod()">
+            <option value="month">شهر محدد</option>
+            <option value="custom">فترة مخصصة</option>
+          </select>
+        </div>
+        
+        <!-- Month Selection -->
+        <div id="hizbClassMonthSection" class="period-section active">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            🗓️ اختر الشهر الهجري
+          </label>
+          <select class="luxury-select" id="hizbClassMonth" style="font-size: 14px;">
+            ${generateHijriMonthsOptions()}
+          </select>
+        </div>
+        
+        <!-- Custom Range Selection -->
+        <div id="hizbClassCustomSection" class="period-section">
+          
+          <!-- From Date -->
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+              📅 من تاريخ
+            </label>
+            <div class="date-picker-row">
+              <select class="luxury-select date-picker-small" id="hizbClassFromDay">
+                <option value="">اليوم</option>
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbClassFromMonth" onchange="window.updateDaysForDatePicker('hizbClassFromYear', 'hizbClassFromMonth', 'hizbClassFromDay')">
+                ${generateMonthsForYear()}
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbClassFromYear" onchange="window.updateDaysForDatePicker('hizbClassFromYear', 'hizbClassFromMonth', 'hizbClassFromDay')">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
+          </div>
+          
+          <!-- To Date -->
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+              📅 إلى تاريخ
+            </label>
+            <div class="date-picker-row">
+              <select class="luxury-select date-picker-small" id="hizbClassToDay">
+                <option value="">اليوم</option>
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbClassToMonth" onchange="window.updateDaysForDatePicker('hizbClassToYear', 'hizbClassToMonth', 'hizbClassToDay')">
+                ${generateMonthsForYear()}
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbClassToYear" onchange="window.updateDaysForDatePicker('hizbClassToYear', 'hizbClassToMonth', 'hizbClassToDay')">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- Export Button -->
+        <button class="export-button" onclick="window.exportHizbClassReport()">
+          <span style="font-size: 24px;">📥</span>
+          <span>تصدير تقرير الحلقة</span>
+        </button>
+        
+        <!-- Cancel Button -->
+        <button onclick="document.getElementById('hizbClassModal').remove();" 
+          style="width: 100%; padding: 12px; margin-top: 12px; background: #f1f3f5; color: #495057; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          ❌ إلغاء
+        </button>
+        
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+}
+
+/**
+ * Get modal styles (reusable)
+ */
+function getModalStyles() {
+  return `
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    
+    .luxury-select {
+      width: 100%;
+      padding: 14px 18px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 15px;
+      font-family: 'Cairo', sans-serif;
+      background: white;
+      color: #2d3748;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: left 15px center;
+      padding-left: 40px;
+    }
+    
+    .luxury-select:hover {
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .luxury-select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+    }
+    
+    .date-picker-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    
+    .date-picker-small {
+      padding: 12px;
+      text-align: center;
+      font-size: 14px;
+    }
+    
+    .period-section {
+      display: none;
+      animation: fadeInSlide 0.3s ease;
+    }
+    
+    .period-section.active {
+      display: block;
+    }
+    
+    @keyframes fadeInSlide {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .export-button {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    
+    .export-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+    }
+    
+    .export-button:active {
+      transform: translateY(0);
+    }
+  `;
+}
+
+/**
+ * Get teachers list from Firebase
+ */
+async function getTeachersList() {
+  try {
+    const snapshot = await getDocs(collection(db, 'teachers'));
+    const teachers = [];
+    snapshot.forEach(doc => {
+      teachers.push(doc.data().name);
+    });
+    return teachers.sort();
+  } catch (error) {
+    console.error('Error fetching teachers:', error);
+    return [];
+  }
+}
+
+/**
+ * Toggle period type for Hizb Class Report
+ */
+window.toggleHizbClassPeriod = function() {
+  const type = document.getElementById('hizbClassPeriodType')?.value;
+  const monthSection = document.getElementById('hizbClassMonthSection');
+  const customSection = document.getElementById('hizbClassCustomSection');
+  
+  if (type === 'month') {
+    monthSection?.classList.add('active');
+    customSection?.classList.remove('active');
+  } else {
+    monthSection?.classList.remove('active');
+    customSection?.classList.add('active');
+  }
+};
+
+/**
+ * Export Hizb Class Report
+ */
+window.exportHizbClassReport = function() {
+  const teacher = document.getElementById('hizbClassTeacher')?.value;
+  const periodType = document.getElementById('hizbClassPeriodType')?.value;
+  
+  if (!teacher) {
+    alert('⚠️ الرجاء اختيار المعلم');
+    return;
+  }
+  
+  if (periodType === 'month') {
+    const month = document.getElementById('hizbClassMonth')?.value;
+    if (!month) {
+      alert('⚠️ الرجاء اختيار الشهر');
+      return;
+    }
+    console.log('Exporting Hizb class report for teacher:', teacher, 'month:', month);
+    alert(`🚧 وظيفة تصدير تقرير الحلقة قيد التطوير\nالمعلم: ${teacher}\nالفترة: ${month}`);
+  } else {
+    const fromYear = document.getElementById('hizbClassFromYear')?.value;
+    const fromMonth = document.getElementById('hizbClassFromMonth')?.value;
+    const fromDay = document.getElementById('hizbClassFromDay')?.value;
+    const toYear = document.getElementById('hizbClassToYear')?.value;
+    const toMonth = document.getElementById('hizbClassToMonth')?.value;
+    const toDay = document.getElementById('hizbClassToDay')?.value;
+    
+    if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
+      alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
+      return;
+    }
+    
+    const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+    const toDate = `${toYear}-${toMonth}-${toDay}`;
+    
+    console.log('Exporting Hizb class report for teacher:', teacher, 'from', fromDate, 'to', toDate);
+    alert(`🚧 وظيفة تصدير تقرير الحلقة قيد التطوير\nالمعلم: ${teacher}\nمن: ${fromDate}\nإلى: ${toDate}`);
+  }
+  
+  document.getElementById('hizbClassModal')?.remove();
+};
+
+/**
+ * Show Hizb Student Report Modal
+ */
+async function showHizbStudentReportModal() {
+  const teachers = await getTeachersList();
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'hizbStudentModal';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10001;
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+    overflow-y: auto;
+    padding: 20px;
+  `;
+  
+  let teachersOptions = '<option value="">-- اختر المعلم --</option>';
+  teachers.forEach(teacher => {
+    teachersOptions += `<option value="${teacher}">${teacher}</option>`;
+  });
+  
+  overlay.innerHTML = `
+    <div style="background: white; border-radius: 25px; width: 100%; max-width: 700px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); direction: rtl; overflow: hidden; margin: auto;">
+      <style>
+        ${getModalStyles()}
+        
+        .hizb-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+          gap: 12px;
+          margin-top: 20px;
+        }
+        
+        .hizb-cell {
+          aspect-ratio: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 18px;
+          cursor: pointer;
+          transition: all 0.3s;
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .hizb-cell::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
+          opacity: 0;
+          transition: opacity 0.3s;
+        }
+        
+        .hizb-cell:hover::before {
+          opacity: 1;
+        }
+        
+        .hizb-cell.completed {
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+          box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+        
+        .hizb-cell.pending {
+          background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+          color: white;
+          box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+        }
+        
+        .hizb-cell:hover {
+          transform: translateY(-3px) scale(1.05);
+          box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        
+        .hizb-number {
+          font-size: 20px;
+          margin-bottom: 4px;
+        }
+        
+        .hizb-icon {
+          font-size: 16px;
+        }
+        
+        .progress-bar-container {
+          width: 100%;
+          height: 14px;
+          background: #e2e8f0;
+          border-radius: 20px;
+          overflow: hidden;
+          margin-bottom: 10px;
+        }
+        
+        .progress-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+          border-radius: 20px;
+          transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .progress-bar-fill::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+          animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        
+        .stats-row {
+          display: flex;
+          justify-content: center;
+          gap: 15px;
+          margin-bottom: 20px;
+        }
+        
+        .stat-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 18px;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        
+        .stat-badge.success {
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+        }
+        
+        .stat-badge.pending {
+          background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+          color: white;
+        }
+        
+        #hizbStudentRecordsContainer {
+          display: none;
+        }
+        
+        #hizbStudentRecordsContainer.show {
+          display: block;
+          animation: fadeInUp 0.4s ease;
+        }
+        
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      </style>
+      
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">
+        <div style="font-size: 52px; margin-bottom: 12px;">👤</div>
+        <h2 style="margin: 0; font-size: 26px; font-weight: 700;">تقرير طالب معين</h2>
+        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 14px;">اختر المعلم والطالب لعرض السجل</p>
+      </div>
+      
+      <!-- Body -->
+      <div style="padding: 30px;">
+        
+        <!-- Teacher Selection -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            👨‍🏫 اختر المعلم
+          </label>
+          <select class="luxury-select" id="hizbStudModalTeacher" onchange="window.loadHizbStudentsForModal()">
+            ${teachersOptions}
+          </select>
+        </div>
+        
+        <!-- Student Selection -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            👨‍🎓 اختر الطالب
+          </label>
+          <select class="luxury-select" id="hizbStudModalStudent">
+            <option value="">-- اختر المعلم أولاً --</option>
+          </select>
+        </div>
+        
+        <!-- View Button -->
+        <button class="export-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="window.viewHizbStudentRecordsModal()">
+          <span style="font-size: 24px;">👁️</span>
+          <span>استعراض التقرير</span>
+        </button>
+        
+        <!-- Records Container -->
+        <div id="hizbStudentRecordsContainer" style="margin-top: 30px;">
+          <!-- Will be populated dynamically -->
+        </div>
+        
+        <!-- Cancel Button -->
+        <button onclick="document.getElementById('hizbStudentModal').remove();" 
+          style="width: 100%; padding: 12px; margin-top: 15px; background: #f1f3f5; color: #495057; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          ❌ إغلاق
+        </button>
+        
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+}
+
+/**
+ * Load students for selected teacher in student modal
+ */
+window.loadHizbStudentsForModal = async function() {
+  const teacherSelect = document.getElementById('hizbStudModalTeacher');
+  const studentSelect = document.getElementById('hizbStudModalStudent');
+  
+  if (!teacherSelect || !studentSelect) return;
+  
+  const teacher = teacherSelect.value;
+  if (!teacher) {
+    studentSelect.innerHTML = '<option value="">-- اختر المعلم أولاً --</option>';
+    return;
+  }
+  
+  studentSelect.innerHTML = '<option value="">جاري التحميل...</option>';
+  
+  try {
+    const q = query(
+      collection(db, 'hizbDisplays'),
+      where('teacherName', '==', teacher)
+    );
+    const snapshot = await getDocs(q);
+    
+    const students = new Set();
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.studentName) {
+        students.add(data.studentName);
+      }
+    });
+    
+    studentSelect.innerHTML = '<option value="">-- اختر الطالب --</option>';
+    Array.from(students).sort().forEach(student => {
+      const option = document.createElement('option');
+      option.value = student;
+      option.textContent = student;
+      studentSelect.appendChild(option);
+    });
+    
+    console.log(`Loaded ${students.size} students for teacher ${teacher}`);
+    
+  } catch (error) {
+    console.error('Error loading students:', error);
+    studentSelect.innerHTML = '<option value="">❌ حدث خطأ في التحميل</option>';
+  }
+};
+
+/**
+ * View Hizb student records in modal
+ */
+window.viewHizbStudentRecordsModal = async function() {
+  const teacherSelect = document.getElementById('hizbStudModalTeacher');
+  const studentSelect = document.getElementById('hizbStudModalStudent');
+  const recordsContainer = document.getElementById('hizbStudentRecordsContainer');
+  
+  if (!teacherSelect || !studentSelect || !recordsContainer) return;
+  
+  const teacher = teacherSelect.value;
+  const student = studentSelect.value;
+  
+  if (!teacher || !student) {
+    alert('⚠️ الرجاء اختيار المعلم والطالب');
+    return;
+  }
+  
+  recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #667eea;">⏳ جاري التحميل...</div>';
+  recordsContainer.classList.add('show');
+  
+  try {
+    const q = query(
+      collection(db, 'hizbDisplays'),
+      where('teacherName', '==', teacher),
+      where('studentName', '==', student),
+      where('status', '==', 'passed')
+    );
+    const snapshot = await getDocs(q);
+    
+    const completedHizbs = new Set();
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.hizbNumber) {
+        completedHizbs.add(data.hizbNumber);
+      }
+    });
+    
+    const totalHizbs = 60;
+    const completedCount = completedHizbs.size;
+    const pendingCount = totalHizbs - completedCount;
+    const progressPercent = Math.round((completedCount / totalHizbs) * 100);
+    
+    // Generate grid
+    let gridHTML = '';
+    for (let i = 1; i <= totalHizbs; i++) {
+      const isCompleted = completedHizbs.has(i);
+      const statusClass = isCompleted ? 'completed' : 'pending';
+      const statusIcon = isCompleted ? '✅' : '⏳';
+      
+      gridHTML += `
+        <div class="hizb-cell ${statusClass}" title="${isCompleted ? 'مجتاز' : 'لم يتم'}">
+          <div class="hizb-number">${i}</div>
+          <div class="hizb-icon">${statusIcon}</div>
+        </div>
+      `;
+    }
+    
+    recordsContainer.innerHTML = `
+      <div style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 25px; border-radius: 15px; border: 2px solid #e9ecef;">
+        <h3 style="margin: 0 0 15px 0; text-align: center; color: #2d3748; font-size: 18px;">
+          📊 سجل أحزاب الطالب: <span style="color: #667eea;">${student}</span>
+        </h3>
+        
+        <!-- Progress Bar -->
+        <div style="margin-bottom: 15px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-weight: 600; color: #2d3748;">نسبة الإنجاز</span>
+            <span style="font-weight: 700; color: #667eea; font-size: 20px;">${progressPercent}%</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" style="width: ${progressPercent}%"></div>
+          </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-row">
+          <div class="stat-badge success">
+            <span>✅</span>
+            <span>${completedCount} مجتاز</span>
+          </div>
+          <div class="stat-badge pending">
+            <span>⏳</span>
+            <span>${pendingCount} متبقي</span>
+          </div>
+        </div>
+        
+        <!-- Hizb Grid -->
+        <div class="hizb-grid">
+          ${gridHTML}
+        </div>
+        
+        <!-- Export Button -->
+        <button class="export-button" style="margin-top: 25px;" onclick="window.exportHizbStudentReport('${teacher}', '${student}')">
+          <span style="font-size: 24px;">📥</span>
+          <span>تصدير تقرير الطالب (PDF)</span>
+        </button>
+      </div>
+    `;
+    
+  } catch (error) {
+    console.error('Error loading student records:', error);
+    recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">❌ حدث خطأ في تحميل السجلات</div>';
+  }
+};
+
+/**
+ * Export Hizb student report
+ */
+window.exportHizbStudentReport = function(teacher, student) {
+  console.log('Exporting Hizb student report for', student, 'under teacher', teacher);
+  alert(`🚧 وظيفة تصدير تقرير الطالب قيد التطوير\nالمعلم: ${teacher}\nالطالب: ${student}`);
+};
+
+// Make updateDaysForDatePicker available globally
+window.updateDaysForDatePicker = updateDaysForDatePicker;
+
+
 
 // ==========================================
 // JUZ REPORTS - Original Functions
