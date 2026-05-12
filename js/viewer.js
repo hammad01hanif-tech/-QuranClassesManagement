@@ -5349,9 +5349,9 @@ function generateHijriYearsOptions() {
 }
 
 /**
- * Generate months options for year
+ * Generate months options for specific year from accurate data
  */
-function generateMonthsForYear() {
+function generateMonthsForYear(year) {
   const hijriMonths = [
     'المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
     'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
@@ -5359,12 +5359,59 @@ function generateMonthsForYear() {
   ];
   
   let options = '<option value="">الشهر</option>';
-  hijriMonths.forEach((month, index) => {
-    const value = String(index + 1).padStart(2, '0');
-    options += `<option value="${value}">${month}</option>`;
-  });
+  
+  if (!year || !accurateHijriDates) {
+    // Return all months if no year selected
+    hijriMonths.forEach((month, index) => {
+      const value = String(index + 1).padStart(2, '0');
+      options += `<option value="${value}">${month}</option>`;
+    });
+  } else {
+    // Return only available months for this year
+    const availableMonths = new Set();
+    accurateHijriDates.forEach(entry => {
+      if (entry.hijriYear === parseInt(year)) {
+        availableMonths.add(entry.hijriMonth);
+      }
+    });
+    
+    const sortedMonths = Array.from(availableMonths).sort((a, b) => a - b);
+    sortedMonths.forEach(monthNum => {
+      const value = String(monthNum).padStart(2, '0');
+      const name = hijriMonths[monthNum - 1];
+      options += `<option value="${value}">${name}</option>`;
+    });
+  }
   
   return options;
+}
+
+/**
+ * Update months dropdown when year changes
+ */
+window.updateMonthsForYear = function(yearId, monthId, dayId) {
+  const yearSelect = document.getElementById(yearId);
+  const monthSelect = document.getElementById(monthId);
+  const daySelect = document.getElementById(dayId);
+  
+  if (!yearSelect || !monthSelect || !daySelect) return;
+  
+  const year = yearSelect.value;
+  const currentMonth = monthSelect.value;
+  
+  // Update months based on selected year
+  monthSelect.innerHTML = generateMonthsForYear(year);
+  
+  // Try to restore previous month if still available
+  if (currentMonth) {
+    const option = monthSelect.querySelector(`option[value="${currentMonth}"]`);
+    if (option) {
+      monthSelect.value = currentMonth;
+    }
+  }
+  
+  // Update days
+  updateDaysForDatePicker(yearId, monthId, dayId);
 }
 
 /**
@@ -5567,7 +5614,7 @@ function showHizbGeneralReportModal() {
               <select class="luxury-select date-picker-small" id="hizbGenFromMonth" onchange="window.updateDaysForDatePicker('hizbGenFromYear', 'hizbGenFromMonth', 'hizbGenFromDay')">
                 ${generateMonthsForYear()}
               </select>
-              <select class="luxury-select date-picker-small" id="hizbGenFromYear" onchange="window.updateDaysForDatePicker('hizbGenFromYear', 'hizbGenFromMonth', 'hizbGenFromDay')">
+              <select class="luxury-select date-picker-small" id="hizbGenFromYear" onchange="window.updateMonthsForYear('hizbGenFromYear', 'hizbGenFromMonth', 'hizbGenFromDay')">
                 ${generateHijriYearsOptions()}
               </select>
             </div>
@@ -5585,7 +5632,7 @@ function showHizbGeneralReportModal() {
               <select class="luxury-select date-picker-small" id="hizbGenToMonth" onchange="window.updateDaysForDatePicker('hizbGenToYear', 'hizbGenToMonth', 'hizbGenToDay')">
                 ${generateMonthsForYear()}
               </select>
-              <select class="luxury-select date-picker-small" id="hizbGenToYear" onchange="window.updateDaysForDatePicker('hizbGenToYear', 'hizbGenToMonth', 'hizbGenToDay')">
+              <select class="luxury-select date-picker-small" id="hizbGenToYear" onchange="window.updateMonthsForYear('hizbGenToYear', 'hizbGenToMonth', 'hizbGenToDay')">
                 ${generateHijriYearsOptions()}
               </select>
             </div>
@@ -5611,11 +5658,74 @@ function showHizbGeneralReportModal() {
   
   document.body.appendChild(overlay);
   
+  // Initialize current date in custom range fields
+  setTimeout(() => {
+    initializeCurrentDateInModal('hizbGen');
+  }, 100);
+  
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay) {
       overlay.remove();
     }
   });
+}
+
+/**
+ * Initialize current Hijri date in modal date pickers
+ */
+function initializeCurrentDateInModal(prefix) {
+  try {
+    const today = getTodayForStorage(); // YYYY-MM-DD format
+    const [year, month, day] = today.split('-').map(Number);
+    
+    // Set From date to today
+    const fromYearSelect = document.getElementById(`${prefix}FromYear`);
+    const fromMonthSelect = document.getElementById(`${prefix}FromMonth`);
+    const fromDaySelect = document.getElementById(`${prefix}FromDay`);
+    
+    if (fromYearSelect) {
+      fromYearSelect.value = year;
+      window.updateMonthsForYear(`${prefix}FromYear`, `${prefix}FromMonth`, `${prefix}FromDay`);
+      
+      setTimeout(() => {
+        if (fromMonthSelect) {
+          fromMonthSelect.value = String(month).padStart(2, '0');
+          window.updateDaysForDatePicker(`${prefix}FromYear`, `${prefix}FromMonth`, `${prefix}FromDay`);
+          
+          setTimeout(() => {
+            if (fromDaySelect) {
+              fromDaySelect.value = String(day).padStart(2, '0');
+            }
+          }, 50);
+        }
+      }, 50);
+    }
+    
+    // Set To date to today (can be changed by user)
+    const toYearSelect = document.getElementById(`${prefix}ToYear`);
+    const toMonthSelect = document.getElementById(`${prefix}ToMonth`);
+    const toDaySelect = document.getElementById(`${prefix}ToDay`);
+    
+    if (toYearSelect) {
+      toYearSelect.value = year;
+      window.updateMonthsForYear(`${prefix}ToYear`, `${prefix}ToMonth`, `${prefix}ToDay`);
+      
+      setTimeout(() => {
+        if (toMonthSelect) {
+          toMonthSelect.value = String(month).padStart(2, '0');
+          window.updateDaysForDatePicker(`${prefix}ToYear`, `${prefix}ToMonth`, `${prefix}ToDay`);
+          
+          setTimeout(() => {
+            if (toDaySelect) {
+              toDaySelect.value = String(day).padStart(2, '0');
+            }
+          }, 50);
+        }
+      }, 50);
+    }
+  } catch (error) {
+    console.error('Error initializing date in modal:', error);
+  }
 }
 
 /**
@@ -5765,7 +5875,7 @@ async function showHizbClassReportModal() {
               <select class="luxury-select date-picker-small" id="hizbClassFromMonth" onchange="window.updateDaysForDatePicker('hizbClassFromYear', 'hizbClassFromMonth', 'hizbClassFromDay')">
                 ${generateMonthsForYear()}
               </select>
-              <select class="luxury-select date-picker-small" id="hizbClassFromYear" onchange="window.updateDaysForDatePicker('hizbClassFromYear', 'hizbClassFromMonth', 'hizbClassFromDay')">
+              <select class="luxury-select date-picker-small" id="hizbClassFromYear" onchange="window.updateMonthsForYear('hizbClassFromYear', 'hizbClassFromMonth', 'hizbClassFromDay')">
                 ${generateHijriYearsOptions()}
               </select>
             </div>
@@ -5783,7 +5893,7 @@ async function showHizbClassReportModal() {
               <select class="luxury-select date-picker-small" id="hizbClassToMonth" onchange="window.updateDaysForDatePicker('hizbClassToYear', 'hizbClassToMonth', 'hizbClassToDay')">
                 ${generateMonthsForYear()}
               </select>
-              <select class="luxury-select date-picker-small" id="hizbClassToYear" onchange="window.updateDaysForDatePicker('hizbClassToYear', 'hizbClassToMonth', 'hizbClassToDay')">
+              <select class="luxury-select date-picker-small" id="hizbClassToYear" onchange="window.updateMonthsForYear('hizbClassToYear', 'hizbClassToMonth', 'hizbClassToDay')">
                 ${generateHijriYearsOptions()}
               </select>
             </div>
@@ -5808,6 +5918,11 @@ async function showHizbClassReportModal() {
   `;
   
   document.body.appendChild(overlay);
+  
+  // Initialize current date in custom range fields
+  setTimeout(() => {
+    initializeCurrentDateInModal('hizbClass');
+  }, 100);
   
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay) {
@@ -5914,12 +6029,27 @@ function getModalStyles() {
  */
 async function getTeachersList() {
   try {
-    const snapshot = await getDocs(collection(db, 'teachers'));
-    const teachers = [];
+    // Get unique teachers from hizbDisplays collection
+    const snapshot = await getDocs(collection(db, 'hizbDisplays'));
+    const teachersSet = new Set();
+    
     snapshot.forEach(doc => {
-      teachers.push(doc.data().name);
+      const data = doc.data();
+      if (data.teacherName) {
+        teachersSet.add(data.teacherName);
+      }
     });
-    return teachers.sort();
+    
+    // Also get teachers from teachers collection
+    const teachersSnapshot = await getDocs(collection(db, 'teachers'));
+    teachersSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.name) {
+        teachersSet.add(data.name);
+      }
+    });
+    
+    return Array.from(teachersSet).sort();
   } catch (error) {
     console.error('Error fetching teachers:', error);
     return [];
@@ -6295,7 +6425,7 @@ window.viewHizbStudentRecordsModal = async function() {
       collection(db, 'hizbDisplays'),
       where('teacherName', '==', teacher),
       where('studentName', '==', student),
-      where('status', '==', 'passed')
+      where('status', '==', 'completed')
     );
     const snapshot = await getDocs(q);
     
