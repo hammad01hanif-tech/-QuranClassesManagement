@@ -5118,3 +5118,170 @@ window.generateClassReport = async function() {
     alert('❌ حدث خطأ في إنشاء تقرير الحلقة');
   }
 };
+
+// ==========================================
+// REPORTS SECTION - Modern Modal System
+// ==========================================
+
+/**
+ * Open Report Modal - Unified function for all report types
+ * @param {string} reportType - 'hizb', 'juz', or 'stage'
+ */
+window.openReportModal = function(reportType) {
+  console.log('Opening report modal for:', reportType);
+  
+  // Stage reports are not implemented yet
+  if (reportType === 'stage') {
+    alert('🚧 نظام تقارير المراحل قيد التطوير\nسيتم إضافته في التحديثات القادمة بإذن الله');
+    return;
+  }
+  
+  // Report config object
+  const config = {
+    hizb: {
+      icon: '📗',
+      title: 'تقارير الأحزاب',
+      color: '#667eea',
+      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    },
+    juz: {
+      icon: '📘',
+      title: 'تقارير الأجزاء',
+      color: '#28a745',
+      gradient: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'
+    }
+  };
+  
+  const reportConfig = config[reportType];
+  
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'reportModalOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s ease;
+  `;
+  
+  overlay.innerHTML = `
+    <div style="background: white; border-radius: 20px; padding: 0; width: 90%; max-width: 450px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); direction: rtl; overflow: hidden;">
+      <style>
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(40px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .report-modal-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+        .report-modal-btn:active {
+          transform: translateY(0);
+        }
+      </style>
+      
+      <!-- Modal Header -->
+      <div style="background: ${reportConfig.gradient}; color: white; padding: 30px; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 10px;">${reportConfig.icon}</div>
+        <h2 style="margin: 0; font-size: 24px; font-weight: 700;">${reportConfig.title}</h2>
+        <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px;">اختر نوع التقرير المطلوب</p>
+      </div>
+      
+      <!-- Modal Body -->
+      <div style="padding: 25px;">
+        <button class="report-modal-btn" onclick="document.getElementById('reportModalOverlay').remove(); window.showGeneralReportFor('${reportType}');" 
+          style="width: 100%; padding: 20px; margin-bottom: 12px; background: white; border: 2px solid ${reportConfig.color}; color: ${reportConfig.color}; border-radius: 12px; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 15px; justify-content: flex-start;">
+          <span style="font-size: 32px;">📈</span>
+          <div style="text-align: right; flex: 1;">
+            <div style="font-size: 17px; margin-bottom: 3px;">التقرير العام</div>
+            <div style="font-size: 12px; opacity: 0.7; font-weight: 500;">إحصائيات شاملة لجميع الحلقات</div>
+          </div>
+        </button>
+        
+        <button class="report-modal-btn" onclick="document.getElementById('reportModalOverlay').remove(); window.showClassReportFor('${reportType}');" 
+          style="width: 100%; padding: 20px; margin-bottom: 12px; background: white; border: 2px solid ${reportConfig.color}; color: ${reportConfig.color}; border-radius: 12px; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 15px; justify-content: flex-start;">
+          <span style="font-size: 32px;">👥</span>
+          <div style="text-align: right; flex: 1;">
+            <div style="font-size: 17px; margin-bottom: 3px;">تقرير حلقة</div>
+            <div style="font-size: 12px; opacity: 0.7; font-weight: 500;">تفاصيل طلاب حلقة معينة</div>
+          </div>
+        </button>
+        
+        <button class="report-modal-btn" onclick="document.getElementById('reportModalOverlay').remove(); window.showStudentReportFor('${reportType}');" 
+          style="width: 100%; padding: 20px; margin-bottom: 20px; background: white; border: 2px solid ${reportConfig.color}; color: ${reportConfig.color}; border-radius: 12px; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 15px; justify-content: flex-start;">
+          <span style="font-size: 32px;">👤</span>
+          <div style="text-align: right; flex: 1;">
+            <div style="font-size: 17px; margin-bottom: 3px;">تقرير طالب</div>
+            <div style="font-size: 12px; opacity: 0.7; font-weight: 500;">سجل إنجازات طالب محدد</div>
+          </div>
+        </button>
+        
+        <button onclick="document.getElementById('reportModalOverlay').remove();" 
+          style="width: 100%; padding: 14px; background: #f1f3f5; color: #495057; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          ❌ إلغاء
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  // Close on overlay click
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+};
+
+/**
+ * Show general report options for specific type
+ */
+window.showGeneralReportFor = function(reportType) {
+  if (reportType === 'hizb') {
+    alert('🚧 وظيفة التقرير العام للأحزاب قيد التطوير');
+    // Will implement similar to generateJuzReport
+  } else if (reportType === 'juz') {
+    // Use existing function
+    window.showGeneralReportOptions();
+  }
+};
+
+/**
+ * Show class report options for specific type
+ */
+window.showClassReportFor = function(reportType) {
+  if (reportType === 'hizb') {
+    alert('🚧 وظيفة تقرير حلقة الأحزاب قيد التطوير');
+    // Will implement similar to generateClassReport
+  } else if (reportType === 'juz') {
+    // Use existing function
+    window.showClassReportOptions();
+  }
+};
+
+/**
+ * Show student report options for specific type
+ */
+window.showStudentReportFor = function(reportType) {
+  alert('🚧 تقارير الطلاب الفردية قيد التطوير\nيمكنك حالياً الحصول على سجل الطالب من القسم الرئيسي');
+  // Will be implemented with student grid visualization
+};
+
+// ==========================================
+// JUZ REPORTS - Original Functions
+// ==========================================
+
+

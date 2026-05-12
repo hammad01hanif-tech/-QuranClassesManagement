@@ -2926,35 +2926,37 @@
         <!-- Reports Section -->
         <div id="viewerReportsSection" class="viewer-main-section">
           
-          <div class="section-header">
-            <h2>📊 تقارير أجزاء الطلاب</h2>
-            <p>عرض وإدارة تقارير حفظ الأجزاء</p>
+          <!-- Welcome Card -->
+          <div class="welcome-card">
+            <h2 style="margin: 0 0 10px 0; font-size: 22px;">📊 التقارير والإحصائيات</h2>
+            <p style="margin: 0; opacity: 0.9;">اختر نوع التقرير لبدء التصدير</p>
           </div>
 
-          <div class="content-card">
-            <div class="card-header">
-              <h3 class="card-title">🔍 بحث عن تقارير الطالب</h3>
-            </div>
-            
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label">👨‍🏫 اختر المعلم</label>
-                <select id="viewerReportTeacherSelect" class="form-select" onchange="window.loadViewerStudentsByTeacher()">
-                  <option value="">-- اختر المعلم --</option>
-                </select>
+          <!-- Simple Report Type Buttons -->
+          <div class="simple-report-tabs">
+            <button class="simple-report-btn" onclick="window.openReportModal('hizb')">
+              <div class="report-btn-icon">📗</div>
+              <div class="report-btn-content">
+                <h3 class="report-btn-title">تقارير الأحزاب</h3>
+                <p class="report-btn-desc">تصدير تقارير إنجاز حفظ الأحزاب</p>
               </div>
-              
-              <div class="form-group">
-                <label class="form-label">👨‍🎓 اختر الطالب</label>
-                <select id="viewerReportStudentSelect" class="form-select" onchange="window.loadViewerJuzReports()">
-                  <option value="">-- اختر الطالب --</option>
-                </select>
+            </button>
+
+            <button class="simple-report-btn" onclick="window.openReportModal('juz')">
+              <div class="report-btn-icon">📘</div>
+              <div class="report-btn-content">
+                <h3 class="report-btn-title">تقارير الأجزاء</h3>
+                <p class="report-btn-desc">تصدير تقارير إنجاز حفظ الأجزاء</p>
               </div>
-            </div>
-            
-            <div id="viewerReportsContainer" style="margin-top: 20px;">
-              <p style="text-align: center; color: #999; padding: 40px;">اختر المعلم والطالب لعرض التقارير</p>
-            </div>
+            </button>
+
+            <button class="simple-report-btn" onclick="window.openReportModal('stage')">
+              <div class="report-btn-icon">🏆</div>
+              <div class="report-btn-content">
+                <h3 class="report-btn-title">تقارير المراحل</h3>
+                <p class="report-btn-desc">تصدير تقارير إنجاز المراحل</p>
+              </div>
+            </button>
           </div>
 
         </div>

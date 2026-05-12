@@ -5597,3 +5597,151 @@ details[open] > summary {
   }
 }
 
+/* ==========================================
+   REPORTS SECTION - Modern Islamic Design
+   ========================================== */
+
+/* Simple Report Tabs - Clean 3-Button Layout */
+.simple-report-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-top: 25px;
+}
+
+.simple-report-btn {
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 20px;
+  padding: 30px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  text-align: right;
+  position: relative;
+  overflow: hidden;
+}
+
+.simple-report-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 0;
+}
+
+.simple-report-btn:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.25);
+  border-color: #667eea;
+}
+
+.simple-report-btn:hover::before {
+  opacity: 1;
+}
+
+.simple-report-btn:hover .report-btn-icon,
+.simple-report-btn:hover .report-btn-title,
+.simple-report-btn:hover .report-btn-desc {
+  color: white;
+  position: relative;
+  z-index: 1;
+}
+
+.simple-report-btn:active {
+  transform: translateY(-2px);
+}
+
+.report-btn-icon {
+  font-size: 56px;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.simple-report-btn:hover .report-btn-icon {
+  transform: scale(1.15) rotate(5deg);
+}
+
+.report-btn-content {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.report-btn-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #2d3748;
+  font-family: 'Cairo', sans-serif;
+  transition: color 0.3s ease;
+}
+
+.report-btn-desc {
+  font-size: 14px;
+  margin: 0;
+  color: #718096;
+  line-height: 1.6;
+  transition: color 0.3s ease;
+}
+
+/* ==========================================
+   RESPONSIVE DESIGN FOR REPORTS
+   ========================================== */
+
+@media (max-width: 768px) {
+  .simple-report-tabs {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .simple-report-btn {
+    padding: 25px;
+  }
+
+  .report-btn-icon {
+    font-size: 48px;
+  }
+
+  .report-btn-title {
+    font-size: 18px;
+  }
+
+  .report-btn-desc {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .simple-report-tabs {
+    gap: 12px;
+  }
+
+  .simple-report-btn {
+    padding: 20px;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .report-btn-icon {
+    font-size: 42px;
+  }
+
+  .report-btn-title {
+    font-size: 17px;
+  }
+
+  .report-btn-desc {
+    font-size: 12px;
+  }
+}
+
