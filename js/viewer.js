@@ -6083,8 +6083,21 @@ window.exportHizbGeneralReport = async function() {
  * Show Hizb Class Report Modal
  */
 async function showHizbClassReportModal() {
-  // Get teachers list
-  const teachers = await getTeachersList();
+  // قائمة المعلمين الثابتة (نفس القائمة المستخدمة في النظام)
+  const teachers = {
+    'ABD01': 'عبدالرحمن السيسي',
+    'AMR01': 'عامر هوساوي',
+    'ANS01': 'الأستاذ أنس',
+    'HRT01': 'حارث',
+    'JHD01': 'الأستاذ جهاد',
+    'JWD01': 'عبدالرحمن جاويد',
+    'MZB01': 'مازن البلوشي',
+    'MZN01': 'الأستاذ مازن',
+    'NBL01': 'الأستاذ نبيل',
+    'OMR01': 'الأستاذ عمر',
+    'OSM01': 'أسامة حبيب',
+    'SLM01': 'سلمان رفيق'
+  };
   
   const overlay = document.createElement('div');
   overlay.id = 'hizbClassModal';
@@ -6106,9 +6119,9 @@ async function showHizbClassReportModal() {
   `;
   
   let teachersOptions = '<option value="">-- اختر المعلم --</option>';
-  teachers.forEach(teacher => {
-    teachersOptions += `<option value="${teacher}">${teacher}</option>`;
-  });
+  for (const [id, name] of Object.entries(teachers)) {
+    teachersOptions += `<option value="${id}">${name}</option>`;
+  }
   
   overlay.innerHTML = `
     <div style="background: white; border-radius: 25px; width: 100%; max-width: 550px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); direction: rtl; overflow: hidden; margin: auto;">
