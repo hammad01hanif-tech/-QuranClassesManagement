@@ -5287,6 +5287,7 @@ window.showStudentReportFor = function(reportType) {
 
 /**
  * Generate Hijri months options for select dropdowns
+ * Automatically selects current month based on system date
  */
 function generateHijriMonthsOptions() {
   if (!accurateHijriDates || !Array.isArray(accurateHijriDates)) {
@@ -5294,11 +5295,16 @@ function generateHijriMonthsOptions() {
     return '<option value="">لا توجد بيانات</option>';
   }
   
+  // Get current Hijri date from system (YYYY-MM-DD format)
+  const today = getTodayForStorage();
+  const [currentYear, currentMonth] = today.split('-').map(Number);
+  const currentMonthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+  
   let options = '<option value="">-- اختر الشهر --</option>';
   
   const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
   
-  // Extract unique year-month combinations
+  // Extract unique year-month combinations from accurate dates
   const availableMonths = new Map();
   accurateHijriDates.forEach(entry => {
     const monthKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
@@ -5306,22 +5312,29 @@ function generateHijriMonthsOptions() {
       availableMonths.set(monthKey, {
         year: entry.hijriYear,
         month: entry.hijriMonth,
-        name: hijriMonths[entry.hijriMonth - 1]
+        name: hijriMonths[entry.hijriMonth - 1] || `شهر ${entry.hijriMonth}`,
+        key: monthKey
       });
     }
   });
   
-  // Sort by year and month (newest first)
+  // Sort months chronologically (oldest to newest)
   const sortedMonths = Array.from(availableMonths.values()).sort((a, b) => {
-    if (a.year !== b.year) return b.year - a.year;
-    return b.month - a.month;
+    if (a.year !== b.year) return a.year - b.year; // Ascending year
+    return a.month - b.month; // Ascending month
   });
   
+  // Build options with current month selected
   sortedMonths.forEach(m => {
-    const value = `${m.year}-${String(m.month).padStart(2, '0')}`;
+    const value = m.key;
     const label = `${m.name} ${m.year}`;
-    options += `<option value="${value}">${label}</option>`;
+    const isCurrentMonth = (value === currentMonthKey);
+    const selected = isCurrentMonth ? ' selected' : '';
+    
+    options += `<option value="${value}"${selected}>${label}</option>`;
   });
+  
+  console.log(`📅 Generated ${sortedMonths.length} months, current: ${currentMonthKey}`);
   
   return options;
 }
