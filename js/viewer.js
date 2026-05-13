@@ -4893,7 +4893,8 @@ window.generateClassReport = async function() {
     const todayEntry = accurateHijriDates.find(e => e.hijri === today);
     const todayGregorian = todayEntry ? new Date(todayEntry.gregorian) : new Date();
     
-    let studentsData = [];
+    // استخدام Map لمنع التكرار - المفتاح: اسم الطالب + رقم الجزء
+    const studentsMap = new Map();
     
     snapshot.forEach(docSnapshot => {
       const data = docSnapshot.data();
@@ -4955,14 +4956,42 @@ window.generateClassReport = async function() {
         }
       }
       
-      studentsData.push({
-        name: studentName,
-        juzNumber: juzNumber,
-        status: status,
-        displayDate: displayDate,
-        daysSinceLastLesson: daysSinceLastLesson
-      });
+      // مفتاح فريد لكل طالب + جزء
+      const uniqueKey = `${studentName}-${juzNumber}`;
+      
+      // التحقق من التكرار: إذا وُجد سجل سابق لنفس الطالب ونفس الجزء
+      const existingRecord = studentsMap.get(uniqueKey);
+      
+      if (existingRecord) {
+        // أولوية للسجل المكتمل (completed) على غير المكتمل
+        if (status === 'completed' && existingRecord.status === 'incomplete') {
+          studentsMap.set(uniqueKey, {
+            name: studentName,
+            juzNumber: juzNumber,
+            status: status,
+            displayDate: displayDate,
+            daysSinceLastLesson: daysSinceLastLesson
+          });
+          console.log(`⚠️ وُجد تكرار: ${studentName} - جزء ${juzNumber} - تم اختيار السجل المكتمل`);
+        }
+        // إذا كلاهما مكتمل أو كلاهما غير مكتمل، نحتفظ بالأول
+        else {
+          console.log(`⚠️ تجاهل تكرار: ${studentName} - جزء ${juzNumber}`);
+        }
+      } else {
+        // سجل جديد - أضفه
+        studentsMap.set(uniqueKey, {
+          name: studentName,
+          juzNumber: juzNumber,
+          status: status,
+          displayDate: displayDate,
+          daysSinceLastLesson: daysSinceLastLesson
+        });
+      }
     });
+    
+    // تحويل Map إلى Array
+    let studentsData = Array.from(studentsMap.values());
     
     // Sort by status (completed first) then by name
     studentsData.sort((a, b) => {
@@ -6490,7 +6519,8 @@ window.exportHizbClassReport = async function() {
     const todayEntry = accurateHijriDates.find(e => e.hijri === today);
     const todayGregorian = todayEntry ? new Date(todayEntry.gregorian) : new Date();
     
-    let studentsData = [];
+    // استخدام Map لمنع التكرار - المفتاح: اسم الطالب + رقم الحزب
+    const studentsMap = new Map();
     
     snapshot.forEach(docSnapshot => {
       const data = docSnapshot.data();
@@ -6542,14 +6572,42 @@ window.exportHizbClassReport = async function() {
         }
       }
       
-      studentsData.push({
-        name: studentName,
-        hizbNumber: hizbNumber,
-        status: status,
-        displayDate: displayDate,
-        daysSinceLastLesson: daysSinceLastLesson
-      });
+      // مفتاح فريد لكل طالب + حزب
+      const uniqueKey = `${studentName}-${hizbNumber}`;
+      
+      // التحقق من التكرار: إذا وُجد سجل سابق لنفس الطالب ونفس الحزب
+      const existingRecord = studentsMap.get(uniqueKey);
+      
+      if (existingRecord) {
+        // أولوية للسجل المكتمل (completed) على غير المكتمل
+        if (status === 'completed' && existingRecord.status === 'incomplete') {
+          studentsMap.set(uniqueKey, {
+            name: studentName,
+            hizbNumber: hizbNumber,
+            status: status,
+            displayDate: displayDate,
+            daysSinceLastLesson: daysSinceLastLesson
+          });
+          console.log(`⚠️ وُجد تكرار: ${studentName} - حزب ${hizbNumber} - تم اختيار السجل المكتمل`);
+        }
+        // إذا كلاهما مكتمل أو كلاهما غير مكتمل، نحتفظ بالأول
+        else {
+          console.log(`⚠️ تجاهل تكرار: ${studentName} - حزب ${hizbNumber}`);
+        }
+      } else {
+        // سجل جديد - أضفه
+        studentsMap.set(uniqueKey, {
+          name: studentName,
+          hizbNumber: hizbNumber,
+          status: status,
+          displayDate: displayDate,
+          daysSinceLastLesson: daysSinceLastLesson
+        });
+      }
     });
+    
+    // تحويل Map إلى Array
+    let studentsData = Array.from(studentsMap.values());
     
     // Sort by status (completed first) then by name
     studentsData.sort((a, b) => {
