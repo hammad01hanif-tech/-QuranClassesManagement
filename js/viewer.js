@@ -4441,16 +4441,23 @@ window.generateJuzReport = async function() {
     // Fetch all juzDisplays
     const snapshot = await getDocs(collection(db, 'juzDisplays'));
     
-    // Filter based on date range with ACCURATE date comparison
-    let allReports = [];
+    // استخدام Map لمنع التكرار - المفتاح: اسم الطالب + رقم الجزء
+    const reportsMap = new Map();
+    
     snapshot.forEach(doc => {
       const data = doc.data();
       const displayDate = data.displayDate;
       const lastLessonDate = data.lastLessonDate;
+      const studentName = data.studentName || 'غير محدد';
+      const juzNumber = data.juzNumber || '-';
+      const uniqueKey = `${studentName}-${juzNumber}`;
+      
+      // تحديد ما إذا كان السجل يجب تضمينه
+      let shouldInclude = false;
       
       // Include based on period type
       if (periodType === 'all') {
-        allReports.push(data);
+        shouldInclude = true;
       } else if (data.status === 'completed' && displayDate) {
         // المجتازين: نتحقق من تاريخ الاجتياز
         let normalizedDisplayDate = displayDate;
@@ -4463,7 +4470,7 @@ window.generateJuzReport = async function() {
         
         // حالة 1: اجتاز في الفترة المحددة → يظهر كمجتاز
         if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
-          allReports.push(data);
+          shouldInclude = true;
           console.log('✅ Included as PASSED:', {
             student: data.studentName,
             displayDate: normalizedDisplayDate,
@@ -4473,7 +4480,7 @@ window.generateJuzReport = async function() {
         }
         // حالة 2: اجتاز بعد الفترة لكن آخر درس كان في/قبل الفترة → يظهر كمتبقي
         else if (lastLessonDate && lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
-          allReports.push(data);
+          shouldInclude = true;
           console.log('✅ Included as PENDING (passed later):', {
             student: data.studentName,
             lastLessonDate: lastLessonDate,
@@ -4493,7 +4500,7 @@ window.generateJuzReport = async function() {
         // الجاهزين: آخر درس قبل أو خلال نهاية الفترة المحددة
         // يظهر في شهره وجميع الأشهر اللاحقة حتى يجتاز
         if (lastLessonDate <= toDate) {
-          allReports.push(data);
+          shouldInclude = true;
           console.log('✅ Included as PENDING:', {
             student: data.studentName,
             lastLessonDate: lastLessonDate,
@@ -4508,7 +4515,27 @@ window.generateJuzReport = async function() {
           });
         }
       }
+      
+      // إضافة السجل مع فحص التكرار
+      if (shouldInclude) {
+        const existingRecord = reportsMap.get(uniqueKey);
+        
+        if (existingRecord) {
+          // أولوية للسجل المكتمل على غير المكتمل
+          if (data.status === 'completed' && existingRecord.status === 'incomplete') {
+            reportsMap.set(uniqueKey, data);
+            console.log(`⚠️ تكرار في التقرير العام: ${studentName} - جزء ${juzNumber} - تم اختيار السجل المكتمل`);
+          } else {
+            console.log(`⚠️ تجاهل تكرار في التقرير العام: ${studentName} - جزء ${juzNumber}`);
+          }
+        } else {
+          reportsMap.set(uniqueKey, data);
+        }
+      }
     });
+    
+    // تحويل Map إلى Array
+    const allReports = Array.from(reportsMap.values());
     
     console.log(`📊 Total reports found: ${allReports.length} for period: ${periodLabel}`);
     
@@ -5885,12 +5912,19 @@ window.exportHizbGeneralReport = async function() {
     // Fetch all hizbDisplays
     const snapshot = await getDocs(collection(db, 'hizbDisplays'));
     
-    // Filter based on date range
-    let allReports = [];
+    // استخدام Map لمنع التكرار - المفتاح: اسم الطالب + رقم الحزب
+    const reportsMap = new Map();
+    
     snapshot.forEach(doc => {
       const data = doc.data();
       const displayDate = data.displayDate;
       const lastLessonDate = data.lastLessonDate;
+      const studentName = data.studentName || 'غير محدد';
+      const hizbNumber = data.hizbNumber || '-';
+      const uniqueKey = `${studentName}-${hizbNumber}`;
+      
+      // تحديد ما إذا كان السجل يجب تضمينه
+      let shouldInclude = false;
       
       // Apply same filtering logic as Juz reports
       if (data.status === 'completed' && displayDate) {
@@ -5905,19 +5939,39 @@ window.exportHizbGeneralReport = async function() {
         
         // حالة 1: اجتاز في الفترة المحددة → يظهر كمجتاز
         if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
-          allReports.push(data);
+          shouldInclude = true;
         }
         // حالة 2: اجتاز بعد الفترة لكن آخر درس كان في/قبل الفترة → يظهر كمتبقي
         else if (lastLessonDate && lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
-          allReports.push(data);
+          shouldInclude = true;
         }
       } else if (data.status === 'incomplete' && lastLessonDate) {
         // الجاهزين: آخر درس قبل أو خلال نهاية الفترة المحددة
         if (lastLessonDate <= toDate) {
-          allReports.push(data);
+          shouldInclude = true;
+        }
+      }
+      
+      // إضافة السجل مع فحص التكرار
+      if (shouldInclude) {
+        const existingRecord = reportsMap.get(uniqueKey);
+        
+        if (existingRecord) {
+          // أولوية للسجل المكتمل على غير المكتمل
+          if (data.status === 'completed' && existingRecord.status === 'incomplete') {
+            reportsMap.set(uniqueKey, data);
+            console.log(`⚠️ تكرار في التقرير العام: ${studentName} - حزب ${hizbNumber} - تم اختيار السجل المكتمل`);
+          } else {
+            console.log(`⚠️ تجاهل تكرار في التقرير العام: ${studentName} - حزب ${hizbNumber}`);
+          }
+        } else {
+          reportsMap.set(uniqueKey, data);
         }
       }
     });
+    
+    // تحويل Map إلى Array
+    const allReports = Array.from(reportsMap.values());
     
     // Calculate statistics
     const totalStudents = allReports.length;
