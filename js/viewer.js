@@ -5764,38 +5764,319 @@ window.toggleHizbGenPeriod = function() {
 /**
  * Export Hizb General Report
  */
-window.exportHizbGeneralReport = function() {
-  const periodType = document.getElementById('hizbGenPeriodType')?.value;
-  
-  if (periodType === 'month') {
-    const month = document.getElementById('hizbGenMonth')?.value;
-    if (!month) {
-      alert('⚠️ الرجاء اختيار الشهر');
-      return;
+window.exportHizbGeneralReport = async function() {
+  try {
+    const periodType = document.getElementById('hizbGenPeriodType')?.value;
+    let fromDate = null;
+    let toDate = null;
+    let periodLabel = '';
+    
+    // Determine date range
+    if (periodType === 'month') {
+      const monthKey = document.getElementById('hizbGenMonth')?.value; // YYYY-MM (e.g., "1447-09")
+      if (!monthKey) {
+        alert('⚠️ الرجاء اختيار الشهر');
+        return;
+      }
+      
+      const monthParts = monthKey.split('-');
+      const selectedYear = parseInt(monthParts[0]);
+      const selectedMonth = parseInt(monthParts[1]);
+      
+      // Find EXACT start and end dates from accurateHijriDates
+      const monthDates = accurateHijriDates.filter(entry => 
+        entry.hijriYear === selectedYear && entry.hijriMonth === selectedMonth
+      );
+      
+      if (monthDates.length > 0) {
+        // Use first and last dates from accurate calendar
+        fromDate = monthDates[0].hijri; // First day of month
+        toDate = monthDates[monthDates.length - 1].hijri; // Last day of month
+      } else {
+        // Fallback if month not in calendar
+        fromDate = `${monthKey}-01`;
+        toDate = `${monthKey}-30`;
+      }
+      
+      const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+      const monthName = hijriMonths[selectedMonth - 1];
+      periodLabel = `${monthName} ${selectedYear}`;
+    } else {
+      // Custom range
+      const fromYear = document.getElementById('hizbGenFromYear')?.value;
+      const fromMonth = document.getElementById('hizbGenFromMonth')?.value;
+      const fromDay = document.getElementById('hizbGenFromDay')?.value;
+      const toYear = document.getElementById('hizbGenToYear')?.value;
+      const toMonth = document.getElementById('hizbGenToMonth')?.value;
+      const toDay = document.getElementById('hizbGenToDay')?.value;
+      
+      if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
+        alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
+        return;
+      }
+      
+      // Build YYYY-MM-DD format
+      fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+      toDate = `${toYear}-${toMonth}-${toDay}`;
+      
+      periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
     }
-    console.log('Exporting Hizb general report for month:', month);
-    alert('🚧 وظيفة تصدير التقرير العام قيد التطوير\nالفترة المختارة: ' + month);
-  } else {
-    const fromYear = document.getElementById('hizbGenFromYear')?.value;
-    const fromMonth = document.getElementById('hizbGenFromMonth')?.value;
-    const fromDay = document.getElementById('hizbGenFromDay')?.value;
-    const toYear = document.getElementById('hizbGenToYear')?.value;
-    const toMonth = document.getElementById('hizbGenToMonth')?.value;
-    const toDay = document.getElementById('hizbGenToDay')?.value;
     
-    if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
-      alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
-      return;
-    }
+    // Show loading
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'pdfLoadingMsg';
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      z-index: 10001;
+      text-align: center;
+    `;
+    loadingMsg.innerHTML = `
+      <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+      <div style="font-size: 18px; color: #667eea; font-weight: bold;">جاري إنشاء تقرير الأحزاب...</div>
+      <div style="font-size: 14px; color: #666; margin-top: 8px;">يرجى الانتظار</div>
+    `;
+    document.body.appendChild(loadingMsg);
     
-    const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
-    const toDate = `${toYear}-${toMonth}-${toDay}`;
+    // Fetch teacher names from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teacherNamesMap = {};
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
+    });
     
-    console.log('Exporting Hizb general report from', fromDate, 'to', toDate);
-    alert(`🚧 وظيفة تصدير التقرير العام قيد التطوير\nمن: ${fromDate}\nإلى: ${toDate}`);
+    // Fetch all hizbDisplays
+    const snapshot = await getDocs(collection(db, 'hizbDisplays'));
+    
+    // Filter based on date range
+    let allReports = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const displayDate = data.displayDate;
+      const lastLessonDate = data.lastLessonDate;
+      
+      // Apply same filtering logic as Juz reports
+      if (data.status === 'completed' && displayDate) {
+        // المجتازين: نتحقق من تاريخ الاجتياز
+        let normalizedDisplayDate = displayDate;
+        if (displayDate.includes('/')) {
+          const parts = displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        // حالة 1: اجتاز في الفترة المحددة → يظهر كمجتاز
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          allReports.push(data);
+        }
+        // حالة 2: اجتاز بعد الفترة لكن آخر درس كان في/قبل الفترة → يظهر كمتبقي
+        else if (lastLessonDate && lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
+          allReports.push(data);
+        }
+      } else if (data.status === 'incomplete' && lastLessonDate) {
+        // الجاهزين: آخر درس قبل أو خلال نهاية الفترة المحددة
+        if (lastLessonDate <= toDate) {
+          allReports.push(data);
+        }
+      }
+    });
+    
+    // Calculate statistics
+    const totalStudents = allReports.length;
+    let passedStudents = 0;
+    let remainingStudents = 0;
+    
+    allReports.forEach(report => {
+      if (report.status === 'completed' && report.displayDate) {
+        let normalizedDisplayDate = report.displayDate;
+        if (report.displayDate.includes('/')) {
+          const parts = report.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          passedStudents++; // اجتاز في هذه الفترة
+        } else {
+          remainingStudents++; // اجتاز لاحقاً، كان متبقي في هذه الفترة
+        }
+      } else if (report.status === 'incomplete') {
+        remainingStudents++; // لم يجتاز بعد
+      }
+    });
+    
+    // Calculate per teacher
+    const teacherStats = {};
+    allReports.forEach(report => {
+      const teacherId = report.teacherId;
+      const teacherName = teacherNamesMap[report.teacherId] || report.teacherName || 'غير محدد';
+      
+      if (!teacherStats[teacherId]) {
+        teacherStats[teacherId] = {
+          name: teacherName,
+          total: 0,
+          completed: 0,
+          remaining: 0
+        };
+      }
+      
+      teacherStats[teacherId].total++;
+      
+      if (report.status === 'completed' && report.displayDate) {
+        let normalizedDisplayDate = report.displayDate;
+        if (report.displayDate.includes('/')) {
+          const parts = report.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          teacherStats[teacherId].completed++;
+        } else {
+          teacherStats[teacherId].remaining++;
+        }
+      } else if (report.status === 'incomplete') {
+        teacherStats[teacherId].remaining++;
+      }
+    });
+    
+    // Build HTML content
+    const successRate = totalStudents > 0 ? Math.round((passedStudents / totalStudents) * 100) : 0;
+    const teacherEntries = Object.values(teacherStats).sort((a, b) => b.completed - a.completed);
+    
+    // Build teacher rows HTML
+    let teacherRowsHTML = '';
+    teacherEntries.forEach((teacher, index) => {
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      teacherRowsHTML += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${teacher.name}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; font-weight: bold; color: #667eea;">${teacher.total}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #28a745; font-weight: bold;">${teacher.completed}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #ffc107;">${teacher.remaining}</td>
+        </tr>
+      `;
+    });
+    
+    // Create temporary container
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 800px;
+      background: white;
+      padding: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #667eea; margin: 0 0 10px 0; font-size: 32px;">📊 تقرير الأحزاب القرآنية</h1>
+        <p style="color: #666; font-size: 18px; margin: 0;">${periodLabel}</p>
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 12px; margin-bottom: 30px; color: white;">
+        <h2 style="margin: 0 0 20px 0; font-size: 24px; text-align: center;">📈 الإحصائيات العامة</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">إجمالي الطلاب</div>
+            <div style="font-size: 28px; font-weight: bold;">${totalStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">المجتازين</div>
+            <div style="font-size: 28px; font-weight: bold; color: #90ee90;">${passedStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">المتبقي</div>
+            <div style="font-size: 28px; font-weight: bold; color: #ffb6c1;">${remainingStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">نسبة النجاح</div>
+            <div style="font-size: 28px; font-weight: bold; color: #ffd700;">${successRate}%</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 30px;">
+        <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 22px; border-bottom: 3px solid #667eea; padding-bottom: 10px;">👥 إنجازات المعلمين</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 16px; border-radius: 8px 0 0 0;">اسم المعلم</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px;">إجمالي المسجلين</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px;">المجتازين</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 16px; border-radius: 0 8px 0 0;">المتبقي</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${teacherRowsHTML || '<tr><td colspan="4" style="padding: 20px; text-align: center; color: #999;">لا توجد بيانات</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #667eea;">
+        <p style="margin: 5px 0; color: #667eea; font-size: 14px; font-style: italic;">📚 نظام إدارة عرض الأحزاب القرآنية</p>
+        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${formatDateForDisplay(getTodayForStorage())}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // Convert HTML to canvas using html2canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    // Remove temporary container
+    document.body.removeChild(container);
+    
+    // Create PDF from canvas
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    doc.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    
+    // Save PDF
+    const fileName = `تقرير_الأحزاب_${periodLabel.replace(/\s/g, '_')}.pdf`;
+    doc.save(fileName);
+    
+    // Remove loading and overlay
+    loadingMsg.remove();
+    document.getElementById('hizbGeneralModal')?.remove();
+    
+    alert('✅ تم تصدير التقرير بنجاح!');
+    
+  } catch (error) {
+    console.error('Error generating Hizb report:', error);
+    const loadingMsg = document.getElementById('pdfLoadingMsg');
+    if (loadingMsg) loadingMsg.remove();
+    alert('❌ حدث خطأ في إنشاء التقرير');
   }
-  
-  document.getElementById('hizbGeneralModal')?.remove();
 };
 
 /**
@@ -6092,44 +6373,331 @@ window.toggleHizbClassPeriod = function() {
 /**
  * Export Hizb Class Report
  */
-window.exportHizbClassReport = function() {
-  const teacher = document.getElementById('hizbClassTeacher')?.value;
-  const periodType = document.getElementById('hizbClassPeriodType')?.value;
-  
-  if (!teacher) {
-    alert('⚠️ الرجاء اختيار المعلم');
-    return;
-  }
-  
-  if (periodType === 'month') {
-    const month = document.getElementById('hizbClassMonth')?.value;
-    if (!month) {
-      alert('⚠️ الرجاء اختيار الشهر');
-      return;
-    }
-    console.log('Exporting Hizb class report for teacher:', teacher, 'month:', month);
-    alert(`🚧 وظيفة تصدير تقرير الحلقة قيد التطوير\nالمعلم: ${teacher}\nالفترة: ${month}`);
-  } else {
-    const fromYear = document.getElementById('hizbClassFromYear')?.value;
-    const fromMonth = document.getElementById('hizbClassFromMonth')?.value;
-    const fromDay = document.getElementById('hizbClassFromDay')?.value;
-    const toYear = document.getElementById('hizbClassToYear')?.value;
-    const toMonth = document.getElementById('hizbClassToMonth')?.value;
-    const toDay = document.getElementById('hizbClassToDay')?.value;
+window.exportHizbClassReport = async function() {
+  try {
+    const teacher = document.getElementById('hizbClassTeacher')?.value;
+    const periodType = document.getElementById('hizbClassPeriodType')?.value;
     
-    if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
-      alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
+    if (!teacher) {
+      alert('⚠️ الرجاء اختيار المعلم');
       return;
     }
     
-    const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
-    const toDate = `${toYear}-${toMonth}-${toDay}`;
+    let fromDate = null;
+    let toDate = null;
+    let periodLabel = '';
     
-    console.log('Exporting Hizb class report for teacher:', teacher, 'from', fromDate, 'to', toDate);
-    alert(`🚧 وظيفة تصدير تقرير الحلقة قيد التطوير\nالمعلم: ${teacher}\nمن: ${fromDate}\nإلى: ${toDate}`);
+    // Determine date range
+    if (periodType === 'month') {
+      const monthKey = document.getElementById('hizbClassMonth')?.value;
+      if (!monthKey) {
+        alert('⚠️ الرجاء اختيار الشهر');
+        return;
+      }
+      
+      const monthParts = monthKey.split('-');
+      const selectedYear = parseInt(monthParts[0]);
+      const selectedMonth = parseInt(monthParts[1]);
+      
+      // Find EXACT start and end dates from accurateHijriDates
+      const monthDates = accurateHijriDates.filter(entry => 
+        entry.hijriYear === selectedYear && entry.hijriMonth === selectedMonth
+      );
+      
+      if (monthDates.length > 0) {
+        fromDate = monthDates[0].hijri;
+        toDate = monthDates[monthDates.length - 1].hijri;
+      } else {
+        fromDate = `${monthKey}-01`;
+        toDate = `${monthKey}-30`;
+      }
+      
+      const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+      const monthName = hijriMonths[selectedMonth - 1];
+      periodLabel = `${monthName} ${selectedYear}`;
+    } else {
+      // Custom range
+      const fromYear = document.getElementById('hizbClassFromYear')?.value;
+      const fromMonth = document.getElementById('hizbClassFromMonth')?.value;
+      const fromDay = document.getElementById('hizbClassFromDay')?.value;
+      const toYear = document.getElementById('hizbClassToYear')?.value;
+      const toMonth = document.getElementById('hizbClassToMonth')?.value;
+      const toDay = document.getElementById('hizbClassToDay')?.value;
+      
+      if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
+        alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
+        return;
+      }
+      
+      fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+      toDate = `${toYear}-${toMonth}-${toDay}`;
+      
+      periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
+    }
+    
+    // Show loading
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'pdfLoadingMsg';
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      z-index: 10001;
+      text-align: center;
+    `;
+    loadingMsg.innerHTML = `
+      <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+      <div style="font-size: 18px; color: #28a745; font-weight: bold;">جاري إنشاء تقرير حلقة الأحزاب...</div>
+      <div style="font-size: 14px; color: #666; margin-top: 8px;">يرجى الانتظار</div>
+    `;
+    document.body.appendChild(loadingMsg);
+    
+    // Get teacher name from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teacherNamesMap = {};
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
+    });
+    const teacherName = teacherNamesMap[teacher] || 'المعلم';
+    
+    // Fetch all hizbDisplays for this teacher
+    const snapshot = await getDocs(query(
+      collection(db, 'hizbDisplays'),
+      where('teacherId', '==', teacher)
+    ));
+    
+    const today = getTodayForStorage();
+    const todayEntry = accurateHijriDates.find(e => e.hijri === today);
+    const todayGregorian = todayEntry ? new Date(todayEntry.gregorian) : new Date();
+    
+    let studentsData = [];
+    
+    snapshot.forEach(docSnapshot => {
+      const data = docSnapshot.data();
+      
+      // Apply date filter
+      let includeStudent = false;
+      
+      if (data.status === 'completed' && data.displayDate) {
+        let normalizedDisplayDate = data.displayDate;
+        if (data.displayDate.includes('/')) {
+          const parts = data.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        // حالة 1: اجتاز في الفترة المحددة
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          includeStudent = true;
+        }
+        // حالة 2: اجتاز بعد الفترة لكن آخر درس كان في/قبل الفترة
+        else if (data.lastLessonDate && data.lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
+          includeStudent = true;
+        }
+      } else if (data.status === 'incomplete' && data.lastLessonDate) {
+        if (data.lastLessonDate <= toDate) {
+          includeStudent = true;
+        }
+      }
+      
+      if (!includeStudent) return;
+      
+      const studentName = data.studentName || 'غير محدد';
+      const hizbNumber = data.hizbNumber || '-';
+      const status = data.status || 'incomplete';
+      const lastLessonDate = data.lastLessonDate;
+      const displayDate = data.displayDate;
+      
+      let daysSinceLastLesson = '-';
+      
+      // حساب كم مضى على آخر درس (للطلاب الذين لم يجتازوا فقط)
+      if (status === 'incomplete' && lastLessonDate) {
+        const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
+        if (lastLessonEntry) {
+          const lastLessonGregorian = new Date(lastLessonEntry.gregorian);
+          const diffTime = Math.abs(todayGregorian - lastLessonGregorian);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          daysSinceLastLesson = `${diffDays} يوم`;
+        }
+      }
+      
+      studentsData.push({
+        name: studentName,
+        hizbNumber: hizbNumber,
+        status: status,
+        displayDate: displayDate,
+        daysSinceLastLesson: daysSinceLastLesson
+      });
+    });
+    
+    // Sort by status (completed first) then by name
+    studentsData.sort((a, b) => {
+      if (a.status === 'completed' && b.status !== 'completed') return -1;
+      if (a.status !== 'completed' && b.status === 'completed') return 1;
+      return a.name.localeCompare(b.name, 'ar');
+    });
+    
+    // Calculate statistics
+    const totalStudents = studentsData.length;
+    const passedStudents = studentsData.filter(s => s.status === 'completed').length;
+    const pendingStudents = totalStudents - passedStudents;
+    
+    // Build students table rows
+    let studentsRowsHTML = '';
+    studentsData.forEach((student, index) => {
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      const passedIcon = student.status === 'completed' ? '✅' : '';
+      const pendingIcon = student.status === 'incomplete' ? '⏳' : '';
+      const daysText = student.status === 'incomplete' ? student.daysSinceLastLesson : '';
+      
+      studentsRowsHTML += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${student.name}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px;">حزب ${student.hizbNumber}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 18px;">${passedIcon}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 18px;">${pendingIcon}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: #dc3545; font-weight: bold;">${daysText}</td>
+        </tr>
+      `;
+    });
+    
+    if (studentsData.length === 0) {
+      studentsRowsHTML = `
+        <tr>
+          <td colspan="5" style="padding: 20px; text-align: center; color: #999; font-size: 14px;">
+            لا يوجد طلاب مسجلين في هذه الحلقة
+          </td>
+        </tr>
+      `;
+    }
+    
+    // Create HTML content
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 900px;
+      background: white;
+      padding: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #28a745; margin: 0 0 10px 0; font-size: 32px;">👥 تقرير حلقة الأحزاب</h1>
+        <h2 style="color: #667eea; margin: 0; font-size: 24px;">الأستاذ: ${teacherName}</h2>
+        <p style="color: #666; font-size: 16px; margin: 8px 0 0 0; font-weight: bold;">${periodLabel}</p>
+        <p style="color: #999; font-size: 14px; margin: 5px 0 0 0;">تاريخ التقرير: ${formatDateForDisplay(today)}</p>
+      </div>
+      
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #28a745; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #28a745; padding-bottom: 10px;">
+          📋 قائمة الطلاب المسجلين
+        </h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 15px; border-radius: 8px 0 0 0; width: 30%;">اسم الطالب</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 15%;">الحزب</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 12%;">اجتاز</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 13%;">لم يجتاز</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; border-radius: 0 8px 0 0; width: 30%;">كم مضى على آخر درس</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${studentsRowsHTML}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 12px; color: white;">
+        <h3 style="margin: 0 0 20px 0; font-size: 22px; text-align: center;">📊 الإحصائيات</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد المسجلين</div>
+            <div style="font-size: 28px; font-weight: bold;">${totalStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد المجتازين</div>
+            <div style="font-size: 28px; font-weight: bold; color: #90ee90;">${passedStudents}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد الغير مجتازين</div>
+            <div style="font-size: 28px; font-weight: bold; color: #ffb6c1;">${pendingStudents}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #28a745;">
+        <p style="margin: 5px 0; color: #28a745; font-size: 14px; font-style: italic;">📚 نظام إدارة عرض الأحزاب القرآنية</p>
+        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${formatDateForDisplay(today)}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // Generate PDF using html2canvas and jsPDF
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    document.body.removeChild(container);
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    let heightLeft = imgHeight;
+    let position = 10;
+    
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight + 10;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    // Save PDF
+    const fileName = `تقرير_حلقة_الأحزاب_${teacherName}_${periodLabel.replace(/\s/g, '_')}.pdf`;
+    pdf.save(fileName);
+    
+    // Remove loading and overlay
+    loadingMsg.remove();
+    document.getElementById('hizbClassModal')?.remove();
+    
+    alert('✅ تم تصدير التقرير بنجاح!');
+    
+  } catch (error) {
+    console.error('Error generating Hizb class report:', error);
+    const loadingMsg = document.getElementById('pdfLoadingMsg');
+    if (loadingMsg) loadingMsg.remove();
+    alert('❌ حدث خطأ في إنشاء التقرير');
   }
-  
-  document.getElementById('hizbClassModal')?.remove();
 };
 
 /**
