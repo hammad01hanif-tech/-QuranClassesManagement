@@ -4038,29 +4038,8 @@ window.showJuzReportOptions = function() {
 
 // Show general report options (original function)
 window.showGeneralReportOptions = function() {
-  // Get current Hijri date for defaults
-  const today = getTodayForStorage(); // YYYY-MM-DD
-  const todayParts = today.split('-');
-  const currentYear = todayParts[0];
-  const currentMonth = todayParts[1];
-  
-  // Generate month options
-  const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-  let monthOptions = '';
-  
-  // Add current year months
-  for (let i = 1; i <= 12; i++) {
-    const monthKey = `${currentYear}-${String(i).padStart(2, '0')}`;
-    const isSelected = String(i).padStart(2, '0') === currentMonth ? 'selected' : '';
-    monthOptions += `<option value="${monthKey}" ${isSelected}>${hijriMonths[i-1]} ${currentYear}</option>`;
-  }
-  
-  // Add previous year months (last 3)
-  const prevYear = String(parseInt(currentYear) - 1);
-  for (let i = 10; i <= 12; i++) {
-    const monthKey = `${prevYear}-${String(i).padStart(2, '0')}`;
-    monthOptions += `<option value="${monthKey}">${hijriMonths[i-1]} ${prevYear}</option>`;
-  }
+  // Use the accurate Hijri months generation function
+  const monthOptions = generateHijriMonthsOptions();
   
   // Create popup overlay
   const overlay = document.createElement('div');
@@ -4118,17 +4097,39 @@ window.showGeneralReportOptions = function() {
       </div>
       
       <div id="customDateContainer" style="display: none; margin-bottom: 20px;">
+        <!-- From Date -->
         <div style="margin-bottom: 15px;">
           <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
-            📅 من تاريخ (DD-MM-YYYY):
+            📅 من تاريخ:
           </label>
-          <input type="text" id="reportFromDate" placeholder="01-09-1447" style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;" />
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+            <select id="reportFromDay" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;">
+              <option value="">اليوم</option>
+            </select>
+            <select id="reportFromMonth" onchange="window.updateDaysForDatePicker('reportFromYear', 'reportFromMonth', 'reportFromDay')" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;">
+              ${generateMonthsForYear()}
+            </select>
+            <select id="reportFromYear" onchange="window.updateMonthsForYear('reportFromYear', 'reportFromMonth', 'reportFromDay')" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;">
+              ${generateHijriYearsOptions()}
+            </select>
+          </div>
         </div>
+        <!-- To Date -->
         <div>
           <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
-            📅 إلى تاريخ (DD-MM-YYYY):
+            📅 إلى تاريخ:
           </label>
-          <input type="text" id="reportToDate" placeholder="30-09-1447" style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;" />
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+            <select id="reportToDay" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;">
+              <option value="">اليوم</option>
+            </select>
+            <select id="reportToMonth" onchange="window.updateDaysForDatePicker('reportToYear', 'reportToMonth', 'reportToDay')" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;">
+              ${generateMonthsForYear()}
+            </select>
+            <select id="reportToYear" onchange="window.updateMonthsForYear('reportToYear', 'reportToMonth', 'reportToDay')" style="padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 14px;">
+              ${generateHijriYearsOptions()}
+            </select>
+          </div>
         </div>
       </div>
       
@@ -4144,6 +4145,11 @@ window.showGeneralReportOptions = function() {
   `;
   
   document.body.appendChild(overlay);
+  
+  // Initialize current date in custom range fields
+  setTimeout(() => {
+    initializeCurrentDateInModal('report');
+  }, 100);
   
   // Close on overlay click
   overlay.addEventListener('click', function(e) {
@@ -4174,40 +4180,8 @@ window.toggleReportDateInputs = function() {
 // Show class (teacher) report options
 window.showClassReportOptions = async function() {
   try {
-    // Import accurate Hijri dates to get available months
-    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
-    
-    // Get current Hijri date
-    const today = getTodayForStorage();
-    
-    // Extract unique year-month combinations from accurate dates
-    const availableMonths = new Map();
-    const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-    
-    accurateHijriDates.forEach(entry => {
-      const monthKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
-      if (!availableMonths.has(monthKey)) {
-        availableMonths.set(monthKey, {
-          year: entry.hijriYear,
-          month: entry.hijriMonth,
-          name: hijriMonths[entry.hijriMonth - 1]
-        });
-      }
-    });
-    
-    // Convert to sorted array
-    const sortedMonths = Array.from(availableMonths.values()).sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return a.month - b.month;
-    });
-    
-    // Generate month options HTML
-    let monthOptions = '';
-    sortedMonths.forEach(m => {
-      const monthKey = `${m.year}-${String(m.month).padStart(2, '0')}`;
-      const isSelected = today.startsWith(monthKey) ? 'selected' : '';
-      monthOptions += `<option value="${monthKey}" ${isSelected}>${m.name} ${m.year}</option>`;
-    });
+    // Use the accurate Hijri months generation function
+    const monthOptions = generateHijriMonthsOptions();
     
     // قائمة المعلمين الثابتة (نفس القائمة المستخدمة في النظام)
     const teachers = {
@@ -4283,17 +4257,39 @@ window.showClassReportOptions = async function() {
         </div>
         
         <div id="classCustomDateContainer" style="display: none; margin-bottom: 20px;">
+          <!-- From Date -->
           <div style="margin-bottom: 15px;">
             <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
-              📅 من تاريخ (DD-MM-YYYY):
+              📅 من تاريخ:
             </label>
-            <input type="text" id="classReportFromDate" placeholder="01-09-1447" style="width: 100%; padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;" />
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+              <select id="classReportFromDay" style="padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;">
+                <option value="">اليوم</option>
+              </select>
+              <select id="classReportFromMonth" onchange="window.updateDaysForDatePicker('classReportFromYear', 'classReportFromMonth', 'classReportFromDay')" style="padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;">
+                ${generateMonthsForYear()}
+              </select>
+              <select id="classReportFromYear" onchange="window.updateMonthsForYear('classReportFromYear', 'classReportFromMonth', 'classReportFromDay')" style="padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
           </div>
+          <!-- To Date -->
           <div>
             <label style="display: block; color: #333; font-weight: bold; margin-bottom: 8px; font-size: 14px;">
-              📅 إلى تاريخ (DD-MM-YYYY):
+              📅 إلى تاريخ:
             </label>
-            <input type="text" id="classReportToDate" placeholder="30-09-1447" style="width: 100%; padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;" />
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+              <select id="classReportToDay" style="padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;">
+                <option value="">اليوم</option>
+              </select>
+              <select id="classReportToMonth" onchange="window.updateDaysForDatePicker('classReportToYear', 'classReportToMonth', 'classReportToDay')" style="padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;">
+                ${generateMonthsForYear()}
+              </select>
+              <select id="classReportToYear" onchange="window.updateMonthsForYear('classReportToYear', 'classReportToMonth', 'classReportToDay')" style="padding: 10px; border: 2px solid #28a745; border-radius: 8px; font-size: 14px;">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
           </div>
         </div>
         
@@ -4309,6 +4305,11 @@ window.showClassReportOptions = async function() {
     `;
     
     document.body.appendChild(overlay);
+    
+    // Initialize current date in custom range fields
+    setTimeout(() => {
+      initializeCurrentDateInModal('classReport');
+    }, 100);
     
     overlay.addEventListener('click', function(e) {
       if (e.target === overlay) {
@@ -4383,21 +4384,22 @@ window.generateJuzReport = async function() {
       const monthName = hijriMonths[selectedMonth - 1];
       periodLabel = `${monthName} ${selectedYear}`;
     } else if (periodType === 'custom') {
-      const from = document.getElementById('reportFromDate').value.trim();
-      const to = document.getElementById('reportToDate').value.trim();
+      // Read from dropdown selects instead of text inputs
+      const fromYear = document.getElementById('reportFromYear')?.value;
+      const fromMonth = document.getElementById('reportFromMonth')?.value;
+      const fromDay = document.getElementById('reportFromDay')?.value;
+      const toYear = document.getElementById('reportToYear')?.value;
+      const toMonth = document.getElementById('reportToMonth')?.value;
+      const toDay = document.getElementById('reportToDay')?.value;
       
-      if (!from || !to) {
-        alert('⚠️ يرجى إدخال التاريخ من والى');
+      if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
+        alert('⚠️ يرجى إكمال جميع حقول التاريخ (اليوم/الشهر/السنة)');
         return;
       }
       
-      fromDate = normalizeDateFormat(from);
-      toDate = normalizeDateFormat(to);
-      
-      if (!fromDate || !toDate) {
-        alert('❌ تنسيق التاريخ غير صحيح. استخدم DD-MM-YYYY');
-        return;
-      }
+      // Build YYYY-MM-DD format
+      fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+      toDate = `${toYear}-${toMonth}-${toDay}`;
       
       periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
     } else {
@@ -4826,21 +4828,22 @@ window.generateClassReport = async function() {
       const monthName = hijriMonths[selectedMonth - 1];
       periodLabel = `${monthName} ${selectedYear}`;
     } else if (periodType === 'custom') {
-      const from = document.getElementById('classReportFromDate').value.trim();
-      const to = document.getElementById('classReportToDate').value.trim();
+      // Read from dropdown selects instead of text inputs
+      const fromYear = document.getElementById('classReportFromYear')?.value;
+      const fromMonth = document.getElementById('classReportFromMonth')?.value;
+      const fromDay = document.getElementById('classReportFromDay')?.value;
+      const toYear = document.getElementById('classReportToYear')?.value;
+      const toMonth = document.getElementById('classReportToMonth')?.value;
+      const toDay = document.getElementById('classReportToDay')?.value;
       
-      if (!from || !to) {
-        alert('⚠️ يرجى إدخال التاريخ من والى');
+      if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
+        alert('⚠️ يرجى إكمال جميع حقول التاريخ (اليوم/الشهر/السنة)');
         return;
       }
       
-      fromDate = normalizeDateFormat(from);
-      toDate = normalizeDateFormat(to);
-      
-      if (!fromDate || !toDate) {
-        alert('❌ تنسيق التاريخ غير صحيح. استخدم DD-MM-YYYY');
-        return;
-      }
+      // Build YYYY-MM-DD format
+      fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+      toDate = `${toYear}-${toMonth}-${toDay}`;
       
       periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
     } else {
