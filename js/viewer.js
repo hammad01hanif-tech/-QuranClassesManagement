@@ -6467,6 +6467,23 @@ window.toggleHizbClassPeriod = function() {
 };
 
 /**
+ * Toggle period type for Hizb Student Report
+ */
+window.toggleHizbStudentPeriod = function() {
+  const type = document.getElementById('hizbStudPeriodType')?.value;
+  const monthSection = document.getElementById('hizbStudMonthSection');
+  const customSection = document.getElementById('hizbStudCustomSection');
+  
+  if (type === 'month') {
+    monthSection?.classList.add('active');
+    customSection?.classList.remove('active');
+  } else {
+    monthSection?.classList.remove('active');
+    customSection?.classList.add('active');
+  }
+};
+
+/**
  * Export Hizb Class Report
  */
 window.exportHizbClassReport = async function() {
@@ -7030,6 +7047,68 @@ async function showHizbStudentReportModal() {
           </select>
         </div>
         
+        <!-- Period Type Selection -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            📅 نوع الفترة
+          </label>
+          <select class="luxury-select" id="hizbStudPeriodType" onchange="window.toggleHizbStudentPeriod()">
+            <option value="month">شهر هجري محدد</option>
+            <option value="custom">فترة مخصصة</option>
+          </select>
+        </div>
+        
+        <!-- Month Selection -->
+        <div id="hizbStudMonthSection" class="period-section active">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            🌙 اختر الشهر الهجري
+          </label>
+          <select class="luxury-select" id="hizbStudMonth" style="font-size: 14px;">
+            ${generateHijriMonthsOptions()}
+          </select>
+        </div>
+        
+        <!-- Custom Range Selection -->
+        <div id="hizbStudCustomSection" class="period-section">
+          
+          <!-- From Date -->
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+              📅 من تاريخ
+            </label>
+            <div class="date-picker-row">
+              <select class="luxury-select date-picker-small" id="hizbStudFromDay">
+                <option value="">اليوم</option>
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbStudFromMonth" onchange="window.updateDaysForDatePicker('hizbStudFromYear', 'hizbStudFromMonth', 'hizbStudFromDay')">
+                ${generateMonthsForYear()}
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbStudFromYear" onchange="window.updateMonthsForYear('hizbStudFromYear', 'hizbStudFromMonth', 'hizbStudFromDay')">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
+          </div>
+          
+          <!-- To Date -->
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+              📅 إلى تاريخ
+            </label>
+            <div class="date-picker-row">
+              <select class="luxury-select date-picker-small" id="hizbStudToDay">
+                <option value="">اليوم</option>
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbStudToMonth" onchange="window.updateDaysForDatePicker('hizbStudToYear', 'hizbStudToMonth', 'hizbStudToDay')">
+                ${generateMonthsForYear()}
+              </select>
+              <select class="luxury-select date-picker-small" id="hizbStudToYear" onchange="window.updateMonthsForYear('hizbStudToYear', 'hizbStudToMonth', 'hizbStudToDay')">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
+          </div>
+          
+        </div>
+        
         <!-- View Button -->
         <button class="export-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="window.viewHizbStudentRecordsModal()">
           <span style="font-size: 24px;">👁️</span>
@@ -7052,6 +7131,11 @@ async function showHizbStudentReportModal() {
   `;
   
   document.body.appendChild(overlay);
+  
+  // Initialize current date in custom range fields
+  setTimeout(() => {
+    initializeCurrentDateInModal('hizbStud');
+  }, 100);
   
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay) {
@@ -7201,7 +7285,7 @@ window.viewHizbStudentRecordsModal = async function() {
         </div>
         
         <!-- Export Button -->
-        <button class="export-button" style="margin-top: 25px;" onclick="window.exportHizbStudentReport('${teacher}', '${student}')">
+        <button class="export-button" style="margin-top: 25px;" onclick="window.exportHizbStudentReport()">
           <span style="font-size: 24px;">📥</span>
           <span>تصدير تقرير الطالب (PDF)</span>
         </button>
@@ -7217,9 +7301,343 @@ window.viewHizbStudentRecordsModal = async function() {
 /**
  * Export Hizb student report
  */
-window.exportHizbStudentReport = function(teacher, student) {
-  console.log('Exporting Hizb student report for', student, 'under teacher', teacher);
-  alert(`🚧 وظيفة تصدير تقرير الطالب قيد التطوير\nالمعلم: ${teacher}\nالطالب: ${student}`);
+window.exportHizbStudentReport = async function() {
+  try {
+    const teacherSelect = document.getElementById('hizbStudModalTeacher');
+    const studentSelect = document.getElementById('hizbStudModalStudent');
+    const periodType = document.getElementById('hizbStudPeriodType')?.value;
+    
+    if (!teacherSelect || !studentSelect) {
+      alert('⚠️ حدث خطأ في تحميل النموذج');
+      return;
+    }
+    
+    const teacher = teacherSelect.value;
+    const student = studentSelect.value;
+    
+    if (!teacher || !student) {
+      alert('⚠️ الرجاء اختيار المعلم والطالب');
+      return;
+    }
+    
+    let fromDate = null;
+    let toDate = null;
+    let periodLabel = '';
+    
+    // Determine date range
+    if (periodType === 'month') {
+      const monthKey = document.getElementById('hizbStudMonth')?.value;
+      if (!monthKey) {
+        alert('⚠️ الرجاء اختيار الشهر');
+        return;
+      }
+      
+      const monthParts = monthKey.split('-');
+      const selectedYear = parseInt(monthParts[0]);
+      const selectedMonth = parseInt(monthParts[1]);
+      
+      // Find EXACT start and end dates from accurateHijriDates
+      const monthDates = accurateHijriDates.filter(entry => 
+        entry.hijriYear === selectedYear && entry.hijriMonth === selectedMonth
+      );
+      
+      if (monthDates.length > 0) {
+        fromDate = monthDates[0].hijri;
+        toDate = monthDates[monthDates.length - 1].hijri;
+      } else {
+        fromDate = `${monthKey}-01`;
+        toDate = `${monthKey}-30`;
+      }
+      
+      const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+      const monthName = hijriMonths[selectedMonth - 1];
+      periodLabel = `${monthName} ${selectedYear}`;
+    } else {
+      // Custom range
+      const fromYear = document.getElementById('hizbStudFromYear')?.value;
+      const fromMonth = document.getElementById('hizbStudFromMonth')?.value;
+      const fromDay = document.getElementById('hizbStudFromDay')?.value;
+      const toYear = document.getElementById('hizbStudToYear')?.value;
+      const toMonth = document.getElementById('hizbStudToMonth')?.value;
+      const toDay = document.getElementById('hizbStudToDay')?.value;
+      
+      if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
+        alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
+        return;
+      }
+      
+      fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+      toDate = `${toYear}-${toMonth}-${toDay}`;
+      
+      periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
+    }
+    
+    // Show loading
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'pdfLoadingMsg';
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      z-index: 10002;
+      text-align: center;
+    `;
+    loadingMsg.innerHTML = `
+      <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+      <div style="font-size: 18px; color: #667eea; font-weight: bold;">جاري إنشاء تقرير الطالب...</div>
+      <div style="font-size: 14px; color: #666; margin-top: 8px;">يرجى الانتظار</div>
+    `;
+    document.body.appendChild(loadingMsg);
+    
+    // Fetch all hizbDisplays for this student and teacher
+    const q = query(
+      collection(db, 'hizbDisplays'),
+      where('teacherName', '==', teacher),
+      where('studentName', '==', student)
+    );
+    const snapshot = await getDocs(q);
+    
+    // Build a map: hizbNumber -> record data
+    const hizbRecordsMap = new Map();
+    
+    snapshot.forEach(docSnapshot => {
+      const data = docSnapshot.data();
+      const hizbNumber = data.hizbNumber;
+      
+      if (!hizbNumber) return;
+      
+      // Check if record should be included based on date filter
+      let includeRecord = false;
+      
+      if (data.status === 'completed' && data.displayDate) {
+        let normalizedDisplayDate = data.displayDate;
+        if (data.displayDate.includes('/')) {
+          const parts = data.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          includeRecord = true;
+        } else if (data.lastLessonDate && data.lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
+          includeRecord = true;
+        }
+      } else if (data.status === 'incomplete' && data.lastLessonDate) {
+        if (data.lastLessonDate <= toDate) {
+          includeRecord = true;
+        }
+      }
+      
+      if (!includeRecord) return;
+      
+      // Store record if not exists or replace with completed status
+      const existing = hizbRecordsMap.get(hizbNumber);
+      if (!existing || (data.status === 'completed' && existing.status === 'incomplete')) {
+        hizbRecordsMap.set(hizbNumber, {
+          hizbNumber: hizbNumber,
+          status: data.status || 'incomplete',
+          displayDate: data.displayDate || '',
+          lastLessonDate: data.lastLessonDate || '',
+          firstLessonDate: data.firstLessonDate || data.lastLessonDate || '',
+          viewerName: data.viewerName || '-',
+          duration: ''
+        });
+      }
+    });
+    
+    // Calculate duration for completed records
+    hizbRecordsMap.forEach((record, hizbNum) => {
+      if (record.status === 'completed' && record.firstLessonDate && record.displayDate) {
+        const firstEntry = accurateHijriDates.find(e => e.hijri === record.firstLessonDate);
+        let displayDateNormalized = record.displayDate;
+        if (record.displayDate.includes('/')) {
+          const parts = record.displayDate.split('/');
+          if (parts.length === 3) {
+            displayDateNormalized = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        const lastEntry = accurateHijriDates.find(e => e.hijri === displayDateNormalized);
+        
+        if (firstEntry && lastEntry) {
+          const firstDate = new Date(firstEntry.gregorian);
+          const lastDate = new Date(lastEntry.gregorian);
+          const diffTime = Math.abs(lastDate - firstDate);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          record.duration = `${diffDays} يوم`;
+        }
+      }
+    });
+    
+    // Build table rows for ALL 60 ahzab
+    let tableRowsHTML = '';
+    for (let hizbNum = 1; hizbNum <= 60; hizbNum++) {
+      const record = hizbRecordsMap.get(hizbNum);
+      
+      const bgColor = hizbNum % 2 === 0 ? '#f8f9fa' : 'white';
+      const statusText = record && record.status === 'completed' ? '✅ اجتاز' : '⏳ لم يجتاز';
+      const statusColor = record && record.status === 'completed' ? '#28a745' : '#999';
+      
+      let displayDateText = '-';
+      if (record && record.status === 'completed' && record.displayDate) {
+        let normalizedDate = record.displayDate;
+        if (record.displayDate.includes('/')) {
+          const parts = record.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        displayDateText = formatDateForDisplay(normalizedDate);
+      }
+      
+      const durationText = record && record.duration ? record.duration : '-';
+      const listenerText = record && record.viewerName ? record.viewerName : '-';
+      
+      tableRowsHTML += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px; font-weight: 600;">حزب ${hizbNum}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px; color: ${statusColor}; font-weight: 600;">${statusText}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #495057;">${displayDateText}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #495057;">${durationText}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; font-size: 14px; color: #495057;">${listenerText}</td>
+        </tr>
+      `;
+    }
+    
+    // Calculate statistics
+    const completedCount = Array.from(hizbRecordsMap.values()).filter(r => r.status === 'completed').length;
+    const totalCount = 60;
+    const pendingCount = totalCount - completedCount;
+    const progressPercent = Math.round((completedCount / totalCount) * 100);
+    
+    const today = getTodayForStorage();
+    
+    // Create HTML content for PDF
+    const container = document.createElement('div');
+    container.style.cssText = `
+      direction: rtl;
+      font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: white;
+      padding: 40px;
+      width: 210mm;
+      min-height: 297mm;
+      box-sizing: border-box;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #667eea; margin: 0 0 10px 0; font-size: 32px;">� التقرير الشامل لسجل الأحزاب</h1>
+        <h2 style="color: #2d3748; margin: 0 0 5px 0; font-size: 24px;">الطالب: ${student}</h2>
+        <h3 style="color: #495057; margin: 0 0 5px 0; font-size: 20px;">المعلم: ${teacher}</h3>
+        <p style="color: #666; font-size: 16px; margin: 8px 0 0 0; font-weight: bold;">${periodLabel}</p>
+        <p style="color: #999; font-size: 14px; margin: 5px 0 0 0;">تاريخ التقرير: ${formatDateForDisplay(today)}</p>
+      </div>
+      
+      <div style="margin-bottom: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">مجموع الأحزاب</div>
+            <div style="font-size: 24px; font-weight: bold;">${totalCount}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">مجتاز</div>
+            <div style="font-size: 24px; font-weight: bold; color: #90ee90;">${completedCount}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">متبقي</div>
+            <div style="font-size: 24px; font-weight: bold; color: #ffb6c1;">${pendingCount}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">نسبة الإنجاز</div>
+            <div style="font-size: 24px; font-weight: bold;">${progressPercent}%</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #667eea; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #667eea; padding-bottom: 10px;">
+          📊 سجل الأحزاب
+        </h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; border-radius: 8px 0 0 0; width: 15%;">رقم الحزب</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 15%;">الحالة</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 20%;">تاريخ الاجتياز</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 15%;">المدة المستغرقة</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 15px; border-radius: 0 8px 0 0; width: 35%;">اسم المستمع</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHTML}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #667eea;">
+        <p style="margin: 5px 0; color: #667eea; font-size: 14px; font-style: italic;">📚 نظام إدارة عرض الأحزاب القرآنية</p>
+        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${formatDateForDisplay(today)}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // Generate PDF using html2canvas and jsPDF
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    document.body.removeChild(container);
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    let heightLeft = imgHeight;
+    let position = 10;
+    
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight + 10;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    // Save PDF
+    const fileName = `تقرير_طالب_${student}_${periodLabel.replace(/\s/g, '_')}.pdf`;
+    pdf.save(fileName);
+    
+    // Remove loading and overlay
+    loadingMsg.remove();
+    document.getElementById('hizbStudentModal')?.remove();
+    
+    alert('✅ تم تصدير تقرير الطالب بنجاح!');
+    
+  } catch (error) {
+    console.error('Error generating Hizb student report:', error);
+    const loadingMsg = document.getElementById('pdfLoadingMsg');
+    if (loadingMsg) loadingMsg.remove();
+    alert('❌ حدث خطأ في إنشاء التقرير');
+  }
 };
 
 // Make updateDaysForDatePicker available globally
