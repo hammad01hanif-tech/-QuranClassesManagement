@@ -7480,7 +7480,7 @@ window.exportHizbStudentReport = async function() {
       const record = hizbRecordsMap.get(hizbNum);
       
       const bgColor = hizbNum % 2 === 0 ? '#f8f9fa' : 'white';
-      const statusText = record && record.status === 'completed' ? '✅ اجتاز' : '⏳ لم يجتاز';
+      const statusText = record && record.status === 'completed' ? '✅' : '⏳';
       const statusColor = record && record.status === 'completed' ? '#28a745' : '#999';
       
       let displayDateText = '-';
