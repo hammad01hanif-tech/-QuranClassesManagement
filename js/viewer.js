@@ -5336,7 +5336,7 @@ window.showStudentReportFor = function(reportType) {
   if (reportType === 'hizb') {
     showHizbStudentReportModal();
   } else if (reportType === 'juz') {
-    alert('🚧 تقارير الطلاب الفردية للأجزاء قيد التطوير');
+    showJuzStudentReportModal();
   }
 };
 
@@ -6423,10 +6423,19 @@ function getModalStyles() {
 async function getTeachersList() {
   try {
     // Get unique teachers from hizbDisplays collection
-    const snapshot = await getDocs(collection(db, 'hizbDisplays'));
+    const hizbSnapshot = await getDocs(collection(db, 'hizbDisplays'));
     const teachersSet = new Set();
     
-    snapshot.forEach(doc => {
+    hizbSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.teacherName) {
+        teachersSet.add(data.teacherName);
+      }
+    });
+    
+    // Get unique teachers from juzDisplays collection
+    const juzSnapshot = await getDocs(collection(db, 'juzDisplays'));
+    juzSnapshot.forEach(doc => {
       const data = doc.data();
       if (data.teacherName) {
         teachersSet.add(data.teacherName);
@@ -7634,6 +7643,825 @@ window.exportHizbStudentReport = async function() {
     
   } catch (error) {
     console.error('Error generating Hizb student report:', error);
+    const loadingMsg = document.getElementById('pdfLoadingMsg');
+    if (loadingMsg) loadingMsg.remove();
+    alert('❌ حدث خطأ في إنشاء التقرير');
+  }
+};
+
+// ==========================================
+// JUZ STUDENT REPORT - Individual Student Report System
+// ==========================================
+
+/**
+ * Show Juz Student Report Modal
+ */
+async function showJuzStudentReportModal() {
+  const teachers = await getTeachersList();
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'juzStudentModal';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10001;
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.3s ease;
+    overflow-y: auto;
+    padding: 20px;
+  `;
+  
+  let teachersOptions = '<option value="">-- اختر المعلم --</option>';
+  teachers.forEach(teacher => {
+    teachersOptions += `<option value="${teacher}">${teacher}</option>`;
+  });
+  
+  overlay.innerHTML = `
+    <div style="background: white; border-radius: 25px; width: 100%; max-width: 700px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); direction: rtl; overflow: hidden; margin: auto;">
+      <style>
+        ${getModalStyles()}
+        
+        .juz-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+          gap: 12px;
+          margin-top: 20px;
+        }
+        
+        .juz-cell {
+          aspect-ratio: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 18px;
+          cursor: pointer;
+          transition: all 0.3s;
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .juz-cell::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
+          opacity: 0;
+          transition: opacity 0.3s;
+        }
+        
+        .juz-cell:hover::before {
+          opacity: 1;
+        }
+        
+        .juz-cell.completed {
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+          box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+        
+        .juz-cell.pending {
+          background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+          color: white;
+          box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+        }
+        
+        .juz-cell:hover {
+          transform: translateY(-3px) scale(1.05);
+          box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        
+        .juz-number {
+          font-size: 22px;
+          margin-bottom: 4px;
+        }
+        
+        .juz-icon {
+          font-size: 16px;
+        }
+        
+        .progress-bar-container {
+          width: 100%;
+          height: 14px;
+          background: #e2e8f0;
+          border-radius: 20px;
+          overflow: hidden;
+          margin-bottom: 10px;
+        }
+        
+        .progress-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+          border-radius: 20px;
+          transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .progress-bar-fill::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+          animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        
+        .stats-row {
+          display: flex;
+          justify-content: center;
+          gap: 15px;
+          margin-bottom: 20px;
+        }
+        
+        .stat-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 18px;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        
+        .stat-badge.success {
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+        }
+        
+        .stat-badge.pending {
+          background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+          color: white;
+        }
+        
+        #juzStudentRecordsContainer {
+          display: none;
+        }
+        
+        #juzStudentRecordsContainer.show {
+          display: block;
+          animation: fadeInUp 0.4s ease;
+        }
+        
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      </style>
+      
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; text-align: center;">
+        <div style="font-size: 52px; margin-bottom: 12px;">👤</div>
+        <h2 style="margin: 0; font-size: 26px; font-weight: 700;">تقرير طالب معين</h2>
+        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 14px;">اختر المعلم والطالب لعرض السجل</p>
+      </div>
+      
+      <!-- Body -->
+      <div style="padding: 30px;">
+        
+        <!-- Teacher Selection -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            👨‍🏫 اختر المعلم
+          </label>
+          <select class="luxury-select" id="juzStudModalTeacher" onchange="window.loadJuzStudentsForModal()">
+            ${teachersOptions}
+          </select>
+        </div>
+        
+        <!-- Student Selection -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            👨‍🎓 اختر الطالب
+          </label>
+          <select class="luxury-select" id="juzStudModalStudent">
+            <option value="">-- اختر المعلم أولاً --</option>
+          </select>
+        </div>
+        
+        <!-- Period Type Selection -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            📅 نوع الفترة
+          </label>
+          <select class="luxury-select" id="juzStudPeriodType" onchange="window.toggleJuzStudentPeriod()">
+            <option value="month">شهر هجري محدد</option>
+            <option value="custom">فترة مخصصة</option>
+          </select>
+        </div>
+        
+        <!-- Month Selection -->
+        <div id="juzStudMonthSection" class="period-section active">
+          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+            🌙 اختر الشهر الهجري
+          </label>
+          <select class="luxury-select" id="juzStudMonth" style="font-size: 14px;">
+            ${generateHijriMonthsOptions()}
+          </select>
+        </div>
+        
+        <!-- Custom Range Selection -->
+        <div id="juzStudCustomSection" class="period-section">
+          
+          <!-- From Date -->
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+              📅 من تاريخ
+            </label>
+            <div class="date-picker-row">
+              <select class="luxury-select date-picker-small" id="juzStudFromDay">
+                <option value="">اليوم</option>
+              </select>
+              <select class="luxury-select date-picker-small" id="juzStudFromMonth" onchange="window.updateDaysForDatePicker('juzStudFromYear', 'juzStudFromMonth', 'juzStudFromDay')">
+                ${generateMonthsForYear()}
+              </select>
+              <select class="luxury-select date-picker-small" id="juzStudFromYear" onchange="window.updateMonthsForYear('juzStudFromYear', 'juzStudFromMonth', 'juzStudFromDay')">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
+          </div>
+          
+          <!-- To Date -->
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
+              📅 إلى تاريخ
+            </label>
+            <div class="date-picker-row">
+              <select class="luxury-select date-picker-small" id="juzStudToDay">
+                <option value="">اليوم</option>
+              </select>
+              <select class="luxury-select date-picker-small" id="juzStudToMonth" onchange="window.updateDaysForDatePicker('juzStudToYear', 'juzStudToMonth', 'juzStudToDay')">
+                ${generateMonthsForYear()}
+              </select>
+              <select class="luxury-select date-picker-small" id="juzStudToYear" onchange="window.updateMonthsForYear('juzStudToYear', 'juzStudToMonth', 'juzStudToDay')">
+                ${generateHijriYearsOptions()}
+              </select>
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- View Button -->
+        <button class="export-button" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);" onclick="window.viewJuzStudentRecordsModal()">
+          <span style="font-size: 24px;">👁️</span>
+          <span>استعراض التقرير</span>
+        </button>
+        
+        <!-- Records Container -->
+        <div id="juzStudentRecordsContainer" style="margin-top: 30px;">
+          <!-- Will be populated dynamically -->
+        </div>
+        
+        <!-- Cancel Button -->
+        <button onclick="document.getElementById('juzStudentModal').remove();" 
+          style="width: 100%; padding: 12px; margin-top: 15px; background: #f1f3f5; color: #495057; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          ❌ إغلاق
+        </button>
+        
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  // Initialize current date in custom range fields
+  setTimeout(() => {
+    initializeCurrentDateInModal('juzStud');
+  }, 100);
+  
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+}
+
+/**
+ * Load students for selected teacher in student modal (Juz)
+ */
+window.loadJuzStudentsForModal = async function() {
+  const teacherSelect = document.getElementById('juzStudModalTeacher');
+  const studentSelect = document.getElementById('juzStudModalStudent');
+  
+  if (!teacherSelect || !studentSelect) return;
+  
+  const teacher = teacherSelect.value;
+  if (!teacher) {
+    studentSelect.innerHTML = '<option value="">-- اختر المعلم أولاً --</option>';
+    return;
+  }
+  
+  studentSelect.innerHTML = '<option value="">جاري التحميل...</option>';
+  
+  try {
+    const q = query(
+      collection(db, 'juzDisplays'),
+      where('teacherName', '==', teacher)
+    );
+    const snapshot = await getDocs(q);
+    
+    const students = new Set();
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.studentName) {
+        students.add(data.studentName);
+      }
+    });
+    
+    studentSelect.innerHTML = '<option value="">-- اختر الطالب --</option>';
+    Array.from(students).sort().forEach(student => {
+      const option = document.createElement('option');
+      option.value = student;
+      option.textContent = student;
+      studentSelect.appendChild(option);
+    });
+    
+    console.log(`Loaded ${students.size} students for teacher ${teacher}`);
+    
+  } catch (error) {
+    console.error('Error loading students:', error);
+    studentSelect.innerHTML = '<option value="">❌ حدث خطأ في التحميل</option>';
+  }
+};
+
+/**
+ * View Juz student records in modal
+ */
+window.viewJuzStudentRecordsModal = async function() {
+  const teacherSelect = document.getElementById('juzStudModalTeacher');
+  const studentSelect = document.getElementById('juzStudModalStudent');
+  const recordsContainer = document.getElementById('juzStudentRecordsContainer');
+  
+  if (!teacherSelect || !studentSelect || !recordsContainer) return;
+  
+  const teacher = teacherSelect.value;
+  const student = studentSelect.value;
+  
+  if (!teacher || !student) {
+    alert('⚠️ الرجاء اختيار المعلم والطالب');
+    return;
+  }
+  
+  recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #28a745;">⏳ جاري التحميل...</div>';
+  recordsContainer.classList.add('show');
+  
+  try {
+    const q = query(
+      collection(db, 'juzDisplays'),
+      where('teacherName', '==', teacher),
+      where('studentName', '==', student),
+      where('status', '==', 'completed')
+    );
+    const snapshot = await getDocs(q);
+    
+    const completedJuzs = new Set();
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.juzNumber) {
+        completedJuzs.add(data.juzNumber);
+      }
+    });
+    
+    const totalJuzs = 30;
+    const completedCount = completedJuzs.size;
+    const pendingCount = totalJuzs - completedCount;
+    const progressPercent = Math.round((completedCount / totalJuzs) * 100);
+    
+    // Generate grid
+    let gridHTML = '';
+    for (let i = 1; i <= totalJuzs; i++) {
+      const isCompleted = completedJuzs.has(i);
+      const statusClass = isCompleted ? 'completed' : 'pending';
+      const statusIcon = isCompleted ? '✅' : '⏳';
+      
+      gridHTML += `
+        <div class="juz-cell ${statusClass}" title="${isCompleted ? 'مجتاز' : 'لم يتم'}">
+          <div class="juz-number">${i}</div>
+          <div class="juz-icon">${statusIcon}</div>
+        </div>
+      `;
+    }
+    
+    recordsContainer.innerHTML = `
+      <div style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 25px; border-radius: 15px; border: 2px solid #e9ecef;">
+        <h3 style="margin: 0 0 15px 0; text-align: center; color: #2d3748; font-size: 18px;">
+          📊 سجل أجزاء الطالب: <span style="color: #28a745;">${student}</span>
+        </h3>
+        
+        <!-- Progress Bar -->
+        <div style="margin-bottom: 15px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-weight: 600; color: #2d3748;">نسبة الإنجاز</span>
+            <span style="font-weight: 700; color: #28a745; font-size: 20px;">${progressPercent}%</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" style="width: ${progressPercent}%"></div>
+          </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-row">
+          <div class="stat-badge success">
+            <span>✅</span>
+            <span>${completedCount} مجتاز</span>
+          </div>
+          <div class="stat-badge pending">
+            <span>⏳</span>
+            <span>${pendingCount} متبقي</span>
+          </div>
+        </div>
+        
+        <!-- Juz Grid -->
+        <div class="juz-grid">
+          ${gridHTML}
+        </div>
+        
+        <!-- Export Button -->
+        <button class="export-button" style="margin-top: 25px;" onclick="window.exportJuzStudentReport()">
+          <span style="font-size: 24px;">📥</span>
+          <span>تصدير تقرير الطالب (PDF)</span>
+        </button>
+      </div>
+    `;
+    
+  } catch (error) {
+    console.error('Error loading student records:', error);
+    recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">❌ حدث خطأ في تحميل السجلات</div>';
+  }
+};
+
+/**
+ * Toggle period type for Juz Student Report
+ */
+window.toggleJuzStudentPeriod = function() {
+  const type = document.getElementById('juzStudPeriodType')?.value;
+  const monthSection = document.getElementById('juzStudMonthSection');
+  const customSection = document.getElementById('juzStudCustomSection');
+  
+  if (type === 'month') {
+    monthSection?.classList.add('active');
+    customSection?.classList.remove('active');
+  } else {
+    monthSection?.classList.remove('active');
+    customSection?.classList.add('active');
+  }
+};
+
+/**
+ * Export Juz student report
+ */
+window.exportJuzStudentReport = async function() {
+  try {
+    const teacherSelect = document.getElementById('juzStudModalTeacher');
+    const studentSelect = document.getElementById('juzStudModalStudent');
+    const periodType = document.getElementById('juzStudPeriodType')?.value;
+    
+    if (!teacherSelect || !studentSelect) {
+      alert('⚠️ حدث خطأ في تحميل النموذج');
+      return;
+    }
+    
+    const teacher = teacherSelect.value;
+    const student = studentSelect.value;
+    
+    if (!teacher || !student) {
+      alert('⚠️ الرجاء اختيار المعلم والطالب');
+      return;
+    }
+    
+    let fromDate = null;
+    let toDate = null;
+    let periodLabel = '';
+    
+    // Determine date range
+    if (periodType === 'month') {
+      const monthKey = document.getElementById('juzStudMonth')?.value;
+      if (!monthKey) {
+        alert('⚠️ الرجاء اختيار الشهر');
+        return;
+      }
+      
+      const monthParts = monthKey.split('-');
+      const selectedYear = parseInt(monthParts[0]);
+      const selectedMonth = parseInt(monthParts[1]);
+      
+      // Find EXACT start and end dates from accurateHijriDates
+      const monthDates = accurateHijriDates.filter(entry => 
+        entry.hijriYear === selectedYear && entry.hijriMonth === selectedMonth
+      );
+      
+      if (monthDates.length > 0) {
+        fromDate = monthDates[0].hijri;
+        toDate = monthDates[monthDates.length - 1].hijri;
+      } else {
+        fromDate = `${monthKey}-01`;
+        toDate = `${monthKey}-30`;
+      }
+      
+      const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+      const monthName = hijriMonths[selectedMonth - 1];
+      periodLabel = `${monthName} ${selectedYear}`;
+    } else {
+      // Custom range
+      const fromYear = document.getElementById('juzStudFromYear')?.value;
+      const fromMonth = document.getElementById('juzStudFromMonth')?.value;
+      const fromDay = document.getElementById('juzStudFromDay')?.value;
+      const toYear = document.getElementById('juzStudToYear')?.value;
+      const toMonth = document.getElementById('juzStudToMonth')?.value;
+      const toDay = document.getElementById('juzStudToDay')?.value;
+      
+      if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
+        alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
+        return;
+      }
+      
+      fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+      toDate = `${toYear}-${toMonth}-${toDay}`;
+      
+      periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
+    }
+    
+    // Show loading
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'pdfLoadingMsg';
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      z-index: 10002;
+      text-align: center;
+    `;
+    loadingMsg.innerHTML = `
+      <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+      <div style="font-size: 18px; color: #28a745; font-weight: bold;">جاري إنشاء تقرير الطالب...</div>
+      <div style="font-size: 14px; color: #666; margin-top: 8px;">يرجى الانتظار</div>
+    `;
+    document.body.appendChild(loadingMsg);
+    
+    // Fetch all juzDisplays for this student and teacher
+    const q = query(
+      collection(db, 'juzDisplays'),
+      where('teacherName', '==', teacher),
+      where('studentName', '==', student)
+    );
+    const snapshot = await getDocs(q);
+    
+    // Build a map: juzNumber -> record data
+    const juzRecordsMap = new Map();
+    
+    snapshot.forEach(docSnapshot => {
+      const data = docSnapshot.data();
+      const juzNumber = data.juzNumber;
+      
+      if (!juzNumber) return;
+      
+      // Check if record should be included based on date filter
+      let includeRecord = false;
+      
+      if (data.status === 'completed' && data.displayDate) {
+        let normalizedDisplayDate = data.displayDate;
+        if (data.displayDate.includes('/')) {
+          const parts = data.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          includeRecord = true;
+        } else if (data.lastLessonDate && data.lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
+          includeRecord = true;
+        }
+      } else if (data.status === 'incomplete' && data.lastLessonDate) {
+        if (data.lastLessonDate <= toDate) {
+          includeRecord = true;
+        }
+      }
+      
+      if (!includeRecord) return;
+      
+      // Store record if not exists or replace with completed status
+      const existing = juzRecordsMap.get(juzNumber);
+      if (!existing || (data.status === 'completed' && existing.status === 'incomplete')) {
+        juzRecordsMap.set(juzNumber, {
+          juzNumber: juzNumber,
+          status: data.status || 'incomplete',
+          displayDate: data.displayDate || '',
+          lastLessonDate: data.lastLessonDate || '',
+          firstLessonDate: data.firstLessonDate || data.lastLessonDate || '',
+          viewerName: data.viewerName || '-',
+          duration: ''
+        });
+      }
+    });
+    
+    // Calculate duration for completed records
+    juzRecordsMap.forEach((record, juzNum) => {
+      if (record.status === 'completed' && record.firstLessonDate && record.displayDate) {
+        const firstEntry = accurateHijriDates.find(e => e.hijri === record.firstLessonDate);
+        let displayDateNormalized = record.displayDate;
+        if (record.displayDate.includes('/')) {
+          const parts = record.displayDate.split('/');
+          if (parts.length === 3) {
+            displayDateNormalized = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        const lastEntry = accurateHijriDates.find(e => e.hijri === displayDateNormalized);
+        
+        if (firstEntry && lastEntry) {
+          const firstDate = new Date(firstEntry.gregorian);
+          const lastDate = new Date(lastEntry.gregorian);
+          const diffTime = Math.abs(lastDate - firstDate);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          record.duration = `${diffDays} يوم`;
+        }
+      }
+    });
+    
+    // Build table rows for ALL 30 ajzaa
+    let tableRowsHTML = '';
+    for (let juzNum = 1; juzNum <= 30; juzNum++) {
+      const record = juzRecordsMap.get(juzNum);
+      
+      const bgColor = juzNum % 2 === 0 ? '#f8f9fa' : 'white';
+      const statusText = record && record.status === 'completed' ? '✅' : '⏳';
+      const statusColor = record && record.status === 'completed' ? '#28a745' : '#999';
+      
+      let displayDateText = '-';
+      if (record && record.status === 'completed' && record.displayDate) {
+        let normalizedDate = record.displayDate;
+        if (record.displayDate.includes('/')) {
+          const parts = record.displayDate.split('/');
+          if (parts.length === 3) {
+            normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        displayDateText = formatDateForDisplay(normalizedDate);
+      }
+      
+      const durationText = record && record.duration ? record.duration : '-';
+      const listenerText = record && record.viewerName ? record.viewerName : '-';
+      
+      tableRowsHTML += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px; font-weight: 600;">جزء ${juzNum}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 15px; color: ${statusColor}; font-weight: 600;">${statusText}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #495057;">${displayDateText}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-size: 14px; color: #495057;">${durationText}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: right; font-size: 14px; color: #495057;">${listenerText}</td>
+        </tr>
+      `;
+    }
+    
+    // Calculate statistics
+    const completedCount = Array.from(juzRecordsMap.values()).filter(r => r.status === 'completed').length;
+    const totalCount = 30;
+    const pendingCount = totalCount - completedCount;
+    const progressPercent = Math.round((completedCount / totalCount) * 100);
+    
+    const today = getTodayForStorage();
+    
+    // Create HTML content for PDF
+    const container = document.createElement('div');
+    container.style.cssText = `
+      direction: rtl;
+      font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: white;
+      padding: 40px;
+      width: 210mm;
+      min-height: 297mm;
+      box-sizing: border-box;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #28a745; margin: 0 0 10px 0; font-size: 32px;">📚 التقرير الشامل لسجل الأجزاء</h1>
+        <h2 style="color: #2d3748; margin: 0 0 5px 0; font-size: 24px;">الطالب: ${student}</h2>
+        <h3 style="color: #495057; margin: 0 0 5px 0; font-size: 20px;">المعلم: ${teacher}</h3>
+        <p style="color: #666; font-size: 16px; margin: 8px 0 0 0; font-weight: bold;">${periodLabel}</p>
+        <p style="color: #999; font-size: 14px; margin: 5px 0 0 0;">تاريخ التقرير: ${formatDateForDisplay(today)}</p>
+      </div>
+      
+      <div style="margin-bottom: 25px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 20px; border-radius: 12px; color: white;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">مجموع الأجزاء</div>
+            <div style="font-size: 24px; font-weight: bold;">${totalCount}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">مجتاز</div>
+            <div style="font-size: 24px; font-weight: bold; color: #90ee90;">${completedCount}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">متبقي</div>
+            <div style="font-size: 24px; font-weight: bold; color: #ffb6c1;">${pendingCount}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">نسبة الإنجاز</div>
+            <div style="font-size: 24px; font-weight: bold;">${progressPercent}%</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #28a745; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #28a745; padding-bottom: 10px;">
+          📊 سجل الأجزاء
+        </h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; border-radius: 8px 0 0 0; width: 15%;">رقم الجزء</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 15%;">الحالة</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 20%;">تاريخ الاجتياز</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 15%;">المدة المستغرقة</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 15px; border-radius: 0 8px 0 0; width: 35%;">اسم المستمع</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHTML}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #28a745;">
+        <p style="margin: 5px 0; color: #28a745; font-size: 14px; font-style: italic;">📚 نظام إدارة عرض الأجزاء القرآنية</p>
+        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${formatDateForDisplay(today)}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // Generate PDF using html2canvas and jsPDF
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    document.body.removeChild(container);
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    let heightLeft = imgHeight;
+    let position = 10;
+    
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight + 10;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    // Save PDF
+    const fileName = `تقرير_طالب_أجزاء_${student}_${periodLabel.replace(/\s/g, '_')}.pdf`;
+    pdf.save(fileName);
+    
+    // Remove loading and overlay
+    loadingMsg.remove();
+    document.getElementById('juzStudentModal')?.remove();
+    
+    alert('✅ تم تصدير تقرير الطالب بنجاح!');
+    
+  } catch (error) {
+    console.error('Error generating Juz student report:', error);
     const loadingMsg = document.getElementById('pdfLoadingMsg');
     if (loadingMsg) loadingMsg.remove();
     alert('❌ حدث خطأ في إنشاء التقرير');
