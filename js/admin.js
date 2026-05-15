@@ -25,6 +25,70 @@ import { calculateRevisionPages } from './quran-juz-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getHijriWeekAgo, getHijriMonthAgo, getStudyDaysInCurrentHijriMonth, getStudyDaysForHijriMonth, getTodayForStorage, getCurrentHijriDate, gregorianToHijri, hijriToGregorian as convertHijriToGregorian } from './hijri-date.js';
 import { accurateHijriDates, getTodayAccurateHijri, formatAccurateHijriDate } from './accurate-hijri-dates.js';
 
+// ==========================================
+// TEACHER UTILITIES
+// ==========================================
+
+/**
+ * Get teacher phone number from Firestore
+ * @param {string} teacherNameOrId - Teacher name or ID
+ * @returns {Promise<string|null>} Phone number or null if not found
+ */
+async function getTeacherPhone(teacherNameOrId) {
+  try {
+    // Try to find by ID first
+    const teacherDocById = doc(db, 'teachers', teacherNameOrId);
+    const teacherSnapById = await getDoc(teacherDocById);
+    
+    if (teacherSnapById.exists() && teacherSnapById.data().phone) {
+      return teacherSnapById.data().phone;
+    }
+    
+    // If not found by ID, search by name
+    const teachersSnapshot = await getDocs(collection(db, 'teachers'));
+    const teacher = teachersSnapshot.docs.find(
+      doc => doc.data().name === teacherNameOrId
+    );
+    
+    return teacher?.data()?.phone || null;
+  } catch (error) {
+    console.error('Error fetching teacher phone:', error);
+    return null;
+  }
+}
+
+/**
+ * Get teacher data from Firestore
+ * @param {string} teacherNameOrId - Teacher name or ID
+ * @returns {Promise<Object|null>} Teacher data or null if not found
+ */
+async function getTeacherData(teacherNameOrId) {
+  try {
+    // Try to find by ID first
+    const teacherDocById = doc(db, 'teachers', teacherNameOrId);
+    const teacherSnapById = await getDoc(teacherDocById);
+    
+    if (teacherSnapById.exists()) {
+      return { id: teacherSnapById.id, ...teacherSnapById.data() };
+    }
+    
+    // If not found by ID, search by name
+    const teachersSnapshot = await getDocs(collection(db, 'teachers'));
+    const teacher = teachersSnapshot.docs.find(
+      doc => doc.data().name === teacherNameOrId
+    );
+    
+    return teacher ? { id: teacher.id, ...teacher.data() } : null;
+  } catch (error) {
+    console.error('Error fetching teacher data:', error);
+    return null;
+  }
+}
+
+// Make functions globally available
+window.getTeacherPhone = getTeacherPhone;
+window.getTeacherData = getTeacherData;
+
 // Teacher names mapping for display in UI
 const teacherNames = {
   'ABD01': 'الأستاذ عبدالرحمن السيسي',

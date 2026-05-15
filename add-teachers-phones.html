@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إضافة أرقام جوالات المعلمين</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 900px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      text-align: center;
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    .warning {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 30px;
+      color: #856404;
+    }
+    
+    .warning strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    
+    .teachers-list {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .teacher-item {
+      display: grid;
+      grid-template-columns: 100px 1fr 130px;
+      gap: 15px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      align-items: center;
+      border-left: 4px solid #667eea;
+    }
+    
+    .teacher-item.pending {
+      border-left-color: #ffc107;
+      opacity: 0.7;
+    }
+    
+    .teacher-code {
+      font-weight: bold;
+      color: #667eea;
+      font-size: 14px;
+    }
+    
+    .teacher-name {
+      color: #333;
+      font-size: 15px;
+    }
+    
+    .teacher-phone {
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      color: #28a745;
+      direction: ltr;
+      text-align: left;
+      font-size: 14px;
+    }
+    
+    .teacher-phone.pending {
+      color: #ffc107;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+    
+    button {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102,126,234,0.5);
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    
+    .btn-primary:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .log {
+      background: #1a1a1a;
+      color: #0f0;
+      padding: 20px;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      display: none;
+    }
+    
+    .log.show {
+      display: block;
+    }
+    
+    .log-line {
+      margin-bottom: 5px;
+    }
+    
+    .log-success {
+      color: #0f0;
+    }
+    
+    .log-error {
+      color: #f00;
+    }
+    
+    .log-info {
+      color: #0af;
+    }
+    
+    .log-warning {
+      color: #ff0;
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      color: white;
+    }
+    
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📱 إضافة أرقام جوالات المعلمين</h1>
+    <p class="subtitle">سيتم إضافة/تحديث أرقام الجوالات في Firestore</p>
+    
+    <div class="warning">
+      <strong>⚠️ تنبيه مهم:</strong>
+      <ul style="margin-right: 20px; margin-top: 8px;">
+        <li>سيتم إضافة حقل "phone" لكل معلم في Firestore</li>
+        <li>إذا كان المعلم موجوداً، سيتم تحديث رقمه</li>
+        <li>إذا لم يكن موجوداً، سيتم إنشاء سجل جديد له</li>
+        <li>المعلمين: سلمان رفيق وعبدالرحمن جاويد لن يتم إضافة أرقام لهم حالياً</li>
+      </ul>
+    </div>
+    
+    <h3 style="margin-bottom: 15px; color: #333;">📋 قائمة المعلمين:</h3>
+    <div class="teachers-list" id="teachersList">
+      <!-- سيتم ملؤها ديناميكياً -->
+    </div>
+    
+    <div class="button-group">
+      <button class="btn-primary" id="addPhonesBtn" onclick="addTeachersPhones()">
+        ✅ إضافة الأرقام إلى Firestore
+      </button>
+      <button class="btn-secondary" onclick="location.reload()">
+        🔄 إعادة تحميل
+      </button>
+    </div>
+    
+    <div class="log" id="logContainer"></div>
+    
+    <div class="stats" id="statsContainer" style="display: none;">
+      <div class="stat-card">
+        <div class="stat-value" id="statSuccess">0</div>
+        <div class="stat-label">نجح</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+        <div class="stat-value" id="statPending">2</div>
+        <div class="stat-label">معلق</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+        <div class="stat-value" id="statError">0</div>
+        <div class="stat-label">فشل</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getFirestore, collection, doc, setDoc, getDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+    // Firebase Configuration (نفس الإعدادات من firebase-config.js)
+    const firebaseConfig = {
+      apiKey: "AIzaSyD7ESB0tCrlcRGVVOUxhRxnRd3KFVG0J_I",
+      authDomain: "quraan-classes.firebaseapp.com",
+      projectId: "quraan-classes",
+      storageBucket: "quraan-classes.firebasestorage.app",
+      messagingSenderId: "357726085982",
+      appId: "1:357726085982:web:8e55ede16af33e28bac8b8"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // قائمة المعلمين مع أرقامهم
+    const teachersData = [
+      { id: 'ABD01', name: 'الأستاذ عبدالرحمن السيسي', phone: '0582474091' },
+      { id: 'AMR01', name: 'الأستاذ عامر هوساوي', phone: '0590051973' },
+      { id: 'ANS01', name: 'الأستاذ أنس', phone: '0596454828' },
+      { id: 'HRT01', name: 'الأستاذ حارث', phone: '0578001064' },
+      { id: 'JHD01', name: 'الأستاذ جهاد', phone: '0576191316' },
+      { id: 'MZB01', name: 'مازن البلوشي', phone: '0536194806' },
+      { id: 'MZN01', name: 'الأستاذ مازن', phone: '0560259084' },
+      { id: 'NBL01', name: 'الأستاذ نبيل', phone: '0502410093' },
+      { id: 'OMR01', name: 'الأستاذ عمر', phone: '0593082559' },
+      { id: 'OSM01', name: 'الأستاذ أسامة حبيب', phone: '0599002308' },
+      { id: 'JWD01', name: 'الأستاذ عبدالرحمن جاويد', phone: 'معلق' },
+      { id: 'SLM01', name: 'الأستاذ سلمان رفيق', phone: 'معلق' }
+    ];
+
+    // عرض قائمة المعلمين
+    function displayTeachers() {
+      const listContainer = document.getElementById('teachersList');
+      let html = '';
+      
+      teachersData.forEach(teacher => {
+        const isPending = teacher.phone === 'معلق';
+        html += `
+          <div class="teacher-item ${isPending ? 'pending' : ''}">
+            <div class="teacher-code">${teacher.id}</div>
+            <div class="teacher-name">${teacher.name}</div>
+            <div class="teacher-phone ${isPending ? 'pending' : ''}">${teacher.phone}</div>
+          </div>
+        `;
+      });
+      
+      listContainer.innerHTML = html;
+    }
+
+    // إضافة رسالة إلى السجل
+    function log(message, type = 'info') {
+      const logContainer = document.getElementById('logContainer');
+      logContainer.classList.add('show');
+      
+      const timestamp = new Date().toLocaleTimeString('ar-SA');
+      const logLine = document.createElement('div');
+      logLine.className = `log-line log-${type}`;
+      logLine.textContent = `[${timestamp}] ${message}`;
+      
+      logContainer.appendChild(logLine);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    // تحديث الإحصائيات
+    function updateStats(success, pending, error) {
+      document.getElementById('statsContainer').style.display = 'grid';
+      document.getElementById('statSuccess').textContent = success;
+      document.getElementById('statPending').textContent = pending;
+      document.getElementById('statError').textContent = error;
+    }
+
+    // إضافة أرقام المعلمين
+    window.addTeachersPhones = async function() {
+      const btn = document.getElementById('addPhonesBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ جاري الإضافة...';
+      
+      log('بدء عملية إضافة أرقام المعلمين...', 'info');
+      log('═'.repeat(50), 'info');
+      
+      let successCount = 0;
+      let errorCount = 0;
+      let pendingCount = 0;
+      
+      for (const teacher of teachersData) {
+        if (teacher.phone === 'معلق') {
+          log(`⏸️  ${teacher.name} (${teacher.id}): تم تخطيه - الرقم معلق`, 'warning');
+          pendingCount++;
+          continue;
+        }
+        
+        try {
+          log(`🔄 جاري معالجة: ${teacher.name} (${teacher.id})...`, 'info');
+          
+          // التحقق من وجود المعلم
+          const teacherRef = doc(db, 'teachers', teacher.id);
+          const teacherSnap = await getDoc(teacherRef);
+          
+          let teacherData;
+          
+          if (teacherSnap.exists()) {
+            // المعلم موجود - تحديث البيانات
+            teacherData = {
+              ...teacherSnap.data(),
+              phone: teacher.phone,
+              lastUpdated: new Date().toISOString()
+            };
+            log(`   ℹ️  المعلم موجود - سيتم تحديث الرقم`, 'info');
+          } else {
+            // المعلم غير موجود - إنشاء سجل جديد
+            teacherData = {
+              id: teacher.id,
+              name: teacher.name,
+              phone: teacher.phone,
+              active: true,
+              createdAt: new Date().toISOString(),
+              classes: []
+            };
+            log(`   ℹ️  المعلم غير موجود - سيتم إنشاء سجل جديد`, 'info');
+          }
+          
+          // حفظ البيانات
+          await setDoc(teacherRef, teacherData, { merge: true });
+          
+          log(`✅ نجح: ${teacher.name} - الرقم: ${teacher.phone}`, 'success');
+          successCount++;
+          
+          // تحديث الإحصائيات
+          updateStats(successCount, pendingCount, errorCount);
+          
+          // تأخير بسيط لتجنب التحميل الزائد
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+        } catch (error) {
+          log(`❌ فشل: ${teacher.name} - ${error.message}`, 'error');
+          console.error('Error adding teacher:', teacher.id, error);
+          errorCount++;
+          updateStats(successCount, pendingCount, errorCount);
+        }
+      }
+      
+      log('═'.repeat(50), 'info');
+      log(`✨ اكتمل! نجح: ${successCount} | معلق: ${pendingCount} | فشل: ${errorCount}`, 'success');
+      
+      btn.textContent = '✅ تمت الإضافة بنجاح';
+      btn.style.background = '#28a745';
+      
+      // التحقق من النتيجة
+      if (successCount === teachersData.length - pendingCount) {
+        log('🎉 تمت إضافة جميع الأرقام بنجاح!', 'success');
+        setTimeout(() => {
+          if (confirm('✅ تمت العملية بنجاح!\n\nهل تريد حذف هذا الملف الآن؟ (يمكنك حذفه يدوياً لاحقاً)')) {
+            alert('يمكنك الآن حذف الملف: add-teachers-phones.html\n\nالأرقام محفوظة في Firestore بشكل آمن.');
+          }
+        }, 1000);
+      }
+    };
+
+    // تحميل القائمة عند فتح الصفحة
+    displayTeachers();
+    log('✅ تم تحميل قائمة المعلمين', 'success');
+    log(`📊 المجموع: ${teachersData.length} معلم (${teachersData.filter(t => t.phone !== 'معلق').length} جاهز، 2 معلق)`, 'info');
+    log('ℹ️  اضغط على زر "إضافة الأرقام" للبدء', 'info');
+    
+    // Make db available globally for debugging
+    window.db = db;
+  </script>
+</body>
+</html>
