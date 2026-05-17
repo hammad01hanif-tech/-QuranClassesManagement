@@ -2504,7 +2504,22 @@ window.loadDailyAttendance = async function() {
     }
     
     const classData = classDocSnap.data();
-    const teacherName = classData.teacherName || classData.className || 'غير محدد';
+    
+    // Get teacher name and ID properly
+    let teacherName = classData.teacherName || 'غير محدد';
+    let teacherId = classData.teacherId || null;
+    
+    // If we have teacherId, get teacher data from teachers collection
+    if (teacherId) {
+      console.log('🔍 Getting teacher data for ID:', teacherId);
+      const teacherData = await getTeacherData(teacherId);
+      if (teacherData && teacherData.name) {
+        teacherName = teacherData.name;
+        console.log('✅ Teacher name from teachers collection:', teacherName);
+      }
+    }
+    
+    console.log('📋 Final teacher info:', { teacherId, teacherName });
     
     // Get students in this class
     const studentsSnap = await getDocs(query(
@@ -2524,15 +2539,16 @@ window.loadDailyAttendance = async function() {
       students.push({
         id: doc.id,
         name: doc.data().name || 'غير محدد',
-        guardianPhone: doc.data().guardianPhone || ''
+        guardianPhone: doc.data().guardianPhone || '',
+        teacherId: teacherId // Store teacherId in student data
       });
     });
     
     // Sort alphabetically
     students.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     
-    // Show modal with students
-    window.showDailyAttendanceModal(classId, teacherName, students);
+    // Show modal with students (pass teacherId too)
+    window.showDailyAttendanceModal(classId, teacherName, students, null, teacherId);
     
   } catch (error) {
     console.error('❌ Error loading daily attendance:', error);
@@ -2541,15 +2557,16 @@ window.loadDailyAttendance = async function() {
 };
 
 // Show daily attendance modal
-window.showDailyAttendanceModal = function(classId, teacherName, students, selectedDate = null) {
+window.showDailyAttendanceModal = function(classId, teacherName, students, selectedDate = null, teacherId = null) {
   const modal = document.getElementById('dailyAttendanceModal');
   const dateDisplay = document.getElementById('dailyAttendanceDate');
   const teacherDisplay = document.getElementById('dailyAttendanceTeacher');
   const studentsList = document.getElementById('dailyAttendanceStudentsList');
   
-  // Store classId, students, and teacherName for later use
+  // Store classId, students, teacherName AND teacherId for later use
   modal.dataset.classId = classId;
   modal.dataset.teacherName = teacherName;
+  modal.dataset.teacherId = teacherId || '';
   modal.dataset.studentsData = JSON.stringify(students);
   
   // Get selected date or today's date
@@ -2659,10 +2676,11 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
   
   students.forEach((student, index) => {
     const rowColor = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    const studentTeacherId = student.teacherId || '';
     html += `
       <tr id="row-${student.id}" style="background: ${rowColor}; border-bottom: 1px solid #e9ecef; transition: background 0.3s;">
         <td style="padding: 8px; font-size: 12px; color: #666;">${index + 1}</td>
-        <td onclick="window.showWhatsAppModal('${student.name.replace(/'/g, "\\'")}', '${student.guardianPhone || ''}', '${teacherName.replace(/'/g, "\\'")}', '${student.id}')" style="padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.color='#667eea'; this.style.textDecoration='underline'" onmouseout="this.style.color='#333'; this.style.textDecoration='none'" title="اضغط للتواصل مع ولي الأمر">${student.name}</td>
+        <td onclick="window.showWhatsAppModal('${student.name.replace(/'/g, "\\'")}', '${student.guardianPhone || ''}', '${teacherName.replace(/'/g, "\\'")}', '${student.id}', '${studentTeacherId}')" style="padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.color='#667eea'; this.style.textDecoration='underline'" onmouseout="this.style.color='#333'; this.style.textDecoration='none'" title="اضغط للتواصل مع ولي الأمر">${student.name}</td>
         <td style="padding: 6px 8px;">
           <div class="attendance-buttons" data-student-id="${student.id}" style="display: flex; gap: 6px; justify-content: center; align-items: center;">
             <button onclick="window.selectAttendanceStatus('${student.id}', 'present')" data-status="present" title="حاضر" style="width: 26px; height: 26px; background: #28a745; border: 2px solid #28a745; border-radius: 50%; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(40,167,69,0.3); padding: 0;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></button>
@@ -2857,10 +2875,11 @@ window.switchToDate = function(hijriDate) {
   const modal = document.getElementById('dailyAttendanceModal');
   const classId = modal.dataset.classId;
   const teacherName = modal.dataset.teacherName;
+  const teacherId = modal.dataset.teacherId || null;
   const students = JSON.parse(modal.dataset.studentsData || '[]');
   
   // Reload modal with new date (hijri format: YYYY-MM-DD)
-  window.showDailyAttendanceModal(classId, teacherName, students, hijriDate);
+  window.showDailyAttendanceModal(classId, teacherName, students, hijriDate, teacherId);
 };
 
 // Load saved attendance data for students
@@ -5093,7 +5112,7 @@ window.showNewStudentsList = function() {
 };
 
 // Show WhatsApp contact modal
-window.showWhatsAppModal = function(studentName, guardianPhone, teacherName = null, studentId = null) {
+window.showWhatsAppModal = function(studentName, guardianPhone, teacherName = null, studentId = null, teacherId = null) {
   const modal = document.getElementById('whatsappContactModal');
   const nameDisplay = document.getElementById('whatsappStudentName');
   const phoneDisplay = document.getElementById('whatsappGuardianPhone');
@@ -5103,6 +5122,9 @@ window.showWhatsAppModal = function(studentName, guardianPhone, teacherName = nu
   modal.dataset.studentName = studentName;
   modal.dataset.studentId = studentId || '';
   modal.dataset.teacherName = teacherName || '';
+  modal.dataset.teacherId = teacherId || '';
+  
+  console.log('📝 Modal data stored:', { studentName, studentId, teacherName, teacherId });
   
   // Check if guardian phone exists
   if (!guardianPhone || guardianPhone === '-' || guardianPhone === '') {
@@ -5139,8 +5161,11 @@ window.sendEntryPass = async function() {
   const studentName = modal.dataset.studentName;
   const studentId = modal.dataset.studentId;
   const teacherName = modal.dataset.teacherName;
+  const teacherId = modal.dataset.teacherId;
   
-  if (!teacherName) {
+  console.log('🎫 Entry Pass clicked:', { studentName, studentId, teacherName, teacherId });
+  
+  if (!teacherName && !teacherId) {
     alert('⚠️ لا يمكن تحديد معلم الطالب');
     return;
   }
@@ -5157,8 +5182,18 @@ window.sendEntryPass = async function() {
   entryPassBtn.disabled = true;
   
   try {
-    // Get teacher phone from Firestore
-    const teacherPhone = await getTeacherPhone(teacherName);
+    // Get teacher phone from Firestore - use teacherId if available, otherwise use teacherName
+    let teacherPhone = null;
+    
+    if (teacherId) {
+      console.log('🔍 Searching by teacherId:', teacherId);
+      teacherPhone = await getTeacherPhone(teacherId);
+    }
+    
+    if (!teacherPhone && teacherName) {
+      console.log('🔍 Searching by teacherName:', teacherName);
+      teacherPhone = await getTeacherPhone(teacherName);
+    }
     
     if (!teacherPhone) {
       alert(`⚠️ لا يوجد رقم جوال للمعلم: ${teacherName}\n\n💡 تأكد من:\n• إضافة رقم المعلم في قاعدة البيانات\n• تطابق اسم المعلم بالضبط\n\n🔍 افتح Console (F12) لمزيد من التفاصيل`);
@@ -5166,6 +5201,8 @@ window.sendEntryPass = async function() {
       entryPassBtn.disabled = false;
       return;
     }
+    
+    console.log('✅ Teacher phone found:', teacherPhone);
     
     // Get accurate Hijri date
     const todayAccurate = getTodayAccurateHijri();
