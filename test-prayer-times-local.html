@@ -315,63 +315,67 @@
             isIshaTime
         } from './js/prayer-times-local.js';
         
-        // Make functions global
-        window.getPrayerTimesLocal = getPrayerTimesLocal;
-        window.getTodayPrayerTimes = getTodayPrayerTimes;
-        window.getMonthPrayerTimes = getMonthPrayerTimes;
-        window.getNextPrayer = getNextPrayer;
-        
-        // Load data info
-        const info = getDataInfo();
-        document.getElementById('totalMonths').textContent = info.totalMonths;
-        document.getElementById('totalDays').textContent = info.totalDays;
-        document.getElementById('dataYear').textContent = info.year;
-        document.getElementById('location').textContent = info.location;
-        
-        // Load next prayer
-        const nextPrayer = getNextPrayer();
-        if (nextPrayer) {
-            document.getElementById('nextPrayerName').textContent = nextPrayer.name;
-            document.getElementById('nextPrayerTime').textContent = nextPrayer.time;
-            if (nextPrayer.remainingMinutes !== null) {
-                document.getElementById('nextPrayerRemaining').textContent = 
-                    `⏳ متبقي: ${nextPrayer.remainingHours} ساعة و ${nextPrayer.remainingMins} دقيقة`;
+        // Initialize page
+        async function initPage() {
+            try {
+                // Load data info
+                const info = await getDataInfo();
+                document.getElementById('totalMonths').textContent = info.totalMonths;
+                document.getElementById('totalDays').textContent = info.totalDays;
+                document.getElementById('dataYear').textContent = info.year;
+                document.getElementById('location').textContent = info.location;
+                
+                // Load next prayer
+                const nextPrayer = await getNextPrayer();
+                if (nextPrayer) {
+                    document.getElementById('nextPrayerName').textContent = nextPrayer.name;
+                    document.getElementById('nextPrayerTime').textContent = nextPrayer.time;
+                    if (nextPrayer.remainingMinutes !== null) {
+                        document.getElementById('nextPrayerRemaining').textContent = 
+                            `⏳ متبقي: ${nextPrayer.remainingHours} ساعة و ${nextPrayer.remainingMins} دقيقة`;
+                    }
+                }
+                
+                // Load today's prayers
+                const today = await getTodayPrayerTimes();
+                if (today) {
+                    document.getElementById('todayDate').textContent = 
+                        `${today.gregorianWeekday} - ${today.gregorianDate} | ${today.hijriWeekday} - ${today.hijriDate}`;
+                    
+                    const prayers = [
+                        { icon: '🌅', name: 'الفجر', time: today.fajr },
+                        { icon: '🌄', name: 'الشروق', time: today.sunrise },
+                        { icon: '☀️', name: 'الظهر', time: today.dhuhr },
+                        { icon: '🌤️', name: 'العصر', time: today.asr },
+                        { icon: '🌆', name: 'المغرب', time: today.maghrib },
+                        { icon: '🌙', name: 'العشاء', time: today.isha }
+                    ];
+                    
+                    const grid = document.getElementById('todayPrayers');
+                    grid.innerHTML = prayers.map(p => `
+                        <div class="prayer-card">
+                            <div class="prayer-name">${p.icon} ${p.name}</div>
+                            <div class="prayer-time">${p.time}</div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Populate month selector
+                const months = await getAvailableMonths();
+                const monthSelect = document.getElementById('monthSelect');
+                monthSelect.innerHTML = months.map(m => 
+                    `<option value="${m.year}-${m.month}">${m.monthName} ${m.year} (${m.totalDays} يوم)</option>`
+                ).join('');
+                
+                console.log('✅ Prayer Times Local Test Page Loaded');
+                console.log('📊 Available:', months.length, 'months,', info.totalDays, 'days');
+            } catch (error) {
+                console.error('❌ Error loading page:', error);
             }
         }
         
-        // Load today's prayers
-        const today = getTodayPrayerTimes();
-        if (today) {
-            document.getElementById('todayDate').textContent = 
-                `${today.gregorianWeekday} - ${today.gregorianDate} | ${today.hijriWeekday} - ${today.hijriDate}`;
-            
-            const prayers = [
-                { icon: '🌅', name: 'الفجر', time: today.fajr },
-                { icon: '🌄', name: 'الشروق', time: today.sunrise },
-                { icon: '☀️', name: 'الظهر', time: today.dhuhr },
-                { icon: '🌤️', name: 'العصر', time: today.asr },
-                { icon: '🌆', name: 'المغرب', time: today.maghrib },
-                { icon: '🌙', name: 'العشاء', time: today.isha }
-            ];
-            
-            const grid = document.getElementById('todayPrayers');
-            grid.innerHTML = prayers.map(p => `
-                <div class="prayer-card">
-                    <div class="prayer-name">${p.icon} ${p.name}</div>
-                    <div class="prayer-time">${p.time}</div>
-                </div>
-            `).join('');
-        }
-        
-        // Populate month selector
-        const months = getAvailableMonths();
-        const monthSelect = document.getElementById('monthSelect');
-        monthSelect.innerHTML = months.map(m => 
-            `<option value="${m.year}-${m.month}">${m.monthName} ${m.year} (${m.totalDays} يوم)</option>`
-        ).join('');
-        
         // Search date function
-        window.searchDate = function() {
+        window.searchDate = async function() {
             const date = document.getElementById('dateInput').value;
             const result = document.getElementById('searchResult');
             
@@ -380,7 +384,7 @@
                 return;
             }
             
-            const times = getPrayerTimesLocal(date);
+            const times = await getPrayerTimesLocal(date);
             
             if (times) {
                 result.style.display = 'block';
@@ -433,12 +437,12 @@
         };
         
         // Show month function
-        window.showMonth = function() {
+        window.showMonth = async function() {
             const value = document.getElementById('monthSelect').value;
             const [year, month] = value.split('-').map(Number);
             const result = document.getElementById('monthResult');
             
-            const days = getMonthPrayerTimes(year, month);
+            const days = await getMonthPrayerTimes(year, month);
             
             if (days) {
                 result.style.display = 'block';
@@ -479,8 +483,8 @@
             }
         };
         
-        console.log('✅ Prayer Times Local Test Page Loaded');
-        console.log('📊 Available:', months.length, 'months,', info.totalDays, 'days');
+        // Initialize when page loads
+        initPage();
     </script>
 </body>
 </html>

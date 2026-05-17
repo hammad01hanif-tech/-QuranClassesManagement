@@ -1,14 +1,33 @@
 // Local Prayer Times Reader
 // Read prayer times from locally stored JSON file
 
-import prayerData from '../data/prayer-times-2026.json' assert { type: 'json' };
+let prayerData = null;
+
+// Load prayer data
+async function loadPrayerData() {
+  if (!prayerData) {
+    try {
+      const response = await fetch('./data/prayer-times-2026.json');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      prayerData = await response.json();
+      console.log(`📊 Prayer data loaded: ${prayerData.months.length} months, ${prayerData.months.reduce((sum, m) => sum + m.totalDays, 0)} days`);
+    } catch (error) {
+      console.error('❌ Error loading prayer data:', error);
+      throw error;
+    }
+  }
+  return prayerData;
+}
 
 /**
  * Get prayer times for a specific date from local data
  * @param {string} date - Date in format "YYYY-MM-DD" or "DD-MM-YYYY"
  * @returns {Object|null} Prayer times object or null
  */
-export function getPrayerTimesLocal(date) {
+export async function getPrayerTimesLocal(date) {
+  await loadPrayerData();
   try {
     // Parse date
     let year, month, day;
@@ -52,7 +71,8 @@ export function getPrayerTimesLocal(date) {
  * Get today's prayer times
  * @returns {Object|null}
  */
-export function getTodayPrayerTimes() {
+export async function getTodayPrayerTimes() {
+  await loadPrayerData();
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth() + 1;
@@ -68,7 +88,8 @@ export function getTodayPrayerTimes() {
  * @param {number} month 
  * @returns {Array|null}
  */
-export function getMonthPrayerTimes(year, month) {
+export async function getMonthPrayerTimes(year, month) {
+  await loadPrayerData();
   const monthData = prayerData.months.find(m => m.year === year && m.month === month);
   return monthData ? monthData.days : null;
 }
@@ -77,9 +98,10 @@ export function getMonthPrayerTimes(year, month) {
  * Get next prayer time
  * @returns {Object|null} {prayerName, time, remainingMinutes}
  */
-export function getNextPrayer() {
+export async function getNextPrayer() {
+  await loadPrayerData();
   const now = new Date();
-  const today = getTodayPrayerTimes();
+  const today = await getTodayPrayerTimes();
   
   if (!today) return null;
   
@@ -127,8 +149,9 @@ export function getNextPrayer() {
  * Check if current time is between Asr and Maghrib (prayer time verification)
  * @returns {boolean}
  */
-export function isAsrTime() {
-  const today = getTodayPrayerTimes();
+export async function isAsrTime() {
+  await loadPrayerData();
+  const today = await getTodayPrayerTimes();
   if (!today) return false;
   
   const now = new Date();
@@ -141,8 +164,9 @@ export function isAsrTime() {
  * Check if current time is after Isha
  * @returns {boolean}
  */
-export function isIshaTime() {
-  const today = getTodayPrayerTimes();
+export async function isIshaTime() {
+  await loadPrayerData();
+  const today = await getTodayPrayerTimes();
   if (!today) return false;
   
   const now = new Date();
@@ -155,7 +179,8 @@ export function isIshaTime() {
  * Get all available months in local data
  * @returns {Array}
  */
-export function getAvailableMonths() {
+export async function getAvailableMonths() {
+  await loadPrayerData();
   return prayerData.months.map(m => ({
     year: m.year,
     month: m.month,
@@ -168,7 +193,8 @@ export function getAvailableMonths() {
  * Get data metadata
  * @returns {Object}
  */
-export function getDataInfo() {
+export async function getDataInfo() {
+  await loadPrayerData();
   return {
     location: prayerData.location,
     country: prayerData.country,
@@ -179,7 +205,7 @@ export function getDataInfo() {
   };
 }
 
-// Make functions available globally for testing
+// Initialize and make available globally
 if (typeof window !== 'undefined') {
   window.getPrayerTimesLocal = getPrayerTimesLocal;
   window.getTodayPrayerTimes = getTodayPrayerTimes;
@@ -189,8 +215,8 @@ if (typeof window !== 'undefined') {
   window.isIshaTime = isIshaTime;
   window.getAvailableMonths = getAvailableMonths;
   window.getDataInfo = getDataInfo;
+  window.loadPrayerData = loadPrayerData;
 }
 
 // Log when loaded
 console.log('✅ Local Prayer Times Reader loaded');
-console.log(`📊 Data: ${prayerData.months.length} months, ${prayerData.months.reduce((sum, m) => sum + m.totalDays, 0)} days`);
