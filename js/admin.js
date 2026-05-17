@@ -3852,6 +3852,57 @@ window.toggleStudentSearch = function() {
   }
 };
 
+// Smart search scoring function - calculates match accuracy
+function calculateSearchScore(name, searchTerm) {
+  const nameLower = name.toLowerCase().trim();
+  const searchLower = searchTerm.toLowerCase().trim();
+  
+  // Exact match = highest score
+  if (nameLower === searchLower) return 100;
+  
+  // Name starts with search term = very high score
+  if (nameLower.startsWith(searchLower)) return 90;
+  
+  // Any word in name starts with search term
+  const words = nameLower.split(/\s+/);
+  const searchWords = searchLower.split(/\s+/);
+  
+  // Check if all search words match word beginnings
+  let allWordsMatch = true;
+  for (const searchWord of searchWords) {
+    const found = words.some(word => word.startsWith(searchWord));
+    if (!found) {
+      allWordsMatch = false;
+      break;
+    }
+  }
+  if (allWordsMatch) return 80;
+  
+  // Any single word starts with search term
+  if (words.some(word => word.startsWith(searchLower))) return 70;
+  
+  // Name contains search term as substring
+  if (nameLower.includes(searchLower)) return 50;
+  
+  // Calculate similarity based on matching characters in order
+  let matchCount = 0;
+  let searchIndex = 0;
+  for (let i = 0; i < nameLower.length && searchIndex < searchLower.length; i++) {
+    if (nameLower[i] === searchLower[searchIndex]) {
+      matchCount++;
+      searchIndex++;
+    }
+  }
+  
+  if (matchCount === searchLower.length) {
+    // All search characters found in order
+    return 30 + (matchCount / nameLower.length) * 20;
+  }
+  
+  // No meaningful match
+  return 0;
+}
+
 // Perform student search
 window.performStudentSearch = async function() {
   const searchInput = document.getElementById('studentSearchInput').value.trim().toLowerCase();
@@ -3875,17 +3926,24 @@ window.performStudentSearch = async function() {
     // Get all students
     const studentsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
     
-    // Filter students by name
+    // Filter and score students by name
     const matchedStudents = [];
     studentsSnapshot.forEach(doc => {
       const studentData = doc.data();
-      if (studentData.name && studentData.name.toLowerCase().includes(searchInput)) {
-        matchedStudents.push({
-          id: doc.id,
-          ...studentData
-        });
+      if (studentData.name) {
+        const score = calculateSearchScore(studentData.name, searchInput);
+        if (score > 0) {
+          matchedStudents.push({
+            id: doc.id,
+            ...studentData,
+            searchScore: score
+          });
+        }
       }
     });
+    
+    // Sort by score (highest first)
+    matchedStudents.sort((a, b) => b.searchScore - a.searchScore);
     
     // Display results
     if (matchedStudents.length === 0) {
@@ -6419,17 +6477,24 @@ window.performStudentSearchNew = async function() {
     // Get all students
     const studentsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
     
-    // Filter students by name
+    // Filter and score students by name
     const matchedStudents = [];
     studentsSnapshot.forEach(doc => {
       const studentData = doc.data();
-      if (studentData.name && studentData.name.toLowerCase().includes(searchInput)) {
-        matchedStudents.push({
-          id: doc.id,
-          ...studentData
-        });
+      if (studentData.name) {
+        const score = calculateSearchScore(studentData.name, searchInput);
+        if (score > 0) {
+          matchedStudents.push({
+            id: doc.id,
+            ...studentData,
+            searchScore: score
+          });
+        }
       }
     });
+    
+    // Sort by score (highest first)
+    matchedStudents.sort((a, b) => b.searchScore - a.searchScore);
     
     // Display results
     if (matchedStudents.length === 0) {
