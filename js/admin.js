@@ -3117,20 +3117,11 @@ window.saveDailyAttendance = async function() {
       const reportData = {
         status: record.status,
         date: currentDate,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        late: record.originalStatus === 'late',  // true or false صراحة
+        distracted: record.originalStatus === 'distracted',  // true or false صراحة
+        excuseType: record.excuseType || null  // null لمسح القيم القديمة
       };
-      
-      if (record.excuseType) {
-        reportData.excuseType = record.excuseType;
-      }
-      
-      if (record.originalStatus === 'late') {
-        reportData.late = true;
-      }
-      
-      if (record.originalStatus === 'distracted') {
-        reportData.distracted = true;
-      }
       
       await setDoc(reportRef, reportData, { merge: true });
     }
