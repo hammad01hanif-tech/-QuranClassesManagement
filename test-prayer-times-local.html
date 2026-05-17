@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار البيانات المحلية - أوقات الصلاة</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #11998e;
+            margin-bottom: 10px;
+            font-size: 36px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 18px;
+        }
+        
+        .info-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .info-box h3 {
+            margin-bottom: 10px;
+            font-size: 22px;
+        }
+        
+        .info-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        
+        .today-times {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        
+        .today-times h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 26px;
+        }
+        
+        .prayer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .prayer-card {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        
+        .prayer-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        
+        .prayer-name {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .prayer-time {
+            font-size: 32px;
+            font-weight: bold;
+            color: #11998e;
+        }
+        
+        .next-prayer {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .next-prayer h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .next-prayer .time {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .next-prayer .remaining {
+            font-size: 20px;
+            opacity: 0.95;
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 22px;
+            border-bottom: 3px solid #11998e;
+            padding-bottom: 10px;
+        }
+        
+        .date-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #11998e;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4);
+        }
+        
+        .result-box {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        tr:hover {
+            background: #e8f5e9;
+        }
+        
+        .highlight-asr {
+            background: #fff3cd !important;
+            font-weight: bold;
+        }
+        
+        .highlight-isha {
+            background: #cfe2ff !important;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🕌 أوقات الصلاة - البيانات المحلية</h1>
+        <p class="subtitle">مكة المكرمة، المملكة العربية السعودية</p>
+        
+        <!-- Data Info -->
+        <div class="info-box">
+            <h3>📊 معلومات البيانات المحفوظة</h3>
+            <div class="info-stats">
+                <div class="stat">
+                    <div class="stat-value" id="totalMonths">-</div>
+                    <div class="stat-label">عدد الأشهر</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="totalDays">-</div>
+                    <div class="stat-label">عدد الأيام</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="dataYear">-</div>
+                    <div class="stat-label">السنة</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="location">-</div>
+                    <div class="stat-label">الموقع</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Next Prayer -->
+        <div class="next-prayer" id="nextPrayerBox">
+            <h3>⏰ الصلاة القادمة</h3>
+            <div class="time" id="nextPrayerName">-</div>
+            <div class="remaining" id="nextPrayerTime">-</div>
+            <div class="remaining" id="nextPrayerRemaining">-</div>
+        </div>
+        
+        <!-- Today's Prayer Times -->
+        <div class="today-times">
+            <h2>📅 أوقات الصلاة اليوم</h2>
+            <div id="todayDate" style="text-align: center; color: #666; margin-bottom: 15px; font-size: 16px;">-</div>
+            <div class="prayer-grid" id="todayPrayers">
+                <!-- Will be filled by JavaScript -->
+            </div>
+        </div>
+        
+        <!-- Test: Query Specific Date -->
+        <div class="test-section">
+            <h2>🔍 البحث عن يوم معين</h2>
+            <input type="date" id="dateInput" class="date-input" value="2026-05-17">
+            <button onclick="searchDate()">🔎 بحث</button>
+            <div id="searchResult" class="result-box" style="display: none;"></div>
+        </div>
+        
+        <!-- Test: Show Month -->
+        <div class="test-section">
+            <h2>📅 عرض شهر كامل</h2>
+            <select id="monthSelect" class="date-input">
+                <!-- Will be filled by JavaScript -->
+            </select>
+            <button onclick="showMonth()">📊 عرض الشهر</button>
+            <div id="monthResult" class="result-box" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { 
+            getPrayerTimesLocal,
+            getTodayPrayerTimes,
+            getMonthPrayerTimes,
+            getNextPrayer,
+            getAvailableMonths,
+            getDataInfo,
+            isAsrTime,
+            isIshaTime
+        } from './js/prayer-times-local.js';
+        
+        // Make functions global
+        window.getPrayerTimesLocal = getPrayerTimesLocal;
+        window.getTodayPrayerTimes = getTodayPrayerTimes;
+        window.getMonthPrayerTimes = getMonthPrayerTimes;
+        window.getNextPrayer = getNextPrayer;
+        
+        // Load data info
+        const info = getDataInfo();
+        document.getElementById('totalMonths').textContent = info.totalMonths;
+        document.getElementById('totalDays').textContent = info.totalDays;
+        document.getElementById('dataYear').textContent = info.year;
+        document.getElementById('location').textContent = info.location;
+        
+        // Load next prayer
+        const nextPrayer = getNextPrayer();
+        if (nextPrayer) {
+            document.getElementById('nextPrayerName').textContent = nextPrayer.name;
+            document.getElementById('nextPrayerTime').textContent = nextPrayer.time;
+            if (nextPrayer.remainingMinutes !== null) {
+                document.getElementById('nextPrayerRemaining').textContent = 
+                    `⏳ متبقي: ${nextPrayer.remainingHours} ساعة و ${nextPrayer.remainingMins} دقيقة`;
+            }
+        }
+        
+        // Load today's prayers
+        const today = getTodayPrayerTimes();
+        if (today) {
+            document.getElementById('todayDate').textContent = 
+                `${today.gregorianWeekday} - ${today.gregorianDate} | ${today.hijriWeekday} - ${today.hijriDate}`;
+            
+            const prayers = [
+                { icon: '🌅', name: 'الفجر', time: today.fajr },
+                { icon: '🌄', name: 'الشروق', time: today.sunrise },
+                { icon: '☀️', name: 'الظهر', time: today.dhuhr },
+                { icon: '🌤️', name: 'العصر', time: today.asr },
+                { icon: '🌆', name: 'المغرب', time: today.maghrib },
+                { icon: '🌙', name: 'العشاء', time: today.isha }
+            ];
+            
+            const grid = document.getElementById('todayPrayers');
+            grid.innerHTML = prayers.map(p => `
+                <div class="prayer-card">
+                    <div class="prayer-name">${p.icon} ${p.name}</div>
+                    <div class="prayer-time">${p.time}</div>
+                </div>
+            `).join('');
+        }
+        
+        // Populate month selector
+        const months = getAvailableMonths();
+        const monthSelect = document.getElementById('monthSelect');
+        monthSelect.innerHTML = months.map(m => 
+            `<option value="${m.year}-${m.month}">${m.monthName} ${m.year} (${m.totalDays} يوم)</option>`
+        ).join('');
+        
+        // Search date function
+        window.searchDate = function() {
+            const date = document.getElementById('dateInput').value;
+            const result = document.getElementById('searchResult');
+            
+            if (!date) {
+                alert('⚠️ الرجاء اختيار تاريخ');
+                return;
+            }
+            
+            const times = getPrayerTimesLocal(date);
+            
+            if (times) {
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th colspan="2" style="font-size: 18px;">
+                                    📅 ${times.gregorianWeekday} - ${times.gregorianDate}<br>
+                                    ${times.hijriWeekday} - ${times.hijriDate} (${times.hijriMonthName})
+                                </th>
+                            </tr>
+                            <tr>
+                                <th>الصلاة</th>
+                                <th>الوقت</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>🌅 الفجر</td>
+                                <td style="font-weight: bold; font-size: 16px;">${times.fajr}</td>
+                            </tr>
+                            <tr>
+                                <td>🌄 الشروق</td>
+                                <td style="font-weight: bold; font-size: 16px;">${times.sunrise}</td>
+                            </tr>
+                            <tr>
+                                <td>☀️ الظهر</td>
+                                <td style="font-weight: bold; font-size: 16px;">${times.dhuhr}</td>
+                            </tr>
+                            <tr class="highlight-asr">
+                                <td>🌤️ العصر</td>
+                                <td style="font-weight: bold; font-size: 18px;">${times.asr}</td>
+                            </tr>
+                            <tr>
+                                <td>🌆 المغرب</td>
+                                <td style="font-weight: bold; font-size: 16px;">${times.maghrib}</td>
+                            </tr>
+                            <tr class="highlight-isha">
+                                <td>🌙 العشاء</td>
+                                <td style="font-weight: bold; font-size: 18px;">${times.isha}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                result.style.display = 'block';
+                result.innerHTML = '<p style="text-align: center; color: #dc3545;">❌ لا توجد بيانات لهذا التاريخ</p>';
+            }
+        };
+        
+        // Show month function
+        window.showMonth = function() {
+            const value = document.getElementById('monthSelect').value;
+            const [year, month] = value.split('-').map(Number);
+            const result = document.getElementById('monthResult');
+            
+            const days = getMonthPrayerTimes(year, month);
+            
+            if (days) {
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>اليوم</th>
+                                <th>الفجر</th>
+                                <th>الظهر</th>
+                                <th style="background: #ffc107;">العصر</th>
+                                <th>المغرب</th>
+                                <th style="background: #0d6efd;">العشاء</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${days.map(day => `
+                                <tr>
+                                    <td>${day.gregorianDate}</td>
+                                    <td>${day.gregorianWeekday}</td>
+                                    <td>${day.fajr}</td>
+                                    <td>${day.dhuhr}</td>
+                                    <td class="highlight-asr">${day.asr}</td>
+                                    <td>${day.maghrib}</td>
+                                    <td class="highlight-isha">${day.isha}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 15px; padding: 10px; background: #e8f5e9; border-radius: 8px; text-align: center;">
+                        ✅ تم التحقق من جميع أوقات العصر والعشاء: <strong>${days.length} يوم</strong>
+                    </div>
+                `;
+            } else {
+                result.style.display = 'block';
+                result.innerHTML = '<p style="text-align: center; color: #dc3545;">❌ لا توجد بيانات لهذا الشهر</p>';
+            }
+        };
+        
+        console.log('✅ Prayer Times Local Test Page Loaded');
+        console.log('📊 Available:', months.length, 'months,', info.totalDays, 'days');
+    </script>
+</body>
+</html>
