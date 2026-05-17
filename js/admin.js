@@ -4031,6 +4031,96 @@ window.performStudentSearch = async function() {
 };
 
 // Show edit student dialog from search results
+// Delete student from system
+window.deleteStudentFromSearch = async function(studentId, studentName) {
+  // Confirm deletion
+  const confirmed = confirm(`⚠️ هل أنت متأكد من حذف الطالب "${studentName}"؟\n\nسيتم حذف جميع بياناته بشكل نهائي:\n• البيانات الشخصية\n• التقدم الدراسي\n• التقارير اليومية\n• جميع السجلات المرتبطة\n\n⛔ لا يمكن التراجع عن هذا الإجراء!`);
+  
+  if (!confirmed) return;
+  
+  // Double confirm
+  const doubleConfirmed = confirm(`🔴 تأكيد نهائي: حذف "${studentName}"؟\n\nهذا الإجراء لا يمكن التراجع عنه!`);
+  
+  if (!doubleConfirmed) return;
+  
+  try {
+    // Get student data first
+    const studentDoc = await getDoc(firestoreDoc(db, 'users', studentId));
+    if (!studentDoc.exists()) {
+      alert('❌ الطالب غير موجود في النظام');
+      return;
+    }
+    
+    const studentData = studentDoc.data();
+    const classId = studentData.classId;
+    
+    // 1. Delete student progress data (hizbDisplays)
+    try {
+      const hizbDisplaysSnapshot = await getDocs(collection(db, 'hizbDisplays'));
+      for (const doc of hizbDisplaysSnapshot.docs) {
+        if (doc.data().studentId === studentId) {
+          await deleteDoc(firestoreDoc(db, 'hizbDisplays', doc.id));
+        }
+      }
+    } catch (error) {
+      console.log('No hizbDisplays to delete:', error);
+    }
+    
+    // 2. Delete juzDisplays
+    try {
+      const juzDisplaysSnapshot = await getDocs(collection(db, 'juzDisplays'));
+      for (const doc of juzDisplaysSnapshot.docs) {
+        if (doc.data().studentId === studentId) {
+          await deleteDoc(firestoreDoc(db, 'juzDisplays', doc.id));
+        }
+      }
+    } catch (error) {
+      console.log('No juzDisplays to delete:', error);
+    }
+    
+    // 3. Delete daily reports
+    try {
+      const reportsSnapshot = await getDocs(collection(db, 'studentProgress', studentId, 'dailyReports'));
+      for (const doc of reportsSnapshot.docs) {
+        await deleteDoc(doc.ref);
+      }
+    } catch (error) {
+      console.log('No daily reports to delete:', error);
+    }
+    
+    // 4. Delete studentProgress document
+    try {
+      await deleteDoc(firestoreDoc(db, 'studentProgress', studentId));
+    } catch (error) {
+      console.log('No studentProgress to delete:', error);
+    }
+    
+    // 5. Remove student from class
+    if (classId) {
+      try {
+        const classRef = firestoreDoc(db, 'classes', classId);
+        await updateDoc(classRef, {
+          studentIds: arrayRemove(studentId)
+        });
+      } catch (error) {
+        console.log('Error removing student from class:', error);
+      }
+    }
+    
+    // 6. Delete student document
+    await deleteDoc(firestoreDoc(db, 'users', studentId));
+    
+    alert(`✅ تم حذف الطالب "${studentName}" بنجاح من النظام`);
+    
+    // Refresh search results
+    window.performStudentSearch();
+    
+  } catch (error) {
+    console.error('❌ Error deleting student:', error);
+    alert('❌ حدث خطأ في حذف الطالب. الرجاء المحاولة مرة أخرى.');
+  }
+};
+
 window.showEditStudentFromSearch = async function(studentId) {
   try {
     const studentDoc = await getDoc(firestoreDoc(db, 'users', studentId));
@@ -4106,16 +4196,22 @@ window.toggleStudentDetails = function(index) {
       
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         <button onclick="event.stopPropagation(); showEditStudentFromSearch('${student.id}')" 
-          style="flex: 1; min-width: 110px; background: #667eea; color: white; padding: 9px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.3s;"
-          onmouseover="this.style.background='#5568d3'"
-          onmouseout="this.style.background='#667eea'">
-          ✏️ تعديل البيانات
+          style="flex: 1; min-width: 110px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 12px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);"
+          onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.4)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(102, 126, 234, 0.3)'">
+          ✏️ تعديل
         </button>
         <button onclick="event.stopPropagation(); showTransferFromSearch('${student.id}', '${student.name.replace(/'/g, "\\'")}', '${student.classId}')" 
-          style="flex: 1; min-width: 110px; background: #28a745; color: white; padding: 9px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.3s;"
-          onmouseover="this.style.background='#218838'"
-          onmouseout="this.style.background='#28a745'">
-          🔄 نقل لحلقة أخرى
+          style="flex: 1; min-width: 110px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 10px 12px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 8px rgba(17, 153, 142, 0.3);"
+          onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(17, 153, 142, 0.4)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(17, 153, 142, 0.3)'">
+          🔄 نقل
+        </button>
+        <button onclick="event.stopPropagation(); deleteStudentFromSearch('${student.id}', '${student.name.replace(/'/g, "\\'")}')" 
+          style="flex: 1; min-width: 110px; background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: white; padding: 10px 12px; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 8px rgba(235, 51, 73, 0.3);"
+          onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(235, 51, 73, 0.4)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(235, 51, 73, 0.3)'">
+          🗑️ حذف
         </button>
       </div>
     `;
@@ -6629,13 +6725,24 @@ window.toggleStudentDetailsNew = function(index) {
     html += `
       <div style="display: flex; gap: 8px; margin-top: 10px;">
         <button onclick="showEditStudentFromSearch('${student.id}')" 
-          style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.3s; font-family: inherit;">
+          style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 8px; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.3s; font-family: inherit; box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);"
+          onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 9px rgba(102, 126, 234, 0.4)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 6px rgba(102, 126, 234, 0.3)'">
           ✏️ تعديل
         </button>
         
         <button onclick="showTransferFromSearch('${student.id}', '${student.name}', '${student.classId}')" 
-          style="flex: 1; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 8px; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.3s; font-family: inherit;">
+          style="flex: 1; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 10px 8px; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.3s; font-family: inherit; box-shadow: 0 2px 6px rgba(17, 153, 142, 0.3);"
+          onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 9px rgba(17, 153, 142, 0.4)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 6px rgba(17, 153, 142, 0.3)'">
           🔄 نقل
+        </button>
+        
+        <button onclick="deleteStudentFromSearch('${student.id}', '${student.name}')" 
+          style="flex: 1; background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: white; padding: 10px 8px; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.3s; font-family: inherit; box-shadow: 0 2px 6px rgba(235, 51, 73, 0.3);"
+          onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 9px rgba(235, 51, 73, 0.4)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 6px rgba(235, 51, 73, 0.3)'">
+          🗑️ حذف
         </button>
       </div>
     `;
