@@ -89,6 +89,227 @@ async function getTeacherData(teacherNameOrId) {
 window.getTeacherPhone = getTeacherPhone;
 window.getTeacherData = getTeacherData;
 
+// ==========================================
+// MONTHLY LATE TRACKING SYSTEM
+// ==========================================
+
+/**
+ * Get current Hijri month in format "YYYY-MM" using accurate dates
+ * @returns {string} Current Hijri month (e.g., "1446-05")
+ */
+function getCurrentHijriMonth() {
+  const today = getTodayAccurateHijri(); // Get accurate Hijri date
+  if (today && today.hijri) {
+    return today.hijri.substring(0, 7); // Extract "YYYY-MM"
+  }
+  // Fallback to getTodayForStorage if accurate date not available
+  const fallback = getTodayForStorage();
+  return fallback.substring(0, 7);
+}
+
+/**
+ * Get student's late tracking data for current month
+ * @param {string} studentId - Student ID
+ * @returns {Promise<Object|null>} Late tracking data or null
+ */
+async function getStudentMonthlyLateData(studentId) {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    const docRef = doc(db, 'monthlyLateTracking', `${studentId}_${currentMonth}`);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return docSnap.data();
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching student late data:', error);
+    return null;
+  }
+}
+
+/**
+ * Increment student's late count for current month
+ * @param {string} studentId - Student ID
+ * @param {string} studentName - Student name
+ * @returns {Promise<Object>} Updated late data with count and action
+ */
+async function incrementStudentLateCount(studentId, studentName) {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    const todayAccurate = getTodayAccurateHijri();
+    const today = todayAccurate && todayAccurate.hijri ? todayAccurate.hijri : getTodayForStorage();
+    const docRef = doc(db, 'monthlyLateTracking', `${studentId}_${currentMonth}`);
+    
+    // Get existing data
+    const existingData = await getStudentMonthlyLateData(studentId);
+    
+    if (existingData) {
+      // Increment existing count
+      const newCount = existingData.lateCount + 1;
+      const action = determineActionForLateCount(newCount);
+      
+      await updateDoc(docRef, {
+        lateCount: newCount,
+        lateRecords: arrayUnion(today),
+        currentAction: action,
+        lastUpdated: serverTimestamp()
+      });
+      
+      return { lateCount: newCount, currentAction: action };
+    } else {
+      // Create new record
+      const action = determineActionForLateCount(1);
+      
+      await setDoc(docRef, {
+        studentId,
+        studentName,
+        month: currentMonth,
+        lateCount: 1,
+        lateRecords: [today],
+        currentAction: action,
+        createdAt: serverTimestamp(),
+        lastUpdated: serverTimestamp()
+      });
+      
+      return { lateCount: 1, currentAction: action };
+    }
+  } catch (error) {
+    console.error('Error incrementing late count:', error);
+    throw error;
+  }
+}
+
+/**
+ * Determine action based on late count
+ * @param {number} lateCount - Number of late occurrences
+ * @returns {Object} Action details {level, title, description}
+ */
+function determineActionForLateCount(lateCount) {
+  const actions = {
+    1: {
+      level: 1,
+      title: 'تنبيه شفهي',
+      description: 'التأخير الأول في الشهر: تنبيه شفهي',
+      color: '#ffc107',
+      emoji: '⚠️'
+    },
+    2: {
+      level: 2,
+      title: 'الوقوف خارج الحلقة',
+      description: 'التأخير الثاني: الوقوف من صلاة العصر إلى صلاة المغرب خارج الحلقة',
+      color: '#ff9800',
+      emoji: '🚫'
+    },
+    3: {
+      level: 3,
+      title: 'الوقوف خارج الحلقة',
+      description: 'التأخير الثالث: الوقوف من صلاة العصر إلى صلاة المغرب خارج الحلقة',
+      color: '#ff9800',
+      emoji: '🚫'
+    },
+    4: {
+      level: 4,
+      title: 'استدعاء ولي الأمر',
+      description: 'التأخير الرابع: استدعاء ولي الأمر وأخذ التعهد',
+      color: '#dc3545',
+      emoji: '📋'
+    },
+    5: {
+      level: 5,
+      title: 'الفصل والحرمان',
+      description: 'التأخير الخامس: الفصل والحرمان من الحلقة',
+      color: '#721c24',
+      emoji: '❌'
+    }
+  };
+  
+  // For counts >= 5, return level 5 action
+  if (lateCount >= 5) {
+    return actions[5];
+  }
+  
+  return actions[lateCount] || actions[1];
+}
+
+/**
+ * Get student's current late status for modal display
+ * @param {string} studentId - Student ID
+ * @param {string} studentName - Student name
+ * @returns {Promise<Object>} Late status with count, action, and month
+ */
+async function getStudentLateStatus(studentId, studentName) {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    const lateData = await getStudentMonthlyLateData(studentId);
+    
+    if (lateData) {
+      return {
+        month: currentMonth,
+        lateCount: lateData.lateCount,
+        currentAction: lateData.currentAction,
+        lateRecords: lateData.lateRecords || []
+      };
+    } else {
+      // No late records for this month
+      return {
+        month: currentMonth,
+        lateCount: 0,
+        currentAction: null,
+        lateRecords: []
+      };
+    }
+  } catch (error) {
+    console.error('Error getting student late status:', error);
+    return {
+      month: getCurrentHijriMonth(),
+      lateCount: 0,
+      currentAction: null,
+      lateRecords: []
+    };
+  }
+}
+
+/**
+ * Count student's late occurrences in current month from daily attendance records
+ * @param {string} studentId - Student ID
+ * @returns {Promise<number>} Number of late occurrences this month
+ */
+async function countStudentLateInCurrentMonth(studentId) {
+  try {
+    const currentMonth = getCurrentHijriMonth(); // e.g., "1446-05"
+    
+    // Get all daily reports for this student
+    const reportsRef = collection(db, 'studentProgress', studentId, 'dailyReports');
+    const reportsSnapshot = await getDocs(reportsRef);
+    
+    let lateCount = 0;
+    
+    reportsSnapshot.forEach(doc => {
+      const data = doc.data();
+      const reportDate = doc.id; // date is the document ID (format: "YYYY-MM-DD")
+      
+      // Check if this report is from current month
+      if (reportDate.startsWith(currentMonth) && data.late === true) {
+        lateCount++;
+      }
+    });
+    
+    return lateCount;
+  } catch (error) {
+    console.error('Error counting late occurrences:', error);
+    return 0;
+  }
+}
+
+// Make functions globally available
+window.getCurrentHijriMonth = getCurrentHijriMonth;
+window.getStudentMonthlyLateData = getStudentMonthlyLateData;
+window.incrementStudentLateCount = incrementStudentLateCount;
+window.determineActionForLateCount = determineActionForLateCount;
+window.getStudentLateStatus = getStudentLateStatus;
+window.countStudentLateInCurrentMonth = countStudentLateInCurrentMonth;
+
 // Teacher names mapping for display in UI
 const teacherNames = {
   'ABD01': 'الأستاذ عبدالرحمن السيسي',
@@ -2411,7 +2632,7 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
     html += `
       <tr id="row-${student.id}" style="background: ${rowColor}; border-bottom: 1px solid #e9ecef; transition: background 0.3s;">
         <td style="padding: 8px; font-size: 12px; color: #666;">${index + 1}</td>
-        <td onclick="window.showWhatsAppModal('${student.name.replace(/'/g, "\\'")}', '${student.guardianPhone || ''}')" style="padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.color='#667eea'; this.style.textDecoration='underline'" onmouseout="this.style.color='#333'; this.style.textDecoration='none'" title="اضغط للتواصل مع ولي الأمر">${student.name}</td>
+        <td onclick="window.showWhatsAppModal('${student.name.replace(/'/g, "\\'")}', '${student.guardianPhone || ''}', '${teacherName.replace(/'/g, "\\'")}', '${student.id}')" style="padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.color='#667eea'; this.style.textDecoration='underline'" onmouseout="this.style.color='#333'; this.style.textDecoration='none'" title="اضغط للتواصل مع ولي الأمر">${student.name}</td>
         <td style="padding: 6px 8px;">
           <div class="attendance-buttons" data-student-id="${student.id}" style="display: flex; gap: 6px; justify-content: center; align-items: center;">
             <button onclick="window.selectAttendanceStatus('${student.id}', 'present')" data-status="present" title="حاضر" style="width: 26px; height: 26px; background: #28a745; border: 2px solid #28a745; border-radius: 50%; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(40,167,69,0.3); padding: 0;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></button>
@@ -4842,11 +5063,16 @@ window.showNewStudentsList = function() {
 };
 
 // Show WhatsApp contact modal
-window.showWhatsAppModal = function(studentName, guardianPhone) {
+window.showWhatsAppModal = function(studentName, guardianPhone, teacherName = null, studentId = null) {
   const modal = document.getElementById('whatsappContactModal');
   const nameDisplay = document.getElementById('whatsappStudentName');
   const phoneDisplay = document.getElementById('whatsappGuardianPhone');
   const whatsappLink = document.getElementById('whatsappContactLink');
+  
+  // Store data in modal for entry pass
+  modal.dataset.studentName = studentName;
+  modal.dataset.studentId = studentId || '';
+  modal.dataset.teacherName = teacherName || '';
   
   // Check if guardian phone exists
   if (!guardianPhone || guardianPhone === '-' || guardianPhone === '') {
@@ -4875,6 +5101,112 @@ window.showWhatsAppModal = function(studentName, guardianPhone) {
   
   // Show modal
   modal.style.display = 'flex';
+};
+
+// Send Entry Pass to Teacher
+window.sendEntryPass = async function() {
+  const modal = document.getElementById('whatsappContactModal');
+  const studentName = modal.dataset.studentName;
+  const studentId = modal.dataset.studentId;
+  const teacherName = modal.dataset.teacherName;
+  
+  if (!teacherName) {
+    alert('⚠️ لا يمكن تحديد معلم الطالب');
+    return;
+  }
+  
+  if (!studentId) {
+    alert('⚠️ لا يمكن تحديد معرف الطالب');
+    return;
+  }
+  
+  // Show loading
+  const entryPassBtn = document.getElementById('entryPassBtn');
+  const originalText = entryPassBtn.innerHTML;
+  entryPassBtn.innerHTML = '<span style="font-size: 22px;">⏳</span><span>جاري التحميل...</span>';
+  entryPassBtn.disabled = true;
+  
+  try {
+    // Get teacher phone from Firestore
+    const teacherPhone = await getTeacherPhone(teacherName);
+    
+    if (!teacherPhone) {
+      alert(`⚠️ لا يوجد رقم جوال للمعلم: ${teacherName}\n\nالرجاء إضافة رقم المعلم في قاعدة البيانات أولاً.`);
+      entryPassBtn.innerHTML = originalText;
+      entryPassBtn.disabled = false;
+      return;
+    }
+    
+    // Get accurate Hijri date
+    const todayAccurate = getTodayAccurateHijri();
+    let todayFormatted = '';
+    let dayName = '';
+    
+    if (todayAccurate) {
+      dayName = todayAccurate.dayName || '';
+      todayFormatted = formatAccurateHijriDate(todayAccurate.hijri);
+    } else {
+      // Fallback
+      const fallback = getTodayForStorage();
+      const parts = fallback.split('-');
+      const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+      const monthName = hijriMonths[parseInt(parts[1]) - 1];
+      todayFormatted = `${parts[2]} ${monthName} ${parts[0]}هـ`;
+    }
+    
+    // Count late occurrences from daily attendance records (READ ONLY - no new registration)
+    const lateCount = await countStudentLateInCurrentMonth(studentId);
+    
+    // Determine action based on late count
+    const action = determineActionForLateCount(lateCount);
+    const newLateCount = lateCount;
+    
+    // Prepare entry pass message with late count and action
+    let message = `🎫 بطاقة دخول الحلقة\n`;
+    message += `━━━━━━━━━━━━━━━━━\n\n`;
+    
+    message += `📋 بيانات الطالب:\n`;
+    message += `• الاسم: ${studentName}\n`;
+    message += `• المعلم: ${teacherName}\n`;
+    message += `• التاريخ: ${dayName} ${todayFormatted}\n\n`;
+    
+    message += `⏰ عدد التأخيرات في هذا الشهر: ${newLateCount}\n\n`;
+    
+    message += `${action.emoji} الإجراء المتخذ:\n`;
+    message += `${action.description}\n\n`;
+    
+    // Add color-coded status
+    let statusText = '';
+    if (newLateCount === 1) {
+      statusText = `🟡 الحالة: تحذير أولي`;
+    } else if (newLateCount === 2 || newLateCount === 3) {
+      statusText = `🟠 الحالة: تحذير متقدم`;
+    } else if (newLateCount === 4) {
+      statusText = `🔴 الحالة: حرج - يتطلب تدخل ولي الأمر`;
+    } else if (newLateCount >= 5) {
+      statusText = `⛔ الحالة: حرج جداً - قرار الفصل`;
+    }
+    
+    message += statusText;
+    message += `\n━━━━━━━━━━━━━━━━━`;
+    
+    // Format phone number
+    const formattedPhone = teacherPhone.replace(/^0/, '');
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Open WhatsApp
+    window.open(`https://wa.me/966${formattedPhone}?text=${encodedMessage}`, '_blank');
+    
+    // Reset button
+    entryPassBtn.innerHTML = originalText;
+    entryPassBtn.disabled = false;
+    
+  } catch (error) {
+    console.error('Error sending entry pass:', error);
+    alert('❌ حدث خطأ في إرسال بطاقة الدخول');
+    entryPassBtn.innerHTML = originalText;
+    entryPassBtn.disabled = false;
+  }
 };
 
 // Close WhatsApp contact modal
