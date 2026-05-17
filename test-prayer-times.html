@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار API أوقات الصلاة</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 22px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(17, 153, 142, 0.6);
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
+            box-shadow: 0 4px 15px rgba(0, 147, 233, 0.4);
+        }
+        
+        .btn-info:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 147, 233, 0.6);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .result-box {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .result-box pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .status {
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffc107;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #dc3545;
+        }
+        
+        .prayer-times-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .prayer-times-table th,
+        .prayer-times-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .prayer-times-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .prayer-times-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .prayer-times-table tr:hover {
+            background: #e3f2fd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🕌 اختبار API أوقات الصلاة</h1>
+        <p class="subtitle">Aladhan API - مكة المكرمة، المملكة العربية السعودية</p>
+        
+        <!-- Test Section 1: Fetch and Store -->
+        <div class="test-section">
+            <h2>1️⃣ جلب وحفظ أوقات الصلاة</h2>
+            <div class="button-group">
+                <button class="btn-primary" onclick="testFetchCurrentMonth()">
+                    📥 جلب وحفظ الشهر الحالي
+                </button>
+                <button class="btn-success" onclick="testCheckExists()">
+                    ✅ التحقق من وجود البيانات
+                </button>
+            </div>
+            <div id="result1" class="result-box" style="display: none;">
+                <pre id="result1-text"></pre>
+            </div>
+            <div id="status1"></div>
+        </div>
+        
+        <!-- Test Section 2: Get Prayer Times -->
+        <div class="test-section">
+            <h2>2️⃣ جلب أوقات صلاة يوم معين</h2>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold; color: #333;">
+                    اختر التاريخ:
+                </label>
+                <input type="date" id="dateInput" 
+                    style="width: 100%; padding: 12px; border: 2px solid #667eea; border-radius: 8px; font-size: 16px;"
+                    value="2026-05-17">
+            </div>
+            <div class="button-group">
+                <button class="btn-info" onclick="testGetPrayerTimes()">
+                    🔍 جلب أوقات الصلاة
+                </button>
+            </div>
+            <div id="result2" class="result-box" style="display: none;">
+                <pre id="result2-text"></pre>
+            </div>
+            <div id="status2"></div>
+        </div>
+        
+        <!-- Test Section 3: Display All Stored Months -->
+        <div class="test-section">
+            <h2>3️⃣ عرض جميع الأشهر المخزنة</h2>
+            <div class="button-group">
+                <button class="btn-success" onclick="testGetAllMonths()">
+                    📊 عرض الأشهر المخزنة
+                </button>
+            </div>
+            <div id="result3" class="result-box" style="display: none;">
+                <pre id="result3-text"></pre>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { 
+            fetchAndStoreCurrentMonth,
+            checkPrayerTimesExist,
+            getPrayerTimesForDate,
+            getAllStoredMonths
+        } from './js/prayer-times.js';
+        
+        // Make functions globally available
+        window.fetchAndStoreCurrentMonth = fetchAndStoreCurrentMonth;
+        window.checkPrayerTimesExist = checkPrayerTimesExist;
+        window.getPrayerTimesForDate = getPrayerTimesForDate;
+        window.getAllStoredMonths = getAllStoredMonths;
+        
+        // Test 1: Fetch and store current month
+        window.testFetchCurrentMonth = async function() {
+            const resultBox = document.getElementById('result1');
+            const resultText = document.getElementById('result1-text');
+            const status = document.getElementById('status1');
+            
+            resultBox.style.display = 'block';
+            resultText.textContent = '';
+            status.innerHTML = '<div class="status loading">⏳ جاري جلب البيانات من API...</div>';
+            
+            try {
+                const result = await fetchAndStoreCurrentMonth();
+                
+                resultText.textContent = JSON.stringify(result, null, 2);
+                status.innerHTML = `<div class="status success">✅ تم جلب وحفظ ${result.totalDays} يوم بنجاح!</div>`;
+                
+            } catch (error) {
+                resultText.textContent = 'خطأ: ' + error.message;
+                status.innerHTML = '<div class="status error">❌ فشل في جلب البيانات</div>';
+            }
+        };
+        
+        // Test 2: Check if data exists
+        window.testCheckExists = async function() {
+            const status = document.getElementById('status1');
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+            
+            status.innerHTML = '<div class="status loading">⏳ جاري التحقق...</div>';
+            
+            try {
+                const exists = await checkPrayerTimesExist(year, month);
+                
+                if (exists) {
+                    status.innerHTML = `<div class="status success">✅ البيانات موجودة للشهر ${month}/${year}</div>`;
+                } else {
+                    status.innerHTML = `<div class="status error">❌ البيانات غير موجودة للشهر ${month}/${year}</div>`;
+                }
+                
+            } catch (error) {
+                status.innerHTML = '<div class="status error">❌ خطأ في التحقق</div>';
+            }
+        };
+        
+        // Test 3: Get prayer times for specific date
+        window.testGetPrayerTimes = async function() {
+            const dateInput = document.getElementById('dateInput').value;
+            const resultBox = document.getElementById('result2');
+            const resultText = document.getElementById('result2-text');
+            const status = document.getElementById('status2');
+            
+            if (!dateInput) {
+                alert('⚠️ الرجاء اختيار التاريخ');
+                return;
+            }
+            
+            resultBox.style.display = 'block';
+            status.innerHTML = '<div class="status loading">⏳ جاري جلب أوقات الصلاة...</div>';
+            
+            try {
+                const prayerTimes = await getPrayerTimesForDate(dateInput);
+                
+                if (prayerTimes) {
+                    // Display as formatted table
+                    const html = `
+                        <table class="prayer-times-table">
+                            <thead>
+                                <tr>
+                                    <th colspan="2" style="font-size: 18px;">
+                                        📅 ${prayerTimes.gregorianWeekday} - ${prayerTimes.gregorianDate}<br>
+                                        ${prayerTimes.hijriWeekday} - ${prayerTimes.hijriDate} (${prayerTimes.hijriMonthName})
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <th>الصلاة</th>
+                                    <th>الوقت</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>🌅 الفجر</td>
+                                    <td style="font-weight: bold; font-size: 16px;">${prayerTimes.fajr}</td>
+                                </tr>
+                                <tr>
+                                    <td>🌄 الشروق</td>
+                                    <td style="font-weight: bold; font-size: 16px;">${prayerTimes.sunrise}</td>
+                                </tr>
+                                <tr>
+                                    <td>☀️ الظهر</td>
+                                    <td style="font-weight: bold; font-size: 16px;">${prayerTimes.dhuhr}</td>
+                                </tr>
+                                <tr>
+                                    <td>🌤️ العصر</td>
+                                    <td style="font-weight: bold; font-size: 16px;">${prayerTimes.asr}</td>
+                                </tr>
+                                <tr>
+                                    <td>🌆 المغرب</td>
+                                    <td style="font-weight: bold; font-size: 16px;">${prayerTimes.maghrib}</td>
+                                </tr>
+                                <tr>
+                                    <td>🌙 العشاء</td>
+                                    <td style="font-weight: bold; font-size: 16px;">${prayerTimes.isha}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                            <strong>📍 الموقع:</strong> ${prayerTimes.location}, ${prayerTimes.country}
+                        </div>
+                    `;
+                    
+                    resultText.innerHTML = html;
+                    status.innerHTML = '<div class="status success">✅ تم جلب أوقات الصلاة بنجاح</div>';
+                } else {
+                    resultText.textContent = 'لا توجد بيانات لهذا التاريخ. الرجاء جلب البيانات أولاً.';
+                    status.innerHTML = '<div class="status error">❌ لا توجد بيانات</div>';
+                }
+                
+            } catch (error) {
+                resultText.textContent = 'خطأ: ' + error.message;
+                status.innerHTML = '<div class="status error">❌ خطأ في جلب البيانات</div>';
+            }
+        };
+        
+        // Test 4: Get all stored months
+        window.testGetAllMonths = async function() {
+            const resultBox = document.getElementById('result3');
+            const resultText = document.getElementById('result3-text');
+            
+            resultBox.style.display = 'block';
+            resultText.textContent = 'جاري التحميل...';
+            
+            try {
+                const months = await getAllStoredMonths();
+                
+                if (months.length === 0) {
+                    resultText.textContent = 'لا توجد أشهر مخزنة بعد. قم بجلب البيانات أولاً.';
+                } else {
+                    let html = '<table class="prayer-times-table"><thead><tr><th>الشهر</th><th>السنة</th><th>عدد الأيام</th><th>الموقع</th></tr></thead><tbody>';
+                    
+                    months.forEach(month => {
+                        html += `
+                            <tr>
+                                <td>${month.month}</td>
+                                <td>${month.year}</td>
+                                <td>${month.totalDays}</td>
+                                <td>${month.location}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</tbody></table>';
+                    resultText.innerHTML = html;
+                }
+                
+            } catch (error) {
+                resultText.textContent = 'خطأ: ' + error.message;
+            }
+        };
+        
+        console.log('✅ Prayer Times Test Page Loaded');
+    </script>
+</body>
+</html>
