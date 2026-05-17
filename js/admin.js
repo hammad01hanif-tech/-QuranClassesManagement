@@ -38,68 +38,81 @@ async function getTeacherPhone(teacherNameOrId) {
   try {
     console.log('🔍 البحث عن معلم:', teacherNameOrId);
     
-    // Try to find by document ID first
-    const teacherDocById = doc(db, 'teachers', teacherNameOrId);
-    const teacherSnapById = await getDoc(teacherDocById);
+    // Search in 'classes' collection (not 'teachers')
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
     
-    if (teacherSnapById.exists() && teacherSnapById.data().phone) {
-      console.log('✅ وُجد بالـ Document ID:', teacherSnapById.data());
-      return teacherSnapById.data().phone;
-    }
+    console.log(`📊 عدد الحلقات في Firestore: ${classesSnapshot.docs.length}`);
     
-    // If not found by document ID, search in all teachers
-    const teachersSnapshot = await getDocs(collection(db, 'teachers'));
-    
-    console.log(`📊 عدد المعلمين في Firestore: ${teachersSnapshot.docs.length}`);
-    
-    if (teachersSnapshot.empty) {
-      console.error('❌ لا يوجد معلمين في collection teachers!');
+    if (classesSnapshot.empty) {
+      console.error('❌ لا يوجد حلقات في collection classes!');
       return null;
     }
     
     // Clean search term
     const searchTerm = teacherNameOrId.trim();
     
-    // Try to find by 'id' field inside document
-    let teacher = teachersSnapshot.docs.find(
-      doc => doc.data().id && doc.data().id === searchTerm
+    // Try to find by 'teacherId' field
+    let classDoc = classesSnapshot.docs.find(
+      doc => doc.data().teacherId && doc.data().teacherId === searchTerm
     );
     
-    if (teacher) {
-      console.log('✅ وُجد بحقل id داخل الـ document:', teacher.data());
-      return teacher.data().phone || null;
+    if (classDoc && classDoc.data().teacherPhone) {
+      console.log('✅ وُجد بحقل teacherId:', classDoc.data());
+      return classDoc.data().teacherPhone;
     }
     
-    // Try exact name match
-    teacher = teachersSnapshot.docs.find(
-      doc => doc.data().name && doc.data().name.trim() === searchTerm
+    // Try exact name match (teacherName field)
+    classDoc = classesSnapshot.docs.find(
+      doc => doc.data().teacherName && doc.data().teacherName.trim() === searchTerm
     );
     
-    if (teacher) {
-      console.log('✅ وُجد بالاسم الدقيق:', teacher.data());
-      return teacher.data().phone || null;
+    if (classDoc && classDoc.data().teacherPhone) {
+      console.log('✅ وُجد بالاسم الدقيق:', classDoc.data());
+      return classDoc.data().teacherPhone;
     }
     
     // Try partial match (contains)
-    teacher = teachersSnapshot.docs.find(
-      doc => doc.data().name && 
-             (doc.data().name.includes(searchTerm) || searchTerm.includes(doc.data().name))
+    classDoc = classesSnapshot.docs.find(
+      doc => doc.data().teacherName && 
+             (doc.data().teacherName.includes(searchTerm) || searchTerm.includes(doc.data().teacherName))
     );
     
-    if (teacher) {
-      console.log('✅ وُجد بالمطابقة الجزئية:', teacher.data());
-      return teacher.data().phone || null;
+    if (classDoc && classDoc.data().teacherPhone) {
+      console.log('✅ وُجد بالمطابقة الجزئية:', classDoc.data());
+      return classDoc.data().teacherPhone;
     }
     
-    // List all teachers for debugging
-    console.log('❌ لم يُعثر على المعلم. المعلمين المتاحين:');
-    teachersSnapshot.docs.forEach((doc, index) => {
+    // List all classes/teachers for debugging
+    console.log('❌ لم يُعثر على المعلم. الحلقات المتاحة:');
+    const teachersMap = new Map();
+    
+    classesSnapshot.docs.forEach((doc, index) => {
       const data = doc.data();
-      console.log(`  ${index + 1}. Document ID: "${doc.id}"`);
-      console.log(`     - حقل id: "${data.id || 'غير موجود'}"`);
-      console.log(`     - حقل name: "${data.name || 'غير موجود'}"`);
-      console.log(`     - حقل phone: "${data.phone || 'غير موجود'}"`);
-      console.log(`     - البيانات الكاملة:`, data);
+      const teacherId = data.teacherId || 'غير موجود';
+      const teacherName = data.teacherName || 'غير محدد';
+      const teacherPhone = data.teacherPhone || 'غير موجود';
+      
+      // Group by teacher to avoid duplicates
+      if (!teachersMap.has(teacherId)) {
+        teachersMap.set(teacherId, {
+          teacherId,
+          teacherName,
+          teacherPhone,
+          classes: []
+        });
+      }
+      teachersMap.get(teacherId).classes.push(data.className || doc.id);
+    });
+    
+    console.log(`📋 إجمالي المعلمين: ${teachersMap.size}`);
+    let counter = 1;
+    teachersMap.forEach((teacher) => {
+      console.log(`  ${counter}. المعلم:`);
+      console.log(`     - teacherId: "${teacher.teacherId}"`);
+      console.log(`     - teacherName: "${teacher.teacherName}"`);
+      console.log(`     - teacherPhone: "${teacher.teacherPhone}"`);
+      console.log(`     - عدد الحلقات: ${teacher.classes.length}`);
+      counter++;
     });
     
     return null;
@@ -116,33 +129,33 @@ async function getTeacherPhone(teacherNameOrId) {
  */
 async function getTeacherData(teacherNameOrId) {
   try {
-    // Try to find by document ID first
-    const teacherDocById = doc(db, 'teachers', teacherNameOrId);
-    const teacherSnapById = await getDoc(teacherDocById);
+    // Search in 'classes' collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
     
-    if (teacherSnapById.exists()) {
-      return { id: teacherSnapById.id, ...teacherSnapById.data() };
-    }
-    
-    // If not found by document ID, search in all teachers
-    const teachersSnapshot = await getDocs(collection(db, 'teachers'));
-    
-    // Try to find by 'id' field inside document
-    let teacher = teachersSnapshot.docs.find(
-      doc => doc.data().id === teacherNameOrId
+    // Try to find by 'teacherId' field
+    let classDoc = classesSnapshot.docs.find(
+      doc => doc.data().teacherId === teacherNameOrId
     );
     
-    if (teacher) {
-      return { id: teacher.id, ...teacher.data() };
+    if (classDoc) {
+      return {
+        id: classDoc.data().teacherId,
+        name: classDoc.data().teacherName,
+        phone: classDoc.data().teacherPhone
+      };
     }
     
-    // If not found by id field, search by name
-    teacher = teachersSnapshot.docs.find(
-      doc => doc.data().name === teacherNameOrId
+    // If not found by teacherId, search by teacherName
+    classDoc = classesSnapshot.docs.find(
+      doc => doc.data().teacherName === teacherNameOrId
     );
     
-    if (teacher) {
-      return { id: teacher.id, ...teacher.data() };
+    if (classDoc) {
+      return {
+        id: classDoc.data().teacherId,
+        name: classDoc.data().teacherName,
+        phone: classDoc.data().teacherPhone
+      };
     }
     
     return null;
