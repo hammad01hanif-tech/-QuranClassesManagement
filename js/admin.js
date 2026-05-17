@@ -36,21 +36,51 @@ import { accurateHijriDates, getTodayAccurateHijri, formatAccurateHijriDate } fr
  */
 async function getTeacherPhone(teacherNameOrId) {
   try {
+    console.log('🔍 البحث عن معلم:', teacherNameOrId);
+    
     // Try to find by ID first
     const teacherDocById = doc(db, 'teachers', teacherNameOrId);
     const teacherSnapById = await getDoc(teacherDocById);
     
     if (teacherSnapById.exists() && teacherSnapById.data().phone) {
+      console.log('✅ وُجد بالـ ID:', teacherSnapById.data());
       return teacherSnapById.data().phone;
     }
     
     // If not found by ID, search by name
     const teachersSnapshot = await getDocs(collection(db, 'teachers'));
-    const teacher = teachersSnapshot.docs.find(
-      doc => doc.data().name === teacherNameOrId
+    
+    // Clean search term
+    const searchTerm = teacherNameOrId.trim();
+    
+    // Try exact match first
+    let teacher = teachersSnapshot.docs.find(
+      doc => doc.data().name && doc.data().name.trim() === searchTerm
     );
     
-    return teacher?.data()?.phone || null;
+    if (teacher) {
+      console.log('✅ وُجد بالاسم الدقيق:', teacher.data());
+      return teacher.data().phone || null;
+    }
+    
+    // Try partial match (contains)
+    teacher = teachersSnapshot.docs.find(
+      doc => doc.data().name && 
+             (doc.data().name.includes(searchTerm) || searchTerm.includes(doc.data().name))
+    );
+    
+    if (teacher) {
+      console.log('✅ وُجد بالمطابقة الجزئية:', teacher.data());
+      return teacher.data().phone || null;
+    }
+    
+    // List all teachers for debugging
+    console.log('❌ لم يُعثر على المعلم. المعلمين المتاحين:');
+    teachersSnapshot.docs.forEach(doc => {
+      console.log(`  - "${doc.data().name}" (رقم: ${doc.data().phone || 'غير موجود'})`);
+    });
+    
+    return null;
   } catch (error) {
     console.error('Error fetching teacher phone:', error);
     return null;
@@ -5131,7 +5161,7 @@ window.sendEntryPass = async function() {
     const teacherPhone = await getTeacherPhone(teacherName);
     
     if (!teacherPhone) {
-      alert(`⚠️ لا يوجد رقم جوال للمعلم: ${teacherName}\n\nالرجاء إضافة رقم المعلم في قاعدة البيانات أولاً.`);
+      alert(`⚠️ لا يوجد رقم جوال للمعلم: ${teacherName}\n\n💡 تأكد من:\n• إضافة رقم المعلم في قاعدة البيانات\n• تطابق اسم المعلم بالضبط\n\n🔍 افتح Console (F12) لمزيد من التفاصيل`);
       entryPassBtn.innerHTML = originalText;
       entryPassBtn.disabled = false;
       return;
