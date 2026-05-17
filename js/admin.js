@@ -57,7 +57,7 @@ async function getTeacherPhone(teacherNameOrId) {
     );
     
     if (classDoc) {
-      const phone = classDoc.data().teacherPhone || classDoc.data().phone || null;
+      const phone = classDoc.data().phone || classDoc.data().teacherPhone || null;
       if (phone) {
         console.log('✅ وُجد بحقل teacherId:', classDoc.data());
         return phone;
@@ -70,7 +70,7 @@ async function getTeacherPhone(teacherNameOrId) {
     );
     
     if (classDoc) {
-      const phone = classDoc.data().teacherPhone || classDoc.data().phone || null;
+      const phone = classDoc.data().phone || classDoc.data().teacherPhone || null;
       if (phone) {
         console.log('✅ وُجد بالاسم الدقيق:', classDoc.data());
         return phone;
@@ -84,7 +84,7 @@ async function getTeacherPhone(teacherNameOrId) {
     );
     
     if (classDoc) {
-      const phone = classDoc.data().teacherPhone || classDoc.data().phone || null;
+      const phone = classDoc.data().phone || classDoc.data().teacherPhone || null;
       if (phone) {
         console.log('✅ وُجد بالمطابقة الجزئية:', classDoc.data());
         return phone;
@@ -98,15 +98,8 @@ async function getTeacherPhone(teacherNameOrId) {
     classesSnapshot.docs.forEach((doc, index) => {
       const data = doc.data();
       const teacherId = data.teacherId || 'غير موجود';
-      
-      // Print FULL data for first 2 classes to debug
-      if (index < 2) {
-        console.log(`\n🔍 البيانات الكاملة للحلقة ${index + 1}:`, data);
-        console.log(`   الحقول المتاحة:`, Object.keys(data));
-      }
-      
       const teacherName = data.teacherName || 'غير محدد';
-      const teacherPhone = data.teacherPhone || data.phone || 'غير موجود';
+      const teacherPhone = data.phone || data.teacherPhone || 'غير موجود';
       
       // Group by teacher to avoid duplicates
       if (!teachersMap.has(teacherId)) {
@@ -121,15 +114,7 @@ async function getTeacherPhone(teacherNameOrId) {
     });
     
     console.log(`\n📋 إجمالي المعلمين: ${teachersMap.size}`);
-    let counter = 1;
-    teachersMap.forEach((teacher) => {
-      console.log(`  ${counter}. المعلم:`);
-      console.log(`     - teacherId: "${teacher.teacherId}"`);
-      console.log(`     - teacherName: "${teacher.teacherName}"`);
-      console.log(`     - teacherPhone: "${teacher.teacherPhone}"`);
-      console.log(`     - عدد الحلقات: ${teacher.classes.length}`);
-      counter++;
-    });
+    console.log(`⚠️ المعلم "${searchTerm}" غير موجود في القاعدة!`);
     
     return null;
   } catch (error) {
@@ -157,7 +142,7 @@ async function getTeacherData(teacherNameOrId) {
       return {
         id: classDoc.data().teacherId,
         name: classDoc.data().teacherName,
-        phone: classDoc.data().teacherPhone
+        phone: classDoc.data().phone || classDoc.data().teacherPhone
       };
     }
     
@@ -170,7 +155,7 @@ async function getTeacherData(teacherNameOrId) {
       return {
         id: classDoc.data().teacherId,
         name: classDoc.data().teacherName,
-        phone: classDoc.data().teacherPhone
+        phone: classDoc.data().phone || classDoc.data().teacherPhone
       };
     }
     
