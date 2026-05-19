@@ -7855,9 +7855,232 @@ function loadTeacherHomeSection(container) {
           <span class="info-text">${monthlyReport.officialHolidaysCount} إجازة رسمية</span>
         </div>
       </div>
+      
+      <!-- Attendance Record Section -->
+      <div class="section-title" style="margin-top: 40px;">
+        <span class="section-icon">📄</span>
+        <h2>سجل الحضور الشهري</h2>
+      </div>
+      
+      <!-- Attendance Record Button -->
+      <button class="attendance-record-btn" onclick="window.openAttendanceRecordModal('${currentMonthName}', ${currentYear}, ${currentMonth})">
+        <div class="btn-icon">📅</div>
+        <div class="btn-content">
+          <div class="btn-title">استعراض جدول حضور الشهر الحالي</div>
+          <div class="btn-subtitle">عرض تفاصيل الحضور والانصراف</div>
+        </div>
+        <div class="btn-arrow">◀</div>
+      </button>
     </div>
   `;
 }
+
+// Open Attendance Record Modal
+window.openAttendanceRecordModal = function(monthName, year, month) {
+  // Show modal
+  const modal = document.createElement('div');
+  modal.className = 'attendance-modal';
+  modal.innerHTML = `
+    <div class="attendance-modal-overlay" onclick="closeAttendanceModal()"></div>
+    <div class="attendance-modal-content">
+      <div class="attendance-modal-header">
+        <div class="modal-header-info">
+          <h3>📄 سجل الحضور الشهري</h3>
+          <p>${monthName} ${year}</p>
+        </div>
+        <button class="modal-close-btn" onclick="closeAttendanceModal()">✕</button>
+      </div>
+      
+      <div class="attendance-modal-body">
+        <!-- Loading Skeleton -->
+        <div class="attendance-loading">
+          <div class="skeleton-table">
+            <div class="skeleton-row skeleton-header"></div>
+            ${Array(5).fill(0).map(() => '<div class="skeleton-row"></div>').join('')}
+          </div>
+          <div class="skeleton-text">جاري تحميل بيانات الحضور...</div>
+        </div>
+        
+        <!-- Table Container (will be filled with data) -->
+        <div class="attendance-table-container" style="display: none;"></div>
+      </div>
+      
+      <div class="attendance-modal-footer">
+        <button class="modal-action-btn print-btn" onclick="window.print()">
+          <span>🖨️</span> طباعة
+        </button>
+        <button class="modal-action-btn pdf-btn" onclick="downloadAttendancePDF()">
+          <span>📥</span> تحميل PDF
+        </button>
+        <button class="modal-action-btn close-btn" onclick="closeAttendanceModal()">
+          إغلاق
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Trigger animation
+  setTimeout(() => {
+    modal.classList.add('show');
+  }, 10);
+  
+  // Load attendance data
+  setTimeout(() => {
+    loadAttendanceData(year, month);
+  }, 500);
+};
+
+// Close Attendance Modal
+window.closeAttendanceModal = function() {
+  const modal = document.querySelector('.attendance-modal');
+  if (modal) {
+    modal.classList.remove('show');
+    setTimeout(() => {
+      modal.remove();
+    }, 300);
+  }
+};
+
+// Load Attendance Data
+async function loadAttendanceData(year, month) {
+  // TODO: Fetch actual attendance data from Firebase
+  // For now, generate sample data
+  
+  const monthlyReport = getMonthlyReport(year, month);
+  const studyDays = monthlyReport.studyDays;
+  
+  // Sample attendance records
+  const attendanceRecords = studyDays.map((day, index) => {
+    const date = new Date(day.date);
+    const dayInfo = day.dayInfo;
+    
+    // Generate sample data
+    const shiftStart = '08:00';
+    const shiftEnd = '14:00';
+    const actualArrival = index % 5 === 0 ? '08:15' : '08:00'; // Some late arrivals
+    const actualLeave = index % 7 === 0 ? '13:45' : '14:00'; // Some early leaves
+    const lateDeduction = actualArrival !== shiftStart ? 4 : 0;
+    const tempLeave = index % 3 === 0 ? 18 : 0;
+    const notes = index === 0 ? 'مراجعة طبية' : '';
+    
+    return {
+      date: day.date,
+      dayName: dayInfo.dayNameArabic,
+      hijriDate: dayInfo.hijriDate,
+      shiftStart,
+      actualArrival,
+      lateDeduction,
+      shiftEnd,
+      actualLeave,
+      tempLeave,
+      notes
+    };
+  });
+  
+  // Calculate summary
+  const absences = 0; // No absences in sample data
+  const absenceDeductions = absences * 50;
+  const lateDeductions = attendanceRecords.reduce((sum, r) => sum + r.lateDeduction, 0);
+  const tempLeaveDeductions = Math.floor(attendanceRecords.reduce((sum, r) => sum + r.tempLeave, 0) / 60) * 5; // 5 SAR per hour
+  const totalDeductions = absenceDeductions + lateDeductions + tempLeaveDeductions;
+  
+  // Build table HTML
+  const tableHTML = `
+    <div class="table-wrapper">
+      <table class="attendance-table">
+        <thead>
+          <tr>
+            <th>اليوم والتاريخ</th>
+            <th>بداية الدوام</th>
+            <th>وقت الحضور</th>
+            <th>خصمية التأخير</th>
+            <th>نهاية الدوام</th>
+            <th>وقت الخروج</th>
+            <th>الخروج المؤقت</th>
+            <th>الملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${attendanceRecords.map(record => `
+            <tr>
+              <td class="date-cell">
+                <div class="date-day">${record.dayName}</div>
+                <div class="date-hijri">${record.hijriDate || record.date}</div>
+              </td>
+              <td class="time-cell">${record.shiftStart}</td>
+              <td class="time-cell ${record.lateDeduction > 0 ? 'late' : ''}">${record.actualArrival}</td>
+              <td class="deduction-cell">${record.lateDeduction > 0 ? record.lateDeduction + ' ريال' : '—'}</td>
+              <td class="time-cell">${record.shiftEnd}</td>
+              <td class="time-cell">${record.actualLeave}</td>
+              <td class="duration-cell">${record.tempLeave > 0 ? record.tempLeave + ' دقيقة' : '—'}</td>
+              <td class="notes-cell">${record.notes || '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Summary Section -->
+    <div class="attendance-summary">
+      <h4>📊 الملخص النهائي</h4>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="summary-icon">📅</span>
+          <div class="summary-details">
+            <div class="summary-label">عدد الغيابات</div>
+            <div class="summary-value">${absences} يوم</div>
+          </div>
+        </div>
+        <div class="summary-item">
+          <span class="summary-icon">💸</span>
+          <div class="summary-details">
+            <div class="summary-label">خصومات الغياب</div>
+            <div class="summary-value">${absenceDeductions} ريال</div>
+          </div>
+        </div>
+        <div class="summary-item">
+          <span class="summary-icon">⏰</span>
+          <div class="summary-details">
+            <div class="summary-label">خصومات التأخير</div>
+            <div class="summary-value">${lateDeductions} ريال</div>
+          </div>
+        </div>
+        <div class="summary-item">
+          <span class="summary-icon">⏸</span>
+          <div class="summary-details">
+            <div class="summary-label">خصومات الخروج المؤقت</div>
+            <div class="summary-value">${tempLeaveDeductions} ريال</div>
+          </div>
+        </div>
+        <div class="summary-item total">
+          <span class="summary-icon">📉</span>
+          <div class="summary-details">
+            <div class="summary-label">إجمالي الخصومات</div>
+            <div class="summary-value">${totalDeductions} ريال</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Hide loading, show table
+  const loadingEl = document.querySelector('.attendance-loading');
+  const tableContainer = document.querySelector('.attendance-table-container');
+  
+  if (loadingEl) loadingEl.style.display = 'none';
+  if (tableContainer) {
+    tableContainer.innerHTML = tableHTML;
+    tableContainer.style.display = 'block';
+  }
+}
+
+// Download Attendance PDF
+window.downloadAttendancePDF = function() {
+  alert('⚠️ وظيفة تحميل PDF قيد التطوير');
+  // TODO: Implement PDF generation using jsPDF or similar library
+};
 
 // Load Reports Section
 function loadTeacherReportsSection(container) {
