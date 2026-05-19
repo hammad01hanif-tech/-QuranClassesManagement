@@ -22,6 +22,7 @@ import { quranSurahs } from './quran-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, gregorianToHijri, isTodayAStudyDay } from './hijri-date.js';
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
 import { accurateHijriDates } from './accurate-hijri-dates.js';
+import { getMonthlyReport, countStudyDays } from './study-days-calendar.js';
 
 // DOM Elements
 const teacherStudentSelect = document.getElementById('teacherStudentSelect');
@@ -7753,8 +7754,109 @@ window.switchTeacherSection = function(sectionName) {
 
 // Load Home Section
 function loadTeacherHomeSection(container) {
-  // Empty content - only header will show
-  container.innerHTML = '';
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  
+  // Get monthly report from study-days-calendar.js
+  const monthlyReport = getMonthlyReport(currentYear, currentMonth);
+  
+  // Calculate actual attendance days (for now, show total study days)
+  // TODO: Get actual teacher attendance from database
+  const totalStudyDays = monthlyReport.studyDaysCount;
+  const attendedDays = totalStudyDays; // Placeholder - will be replaced with actual data
+  
+  // Salary calculations
+  const baseSalary = 1000; // Base salary in SAR
+  const deductionPerDay = 50; // Deduction per absent day
+  const absentDays = totalStudyDays - attendedDays;
+  const totalDeductions = absentDays * deductionPerDay;
+  const expectedSalary = baseSalary - totalDeductions;
+  
+  // Get month name in Arabic
+  const monthNames = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+  ];
+  const currentMonthName = monthNames[currentMonth - 1];
+  
+  container.innerHTML = `
+    <div class="teacher-home-container">
+      <!-- Monthly Statistics Section -->
+      <div class="section-title">
+        <span class="section-icon">📊</span>
+        <h2>إحصائية الشهر الحالي</h2>
+        <p class="section-subtitle">${currentMonthName} ${currentYear}</p>
+      </div>
+      
+      <!-- Statistics Card -->
+      <div class="teacher-stats-card animate-fade-in">
+        <!-- Attendance Section -->
+        <div class="stats-section attendance-section">
+          <div class="stats-icon">✅</div>
+          <div class="stats-content">
+            <div class="stats-label">أيام الحضور الفعلية</div>
+            <div class="stats-value attendance-value">${attendedDays}</div>
+            <div class="stats-meta">من أصل ${totalStudyDays} يوم دراسة</div>
+          </div>
+        </div>
+        
+        <!-- Divider -->
+        <div class="stats-divider"></div>
+        
+        <!-- Salary Section -->
+        <div class="stats-section salary-section">
+          <div class="salary-row">
+            <div class="salary-item base-salary">
+              <span class="salary-icon">💰</span>
+              <div class="salary-details">
+                <div class="salary-label">الراتب الأساسي</div>
+                <div class="salary-amount">${baseSalary.toLocaleString('ar-SA')} ريال</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="salary-row">
+            <div class="salary-item deductions">
+              <span class="salary-icon">📉</span>
+              <div class="salary-details">
+                <div class="salary-label">الخصومات الحالية</div>
+                <div class="salary-amount deduction-amount">${totalDeductions.toLocaleString('ar-SA')} ريال</div>
+                ${absentDays > 0 ? `<div class="salary-meta">${absentDays} يوم غياب × ${deductionPerDay} ريال</div>` : '<div class="salary-meta">لا توجد خصومات</div>'}
+              </div>
+            </div>
+          </div>
+          
+          <!-- Expected Salary Highlight -->
+          <div class="salary-row expected-salary-row">
+            <div class="salary-item expected-salary">
+              <span class="salary-icon">✅</span>
+              <div class="salary-details">
+                <div class="salary-label">الراتب المتوقع</div>
+                <div class="salary-amount expected-amount">${expectedSalary.toLocaleString('ar-SA')} ريال</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Month Details Info -->
+      <div class="month-details-info">
+        <div class="info-pill">
+          <span class="info-icon">📅</span>
+          <span class="info-text">${monthlyReport.totalDays} يوم في الشهر</span>
+        </div>
+        <div class="info-pill">
+          <span class="info-icon">🏖️</span>
+          <span class="info-text">${monthlyReport.weekendsCount} إجازة أسبوعية</span>
+        </div>
+        <div class="info-pill">
+          <span class="info-icon">🎉</span>
+          <span class="info-text">${monthlyReport.officialHolidaysCount} إجازة رسمية</span>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 // Load Reports Section

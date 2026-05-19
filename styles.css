@@ -5830,6 +5830,377 @@ details[open] > summary {
   animation: fadeIn 0.3s ease;
 }
 
+/* Teacher Home Section Styles */
+.teacher-home-container {
+  max-width: 600px;
+  margin: 0 auto;
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Section Title */
+.section-title {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.section-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+  animation: bounce 0.6s ease;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.section-title h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.3px;
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: #718096;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Teacher Statistics Card */
+.teacher-stats-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease 0.2s backwards;
+}
+
+/* Stats Section */
+.stats-section {
+  margin-bottom: 20px;
+}
+
+.stats-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Attendance Section */
+.attendance-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-radius: 16px;
+  border: 2px solid #bbf7d0;
+}
+
+.stats-icon {
+  font-size: 40px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.stats-content {
+  flex: 1;
+}
+
+.stats-label {
+  font-size: 13px;
+  color: #059669;
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-value {
+  font-size: 42px;
+  font-weight: 800;
+  color: #047857;
+  line-height: 1;
+  margin-bottom: 4px;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+.stats-meta {
+  font-size: 12px;
+  color: #059669;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+/* Stats Divider */
+.stats-divider {
+  height: 1px;
+  background: linear-gradient(to left, transparent, #e2e8f0, transparent);
+  margin: 20px 0;
+}
+
+/* Salary Section */
+.salary-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.salary-row {
+  display: flex;
+  align-items: center;
+}
+
+.salary-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.salary-item:hover {
+  transform: translateX(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.salary-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.salary-details {
+  flex: 1;
+}
+
+.salary-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.salary-amount {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+  direction: ltr;
+  text-align: right;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+.salary-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Base Salary */
+.base-salary {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #bfdbfe;
+}
+
+.base-salary .salary-label {
+  color: #1e40af;
+}
+
+.base-salary .salary-amount {
+  color: #1e3a8a;
+}
+
+/* Deductions */
+.deductions {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: #fecaca;
+}
+
+.deductions .salary-label {
+  color: #b91c1c;
+}
+
+.deduction-amount {
+  color: #991b1b !important;
+}
+
+/* Expected Salary Highlight */
+.expected-salary-row {
+  margin-top: 8px;
+}
+
+.expected-salary {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
+  padding: 18px 20px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 6px 24px rgba(34, 197, 94, 0.4);
+  }
+}
+
+.expected-salary .salary-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+.expected-salary .salary-label {
+  color: rgba(255,255,255,0.95);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.expected-salary .salary-amount {
+  color: white;
+  font-size: 28px;
+  font-weight: 800;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Month Details Info */
+.month-details-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.info-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  padding: 10px 16px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  color: #475569;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.info-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.info-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.info-text {
+  white-space: nowrap;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .teacher-home-container {
+    padding: 0 4px;
+  }
+
+  .teacher-stats-card {
+    padding: 20px;
+    border-radius: 16px;
+  }
+
+  .section-title h2 {
+    font-size: 20px;
+  }
+
+  .section-icon {
+    font-size: 28px;
+  }
+
+  .attendance-section {
+    padding: 16px;
+  }
+
+  .stats-value {
+    font-size: 36px;
+  }
+
+  .salary-amount {
+    font-size: 18px;
+  }
+
+  .expected-salary .salary-amount {
+    font-size: 24px;
+  }
+
+  .info-pill {
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+}
+
+@media (min-width: 768px) {
+  .teacher-home-container {
+    padding: 20px;
+  }
+
+  .teacher-stats-card {
+    padding: 32px;
+  }
+
+  .salary-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .expected-salary-row {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+  }
+}
+
 /* Hide old design by default */
 .old-teacher-design {
   display: none !important;
