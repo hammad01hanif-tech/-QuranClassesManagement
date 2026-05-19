@@ -1,4 +1,4 @@
-// Teacher Section JavaScript
+ï»¿// Teacher Section JavaScript
 import { 
   db, 
   collection, 
@@ -7704,159 +7704,8 @@ window.showTeacherDashboard = function() {
   document.getElementById('monthlyExamSection').style.display = 'none';
   document.getElementById('classAttendanceReportSection').style.display = 'none';
   document.getElementById('monthlyExamsManagementSection').style.display = 'none';
-  
-  // Show student list if a class is selected
-  if (currentTeacherClassId) {
-    loadTeacherStudents(currentTeacherClassId);
-  }
+  document.getElementById('studentsGridContainer').style.display = 'block';
 };
-
-// Close student reports and return to student list
-window.closeStudentReports = async function() {
-  try {
-    // Hide past reports section
-    document.getElementById('pastReportsSection').style.display = 'none';
-    
-    // Clear current student selection
-    currentTeacherStudentId = null;
-    currentTeacherStudentName = null;
-    currentTeacherStudentData = null;
-    
-    // Hide student-specific sections
-    document.getElementById('teacherStudentActions').style.display = 'none';
-    document.getElementById('newAssessmentForm').style.display = 'none';
-    document.getElementById('strugglesSection').style.display = 'none';
-    document.getElementById('monthlyExamSection').style.display = 'none';
-    
-    // Reload student list and scroll to it
-    if (currentTeacherClassId) {
-      await loadTeacherStudents(currentTeacherClassId);
-      
-      // Scroll to students grid after loading
-      setTimeout(() => {
-        const studentsGrid = document.getElementById('studentsGridContainer');
-        if (studentsGrid) {
-          studentsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 100);
-    }
-  } catch (error) {
-    console.error('Error closing student reports:', error);
-    alert('Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„Ø¥ØºÙ„Ø§Ù‚. Ø¬Ø±Ø¨ ØªØ­Ø¯ÙŠØ« Ø§Ù„ØµÙØ­Ø©.');
-  }
-};
-
-// Go to past reports from assessment form
-window.goToPastReportsFromForm = async function() {
-  if (!currentTeacherStudentId) {
-    alert('âš ï¸ Ø§Ù„Ø±Ø¬Ø§Ø¡ Ø§Ø®ØªÙŠØ§Ø± Ø·Ø§Ù„Ø¨ Ø£ÙˆÙ„Ø§Ù‹');
-    return;
-  }
-  
-  // Hide assessment form
-  document.getElementById('newAssessmentForm').style.display = 'none';
-  
-  // Show past reports section
-  document.getElementById('pastReportsSection').style.display = 'block';
-  
-  // Show back button
-  document.getElementById('backToFormButton').style.display = 'block';
-  
-  // Load past reports for this student
-  await window.showPastReports('current-month');
-  
-  // Scroll to past reports section
-  setTimeout(() => {
-    document.getElementById('pastReportsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 100);
-};
-
-// Return to assessment form from past reports
-window.returnToAssessmentForm = async function() {
-  if (!currentTeacherStudentId) {
-    alert('âš ï¸ Ø§Ù„Ø±Ø¬Ø§Ø¡ Ø§Ø®ØªÙŠØ§Ø± Ø·Ø§Ù„Ø¨ Ø£ÙˆÙ„Ø§Ù‹');
-    return;
-  }
-  
-  // Hide past reports section
-  document.getElementById('pastReportsSection').style.display = 'none';
-  
-  // Hide back button
-  document.getElementById('backToFormButton').style.display = 'none';
-  
-  // Show assessment form again
-  await window.showNewAssessment();
-  
-  // Scroll to assessment form
-  setTimeout(() => {
-    document.getElementById('newAssessmentForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 100);
-};
-
-
-// ==================== HISTORY API MANAGEMENT FOR MODALS ====================
-
-// Track currently open modals for back button navigation
-window.modalStack = window.modalStack || [];
-
-// Add modal to history
-window.pushModalToHistory = function(modalId) {
-  if (!window.modalStack.includes(modalId)) {
-    window.modalStack.push(modalId);
-    history.pushState({ modal: modalId }, '', `#${modalId}`);
-  }
-};
-
-// Remove modal from history
-window.popModalFromHistory = function() {
-  if (window.modalStack.length > 0) {
-    window.modalStack.pop();
-    if (window.modalStack.length === 0) {
-      // No more modals, go back to clean URL
-      history.pushState({}, '', window.location.pathname);
-    }
-  }
-};
-
-// Handle browser back button for teacher modals
-window.addEventListener('popstate', function(event) {
-  // Check if there are open modals
-  const modals = [
-    'studentInfoModal',
-    'examDetailsModal',
-    'topPerformersModal',
-    'strugglingModal',
-    'notificationsModal'
-  ];
-  
-  let hasOpenModal = false;
-  
-  // Close all visible modals
-  modals.forEach(modalId => {
-    const modal = document.getElementById(modalId);
-    if (modal && modal.style.display !== 'none' && modal.style.display !== '') {
-      hasOpenModal = true;
-      
-      // Remove or hide modal based on its type
-      if (modal.remove) {
-        modal.remove();
-      } else {
-        modal.style.display = 'none';
-      }
-      
-      // Restore body scroll
-      document.body.style.overflow = '';
-      
-      // Clear modal stack
-      window.modalStack = window.modalStack.filter(id => id !== modalId);
-    }
-  });
-  
-  // Prevent default navigation if modal was closed
-  if (hasOpenModal) {
-    event.preventDefault();
-  }
-});
 
 // ==========================================
 // NEW MOBILE-FIRST DESIGN FUNCTIONS
@@ -7904,131 +7753,130 @@ window.switchTeacherSection = function(sectionName) {
 
 // Load Home Section
 function loadTeacherHomeSection(container) {
-  container.innerHTML = \
+  container.innerHTML = `
     <div class="section-header" style="text-align: center; margin-bottom: 30px;">
-      <h2 style="color: #28a745; font-size: 26px; margin-bottom: 10px;">?? ÇáÕİÍÉ ÇáÑÆíÓíÉ</h2>
-      <p style="color: #666; font-size: 14px;">ãÑÍÈÇğ Èß İí áæÍÉ ÊÍßã ÇáãÚáã</p>
+      <h2 style="color: #28a745; font-size: 26px; margin-bottom: 10px;">ğŸ  Ø§Ù„ØµÙØ­Ø© Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ©</h2>
+      <p style="color: #666; font-size: 14px;">Ù…Ø±Ø­Ø¨Ø§Ù‹ Ø¨Ùƒ ÙÙŠ Ù„ÙˆØ­Ø© ØªØ­ÙƒÙ… Ø§Ù„Ù…Ø¹Ù„Ù…</p>
     </div>
     
     <div class="teacher-info-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 20px; border-radius: 15px; color: white; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(40,167,69,0.2);">
       <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-        <div style="font-size: 48px;">????</div>
+        <div style="font-size: 48px;">ğŸ‘¨â€ğŸ«</div>
         <div>
-          <div style="font-size: 14px; opacity: 0.9;">ÇáÍáŞÉ</div>
+          <div style="font-size: 14px; opacity: 0.9;">Ø§Ù„Ø­Ù„Ù‚Ø©</div>
           <div style="font-size: 20px; font-weight: bold;" id="homeClassDisplay">-</div>
         </div>
       </div>
       <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 10px;">
-        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">ÚÏÏ ÇáØáÇÈ</div>
+        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">Ø¹Ø¯Ø¯ Ø§Ù„Ø·Ù„Ø§Ø¨</div>
         <div style="font-size: 24px; font-weight: bold;" id="homeStudentsCount">0</div>
       </div>
     </div>
     
     <div class="quick-actions-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 30px;">
       <button onclick="window.switchTeacherSection('reports')" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(102,126,234,0.2); transition: all 0.3s;">
-        <div style="font-size: 36px; margin-bottom: 8px;">??</div>
-        <div style="font-size: 16px; font-weight: bold;">ÇáÊŞÇÑíÑ</div>
+        <div style="font-size: 36px; margin-bottom: 8px;">ğŸ“Š</div>
+        <div style="font-size: 16px; font-weight: bold;">Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±</div>
       </button>
       
       <button onclick="window.switchTeacherSection('attendance')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(40,167,69,0.2); transition: all 0.3s;">
-        <div style="font-size: 36px; margin-bottom: 8px;">?</div>
-        <div style="font-size: 16px; font-weight: bold;">ÇáÍÖæÑ</div>
+        <div style="font-size: 36px; margin-bottom: 8px;">âœ…</div>
+        <div style="font-size: 16px; font-weight: bold;">Ø§Ù„Ø­Ø¶ÙˆØ±</div>
       </button>
       
       <button onclick="window.switchTeacherSection('tasks')" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(255,193,7,0.2); transition: all 0.3s;">
-        <div style="font-size: 36px; margin-bottom: 8px;">??</div>
-        <div style="font-size: 16px; font-weight: bold;">ÇáãåÇã</div>
+        <div style="font-size: 36px; margin-bottom: 8px;">ğŸ“</div>
+        <div style="font-size: 16px; font-weight: bold;">Ø§Ù„Ù…Ù‡Ø§Ù…</div>
       </button>
       
       <button onclick="window.switchTeacherSection('more')" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(220,53,69,0.2); transition: all 0.3s;">
-        <div style="font-size: 36px; margin-bottom: 8px;">?</div>
-        <div style="font-size: 16px; font-weight: bold;">ÇáãÒíÏ</div>
+        <div style="font-size: 36px; margin-bottom: 8px;">â‹¯</div>
+        <div style="font-size: 16px; font-weight: bold;">Ø§Ù„Ù…Ø²ÙŠØ¯</div>
       </button>
     </div>
     
     <div class="recent-activity" style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
       <h3 style="color: #333; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-        <span>?</span>
-        <span>ÇáäÔÇØ ÇáÃÎíÑ</span>
+        <span>â°</span>
+        <span>Ø§Ù„Ù†Ø´Ø§Ø· Ø§Ù„Ø£Ø®ÙŠØ±</span>
       </h3>
       <div id="recentActivityList" style="color: #666;">
-        ÌÇÑí ÇáÊÍãíá...
+        Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù…ÙŠÙ„...
       </div>
     </div>
-  \;
+  `;
   
   // Load class data
   if (currentTeacherClassId) {
     document.getElementById('homeClassDisplay').textContent = currentTeacherClassId;
-    // TODO: Load students count
   }
 }
 
 // Load Reports Section
 function loadTeacherReportsSection(container) {
-  container.innerHTML = \
+  container.innerHTML = `
     <div class="section-header" style="text-align: center; margin-bottom: 30px;">
-      <h2 style="color: #667eea; font-size: 26px; margin-bottom: 10px;">?? ÇáÊŞÇÑíÑ</h2>
-      <p style="color: #666; font-size: 14px;">ÚÑÖ æÅÏÇÑÉ ÊŞÇÑíÑ ÇáØáÇÈ</p>
+      <h2 style="color: #667eea; font-size: 26px; margin-bottom: 10px;">ğŸ“Š Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±</h2>
+      <p style="color: #666; font-size: 14px;">Ø¹Ø±Ø¶ ÙˆØ¥Ø¯Ø§Ø±Ø© ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„Ø·Ù„Ø§Ø¨</p>
     </div>
     
     <div style="text-align: center; padding: 80px 20px; color: #999;">
-      <div style="font-size: 64px; margin-bottom: 20px;">??</div>
-      <p style="font-size: 18px;">ŞÓã ÇáÊŞÇÑíÑ ŞíÏ ÇáÊØæíÑ</p>
+      <div style="font-size: 64px; margin-bottom: 20px;">ğŸ“Š</div>
+      <p style="font-size: 18px;">Ù‚Ø³Ù… Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ± Ù‚ÙŠØ¯ Ø§Ù„ØªØ·ÙˆÙŠØ±</p>
     </div>
-  \;
+  `;
 }
 
 // Load Attendance Section
 function loadTeacherAttendanceSection(container) {
-  container.innerHTML = \
+  container.innerHTML = `
     <div class="section-header" style="text-align: center; margin-bottom: 30px;">
-      <h2 style="color: #28a745; font-size: 26px; margin-bottom: 10px;">? ÊÓÌíá ÇáÍÖæÑ</h2>
-      <p style="color: #666; font-size: 14px;">ÊÓÌíá ÍÖæÑ ÇáãÚáãíä</p>
+      <h2 style="color: #28a745; font-size: 26px; margin-bottom: 10px;">âœ… ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø­Ø¶ÙˆØ±</h2>
+      <p style="color: #666; font-size: 14px;">ØªØ³Ø¬ÙŠÙ„ Ø­Ø¶ÙˆØ± Ø§Ù„Ù…Ø¹Ù„Ù…ÙŠÙ†</p>
     </div>
     
     <div style="text-align: center; padding: 80px 20px; color: #999;">
-      <div style="font-size: 64px; margin-bottom: 20px;">?</div>
-      <p style="font-size: 18px;">ŞÓã ÊÓÌíá ÇáÍÖæÑ ŞíÏ ÇáÊØæíÑ</p>
+      <div style="font-size: 64px; margin-bottom: 20px;">âœ…</div>
+      <p style="font-size: 18px;">Ù‚Ø³Ù… ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø­Ø¶ÙˆØ± Ù‚ÙŠØ¯ Ø§Ù„ØªØ·ÙˆÙŠØ±</p>
     </div>
-  \;
+  `;
 }
 
 // Load Tasks Section
 function loadTeacherTasksSection(container) {
-  container.innerHTML = \
+  container.innerHTML = `
     <div class="section-header" style="text-align: center; margin-bottom: 30px;">
-      <h2 style="color: #ffc107; font-size: 26px; margin-bottom: 10px;">?? ÇáãåÇã</h2>
-      <p style="color: #666; font-size: 14px;">ÚÑÖ æÅÏÇÑÉ ÇáãåÇã</p>
+      <h2 style="color: #ffc107; font-size: 26px; margin-bottom: 10px;">ğŸ“ Ø§Ù„Ù…Ù‡Ø§Ù…</h2>
+      <p style="color: #666; font-size: 14px;">Ø¹Ø±Ø¶ ÙˆØ¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ù‡Ø§Ù…</p>
     </div>
     
     <div style="text-align: center; padding: 80px 20px; color: #999;">
-      <div style="font-size: 64px; margin-bottom: 20px;">??</div>
-      <p style="font-size: 18px;">ŞÓã ÇáãåÇã ŞíÏ ÇáÊØæíÑ</p>
+      <div style="font-size: 64px; margin-bottom: 20px;">ğŸ“</div>
+      <p style="font-size: 18px;">Ù‚Ø³Ù… Ø§Ù„Ù…Ù‡Ø§Ù… Ù‚ÙŠØ¯ Ø§Ù„ØªØ·ÙˆÙŠØ±</p>
     </div>
-  \;
+  `;
 }
 
 // Load More Section
 function loadTeacherMoreSection(container) {
-  container.innerHTML = \
+  container.innerHTML = `
     <div class="section-header" style="text-align: center; margin-bottom: 30px;">
-      <h2 style="color: #dc3545; font-size: 26px; margin-bottom: 10px;">? ÇáãÒíÏ</h2>
-      <p style="color: #666; font-size: 14px;">ÅÚÏÇÏÇÊ æãÚáæãÇÊ ÅÖÇİíÉ</p>
+      <h2 style="color: #dc3545; font-size: 26px; margin-bottom: 10px;">â‹¯ Ø§Ù„Ù…Ø²ÙŠØ¯</h2>
+      <p style="color: #666; font-size: 14px;">Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª ÙˆÙ…Ø¹Ù„ÙˆÙ…Ø§Øª Ø¥Ø¶Ø§ÙÙŠØ©</p>
     </div>
     
     <div class="more-options" style="display: flex; flex-direction: column; gap: 15px;">
       <button onclick="window.logoutTeacher()" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 18px; border: none; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 3px 10px rgba(220,53,69,0.2);">
-        <span style="font-size: 24px;">??</span>
-        <span>ÊÓÌíá ÇáÎÑæÌ</span>
+        <span style="font-size: 24px;">ğŸšª</span>
+        <span>ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬</span>
       </button>
     </div>
-  \;
+  `;
 }
 
 // Toggle teacher notifications
 window.toggleTeacherNotifications = function() {
-  alert('ŞÓã ÇáÅÔÚÇÑÇÊ ŞíÏ ÇáÊØæíÑ');
+  alert('Ù‚Ø³Ù… Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª Ù‚ÙŠØ¯ Ø§Ù„ØªØ·ÙˆÙŠØ±');
 };
 
 // Update date and time display
@@ -8043,11 +7891,11 @@ function updateTeacherDateTime() {
   // Hijri date
   const hijriDate = getCurrentHijriDate();
   if (hijriDate) {
-    hijriDateEl.textContent = \\ \ \ \åÜ\;
+    hijriDateEl.textContent = `${hijriDate.dayName} ${hijriDate.day} ${hijriDate.monthName} ${hijriDate.year}Ù‡Ù€`;
   }
   
   // Gregorian date and time
-  const days = ['ÇáÃÍÏ', 'ÇáÇËäíä', 'ÇáËáÇËÇÁ', 'ÇáÃÑÈÚÇÁ', 'ÇáÎãíÓ', 'ÇáÌãÚÉ', 'ÇáÓÈÊ'];
+  const days = ['Ø§Ù„Ø£Ø­Ø¯', 'Ø§Ù„Ø§Ø«Ù†ÙŠÙ†', 'Ø§Ù„Ø«Ù„Ø§Ø«Ø§Ø¡', 'Ø§Ù„Ø£Ø±Ø¨Ø¹Ø§Ø¡', 'Ø§Ù„Ø®Ù…ÙŠØ³', 'Ø§Ù„Ø¬Ù…Ø¹Ø©', 'Ø§Ù„Ø³Ø¨Øª'];
   const dayName = days[now.getDay()];
   const date = now.getDate();
   const month = now.getMonth() + 1;
@@ -8055,11 +7903,11 @@ function updateTeacherDateTime() {
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   
-  gregorianTimeEl.textContent = \\ \/\/\ - \:\\;
+  gregorianTimeEl.textContent = `${dayName} ${date}/${month}/${year} - ${hours}:${minutes}`;
 }
 
 // Start date/time updater
 setInterval(updateTeacherDateTime, 1000);
 updateTeacherDateTime();
 
-console.log('? New teacher design functions loaded');
+console.log('âœ… New teacher design functions loaded');
