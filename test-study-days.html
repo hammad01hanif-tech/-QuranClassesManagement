@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار نظام أيام الدراسة والإجازات</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .study-day {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .weekend {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: white;
+        }
+
+        .holiday {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .info-value {
+            color: #333;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .holiday-list {
+            list-style: none;
+            margin-top: 15px;
+        }
+
+        .holiday-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .holiday-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .holiday-dates {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .holiday-duration {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .test-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .date-picker {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .date-picker input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        .date-picker button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .date-picker button:hover {
+            transform: translateY(-2px);
+        }
+
+        #testResult {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .emoji {
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 نظام أيام الدراسة والإجازات</h1>
+            <p>نظام متكامل لإدارة أيام الدراسة والإجازات الرسمية والأسبوعية</p>
+        </div>
+
+        <div class="grid">
+            <!-- Today's Info -->
+            <div class="card">
+                <h2><span class="emoji">📆</span> معلومات اليوم</h2>
+                <div id="todayInfo">
+                    <div class="info-row">
+                        <span class="info-label">التاريخ الميلادي</span>
+                        <span class="info-value" id="gregorianDate">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">التاريخ الهجري</span>
+                        <span class="info-value" id="hijriDate">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">اسم اليوم</span>
+                        <span class="info-value" id="dayName">-</span>
+                    </div>
+                    <span class="status-badge" id="todayStatus">-</span>
+                </div>
+            </div>
+
+            <!-- Current Month Stats -->
+            <div class="card">
+                <h2><span class="emoji">📊</span> إحصائيات الشهر الحالي</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-number" id="monthStudyDays">-</div>
+                        <div class="stat-label">أيام دراسة</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="monthWeekends">-</div>
+                        <div class="stat-label">إجازات أسبوعية</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="monthHolidays">-</div>
+                        <div class="stat-label">إجازات رسمية</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Holidays -->
+            <div class="card">
+                <h2><span class="emoji">🎉</span> الإجازات القادمة</h2>
+                <ul class="holiday-list" id="upcomingHolidays">
+                    <!-- Will be filled by JavaScript -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Test Section -->
+        <div class="test-section">
+            <h2 style="margin-bottom: 20px;"><span class="emoji">🔍</span> اختبر أي تاريخ</h2>
+            <div class="date-picker">
+                <input type="date" id="testDate" value="">
+                <button onclick="testDate()">فحص التاريخ</button>
+            </div>
+            <div id="testResult"></div>
+        </div>
+
+        <!-- Date Range Test -->
+        <div class="test-section">
+            <h2 style="margin-bottom: 20px;"><span class="emoji">📅</span> احسب أيام الدراسة بين تاريخين</h2>
+            <div class="date-picker">
+                <input type="date" id="startDate" value="">
+                <input type="date" id="endDate" value="">
+                <button onclick="calculateRange()">احسب</button>
+            </div>
+            <div id="rangeResult"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import {
+            getTodayInfo,
+            getDayInfo,
+            getMonthlyReport,
+            getUpcomingHolidays,
+            countStudyDays,
+            countHolidays,
+            isStudyDay
+        } from './js/study-days-calendar.js';
+
+        // Display today's information
+        function displayTodayInfo() {
+            const today = getTodayInfo();
+            
+            document.getElementById('gregorianDate').textContent = today.gregorianDate;
+            document.getElementById('hijriDate').textContent = today.hijriDate || 'غير متوفر';
+            document.getElementById('dayName').textContent = today.dayNameArabic;
+            
+            const statusBadge = document.getElementById('todayStatus');
+            statusBadge.textContent = today.status;
+            
+            if (today.isStudyDay) {
+                statusBadge.className = 'status-badge study-day';
+            } else if (today.isWeekend) {
+                statusBadge.className = 'status-badge weekend';
+            } else if (today.isOfficialHoliday) {
+                statusBadge.className = 'status-badge holiday';
+            }
+        }
+
+        // Display current month statistics
+        function displayMonthStats() {
+            const today = new Date();
+            const report = getMonthlyReport(today.getFullYear(), today.getMonth() + 1);
+            
+            document.getElementById('monthStudyDays').textContent = report.studyDaysCount;
+            document.getElementById('monthWeekends').textContent = report.weekendsCount;
+            document.getElementById('monthHolidays').textContent = report.officialHolidaysCount;
+        }
+
+        // Display upcoming holidays
+        function displayUpcomingHolidays() {
+            const holidays = getUpcomingHolidays();
+            const container = document.getElementById('upcomingHolidays');
+            
+            if (holidays.length === 0) {
+                container.innerHTML = '<li style="color: #666; text-align: center; padding: 20px;">لا توجد إجازات قادمة مسجلة</li>';
+                return;
+            }
+            
+            container.innerHTML = holidays.slice(0, 3).map(holiday => `
+                <li class="holiday-item">
+                    <div class="holiday-name">${holiday.name}</div>
+                    <div class="holiday-dates">
+                        من ${holiday.startGregorian} إلى ${holiday.endGregorian}
+                    </div>
+                    <span class="holiday-duration">${holiday.durationDays} يوم</span>
+                </li>
+            `).join('');
+        }
+
+        // Test a specific date
+        window.testDate = function() {
+            const dateInput = document.getElementById('testDate').value;
+            if (!dateInput) {
+                alert('الرجاء اختيار تاريخ');
+                return;
+            }
+            
+            const info = getDayInfo(new Date(dateInput));
+            const resultDiv = document.getElementById('testResult');
+            
+            let statusClass = '';
+            let statusEmoji = '';
+            
+            if (info.isStudyDay) {
+                statusClass = 'study-day';
+                statusEmoji = '✅';
+            } else if (info.isWeekend) {
+                statusClass = 'weekend';
+                statusEmoji = '🏖️';
+            } else if (info.isOfficialHoliday) {
+                statusClass = 'holiday';
+                statusEmoji = '🎉';
+            }
+            
+            let holidayInfo = '';
+            if (info.holidayInfo) {
+                holidayInfo = `
+                    <div class="info-row">
+                        <span class="info-label">اسم الإجازة</span>
+                        <span class="info-value">${info.holidayInfo.name}</span>
+                    </div>
+                `;
+            }
+            
+            resultDiv.innerHTML = `
+                <h3 style="margin-bottom: 15px; color: #333;">${statusEmoji} نتيجة الفحص</h3>
+                <div class="info-row">
+                    <span class="info-label">التاريخ الميلادي</span>
+                    <span class="info-value">${info.gregorianDate}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">التاريخ الهجري</span>
+                    <span class="info-value">${info.hijriDate || 'غير متوفر'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">اسم اليوم</span>
+                    <span class="info-value">${info.dayNameArabic}</span>
+                </div>
+                ${holidayInfo}
+                <span class="status-badge ${statusClass}" style="margin-top: 15px;">${info.status}</span>
+            `;
+            
+            resultDiv.style.display = 'block';
+        };
+
+        // Calculate date range
+        window.calculateRange = function() {
+            const startInput = document.getElementById('startDate').value;
+            const endInput = document.getElementById('endDate').value;
+            
+            if (!startInput || !endInput) {
+                alert('الرجاء اختيار تاريخ البداية والنهاية');
+                return;
+            }
+            
+            const start = new Date(startInput);
+            const end = new Date(endInput);
+            
+            if (start > end) {
+                alert('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+                return;
+            }
+            
+            const studyDaysCount = countStudyDays(start, end);
+            const holidaysCount = countHolidays(start, end);
+            const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            
+            const resultDiv = document.getElementById('rangeResult');
+            
+            resultDiv.innerHTML = `
+                <h3 style="margin-bottom: 15px; color: #333;">📊 نتيجة الحساب</h3>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-number">${totalDays}</div>
+                        <div class="stat-label">إجمالي الأيام</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" style="color: #28a745;">${studyDaysCount}</div>
+                        <div class="stat-label">أيام دراسة</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" style="color: #ffc107;">${holidaysCount.weekends}</div>
+                        <div class="stat-label">إجازات أسبوعية</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" style="color: #dc3545;">${holidaysCount.officialHolidays}</div>
+                        <div class="stat-label">إجازات رسمية</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" style="color: #667eea;">${holidaysCount.total}</div>
+                        <div class="stat-label">إجمالي الإجازات</div>
+                    </div>
+                </div>
+            `;
+            
+            resultDiv.style.display = 'block';
+        };
+
+        // Initialize
+        displayTodayInfo();
+        displayMonthStats();
+        displayUpcomingHolidays();
+        
+        // Set default dates
+        const today = new Date();
+        document.getElementById('testDate').value = today.toISOString().split('T')[0];
+        document.getElementById('startDate').value = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+        document.getElementById('endDate').value = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+    </script>
+</body>
+</html>

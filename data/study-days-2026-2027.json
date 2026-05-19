@@ -1,0 +1,229 @@
+{
+  "systemName": "نظام تقويم أيام الدراسة والإجازات",
+  "systemNameEn": "Study Days and Holidays Calendar System",
+  "version": "1.0.0",
+  "lastUpdated": "2026-05-19",
+  "description": "تقويم شامل لأيام الدراسة والإجازات الرسمية والأسبوعية للأعوام 2026-2027",
+  "coverage": {
+    "startDate": "2026-05-01",
+    "endDate": "2027-12-31",
+    "totalDays": 610,
+    "studyDays": 428,
+    "weekends": 174,
+    "officialHolidays": 8
+  },
+  "weeklySchedule": {
+    "studyDays": ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"],
+    "studyDaysEn": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
+    "weekendDays": ["الجمعة", "السبت"],
+    "weekendDaysEn": ["Friday", "Saturday"]
+  },
+  "officialHolidays": [
+    {
+      "id": 1,
+      "name": "عيد الفطر 1447",
+      "nameEn": "Eid Al-Fitr 1447",
+      "type": "islamic",
+      "startDate": "2026-03-15",
+      "endDate": "2026-03-26",
+      "durationDays": 12,
+      "hijriStart": "25 رمضان 1447",
+      "hijriEnd": "6 شوال 1447"
+    },
+    {
+      "id": 2,
+      "name": "عيد الأضحى 1447",
+      "nameEn": "Eid Al-Adha 1447",
+      "type": "islamic",
+      "startDate": "2026-05-18",
+      "endDate": "2026-05-28",
+      "durationDays": 11,
+      "hijriStart": "5 ذو الحجة 1447",
+      "hijriEnd": "15 ذو الحجة 1447",
+      "note": "اليوم الحالي (19 مايو 2026) داخل إجازة عيد الأضحى"
+    },
+    {
+      "id": 3,
+      "name": "يوم التأسيس 2026",
+      "nameEn": "Founding Day 2026",
+      "type": "national",
+      "startDate": "2026-02-22",
+      "endDate": "2026-02-22",
+      "durationDays": 1
+    },
+    {
+      "id": 4,
+      "name": "اليوم الوطني 2026",
+      "nameEn": "National Day 2026",
+      "type": "national",
+      "startDate": "2026-09-23",
+      "endDate": "2026-09-23",
+      "durationDays": 1
+    },
+    {
+      "id": 5,
+      "name": "يوم التأسيس 2027",
+      "nameEn": "Founding Day 2027",
+      "type": "national",
+      "startDate": "2027-02-22",
+      "endDate": "2027-02-22",
+      "durationDays": 1
+    },
+    {
+      "id": 6,
+      "name": "عيد الفطر 1448",
+      "nameEn": "Eid Al-Fitr 1448",
+      "type": "islamic",
+      "startDate": "2027-03-05",
+      "endDate": "2027-03-16",
+      "durationDays": 12,
+      "hijriStart": "25 رمضان 1448",
+      "hijriEnd": "6 شوال 1448"
+    },
+    {
+      "id": 7,
+      "name": "عيد الأضحى 1448",
+      "nameEn": "Eid Al-Adha 1448",
+      "type": "islamic",
+      "startDate": "2027-05-08",
+      "endDate": "2027-05-18",
+      "durationDays": 11,
+      "hijriStart": "5 ذو الحجة 1448",
+      "hijriEnd": "15 ذو الحجة 1448"
+    },
+    {
+      "id": 8,
+      "name": "اليوم الوطني 2027",
+      "nameEn": "National Day 2027",
+      "type": "national",
+      "startDate": "2027-09-23",
+      "endDate": "2027-09-23",
+      "durationDays": 1
+    }
+  ],
+  "monthlyStats": [
+    {
+      "year": 2026,
+      "month": 5,
+      "monthName": "مايو 2026",
+      "totalDays": 31,
+      "studyDays": 12,
+      "weekends": 8,
+      "officialHolidays": 11,
+      "notes": "يحتوي على إجازة عيد الأضحى (18-28 مايو)"
+    },
+    {
+      "year": 2026,
+      "month": 6,
+      "monthName": "يونيو 2026",
+      "totalDays": 30,
+      "studyDays": 22,
+      "weekends": 8,
+      "officialHolidays": 0
+    },
+    {
+      "year": 2026,
+      "month": 7,
+      "monthName": "يوليو 2026",
+      "totalDays": 31,
+      "studyDays": 23,
+      "weekends": 8,
+      "officialHolidays": 0
+    },
+    {
+      "year": 2026,
+      "month": 8,
+      "monthName": "أغسطس 2026",
+      "totalDays": 31,
+      "studyDays": 21,
+      "weekends": 10,
+      "officialHolidays": 0
+    },
+    {
+      "year": 2026,
+      "month": 9,
+      "monthName": "سبتمبر 2026",
+      "totalDays": 30,
+      "studyDays": 21,
+      "weekends": 8,
+      "officialHolidays": 1,
+      "notes": "يحتوي على اليوم الوطني (23 سبتمبر)"
+    },
+    {
+      "year": 2026,
+      "month": 10,
+      "monthName": "أكتوبر 2026",
+      "totalDays": 31,
+      "studyDays": 22,
+      "weekends": 9,
+      "officialHolidays": 0
+    },
+    {
+      "year": 2026,
+      "month": 11,
+      "monthName": "نوفمبر 2026",
+      "totalDays": 30,
+      "studyDays": 20,
+      "weekends": 10,
+      "officialHolidays": 0
+    },
+    {
+      "year": 2026,
+      "month": 12,
+      "monthName": "ديسمبر 2026",
+      "totalDays": 31,
+      "studyDays": 23,
+      "weekends": 8,
+      "officialHolidays": 0
+    },
+    {
+      "year": 2027,
+      "month": 1,
+      "monthName": "يناير 2027",
+      "totalDays": 31,
+      "studyDays": 21,
+      "weekends": 10,
+      "officialHolidays": 0
+    },
+    {
+      "year": 2027,
+      "month": 2,
+      "monthName": "فبراير 2027",
+      "totalDays": 28,
+      "studyDays": 19,
+      "weekends": 8,
+      "officialHolidays": 1,
+      "notes": "يحتوي على يوم التأسيس (22 فبراير)"
+    },
+    {
+      "year": 2027,
+      "month": 3,
+      "monthName": "مارس 2027",
+      "totalDays": 31,
+      "studyDays": 11,
+      "weekends": 8,
+      "officialHolidays": 12,
+      "notes": "يحتوي على إجازة عيد الفطر (5-16 مارس)"
+    }
+  ],
+  "usage": {
+    "description": "استخدم الدوال المتوفرة في study-days-calendar.js للاستعلام عن أيام الدراسة والإجازات",
+    "functions": [
+      "isStudyDay(date) - فحص إذا كان يوم دراسة",
+      "isWeekend(date) - فحص إذا كان إجازة أسبوعية",
+      "isOfficialHoliday(date) - فحص إذا كان إجازة رسمية",
+      "getDayInfo(date) - الحصول على معلومات كاملة عن يوم معين",
+      "getStudyDaysInMonth(year, month) - أيام الدراسة في شهر",
+      "countStudyDays(startDate, endDate) - عد أيام الدراسة بين تاريخين",
+      "getNextStudyDay(date) - الحصول على يوم الدراسة التالي",
+      "getTodayInfo() - معلومات اليوم الحالي"
+    ]
+  },
+  "notes": [
+    "التقويم يعمل تلقائياً لأي تاريخ في المستقبل",
+    "الإجازة الأسبوعية: الجمعة والسبت دائماً",
+    "أيام الدراسة: الأحد إلى الخميس (ما لم تكن في إجازة رسمية)",
+    "التواريخ الهجرية مبنية على تقويم أم القرى الرسمي",
+    "يمكن إضافة استثناءات خاصة بالحلقة في officialHolidays"
+  ]
+}
