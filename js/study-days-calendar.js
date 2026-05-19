@@ -34,10 +34,10 @@ export const officialHolidays = [
     nameEn: 'Eid Al-Adha',
     type: 'islamic',
     startHijri: { year: 1447, month: 12, day: 5 },  // 5 ذو الحجة
-    endHijri: { year: 1447, month: 12, day: 15 },   // 15 ذو الحجة
+    endHijri: { year: 1447, month: 12, day: 20 },   // 20 ذو الحجة
     startGregorian: '2026-05-18',
-    endGregorian: '2026-05-28',
-    durationDays: 11
+    endGregorian: '2026-06-06',
+    durationDays: 20
   },
   // عيد الفطر 1448 هـ (Eid Al-Fitr 1448)
   {

@@ -8,7 +8,7 @@
     "startDate": "2026-05-01",
     "endDate": "2027-12-31",
     "totalDays": 610,
-    "studyDays": 428,
+    "studyDays": 423,
     "weekends": 174,
     "officialHolidays": 8
   },
@@ -36,11 +36,11 @@
       "nameEn": "Eid Al-Adha 1447",
       "type": "islamic",
       "startDate": "2026-05-18",
-      "endDate": "2026-05-28",
-      "durationDays": 11,
+      "endDate": "2026-06-06",
+      "durationDays": 20,
       "hijriStart": "5 ذو الحجة 1447",
-      "hijriEnd": "15 ذو الحجة 1447",
-      "note": "اليوم الحالي (19 مايو 2026) داخل إجازة عيد الأضحى"
+      "hijriEnd": "20 ذو الحجة 1447",
+      "note": "العودة للعمل 7 يونيو 2026 (21 ذو الحجة 1447)"
     },
     {
       "id": 3,
@@ -107,19 +107,20 @@
       "month": 5,
       "monthName": "مايو 2026",
       "totalDays": 31,
-      "studyDays": 12,
+      "studyDays": 11,
       "weekends": 8,
-      "officialHolidays": 11,
-      "notes": "يحتوي على إجازة عيد الأضحى (18-28 مايو)"
+      "officialHolidays": 14,
+      "notes": "يحتوي على إجازة عيد الأضحى (18-31 مايو)"
     },
     {
       "year": 2026,
       "month": 6,
       "monthName": "يونيو 2026",
       "totalDays": 30,
-      "studyDays": 22,
+      "studyDays": 18,
       "weekends": 8,
-      "officialHolidays": 0
+      "officialHolidays": 4,
+      "notes": "يحتوي على بقية إجازة عيد الأضحى (1-6 يونيو) - العودة للعمل 7 يونيو"
     },
     {
       "year": 2026,

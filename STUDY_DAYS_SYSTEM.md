@@ -48,7 +48,7 @@ import { isStudyDay, getDayInfo, getTodayInfo } from './js/study-days-calendar.j
 
 ### الإجازات الرسمية 🎉
 1. **عيد الفطر**: 12 يوم (25 رمضان - 6 شوال)
-2. **عيد الأضحى**: 11 يوم (5 ذو الحجة - 15 ذو الحجة)
+2. **عيد الأضحى**: 20 يوم (5 ذو الحجة - 20 ذو الحجة)
 3. **يوم التأسيس**: 22 فبراير
 4. **اليوم الوطني**: 23 سبتمبر
 
@@ -431,7 +431,7 @@ async function calculateTeacherSalary(teacherId, year, month) {
     "startDate": "2026-05-01",
     "endDate": "2027-12-31",
     "totalDays": 610,
-    "studyDays": 428,
+    "studyDays": 423,
     "weekends": 174,
     "officialHolidays": 8
   }
