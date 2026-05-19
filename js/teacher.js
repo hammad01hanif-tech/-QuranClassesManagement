@@ -7753,63 +7753,8 @@ window.switchTeacherSection = function(sectionName) {
 
 // Load Home Section
 function loadTeacherHomeSection(container) {
-  container.innerHTML = `
-    <div class="section-header" style="text-align: center; margin-bottom: 30px;">
-      <h2 style="color: #28a745; font-size: 26px; margin-bottom: 10px;">🏠 الصفحة الرئيسية</h2>
-      <p style="color: #666; font-size: 14px;">مرحباً بك في لوحة تحكم المعلم</p>
-    </div>
-    
-    <div class="teacher-info-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 20px; border-radius: 15px; color: white; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(40,167,69,0.2);">
-      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-        <div style="font-size: 48px;">👨‍🏫</div>
-        <div>
-          <div style="font-size: 14px; opacity: 0.9;">الحلقة</div>
-          <div style="font-size: 20px; font-weight: bold;" id="homeClassDisplay">-</div>
-        </div>
-      </div>
-      <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 10px;">
-        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">عدد الطلاب</div>
-        <div style="font-size: 24px; font-weight: bold;" id="homeStudentsCount">0</div>
-      </div>
-    </div>
-    
-    <div class="quick-actions-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 30px;">
-      <button onclick="window.switchTeacherSection('reports')" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(102,126,234,0.2); transition: all 0.3s;">
-        <div style="font-size: 36px; margin-bottom: 8px;">📊</div>
-        <div style="font-size: 16px; font-weight: bold;">التقارير</div>
-      </button>
-      
-      <button onclick="window.switchTeacherSection('attendance')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(40,167,69,0.2); transition: all 0.3s;">
-        <div style="font-size: 36px; margin-bottom: 8px;">✅</div>
-        <div style="font-size: 16px; font-weight: bold;">الحضور</div>
-      </button>
-      
-      <button onclick="window.switchTeacherSection('tasks')" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(255,193,7,0.2); transition: all 0.3s;">
-        <div style="font-size: 36px; margin-bottom: 8px;">📝</div>
-        <div style="font-size: 16px; font-weight: bold;">المهام</div>
-      </button>
-      
-      <button onclick="window.switchTeacherSection('more')" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(220,53,69,0.2); transition: all 0.3s;">
-        <div style="font-size: 36px; margin-bottom: 8px;">⋯</div>
-        <div style="font-size: 16px; font-weight: bold;">المزيد</div>
-      </button>
-    </div>
-    
-    <div class="recent-activity" style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
-      <h3 style="color: #333; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-        <span>⏰</span>
-        <span>النشاط الأخير</span>
-      </h3>
-      <div id="recentActivityList" style="color: #666;">
-        جاري التحميل...
-      </div>
-    </div>
-  `;
-  
-  // Load class data
-  if (currentTeacherClassId) {
-    document.getElementById('homeClassDisplay').textContent = currentTeacherClassId;
-  }
+  // Empty content - only header will show
+  container.innerHTML = '';
 }
 
 // Load Reports Section
@@ -7888,10 +7833,22 @@ function updateTeacherDateTime() {
   
   const now = new Date();
   
-  // Hijri date
-  const hijriDate = getCurrentHijriDate();
-  if (hijriDate) {
-    hijriDateEl.textContent = `${hijriDate.dayName} ${hijriDate.day} ${hijriDate.monthName} ${hijriDate.year}هـ`;
+  // Accurate Hijri date from internal file
+  const hijriData = accurateHijriDates.find(entry => {
+    const entryDate = new Date(entry.gregorian);
+    return entryDate.toDateString() === now.toDateString();
+  });
+  
+  if (hijriData) {
+    const hijriMonths = [
+      'المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 
+      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 
+      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+    ];
+    const monthName = hijriMonths[hijriData.hijriMonth - 1];
+    hijriDateEl.textContent = `${hijriData.dayName} ${hijriData.hijriDay} ${monthName} ${hijriData.hijriYear}هـ`;
+  } else {
+    hijriDateEl.textContent = 'التاريخ الهجري غير متوفر';
   }
   
   // Gregorian date and time
