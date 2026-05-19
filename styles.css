@@ -5745,3 +5745,153 @@ details[open] > summary {
   }
 }
 
+
+/* ====================================
+   NEW TEACHER MOBILE-FIRST DESIGN
+   ==================================== */
+
+/* Teacher Design Container */
+.new-teacher-design {
+  display: block !important;
+  min-height: 100vh;
+  background: #f8f9fa;
+  padding-bottom: 80px; /* Space for bottom nav */
+  direction: rtl;
+}
+
+/* Teacher Header */
+.new-teacher-header {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 15px;
+}
+
+.teacher-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.welcome-text {
+  font-size: 13px;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.teacher-name-display {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.teacher-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.date-time-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(255,255,255,0.15);
+  padding: 6px 12px;
+  border-radius: 12px;
+}
+
+.hijri-date-display-small {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.gregorian-time-display {
+  font-size: 10px;
+  opacity: 0.9;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Teacher Content Area */
+.new-teacher-content {
+  padding: 20px 16px;
+  min-height: calc(100vh - 140px);
+  animation: fadeIn 0.3s ease;
+}
+
+/* Hide old design by default */
+.old-teacher-design {
+  display: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .new-teacher-header {
+    padding: 14px 16px;
+  }
+  
+  .teacher-name-display {
+    font-size: 16px;
+  }
+  
+  .date-time-container {
+    padding: 5px 10px;
+  }
+  
+  .hijri-date-display-small {
+    font-size: 10px;
+  }
+  
+  .gregorian-time-display {
+    font-size: 9px;
+  }
+  
+  .new-teacher-content {
+    padding: 16px 12px;
+  }
+}
+
+@media (min-width: 768px) {
+  .new-teacher-header {
+    padding: 20px 40px;
+  }
+  
+  .teacher-name-display {
+    font-size: 22px;
+  }
+  
+  .welcome-text {
+    font-size: 15px;
+  }
+  
+  .date-time-container {
+    padding: 8px 16px;
+  }
+  
+  .hijri-date-display-small {
+    font-size: 13px;
+  }
+  
+  .gregorian-time-display {
+    font-size: 11px;
+  }
+  
+  .new-teacher-content {
+    padding: 30px 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+}
+
+/* END OF NEW TEACHER DESIGN */

@@ -326,6 +326,18 @@ window.loginTeacher = async function() {
   // Login successful
   errorDiv.classList.remove('show');
   document.getElementById('teacherLogin').style.display = 'none';
+  
+  // Show NEW design instead of old
+  document.getElementById('newTeacherDesign').style.display = 'block';
+  document.getElementById('oldTeacherDesign').style.display = 'none';
+  
+  // Update teacher name in header
+  const teacherNameHeader = document.getElementById('teacherNameHeader');
+  if (teacherNameHeader) {
+    teacherNameHeader.textContent = teacherNames[teacherId] || teacherId;
+  }
+  
+  // OLD CODE (preserved but hidden)
   document.getElementById('teacherDashboard').style.display = 'block';
   document.getElementById('teacherClassDisplay').textContent = teacherId;
   document.getElementById('teacherNameDisplay').textContent = teacherNames[teacherId];
@@ -340,6 +352,13 @@ window.loginTeacher = async function() {
   // Initialize teacher with this class
   initTeacher(teacherId);
   
+  // Load home section for new design
+  setTimeout(() => {
+    if (typeof window.switchTeacherSection === 'function') {
+      window.switchTeacherSection('home');
+    }
+  }, 100);
+  
   // Check if cleanup button should be shown
   if (typeof window.checkCleanupButton === 'function') {
     window.checkCleanupButton();
@@ -353,6 +372,11 @@ window.logoutTeacher = function() {
   sessionStorage.removeItem('loggedInTeacherName');
   document.getElementById('teacherIdSelect').value = '';
   document.getElementById('teacherPasswordInput').value = '';
+  
+  // Hide new design
+  document.getElementById('newTeacherDesign').style.display = 'none';
+  document.getElementById('oldTeacherDesign').style.display = 'none';
+  
   window.showRoleSelection();
 };
 

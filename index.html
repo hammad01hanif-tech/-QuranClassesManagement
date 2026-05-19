@@ -1884,6 +1884,70 @@
       <button class="back-btn" onclick="window.showRoleSelection()">رجوع</button>
     </div>
 
+    <!-- NEW MOBILE-FIRST DESIGN FOR TEACHER -->
+    <div id="newTeacherDesign" class="new-teacher-design" style="display:none;">
+      
+      <!-- Top Header -->
+      <div class="new-teacher-header" id="mainTeacherHeader">
+        <div class="teacher-welcome">
+          <div class="welcome-text">أهلاً</div>
+          <div class="teacher-name-display" id="teacherNameHeader">المعلم</div>
+        </div>
+        <div class="teacher-header-right">
+          <button class="new-notification-btn" onclick="window.toggleTeacherNotifications()">
+            <span class="notif-icon">🔔</span>
+            <span id="newTeacherNotificationBadge" class="notification-dot" style="display: none;"></span>
+          </button>
+          <div class="date-time-container">
+            <div class="hijri-date-display-small" id="newTeacherHijriDate">
+              <span class="hijri-icon">📅</span>
+              <span id="hijriDateTextTeacher">--</span>
+            </div>
+            <div class="gregorian-time-display" id="newTeacherGregorianTime">
+              <span id="gregorianDateTimeTeacher">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="new-teacher-content" id="teacherMainContent">
+        <!-- Content sections will be loaded here -->
+      </div>
+
+      <!-- Bottom Navigation Bar -->
+      <div class="bottom-nav-bar">
+        <button class="nav-item active" onclick="window.switchTeacherSection('home')" data-section="home">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label">الرئيسية</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchTeacherSection('reports')" data-section="reports">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">التقارير</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchTeacherSection('attendance')" data-section="attendance">
+          <span class="nav-icon">✅</span>
+          <span class="nav-label">تسجيل الحضور</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchTeacherSection('tasks')" data-section="tasks">
+          <span class="nav-icon">📝</span>
+          <span class="nav-label">المهام</span>
+        </button>
+        
+        <button class="nav-item" onclick="window.switchTeacherSection('more')" data-section="more">
+          <span class="nav-icon">⋯</span>
+          <span class="nav-label">المزيد</span>
+        </button>
+      </div>
+
+    </div>
+    <!-- END OF NEW TEACHER DESIGN -->
+
+    <!-- OLD DESIGN (PRESERVED) -->
+    <div id="oldTeacherDesign" class="old-teacher-design" style="display:none;">
     <!-- Teacher Dashboard (hidden until login) -->
     <div id="teacherDashboard" style="display:none;">
       <div class="admin-header">
@@ -2512,6 +2576,7 @@
       </div>
     </div>
   </div>
+    <!-- END OF OLD TEACHER DESIGN -->
   </div><!-- End teacherSection -->
 
   <!-- Student Section -->

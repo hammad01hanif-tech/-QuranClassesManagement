@@ -7857,3 +7857,209 @@ window.addEventListener('popstate', function(event) {
     event.preventDefault();
   }
 });
+
+// ==========================================
+// NEW MOBILE-FIRST DESIGN FUNCTIONS
+// ==========================================
+
+// Switch between teacher sections
+window.switchTeacherSection = function(sectionName) {
+  console.log('Switching to teacher section:', sectionName);
+  
+  // Update active state in nav
+  const navItems = document.querySelectorAll('.new-teacher-design .nav-item');
+  navItems.forEach(item => {
+    if (item.dataset.section === sectionName) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+  
+  // Get content container
+  const contentContainer = document.getElementById('teacherMainContent');
+  if (!contentContainer) return;
+  
+  // Load section content
+  switch(sectionName) {
+    case 'home':
+      loadTeacherHomeSection(contentContainer);
+      break;
+    case 'reports':
+      loadTeacherReportsSection(contentContainer);
+      break;
+    case 'attendance':
+      loadTeacherAttendanceSection(contentContainer);
+      break;
+    case 'tasks':
+      loadTeacherTasksSection(contentContainer);
+      break;
+    case 'more':
+      loadTeacherMoreSection(contentContainer);
+      break;
+    default:
+      loadTeacherHomeSection(contentContainer);
+  }
+};
+
+// Load Home Section
+function loadTeacherHomeSection(container) {
+  container.innerHTML = \
+    <div class="section-header" style="text-align: center; margin-bottom: 30px;">
+      <h2 style="color: #28a745; font-size: 26px; margin-bottom: 10px;">?? «·’›Õ… «·—∆Ì”Ì…</h2>
+      <p style="color: #666; font-size: 14px;">„—Õ»« »ﬂ ›Ì ·ÊÕ…  Õﬂ„ «·„⁄·„</p>
+    </div>
+    
+    <div class="teacher-info-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 20px; border-radius: 15px; color: white; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(40,167,69,0.2);">
+      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+        <div style="font-size: 48px;">??û??</div>
+        <div>
+          <div style="font-size: 14px; opacity: 0.9;">«·Õ·ﬁ…</div>
+          <div style="font-size: 20px; font-weight: bold;" id="homeClassDisplay">-</div>
+        </div>
+      </div>
+      <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 10px;">
+        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 5px;">⁄œœ «·ÿ·«»</div>
+        <div style="font-size: 24px; font-weight: bold;" id="homeStudentsCount">0</div>
+      </div>
+    </div>
+    
+    <div class="quick-actions-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 30px;">
+      <button onclick="window.switchTeacherSection('reports')" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(102,126,234,0.2); transition: all 0.3s;">
+        <div style="font-size: 36px; margin-bottom: 8px;">??</div>
+        <div style="font-size: 16px; font-weight: bold;">«· ﬁ«—Ì—</div>
+      </button>
+      
+      <button onclick="window.switchTeacherSection('attendance')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(40,167,69,0.2); transition: all 0.3s;">
+        <div style="font-size: 36px; margin-bottom: 8px;">?</div>
+        <div style="font-size: 16px; font-weight: bold;">«·Õ÷Ê—</div>
+      </button>
+      
+      <button onclick="window.switchTeacherSection('tasks')" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(255,193,7,0.2); transition: all 0.3s;">
+        <div style="font-size: 36px; margin-bottom: 8px;">??</div>
+        <div style="font-size: 16px; font-weight: bold;">«·„Â«„</div>
+      </button>
+      
+      <button onclick="window.switchTeacherSection('more')" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 20px; border: none; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(220,53,69,0.2); transition: all 0.3s;">
+        <div style="font-size: 36px; margin-bottom: 8px;">?</div>
+        <div style="font-size: 16px; font-weight: bold;">«·„“Ìœ</div>
+      </button>
+    </div>
+    
+    <div class="recent-activity" style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+      <h3 style="color: #333; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+        <span>?</span>
+        <span>«·‰‘«ÿ «·√ŒÌ—</span>
+      </h3>
+      <div id="recentActivityList" style="color: #666;">
+        Ã«—Ì «· Õ„Ì·...
+      </div>
+    </div>
+  \;
+  
+  // Load class data
+  if (currentTeacherClassId) {
+    document.getElementById('homeClassDisplay').textContent = currentTeacherClassId;
+    // TODO: Load students count
+  }
+}
+
+// Load Reports Section
+function loadTeacherReportsSection(container) {
+  container.innerHTML = \
+    <div class="section-header" style="text-align: center; margin-bottom: 30px;">
+      <h2 style="color: #667eea; font-size: 26px; margin-bottom: 10px;">?? «· ﬁ«—Ì—</h2>
+      <p style="color: #666; font-size: 14px;">⁄—÷ Ê≈œ«—…  ﬁ«—Ì— «·ÿ·«»</p>
+    </div>
+    
+    <div style="text-align: center; padding: 80px 20px; color: #999;">
+      <div style="font-size: 64px; margin-bottom: 20px;">??</div>
+      <p style="font-size: 18px;">ﬁ”„ «· ﬁ«—Ì— ﬁÌœ «· ÿÊÌ—</p>
+    </div>
+  \;
+}
+
+// Load Attendance Section
+function loadTeacherAttendanceSection(container) {
+  container.innerHTML = \
+    <div class="section-header" style="text-align: center; margin-bottom: 30px;">
+      <h2 style="color: #28a745; font-size: 26px; margin-bottom: 10px;">?  ”ÃÌ· «·Õ÷Ê—</h2>
+      <p style="color: #666; font-size: 14px;"> ”ÃÌ· Õ÷Ê— «·„⁄·„Ì‰</p>
+    </div>
+    
+    <div style="text-align: center; padding: 80px 20px; color: #999;">
+      <div style="font-size: 64px; margin-bottom: 20px;">?</div>
+      <p style="font-size: 18px;">ﬁ”„  ”ÃÌ· «·Õ÷Ê— ﬁÌœ «· ÿÊÌ—</p>
+    </div>
+  \;
+}
+
+// Load Tasks Section
+function loadTeacherTasksSection(container) {
+  container.innerHTML = \
+    <div class="section-header" style="text-align: center; margin-bottom: 30px;">
+      <h2 style="color: #ffc107; font-size: 26px; margin-bottom: 10px;">?? «·„Â«„</h2>
+      <p style="color: #666; font-size: 14px;">⁄—÷ Ê≈œ«—… «·„Â«„</p>
+    </div>
+    
+    <div style="text-align: center; padding: 80px 20px; color: #999;">
+      <div style="font-size: 64px; margin-bottom: 20px;">??</div>
+      <p style="font-size: 18px;">ﬁ”„ «·„Â«„ ﬁÌœ «· ÿÊÌ—</p>
+    </div>
+  \;
+}
+
+// Load More Section
+function loadTeacherMoreSection(container) {
+  container.innerHTML = \
+    <div class="section-header" style="text-align: center; margin-bottom: 30px;">
+      <h2 style="color: #dc3545; font-size: 26px; margin-bottom: 10px;">? «·„“Ìœ</h2>
+      <p style="color: #666; font-size: 14px;">≈⁄œ«œ«  Ê„⁄·Ê„«  ≈÷«›Ì…</p>
+    </div>
+    
+    <div class="more-options" style="display: flex; flex-direction: column; gap: 15px;">
+      <button onclick="window.logoutTeacher()" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 18px; border: none; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 3px 10px rgba(220,53,69,0.2);">
+        <span style="font-size: 24px;">??</span>
+        <span> ”ÃÌ· «·Œ—ÊÃ</span>
+      </button>
+    </div>
+  \;
+}
+
+// Toggle teacher notifications
+window.toggleTeacherNotifications = function() {
+  alert('ﬁ”„ «·≈‘⁄«—«  ﬁÌœ «· ÿÊÌ—');
+};
+
+// Update date and time display
+function updateTeacherDateTime() {
+  const hijriDateEl = document.getElementById('hijriDateTextTeacher');
+  const gregorianTimeEl = document.getElementById('gregorianDateTimeTeacher');
+  
+  if (!hijriDateEl || !gregorianTimeEl) return;
+  
+  const now = new Date();
+  
+  // Hijri date
+  const hijriDate = getCurrentHijriDate();
+  if (hijriDate) {
+    hijriDateEl.textContent = \\ \ \ \Â‹\;
+  }
+  
+  // Gregorian date and time
+  const days = ['«·√Õœ', '«·«À‰Ì‰', '«·À·«À«¡', '«·√—»⁄«¡', '«·Œ„Ì”', '«·Ã„⁄…', '«·”» '];
+  const dayName = days[now.getDay()];
+  const date = now.getDate();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  
+  gregorianTimeEl.textContent = \\ \/\/\ - \:\\;
+}
+
+// Start date/time updater
+setInterval(updateTeacherDateTime, 1000);
+updateTeacherDateTime();
+
+console.log('? New teacher design functions loaded');
