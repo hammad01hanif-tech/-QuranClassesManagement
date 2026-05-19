@@ -2457,7 +2457,7 @@ details[open] > summary {
 }
 
 .new-admin-design {
-  display: block !important;
+  display: none; /* Hidden by default until login */
   min-height: 100vh;
   background: #f8f9fa;
   padding-bottom: 80px; /* Space for bottom nav */
@@ -5752,7 +5752,7 @@ details[open] > summary {
 
 /* Teacher Design Container */
 .new-teacher-design {
-  display: block !important;
+  display: none; /* Hidden by default until login */
   min-height: 100vh;
   background: #f8f9fa;
   padding-bottom: 80px; /* Space for bottom nav */
