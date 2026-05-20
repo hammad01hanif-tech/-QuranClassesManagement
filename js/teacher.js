@@ -8003,7 +8003,7 @@ async function loadAttendanceData(year, month) {
   // Build table HTML
   const tableHTML = `
     <div class="table-wrapper">
-      <table class="attendance-table">
+      <table class="attendance-table keep-table">
         <thead>
           <tr>
             <th>اليوم والتاريخ</th>
