@@ -6416,7 +6416,7 @@ details[open] > summary {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 900px;
+  min-width: 1000px;
 }
 
 .attendance-table thead {
@@ -6487,6 +6487,12 @@ details[open] > summary {
 .time-cell.late {
   color: #dc2626;
   background: #fef2f2;
+  font-weight: 700;
+}
+
+.time-cell.early {
+  color: #f59e0b;
+  background: #fffbeb;
   font-weight: 700;
 }
 

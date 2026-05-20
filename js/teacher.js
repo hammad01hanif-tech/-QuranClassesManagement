@@ -7962,7 +7962,21 @@ async function loadAttendanceData(year, month) {
     const actualArrival = index % 5 === 0 ? '08:15' : '08:00'; // Some late arrivals
     const actualLeave = index % 7 === 0 ? '13:45' : '14:00'; // Some early leaves
     const lateDeduction = actualArrival !== shiftStart ? 4 : 0;
-    const tempLeave = index % 3 === 0 ? 18 : 0;
+    
+    // Calculate early leave deduction
+    // If left before 14:00, calculate deduction (2 SAR per 15 minutes)
+    let earlyLeaveDeduction = 0;
+    if (actualLeave !== shiftEnd) {
+      const [leaveHour, leaveMin] = actualLeave.split(':').map(Number);
+      const [endHour, endMin] = shiftEnd.split(':').map(Number);
+      const leaveMinutes = leaveHour * 60 + leaveMin;
+      const endMinutes = endHour * 60 + endMin;
+      const earlyMinutes = endMinutes - leaveMinutes;
+      if (earlyMinutes > 0) {
+        earlyLeaveDeduction = Math.ceil(earlyMinutes / 15) * 2; // 2 SAR per 15 minutes
+      }
+    }
+    
     const notes = index === 0 ? 'مراجعة طبية' : '';
     
     return {
@@ -7974,7 +7988,7 @@ async function loadAttendanceData(year, month) {
       lateDeduction,
       shiftEnd,
       actualLeave,
-      tempLeave,
+      earlyLeaveDeduction,
       notes
     };
   });
@@ -7983,8 +7997,8 @@ async function loadAttendanceData(year, month) {
   const absences = 0; // No absences in sample data
   const absenceDeductions = absences * 50;
   const lateDeductions = attendanceRecords.reduce((sum, r) => sum + r.lateDeduction, 0);
-  const tempLeaveDeductions = Math.floor(attendanceRecords.reduce((sum, r) => sum + r.tempLeave, 0) / 60) * 5; // 5 SAR per hour
-  const totalDeductions = absenceDeductions + lateDeductions + tempLeaveDeductions;
+  const earlyLeaveDeductions = attendanceRecords.reduce((sum, r) => sum + r.earlyLeaveDeduction, 0);
+  const totalDeductions = absenceDeductions + lateDeductions + earlyLeaveDeductions;
   
   // Build table HTML
   const tableHTML = `
@@ -7998,7 +8012,7 @@ async function loadAttendanceData(year, month) {
             <th>خصمية التأخير</th>
             <th>نهاية الدوام</th>
             <th>وقت الخروج</th>
-            <th>الخروج المؤقت</th>
+            <th>خصمية الخروج المبكر</th>
             <th>الملاحظات</th>
           </tr>
         </thead>
@@ -8013,8 +8027,8 @@ async function loadAttendanceData(year, month) {
               <td class="time-cell ${record.lateDeduction > 0 ? 'late' : ''}">${record.actualArrival}</td>
               <td class="deduction-cell">${record.lateDeduction > 0 ? record.lateDeduction + ' ريال' : '—'}</td>
               <td class="time-cell">${record.shiftEnd}</td>
-              <td class="time-cell">${record.actualLeave}</td>
-              <td class="duration-cell">${record.tempLeave > 0 ? record.tempLeave + ' دقيقة' : '—'}</td>
+              <td class="time-cell ${record.earlyLeaveDeduction > 0 ? 'early' : ''}">${record.actualLeave}</td>
+              <td class="deduction-cell">${record.earlyLeaveDeduction > 0 ? record.earlyLeaveDeduction + ' ريال' : '—'}</td>
               <td class="notes-cell">${record.notes || '—'}</td>
             </tr>
           `).join('')}
@@ -8048,10 +8062,10 @@ async function loadAttendanceData(year, month) {
           </div>
         </div>
         <div class="summary-item">
-          <span class="summary-icon">⏸</span>
+          <span class="summary-icon">🚪</span>
           <div class="summary-details">
-            <div class="summary-label">خصومات الخروج المؤقت</div>
-            <div class="summary-value">${tempLeaveDeductions} ريال</div>
+            <div class="summary-label">خصومات الخروج المبكر</div>
+            <div class="summary-value">${earlyLeaveDeductions} ريال</div>
           </div>
         </div>
         <div class="summary-item total">
