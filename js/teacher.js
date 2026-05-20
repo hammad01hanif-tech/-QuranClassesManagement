@@ -23,6 +23,7 @@ import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyD
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
 import { accurateHijriDates } from './accurate-hijri-dates.js';
 import { getMonthlyReport, countStudyDays } from './study-days-calendar.js';
+import { getTodayPrayerTimes } from './prayer-times-local.js';
 
 // DOM Elements
 const teacherStudentSelect = document.getElementById('teacherStudentSelect');
@@ -8112,18 +8113,766 @@ function loadTeacherReportsSection(container) {
 }
 
 // Load Attendance Section
-function loadTeacherAttendanceSection(container) {
+// Load Attendance Section
+async function loadTeacherAttendanceSection(container) {
+  const today = new Date();
+  const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const dayName = dayNames[today.getDay()];
+  const dateStr = today.toLocaleDateString('ar-SA');
+  
+  // Get prayer times
+  let prayerTimes = null;
+  try {
+    prayerTimes = await getTodayPrayerTimes();
+  } catch (error) {
+    console.error('Error loading prayer times:', error);
+  }
+  
+  // Get today's attendance status
+  const teacherId = sessionStorage.getItem('loggedInTeacher');
+  const attendanceStatus = await getTeacherAttendanceStatus(teacherId, today);
+  
   container.innerHTML = `
-    <div class="section-header" style="text-align: center; margin-bottom: 30px;">
-      <h2 style="color: #28a745; font-size: 26px; margin-bottom: 10px;">✅ تسجيل الحضور</h2>
-      <p style="color: #666; font-size: 14px;">تسجيل حضور المعلمين</p>
-    </div>
-    
-    <div style="text-align: center; padding: 80px 20px; color: #999;">
-      <div style="font-size: 64px; margin-bottom: 20px;">✅</div>
-      <p style="font-size: 18px;">قسم تسجيل الحضور قيد التطوير</p>
+    <div class="attendance-page">
+      <!-- Header -->
+      <div class="attendance-header">
+        <h1 class="attendance-title">📅 تسجيل الحضور</h1>
+        <div class="attendance-date">
+          <span class="day-name">${dayName}</span>
+          <span class="date-separator">—</span>
+          <span class="date-value">${dateStr}</span>
+        </div>
+      </div>
+      
+      <!-- Prayer Times Card -->
+      <div class="prayer-times-card">
+        <h3 class="card-title">🕌 مواقيت الصلاة لليوم</h3>
+        <div class="prayer-times-grid">
+          <div class="prayer-time-item">
+            <span class="prayer-name">العصر</span>
+            <span class="prayer-time">${prayerTimes ? prayerTimes.asr : '--:--'}</span>
+          </div>
+          <div class="prayer-time-item">
+            <span class="prayer-name">المغرب</span>
+            <span class="prayer-time">${prayerTimes ? prayerTimes.maghrib : '--:--'}</span>
+          </div>
+          <div class="prayer-time-item">
+            <span class="prayer-name">العشاء</span>
+            <span class="prayer-time">${prayerTimes ? prayerTimes.isha : '--:--'}</span>
+          </div>
+        </div>
+        
+        <div class="shift-times">
+          <div class="shift-time-item">
+            <span class="shift-icon">⏰</span>
+            <span class="shift-label">بداية الدوام:</span>
+            <span class="shift-value" id="shiftStartTime">${prayerTimes ? calculateShiftStart(prayerTimes.asr) : '--:--'}</span>
+          </div>
+          <div class="shift-time-item">
+            <span class="shift-icon">⏰</span>
+            <span class="shift-label">نهاية الدوام:</span>
+            <span class="shift-value" id="shiftEndTime">${prayerTimes ? calculateShiftEnd(prayerTimes.isha) : '--:--'}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Main Content Area -->
+      <div id="attendanceMainContent">
+        ${renderAttendanceContent(attendanceStatus)}
+      </div>
     </div>
   `;
+  
+  // Start countdown timer if checked in
+  if (attendanceStatus.checkedIn && !attendanceStatus.checkedOut) {
+    startCountdownTimer();
+  }
+}
+
+// Calculate shift start time (15 minutes after Asr)
+function calculateShiftStart(asrTime) {
+  if (!asrTime) return '--:--';
+  
+  const [hours, minutes] = asrTime.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes + 15, 0, 0);
+  
+  return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+// Calculate shift end time (5 minutes after Isha)
+function calculateShiftEnd(ishaTime) {
+  if (!ishaTime) return '--:--';
+  
+  const [hours, minutes] = ishaTime.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes + 5, 0, 0);
+  
+  return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+// Get teacher attendance status for today
+async function getTeacherAttendanceStatus(teacherId, date) {
+  const dateStr = date.toISOString().split('T')[0];
+  
+  try {
+    const attendanceRef = doc(db, 'teacherAttendance', `${teacherId}_${dateStr}`);
+    const attendanceDoc = await getDoc(attendanceRef);
+    
+    if (attendanceDoc.exists()) {
+      const data = attendanceDoc.data();
+      return {
+        exists: true,
+        checkedIn: !!data.checkInTime,
+        checkedOut: !!data.checkOutTime,
+        isAbsent: data.status === 'absent',
+        checkInTime: data.checkInTime,
+        checkOutTime: data.checkOutTime,
+        checkInNotes: data.checkInNotes || '',
+        checkOutNotes: data.checkOutNotes || '',
+        absentReason: data.absentReason || '',
+        lateDeduction: data.lateDeduction || 0,
+        earlyLeaveDeduction: data.earlyLeaveDeduction || 0
+      };
+    }
+    
+    return {
+      exists: false,
+      checkedIn: false,
+      checkedOut: false,
+      isAbsent: false
+    };
+  } catch (error) {
+    console.error('Error getting attendance status:', error);
+    return {
+      exists: false,
+      checkedIn: false,
+      checkedOut: false,
+      isAbsent: false
+    };
+  }
+}
+
+// Render attendance content based on status
+function renderAttendanceContent(status) {
+  if (status.isAbsent) {
+    return renderAbsentState(status);
+  } else if (status.checkedOut) {
+    return renderCheckedOutState(status);
+  } else if (status.checkedIn) {
+    return renderCheckedInState(status);
+  } else {
+    return renderInitialState();
+  }
+}
+
+// Render initial state (before check-in)
+function renderInitialState() {
+  return `
+    <div class="attendance-actions">
+      <button class="attendance-btn primary-btn" onclick="window.showCheckInModal()">
+        <span class="btn-icon">✅</span>
+        <span class="btn-text">تسجيل الحضور</span>
+      </button>
+      
+      <button class="attendance-btn absent-btn" onclick="window.showAbsentModal()">
+        <span class="btn-icon">❌</span>
+        <span class="btn-text">غائب اليوم</span>
+      </button>
+    </div>
+    
+    <div class="attendance-note">
+      ⚠️ إذا لم تسجل حضورك حتى الساعة 9:00 مساءً، سيتم احتسابك غائباً تلقائياً
+    </div>
+  `;
+}
+
+// Render checked-in state
+function renderCheckedInState(status) {
+  const checkInTime = status.checkInTime ? new Date(status.checkInTime.seconds * 1000).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '--:--';
+  
+  return `
+    <div class="status-card success-card">
+      <div class="status-header">
+        <span class="status-icon">🟢</span>
+        <span class="status-label">الحالة: حاضر</span>
+      </div>
+      <div class="status-details">
+        <div class="status-detail-item">
+          <span class="detail-icon">🕘</span>
+          <span class="detail-label">وقت الحضور:</span>
+          <span class="detail-value">${checkInTime}</span>
+        </div>
+        <div class="status-detail-item">
+          <span class="detail-icon">⏳</span>
+          <span class="detail-label">المتبقي لنهاية الدوام:</span>
+          <span class="detail-value" id="countdownTimer">جاري الحساب...</span>
+        </div>
+      </div>
+      ${status.checkInNotes ? `<div class="status-notes">📝 ${status.checkInNotes}</div>` : ''}
+    </div>
+    
+    <button class="attendance-btn checkout-btn" onclick="window.showCheckOutModal()">
+      <span class="btn-icon">📤</span>
+      <span class="btn-text">تسجيل الانصراف</span>
+    </button>
+  `;
+}
+
+// Render checked-out state (day summary)
+function renderCheckedOutState(status) {
+  const checkInTime = status.checkInTime ? new Date(status.checkInTime.seconds * 1000).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '--:--';
+  const checkOutTime = status.checkOutTime ? new Date(status.checkOutTime.seconds * 1000).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '--:--';
+  
+  const today = new Date();
+  const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const dayName = dayNames[today.getDay()];
+  const dateStr = today.toLocaleDateString('ar-SA');
+  
+  return `
+    <div class="day-summary-card">
+      <h3 class="summary-title">📊 ملخص دوام اليوم</h3>
+      <div class="summary-date">${dayName} — ${dateStr}</div>
+      
+      <div class="summary-times">
+        <div class="summary-time-item">
+          <span class="time-icon">🕘</span>
+          <span class="time-label">وقت الحضور:</span>
+          <span class="time-value">${checkInTime}</span>
+        </div>
+        <div class="summary-time-item">
+          <span class="time-icon">📤</span>
+          <span class="time-label">وقت الانصراف:</span>
+          <span class="time-value">${checkOutTime}</span>
+        </div>
+      </div>
+      
+      <div class="deductions-section">
+        <h4 class="deductions-title">الخصميات</h4>
+        <div class="deductions-grid">
+          <div class="deduction-item ${status.lateDeduction > 0 ? 'has-deduction' : ''}">
+            <span class="deduction-icon">⏰</span>
+            <span class="deduction-label">خصمية التأخير:</span>
+            <span class="deduction-value">${status.lateDeduction || 0} ريال</span>
+          </div>
+          <div class="deduction-item ${status.earlyLeaveDeduction > 0 ? 'has-deduction' : ''}">
+            <span class="deduction-icon">📉</span>
+            <span class="deduction-label">خصمية الخروج المبكر:</span>
+            <span class="deduction-value">${status.earlyLeaveDeduction || 0} ريال</span>
+          </div>
+        </div>
+      </div>
+      
+      ${status.checkInNotes || status.checkOutNotes ? `
+        <div class="summary-notes">
+          ${status.checkInNotes ? `<div class="note-item">📝 ملاحظة الحضور: ${status.checkInNotes}</div>` : ''}
+          ${status.checkOutNotes ? `<div class="note-item">📝 ملاحظة الانصراف: ${status.checkOutNotes}</div>` : ''}
+        </div>
+      ` : ''}
+      
+      <div class="summary-success">
+        ✅ تم تسجيل دوام اليوم بنجاح
+      </div>
+    </div>
+  `;
+}
+
+// Render absent state
+function renderAbsentState(status) {
+  const today = new Date();
+  const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const dayName = dayNames[today.getDay()];
+  const dateStr = today.toLocaleDateString('ar-SA');
+  
+  return `
+    <div class="status-card absent-card">
+      <div class="status-header">
+        <span class="status-icon">🔴</span>
+        <span class="status-label">الحالة: غائب</span>
+      </div>
+      <div class="summary-date">${dayName} — ${dateStr}</div>
+      
+      ${status.absentReason ? `
+        <div class="absent-reason">
+          <div class="reason-label">سبب الغياب:</div>
+          <div class="reason-text">${status.absentReason}</div>
+        </div>
+      ` : ''}
+      
+      <div class="absent-note">
+        تم تسجيل الغياب لهذا اليوم. سيتم احتساب الخصمية حسب إعدادات الإدارة.
+      </div>
+    </div>
+  `;
+}
+
+// Start countdown timer
+function startCountdownTimer() {
+  const timerElement = document.getElementById('countdownTimer');
+  if (!timerElement) return;
+  
+  const updateTimer = () => {
+    const shiftEndElement = document.getElementById('shiftEndTime');
+    if (!shiftEndElement) return;
+    
+    const shiftEndText = shiftEndElement.textContent;
+    if (!shiftEndText || shiftEndText === '--:--') {
+      timerElement.textContent = 'غير محدد';
+      return;
+    }
+    
+    // Parse shift end time
+    const now = new Date();
+    const endTime = parseArabicTime(shiftEndText);
+    
+    if (!endTime || endTime <= now) {
+      timerElement.textContent = 'انتهى الدوام';
+      return;
+    }
+    
+    const diff = endTime - now;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      timerElement.textContent = `${hours} ساعة و${minutes} دقيقة`;
+    } else {
+      timerElement.textContent = `${minutes} دقيقة`;
+    }
+  };
+  
+  updateTimer();
+  setInterval(updateTimer, 60000); // Update every minute
+}
+
+// Parse Arabic time format
+function parseArabicTime(timeStr) {
+  // Convert Arabic numerals and AM/PM
+  timeStr = timeStr.replace(/٠/g, '0').replace(/١/g, '1').replace(/٢/g, '2')
+    .replace(/٣/g, '3').replace(/٤/g, '4').replace(/٥/g, '5')
+    .replace(/٦/g, '6').replace(/٧/g, '7').replace(/٨/g, '8').replace(/٩/g, '9');
+  
+  const isPM = timeStr.includes('م') || timeStr.includes('PM');
+  const isAM = timeStr.includes('ص') || timeStr.includes('AM');
+  
+  const match = timeStr.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  
+  let hours = parseInt(match[1]);
+  const minutes = parseInt(match[2]);
+  
+  if (isPM && hours !== 12) hours += 12;
+  if (isAM && hours === 12) hours = 0;
+  
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  
+  return date;
+}
+
+// Show check-in modal
+window.showCheckInModal = function() {
+  const modal = document.createElement('div');
+  modal.className = 'attendance-modal';
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="closeAttendanceModal()"></div>
+    <div class="modal-bottom-sheet">
+      <div class="modal-header">
+        <h3>✅ تسجيل الحضور</h3>
+        <button class="modal-close" onclick="closeAttendanceModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="time-display">
+          <span class="time-icon">🕐</span>
+          <span class="time-value" id="currentTimeDisplay">${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+        </div>
+        
+        <div class="manual-time-toggle">
+          <label class="toggle-label">
+            <input type="checkbox" id="manualTimeCheckbox" onchange="toggleManualTime()">
+            <span>🕘 تسجيل وقت يدوي</span>
+          </label>
+        </div>
+        
+        <div id="manualTimeInput" class="manual-time-input" style="display: none;">
+          <label>الوقت:</label>
+          <input type="time" id="manualCheckInTime" class="time-input">
+        </div>
+        
+        <div class="notes-input">
+          <label>📝 ملاحظات (اختياري):</label>
+          <textarea id="checkInNotes" class="notes-textarea" placeholder="مثال: ازدحام، ظرف طارئ..."></textarea>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="modal-btn primary" onclick="submitCheckIn()" id="submitCheckInBtn">
+          <span class="btn-spinner" style="display: none;">⏳</span>
+          <span class="btn-text">تأكيد الحضور</span>
+        </button>
+        <button class="modal-btn secondary" onclick="closeAttendanceModal()">إلغاء</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  setTimeout(() => modal.classList.add('show'), 10);
+  
+  // Update current time every second
+  const timeInterval = setInterval(() => {
+    const timeDisplay = document.getElementById('currentTimeDisplay');
+    if (timeDisplay && !document.getElementById('manualTimeCheckbox').checked) {
+      timeDisplay.textContent = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } else {
+      clearInterval(timeInterval);
+    }
+  }, 1000);
+};
+
+// Show absent modal
+window.showAbsentModal = function() {
+  const modal = document.createElement('div');
+  modal.className = 'attendance-modal';
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="closeAttendanceModal()"></div>
+    <div class="modal-bottom-sheet">
+      <div class="modal-header">
+        <h3>❌ تسجيل غياب</h3>
+        <button class="modal-close" onclick="closeAttendanceModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="absent-warning">
+          ⚠️ سيتم تسجيلك غائباً لهذا اليوم
+        </div>
+        
+        <div class="notes-input">
+          <label>📝 سبب الغياب:</label>
+          <textarea id="absentReason" class="notes-textarea" placeholder="اكتب سبب الغياب..." required></textarea>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="modal-btn danger" onclick="submitAbsent()" id="submitAbsentBtn">
+          <span class="btn-spinner" style="display: none;">⏳</span>
+          <span class="btn-text">تأكيد الغياب</span>
+        </button>
+        <button class="modal-btn secondary" onclick="closeAttendanceModal()">إلغاء</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  setTimeout(() => modal.classList.add('show'), 10);
+};
+
+// Show check-out modal
+window.showCheckOutModal = function() {
+  const modal = document.createElement('div');
+  modal.className = 'attendance-modal';
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="closeAttendanceModal()"></div>
+    <div class="modal-bottom-sheet">
+      <div class="modal-header">
+        <h3>📤 تسجيل الانصراف</h3>
+        <button class="modal-close" onclick="closeAttendanceModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="time-display">
+          <span class="time-icon">🕐</span>
+          <span class="time-value" id="currentTimeDisplay">${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+        </div>
+        
+        <div class="manual-time-toggle">
+          <label class="toggle-label">
+            <input type="checkbox" id="manualTimeCheckbox" onchange="toggleManualTime()">
+            <span>🕘 تسجيل وقت يدوي</span>
+          </label>
+        </div>
+        
+        <div id="manualTimeInput" class="manual-time-input" style="display: none;">
+          <label>الوقت:</label>
+          <input type="time" id="manualCheckOutTime" class="time-input">
+        </div>
+        
+        <div class="notes-input">
+          <label>📝 ملاحظات (اختياري):</label>
+          <textarea id="checkOutNotes" class="notes-textarea" placeholder="مثال: خروج مبكر لظرف عائلي..."></textarea>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="modal-btn primary" onclick="submitCheckOut()" id="submitCheckOutBtn">
+          <span class="btn-spinner" style="display: none;">⏳</span>
+          <span class="btn-text">تأكيد الانصراف</span>
+        </button>
+        <button class="modal-btn secondary" onclick="closeAttendanceModal()">إلغاء</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  setTimeout(() => modal.classList.add('show'), 10);
+  
+  // Update current time every second
+  const timeInterval = setInterval(() => {
+    const timeDisplay = document.getElementById('currentTimeDisplay');
+    if (timeDisplay && !document.getElementById('manualTimeCheckbox').checked) {
+      timeDisplay.textContent = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } else {
+      clearInterval(timeInterval);
+    }
+  }, 1000);
+};
+
+// Toggle manual time input
+window.toggleManualTime = function() {
+  const checkbox = document.getElementById('manualTimeCheckbox');
+  const manualInput = document.getElementById('manualTimeInput');
+  
+  if (checkbox.checked) {
+    manualInput.style.display = 'block';
+  } else {
+    manualInput.style.display = 'none';
+  }
+};
+
+// Submit check-in
+window.submitCheckIn = async function() {
+  const btn = document.getElementById('submitCheckInBtn');
+  const spinner = btn.querySelector('.btn-spinner');
+  const text = btn.querySelector('.btn-text');
+  
+  // Disable button
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  text.textContent = 'جاري التسجيل...';
+  
+  try {
+    const teacherId = sessionStorage.getItem('loggedInTeacher');
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    
+    // Get time
+    let checkInTime;
+    const manualCheckbox = document.getElementById('manualTimeCheckbox');
+    if (manualCheckbox.checked) {
+      const manualTime = document.getElementById('manualCheckInTime').value;
+      if (!manualTime) {
+        alert('الرجاء إدخال الوقت');
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        text.textContent = 'تأكيد الحضور';
+        return;
+      }
+      const [hours, minutes] = manualTime.split(':');
+      checkInTime = new Date();
+      checkInTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    } else {
+      checkInTime = new Date();
+    }
+    
+    const notes = document.getElementById('checkInNotes').value;
+    
+    // Calculate if late
+    const shiftStartElement = document.getElementById('shiftStartTime');
+    const shiftStartText = shiftStartElement ? shiftStartElement.textContent : null;
+    const shiftStartTime = shiftStartText ? parseArabicTime(shiftStartText) : null;
+    
+    let lateDeduction = 0;
+    if (shiftStartTime && checkInTime > shiftStartTime) {
+      const lateMins = Math.floor((checkInTime - shiftStartTime) / (1000 * 60));
+      lateDeduction = Math.ceil(lateMins / 15) * 4; // 4 SAR per 15 minutes
+    }
+    
+    // Save to Firestore
+    const attendanceRef = doc(db, 'teacherAttendance', `${teacherId}_${dateStr}`);
+    await setDoc(attendanceRef, {
+      teacherId,
+      date: dateStr,
+      checkInTime: serverTimestamp(),
+      checkInNotes: notes,
+      lateDeduction,
+      status: 'present',
+      updatedAt: serverTimestamp()
+    });
+    
+    // Show success animation
+    showSuccessAnimation('✅ تم تسجيل الحضور بنجاح!');
+    
+    // Close modal
+    closeAttendanceModal();
+    
+    // Reload section
+    const container = document.getElementById('teacherMainContent').parentElement;
+    setTimeout(() => loadTeacherAttendanceSection(container), 1000);
+    
+  } catch (error) {
+    console.error('Error submitting check-in:', error);
+    alert('حدث خطأ أثناء التسجيل. الرجاء المحاولة مرة أخرى.');
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    text.textContent = 'تأكيد الحضور';
+  }
+};
+
+// Submit absent
+window.submitAbsent = async function() {
+  const btn = document.getElementById('submitAbsentBtn');
+  const spinner = btn.querySelector('.btn-spinner');
+  const text = btn.querySelector('.btn-text');
+  const reason = document.getElementById('absentReason').value.trim();
+  
+  if (!reason) {
+    alert('الرجاء كتابة سبب الغياب');
+    return;
+  }
+  
+  // Disable button
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  text.textContent = 'جاري التسجيل...';
+  
+  try {
+    const teacherId = sessionStorage.getItem('loggedInTeacher');
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    
+    // Save to Firestore
+    const attendanceRef = doc(db, 'teacherAttendance', `${teacherId}_${dateStr}`);
+    await setDoc(attendanceRef, {
+      teacherId,
+      date: dateStr,
+      status: 'absent',
+      absentReason: reason,
+      absenceDeduction: 50, // Default absence deduction
+      updatedAt: serverTimestamp()
+    });
+    
+    // Show success animation
+    showSuccessAnimation('تم تسجيل الغياب');
+    
+    // Close modal
+    closeAttendanceModal();
+    
+    // Reload section
+    const container = document.getElementById('teacherMainContent').parentElement;
+    setTimeout(() => loadTeacherAttendanceSection(container), 1000);
+    
+  } catch (error) {
+    console.error('Error submitting absent:', error);
+    alert('حدث خطأ أثناء التسجيل. الرجاء المحاولة مرة أخرى.');
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    text.textContent = 'تأكيد الغياب';
+  }
+};
+
+// Submit check-out
+window.submitCheckOut = async function() {
+  const btn = document.getElementById('submitCheckOutBtn');
+  const spinner = btn.querySelector('.btn-spinner');
+  const text = btn.querySelector('.btn-text');
+  
+  // Disable button
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  text.textContent = 'جاري التسجيل...';
+  
+  try {
+    const teacherId = sessionStorage.getItem('loggedInTeacher');
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    
+    // Get time
+    let checkOutTime;
+    const manualCheckbox = document.getElementById('manualTimeCheckbox');
+    if (manualCheckbox.checked) {
+      const manualTime = document.getElementById('manualCheckOutTime').value;
+      if (!manualTime) {
+        alert('الرجاء إدخال الوقت');
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        text.textContent = 'تأكيد الانصراف';
+        return;
+      }
+      const [hours, minutes] = manualTime.split(':');
+      checkOutTime = new Date();
+      checkOutTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    } else {
+      checkOutTime = new Date();
+    }
+    
+    const notes = document.getElementById('checkOutNotes').value;
+    
+    // Calculate if early leave
+    const shiftEndElement = document.getElementById('shiftEndTime');
+    const shiftEndText = shiftEndElement ? shiftEndElement.textContent : null;
+    const shiftEndTime = shiftEndText ? parseArabicTime(shiftEndText) : null;
+    
+    let earlyLeaveDeduction = 0;
+    if (shiftEndTime && checkOutTime < shiftEndTime) {
+      const earlyMins = Math.floor((shiftEndTime - checkOutTime) / (1000 * 60));
+      earlyLeaveDeduction = Math.ceil(earlyMins / 15) * 2; // 2 SAR per 15 minutes
+    }
+    
+    // Update Firestore
+    const attendanceRef = doc(db, 'teacherAttendance', `${teacherId}_${dateStr}`);
+    await updateDoc(attendanceRef, {
+      checkOutTime: serverTimestamp(),
+      checkOutNotes: notes,
+      earlyLeaveDeduction,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Show success animation
+    showSuccessAnimation('✅ تم تسجيل الانصراف بنجاح!');
+    
+    // Close modal
+    closeAttendanceModal();
+    
+    // Reload section
+    const container = document.getElementById('teacherMainContent').parentElement;
+    setTimeout(() => loadTeacherAttendanceSection(container), 1000);
+    
+  } catch (error) {
+    console.error('Error submitting check-out:', error);
+    alert('حدث خطأ أثناء التسجيل. الرجاء المحاولة مرة أخرى.');
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    text.textContent = 'تأكيد الانصراف';
+  }
+};
+
+// Close attendance modal
+window.closeAttendanceModal = function() {
+  const modal = document.querySelector('.attendance-modal');
+  if (modal) {
+    modal.classList.remove('show');
+    setTimeout(() => modal.remove(), 300);
+  }
+};
+
+// Show success animation
+function showSuccessAnimation(message) {
+  const successDiv = document.createElement('div');
+  successDiv.className = 'success-toast';
+  successDiv.innerHTML = `
+    <div class="success-toast-content">
+      <span class="success-icon">✅</span>
+      <span class="success-message">${message}</span>
+    </div>
+  `;
+  
+  document.body.appendChild(successDiv);
+  setTimeout(() => successDiv.classList.add('show'), 10);
+  
+  setTimeout(() => {
+    successDiv.classList.remove('show');
+    setTimeout(() => successDiv.remove(), 300);
+  }, 3000);
 }
 
 // Load Tasks Section
