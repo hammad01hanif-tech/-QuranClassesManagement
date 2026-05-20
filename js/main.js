@@ -455,15 +455,27 @@ function restoreUserSession() {
   if (loggedInTeacher && loggedInTeacherName) {
     console.log('🔄 Restoring teacher session:', loggedInTeacher);
     
-    // Hide role selection and show teacher dashboard
+    // Hide role selection and teacher login
     document.getElementById('roleSelection').style.display = 'none';
     document.getElementById('teacherSection').style.display = 'block';
     document.getElementById('teacherLogin').style.display = 'none';
+    
+    // Show NEW design instead of old
+    document.getElementById('newTeacherDesign').style.display = 'block';
+    document.getElementById('oldTeacherDesign').style.display = 'none';
+    
+    // OLD design (preserved but hidden)
     document.getElementById('teacherDashboard').style.display = 'block';
     
-    // Restore teacher info display
+    // Restore teacher info in OLD design
     document.getElementById('teacherClassDisplay').textContent = loggedInTeacher;
     document.getElementById('teacherNameDisplay').textContent = loggedInTeacherName;
+    
+    // Update teacher name in NEW design header
+    const teacherNameHeader = document.getElementById('teacherNameHeader');
+    if (teacherNameHeader) {
+      teacherNameHeader.textContent = loggedInTeacherName;
+    }
     
     // Initialize teacher dashboard
     updateDateTime();
@@ -473,8 +485,12 @@ function restoreUserSession() {
       window.checkCleanupButton();
     }
     
-    // Restore active tab after a small delay to ensure DOM is ready
-    setTimeout(() => restoreActiveTab(), 100);
+    // Load home section for new design
+    setTimeout(() => {
+      if (typeof window.switchTeacherSection === 'function') {
+        window.switchTeacherSection('home');
+      }
+    }, 100);
     
     return; // Exit early
   }
