@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نقل إعدادات المعلمين - Migration</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      direction: rtl;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      text-align: center;
+      color: #667eea;
+      margin-bottom: 30px;
+      font-size: 32px;
+    }
+    
+    .info-box {
+      background: #f0f4ff;
+      border-right: 4px solid #667eea;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+    
+    .info-box h2 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 20px;
+    }
+    
+    .info-box p {
+      color: #4a5568;
+      line-height: 1.8;
+      margin-bottom: 8px;
+    }
+    
+    .step {
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border: 2px solid #e2e8f0;
+    }
+    
+    .step h3 {
+      color: #2d3748;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .step-number {
+      background: #667eea;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+    
+    button {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 15px;
+    }
+    
+    .btn-preview {
+      background: #e2e8f0;
+      color: #2d3748;
+    }
+    
+    .btn-preview:hover {
+      background: #cbd5e0;
+      transform: translateY(-2px);
+    }
+    
+    .btn-migrate {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-migrate:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-migrate:disabled {
+      background: #cbd5e0;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    #output {
+      background: #1a202c;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      display: none;
+      margin-top: 20px;
+    }
+    
+    #output.show {
+      display: block;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .warning {
+      background: #fff3cd;
+      border-right: 4px solid #ffc107;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      color: #856404;
+    }
+    
+    .success {
+      background: #d4edda;
+      border-right: 4px solid #28a745;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      color: #155724;
+      display: none;
+    }
+    
+    .success.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 نقل إعدادات المعلمين إلى Firestore</h1>
+    
+    <div class="info-box">
+      <h2>📋 عن هذه الأداة</h2>
+      <p>هذه الأداة تنقل إعدادات المعلمين من ملف JavaScript المحلي إلى Firestore.</p>
+      <p>سيتم إنشاء Collection جديد اسمه <strong>staffSettings</strong> مع مستند لكل معلم.</p>
+      <p><strong>عدد المعلمين:</strong> 5 معلمين (عبدالله، خالد، محمد، أحمد، يوسف)</p>
+    </div>
+    
+    <div class="warning">
+      <strong>⚠️ تحذير:</strong> تأكد من أنك متصل بالإنترنت وأن Firestore مفعّل. ستُنشئ هذه العملية بيانات في قاعدة البيانات.
+    </div>
+    
+    <div class="step">
+      <h3>
+        <span class="step-number">1</span>
+        معاينة البيانات
+      </h3>
+      <p>اضغط هنا لعرض البيانات التي سيتم نقلها (بدون حفظ):</p>
+      <button class="btn-preview" onclick="showPreview()">👀 معاينة البيانات</button>
+    </div>
+    
+    <div class="step">
+      <h3>
+        <span class="step-number">2</span>
+        تنفيذ عملية النقل
+      </h3>
+      <p>اضغط هنا لبدء نقل البيانات إلى Firestore:</p>
+      <button class="btn-migrate" id="migrateBtn" onclick="startMigration()">
+        🚀 بدء عملية النقل
+      </button>
+    </div>
+    
+    <div id="output"></div>
+    
+    <div class="success" id="successMessage">
+      <strong>✅ تمت عملية النقل بنجاح!</strong>
+      <p>يمكنك الآن التحقق من Firestore Console لرؤية البيانات المنقولة.</p>
+    </div>
+  </div>
+  
+  <script type="module">
+    import { previewMigration, migrateStaffSettingsToFirestore, checkStaffSettingsExist } from './js/staff-migration.js';
+    
+    const output = document.getElementById('output');
+    const migrateBtn = document.getElementById('migrateBtn');
+    const successMessage = document.getElementById('successMessage');
+    
+    // حفظ console.log الأصلي
+    const originalLog = console.log;
+    
+    // تخصيص console.log لعرض الرسائل في الصفحة
+    function customLog(...args) {
+      originalLog(...args);
+      const message = args.join(' ');
+      output.textContent += message + '\n';
+      output.scrollTop = output.scrollHeight;
+    }
+    
+    // دالة معاينة البيانات
+    window.showPreview = function() {
+      output.textContent = '';
+      output.classList.add('show');
+      console.log = customLog;
+      
+      try {
+        previewMigration();
+        console.log('\n✅ المعاينة جاهزة! يمكنك الآن تنفيذ عملية النقل.');
+      } catch (error) {
+        console.log('❌ خطأ في المعاينة:', error.message);
+      }
+      
+      console.log = originalLog;
+    };
+    
+    // دالة بدء النقل
+    window.startMigration = async function() {
+      // التحقق من التأكيد
+      const confirmed = confirm(
+        '⚠️ هل أنت متأكد من بدء عملية النقل؟\n\n' +
+        'سيتم إنشاء 5 مستندات جديدة في Firestore.\n' +
+        'هذه العملية لا يمكن التراجع عنها بسهولة.'
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+      
+      // تعطيل الزر
+      migrateBtn.disabled = true;
+      migrateBtn.innerHTML = '<span class="loading"></span> جاري النقل...';
+      
+      // إظهار منطقة الإخراج
+      output.textContent = '';
+      output.classList.add('show');
+      successMessage.classList.remove('show');
+      
+      // تخصيص console.log
+      console.log = customLog;
+      
+      try {
+        // بدء عملية النقل
+        const result = await migrateStaffSettingsToFirestore();
+        
+        console.log = originalLog;
+        
+        if (result.success) {
+          successMessage.classList.add('show');
+          migrateBtn.innerHTML = '✅ تمت العملية بنجاح';
+          migrateBtn.style.background = '#28a745';
+        } else {
+          migrateBtn.innerHTML = '⚠️ تمت مع بعض الأخطاء';
+          migrateBtn.style.background = '#ffc107';
+          migrateBtn.disabled = false;
+        }
+        
+      } catch (error) {
+        console.log = originalLog;
+        customLog('❌ خطأ عام:', error.message);
+        migrateBtn.innerHTML = '❌ فشلت العملية - حاول مرة أخرى';
+        migrateBtn.style.background = '#dc3545';
+        migrateBtn.disabled = false;
+      }
+    };
+    
+    // التحقق عند تحميل الصفحة
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const exists = await checkStaffSettingsExist();
+        if (exists) {
+          const warning = document.createElement('div');
+          warning.className = 'warning';
+          warning.innerHTML = '<strong>⚠️ تنبيه:</strong> يبدو أن staffSettings موجود بالفعل في Firestore. قد تؤدي عملية النقل إلى استبدال البيانات الموجودة.';
+          document.querySelector('.container').insertBefore(warning, document.querySelector('.step'));
+        }
+      } catch (error) {
+        console.error('خطأ في التحقق:', error);
+      }
+    });
+  </script>
+</body>
+</html>
