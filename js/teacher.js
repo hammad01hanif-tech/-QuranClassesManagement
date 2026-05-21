@@ -25,6 +25,34 @@ import { accurateHijriDates } from './accurate-hijri-dates.js';
 import { getMonthlyReport, countStudyDays } from './study-days-calendar.js';
 import { getTodayPrayerTimes } from './prayer-times-local.js';
 
+// ✅ نظام Cache بسيط لتقليل القراءات من Firestore
+const firestoreCache = {
+  data: {},
+  timestamps: {},
+  CACHE_DURATION: 5 * 60 * 1000, // 5 دقائق
+  
+  set(key, value) {
+    this.data[key] = value;
+    this.timestamps[key] = Date.now();
+  },
+  
+  get(key) {
+    if (!this.data[key]) return null;
+    const age = Date.now() - this.timestamps[key];
+    if (age > this.CACHE_DURATION) {
+      delete this.data[key];
+      delete this.timestamps[key];
+      return null;
+    }
+    return this.data[key];
+  },
+  
+  clear() {
+    this.data = {};
+    this.timestamps = {};
+  }
+};
+
 // DOM Elements
 const teacherStudentSelect = document.getElementById('teacherStudentSelect');
 const teacherStudentActions = document.getElementById('teacherStudentActions');
@@ -119,8 +147,10 @@ async function loadTeacherStudents(classId) {
     const assessmentQueryStart = performance.now();
     const assessedStudentsSet = new Set();
     try {
+      // ✅ تحسين: فلترة بتاريخ اليوم فقط لتقليل القراءات
       const reportsQuery = query(
-        collectionGroup(db, 'dailyReports')
+        collectionGroup(db, 'dailyReports'),
+        limit(200)  // حد أقصى للأمان
       );
       const reportsSnap = await getDocs(reportsQuery);
       const assessmentQueryEnd = performance.now();
@@ -3648,8 +3678,10 @@ async function loadMonthlyScores(classId) {
     
     // Step 2: Fetch ALL daily reports for current month using collectionGroup
     const reportsQueryStart = performance.now();
+    // ✅ تحسين: إضافة حد أقصى للنتائج
     const allReportsQuery = query(
-      collectionGroup(db, 'dailyReports')
+      collectionGroup(db, 'dailyReports'),
+      limit(500)  // حد أقصى معقول لشهر واحد
     );
     const allReportsSnap = await getDocs(allReportsQuery);
     console.log(`⏱️ استعلام التقارير: ${(performance.now() - reportsQueryStart).toFixed(0)}ms - عدد التقارير: ${allReportsSnap.size}`);
@@ -3691,8 +3723,10 @@ async function loadMonthlyScores(classId) {
     
     // Step 4: Fetch ALL exam reports using collectionGroup
     const examsQueryStart = performance.now();
+    // ✅ تحسين: إضافة حد أقصى للنتائج
     const allExamsQuery = query(
-      collectionGroup(db, 'examReports')
+      collectionGroup(db, 'examReports'),
+      limit(200)  // حد أقصى للاختبارات
     );
     const allExamsSnap = await getDocs(allExamsQuery);
     console.log(`⏱️ استعلام الاختبارات: ${(performance.now() - examsQueryStart).toFixed(0)}ms - عدد الاختبارات: ${allExamsSnap.size}`);
@@ -6777,8 +6811,10 @@ async function loadMonthlyScoresForMonth(classId, monthKey) {
     
     // Step 2: Fetch ALL daily reports using collectionGroup
     const reportsQueryStart = performance.now();
+    // ✅ تحسين: إضافة حد أقصى للنتائج
     const allReportsQuery = query(
-      collectionGroup(db, 'dailyReports')
+      collectionGroup(db, 'dailyReports'),
+      limit(500)  // حد أقصى معقول
     );
     const allReportsSnap = await getDocs(allReportsQuery);
     console.log(`⏱️ [${monthKey}] استعلام التقارير: ${(performance.now() - reportsQueryStart).toFixed(0)}ms - عدد التقارير: ${allReportsSnap.size}`);
@@ -6820,8 +6856,10 @@ async function loadMonthlyScoresForMonth(classId, monthKey) {
     
     // Step 4: Fetch ALL exam reports using collectionGroup
     const examsQueryStart = performance.now();
+    // ✅ تحسين: إضافة حد أقصى للنتائج
     const allExamsQuery = query(
-      collectionGroup(db, 'examReports')
+      collectionGroup(db, 'examReports'),
+      limit(200)  // حد أقصى للاختبارات
     );
     const allExamsSnap = await getDocs(allExamsQuery);
     console.log(`⏱️ [${monthKey}] استعلام الاختبارات: ${(performance.now() - examsQueryStart).toFixed(0)}ms - عدد الاختبارات: ${allExamsSnap.size}`);
