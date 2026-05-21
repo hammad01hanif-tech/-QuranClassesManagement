@@ -61,6 +61,7 @@ window.selectRole = function(role) {
     document.getElementById('teacherSection').style.display = 'block';
     document.getElementById('teacherLogin').style.display = 'block';
     document.getElementById('teacherDashboard').style.display = 'none';
+    loadStaffForLogin(); // Load all staff members (teachers + viewers + admins)
   } else if (role === 'student') {
     document.getElementById('studentSection').style.display = 'block';
     document.getElementById('studentLogin').style.display = 'block';
@@ -170,6 +171,74 @@ window.logout = function() {
 };
 
 // Load teachers list for student login
+// ============================================
+// Load all staff (teachers + viewers + admins) for login
+// ============================================
+window.staffMembersCache = {}; // Global cache for staff members
+
+async function loadStaffForLogin() {
+  const staffSelect = document.getElementById('teacherIdSelect');
+  
+  try {
+    staffSelect.innerHTML = '<option value="">🔄 جاري التحميل...</option>';
+    
+    // Fetch all staff from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    
+    if (classesSnapshot.empty) {
+      staffSelect.innerHTML = '<option value="">⚠️ لا يوجد موظفين في النظام</option>';
+      return;
+    }
+    
+    // Clear cache and rebuild
+    window.staffMembersCache = {};
+    const staffList = [];
+    
+    classesSnapshot.forEach(doc => {
+      const data = doc.data();
+      const staffId = doc.id;
+      const staffName = data.teacherName || data.presenterName || data.adminName || data.className || 'بدون اسم';
+      const role = data.role || 'غير محدد';
+      
+      // Store in cache
+      window.staffMembersCache[staffId] = {
+        name: staffName,
+        role: role
+      };
+      
+      // Add to list
+      staffList.push({ id: staffId, name: staffName, role: role });
+    });
+    
+    // Sort by name
+    staffList.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    // Populate dropdown
+    staffSelect.innerHTML = '<option value="">-- اختر اسمك من القائمة --</option>';
+    
+    staffList.forEach(staff => {
+      const option = document.createElement('option');
+      option.value = staff.id;
+      
+      // Add role icon
+      let roleIcon = '';
+      if (staff.role === 'teacher') roleIcon = '👨‍🏫';
+      else if (staff.role === 'viewer') roleIcon = '👁️';
+      else if (staff.role === 'admin') roleIcon = '⚙️';
+      else if (staff.role === 'presenter') roleIcon = '🎤';
+      
+      option.textContent = `${roleIcon} ${staff.name} (${staff.id})`;
+      staffSelect.appendChild(option);
+    });
+    
+    console.log('✅ Loaded', staffList.length, 'staff members');
+    
+  } catch (error) {
+    console.error('❌ Error loading staff:', error);
+    staffSelect.innerHTML = '<option value="">⚠️ خطأ في تحميل القائمة</option>';
+  }
+}
+
 async function loadTeachersForStudent() {
   const teacherSelect = document.getElementById('studentTeacherSelect');
   const studentSelect = document.getElementById('studentNameSelect');
@@ -288,34 +357,29 @@ window.loginStudent = async function() {
   }
 };
 
-// Teacher login function
+// Teacher/Staff login function
 window.loginTeacher = async function() {
-  const teacherSelect = document.getElementById('teacherIdSelect');
-  const teacherId = teacherSelect.value;
-  const teacherName = teacherSelect.options[teacherSelect.selectedIndex].text;
+  const staffSelect = document.getElementById('teacherIdSelect');
+  const staffId = staffSelect.value;
   const password = document.getElementById('teacherPasswordInput').value;
   const errorDiv = document.getElementById('loginError');
   
-  // Teacher names mapping
-  const teacherNames = {
-    'ABD01': 'عبدالرحمن السيسي',
-    'AMR01': 'عامر هوساوي',
-    'ANS01': 'الأستاذ أنس',
-    'HRT01': 'حارث',
-    'JHD01': 'الأستاذ جهاد',
-    'JWD01': 'عبدالرحمن جاويد',
-    'MZN01': 'الأستاذ مازن',
-    'NBL01': 'الأستاذ نبيل',
-    'OMR01': 'الأستاذ عمر',
-    'OSM01': 'أسامة حبيب',
-    'SLM01': 'سلمان رفيق'
-  };
-  
-  if (!teacherId || !password) {
-    errorDiv.textContent = 'الرجاء اختيار المعلم وإدخال الرقم السري';
+  if (!staffId || !password) {
+    errorDiv.textContent = 'الرجاء اختيار الاسم وإدخال الرقم السري';
     errorDiv.classList.add('show');
     return;
   }
+  
+  // Get staff info from cache
+  const staffInfo = window.staffMembersCache[staffId];
+  if (!staffInfo) {
+    errorDiv.textContent = 'خطأ: لم يتم العثور على بيانات الموظف';
+    errorDiv.classList.add('show');
+    return;
+  }
+  
+  const staffName = staffInfo.name;
+  const staffRole = staffInfo.role;
   
   if (password !== 't12345') {
     errorDiv.textContent = 'الرقم السري غير صحيح';
@@ -331,26 +395,27 @@ window.loginTeacher = async function() {
   document.getElementById('newTeacherDesign').style.display = 'block';
   document.getElementById('oldTeacherDesign').style.display = 'none';
   
-  // Update teacher name in header
+  // Update staff name in header
   const teacherNameHeader = document.getElementById('teacherNameHeader');
   if (teacherNameHeader) {
-    teacherNameHeader.textContent = teacherNames[teacherId] || teacherId;
+    teacherNameHeader.textContent = staffName || staffId;
   }
   
   // OLD CODE (preserved but hidden)
   document.getElementById('teacherDashboard').style.display = 'block';
-  document.getElementById('teacherClassDisplay').textContent = teacherId;
-  document.getElementById('teacherNameDisplay').textContent = teacherNames[teacherId];
+  document.getElementById('teacherClassDisplay').textContent = staffId;
+  document.getElementById('teacherNameDisplay').textContent = staffName;
   
   // Update date and time
   updateDateTime();
   
-  // Store logged in teacher
-  sessionStorage.setItem('loggedInTeacher', teacherId);
-  sessionStorage.setItem('loggedInTeacherName', teacherNames[teacherId]);
+  // Store logged in staff member (using teacher keys for compatibility)
+  sessionStorage.setItem('loggedInTeacher', staffId);
+  sessionStorage.setItem('loggedInTeacherName', staffName);
+  sessionStorage.setItem('loggedInStaffRole', staffRole);
   
-  // Initialize teacher with this class
-  initTeacher(teacherId);
+  // Initialize staff member with this ID (works for all roles)
+  initTeacher(staffId);
   
   // Load home section for new design
   setTimeout(() => {
