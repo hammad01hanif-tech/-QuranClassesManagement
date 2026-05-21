@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>إدارة إعدادات المعلمين</title>
+  <title>إدارة إعدادات الموظفين</title>
   <style>
     * {
       margin: 0;
@@ -248,18 +248,18 @@
 </head>
 <body>
   <div class="container">
-    <h1>⚙️ إدارة إعدادات المعلمين</h1>
-    <p class="subtitle">تعديل أوقات الدوام والخصميات لكل معلم</p>
+    <h1>⚙️ إدارة إعدادات الموظفين</h1>
+    <p class="subtitle">تعديل أوقات الدوام والخصميات لجميع الطاقم (معلمين، عارضين، إداريين)</p>
     
     <div class="info-box">
-      <p><strong>💡 ملاحظة:</strong> هنا يتم تعديل الإعدادات الخاصة بكل معلم (أوقات الدوام، الخصميات، الراتب).</p>
-      <p>سيتم حفظ هذه الإعدادات في Firestore وستُطبق تلقائياً عند تسجيل حضور المعلم.</p>
+      <p><strong>💡 ملاحظة:</strong> هنا يتم تعديل الإعدادات الخاصة بكل موظف (أوقات الدوام، الخصميات، الراتب).</p>
+      <p>سيتم حفظ هذه الإعدادات في Firestore وستُطبق تلقائياً عند تسجيل الحضور.</p>
       <p><strong>✅ لا حاجة لإنشاء staffSettings يدوياً:</strong> سيُنشأ تلقائياً عند أول حفظ!</p>
     </div>
     
     <div id="loadingIndicator" class="loading">
       <div class="loading-spinner"></div>
-      <p>جاري تحميل بيانات المعلمين...</p>
+      <p>جاري تحميل بيانات الموظفين...</p>
     </div>
     
     <div id="teachersContainer" class="teachers-grid" style="display:none;"></div>
@@ -286,12 +286,11 @@
     const db = firebase.firestore();
     
     // ============================================
-    // تحميل المعلمين من classes collection
+    // تحميل جميع الموظفين من classes collection
     // ============================================
     async function loadTeachers() {
       try {
         const teachersQuery = await db.collection('classes')
-          .where('role', '==', 'teacher')
           .get();
         
         const teachers = [];
@@ -302,9 +301,17 @@
           const settingsDoc = await db.collection('staffSettings').doc(doc.id).get();
           const savedSettings = settingsDoc.exists ? settingsDoc.data() : null;
           
+          // جلب الاسم حسب نوع الموظف (معلم، عارض، إداري)
+          const staffName = teacherData.teacherName || 
+                           teacherData.presenterName || 
+                           teacherData.adminName || 
+                           teacherData.className || 
+                           'بدون اسم';
+          
           teachers.push({
             id: doc.id,
-            name: teacherData.teacherName || teacherData.className || 'بدون اسم',
+            name: staffName,
+            role: teacherData.role || 'غير محدد',
             savedSettings: savedSettings,
             hasSettings: settingsDoc.exists
           });
@@ -313,10 +320,10 @@
         if (teachers.length === 0) {
           document.getElementById('loadingIndicator').innerHTML = `
             <div style="text-align:center; padding:40px; background:#fff3cd; border-radius:15px; border:2px solid #ffc107;">
-              <h2 style="color:#856404; margin-bottom:20px;">⚠️ لم يتم العثور على معلمين</h2>
+              <h2 style="color:#856404; margin-bottom:20px;">⚠️ لم يتم العثور على موظفين</h2>
               <p style="color:#856404; margin-bottom:15px; line-height:1.8;">
-                لا يوجد معلمون في classes collection بعد.<br>
-                يرجى إضافة معلمين أولاً في Firestore:
+                لا يوجد موظفون في classes collection بعد.<br>
+                يرجى إضافة موظفين أولاً في Firestore:
               </p>
               <div style="background:white; padding:20px; border-radius:10px; margin:20px 0; text-align:right;">
                 <p style="color:#495057; margin-bottom:10px; font-weight:600;">📍 الخطوات:</p>
@@ -325,9 +332,9 @@
                   <li>Firestore Database → classes</li>
                   <li>أضف مستند جديد بالحقول:
                     <ul style="margin-top:10px;">
-                      <li>classId: "TCH001"</li>
-                      <li>teacherName: "اسم المعلم"</li>
-                      <li>role: "teacher"</li>
+                      <li>classId: "STF001"</li>
+                      <li>teacherName: "اسم الموظف" (أو presenterName أو adminName)</li>
+                      <li>role: "teacher" أو "viewer" أو "admin"</li>
                       <li>active: true</li>
                     </ul>
                   </li>
@@ -342,7 +349,7 @@
         renderTeachers(teachers);
         
       } catch (error) {
-        console.error('Error loading teachers:', error);
+        console.error('Error loading staff:', error);
         document.getElementById('loadingIndicator').innerHTML = `
           <p style="color:#dc3545;">❌ خطأ في تحميل البيانات</p>
           <p style="color:#6c757d; font-size:14px; margin-top:10px;">${error.message}</p>
@@ -351,7 +358,7 @@
     }
     
     // ============================================
-    // عرض المعلمين في الصفحة
+    // عرض جميع الموظفين في الصفحة
     // ============================================
     function renderTeachers(teachers) {
       const container = document.getElementById('teachersContainer');
@@ -361,12 +368,20 @@
       container.innerHTML = teachers.map(teacher => {
         const settings = teacher.savedSettings || getDefaultSettings();
         
+        // تحديد نوع الموظف بالعربي
+        const roleLabel = {
+          'teacher': '👨‍🏫 معلم',
+          'viewer': '👁️ عارض',
+          'admin': '⚙️ إداري',
+          'presenter': '🎤 مقدم'
+        }[teacher.role] || '❓ ' + teacher.role;
+        
         return `
           <div class="teacher-card">
             <div class="teacher-header">
               <div class="teacher-info">
                 <h3>${teacher.name}</h3>
-                <span class="teacher-id">ID: ${teacher.id}</span>
+                <span class="teacher-id">ID: ${teacher.id} | ${roleLabel}</span>
               </div>
               <span class="settings-badge ${teacher.hasSettings ? '' : 'not-configured'}">
                 ${teacher.hasSettings ? '✅ مُعدّ' : '⚠️ غير مُعدّ'}
