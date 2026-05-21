@@ -254,6 +254,7 @@
     <div class="info-box">
       <p><strong>💡 ملاحظة:</strong> هنا يتم تعديل الإعدادات الخاصة بكل معلم (أوقات الدوام، الخصميات، الراتب).</p>
       <p>سيتم حفظ هذه الإعدادات في Firestore وستُطبق تلقائياً عند تسجيل حضور المعلم.</p>
+      <p><strong>✅ لا حاجة لإنشاء staffSettings يدوياً:</strong> سيُنشأ تلقائياً عند أول حفظ!</p>
     </div>
     
     <div id="loadingIndicator" class="loading">
@@ -268,10 +269,20 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   
-  <!-- Firebase Config -->
-  <script src="./firebase-config.js"></script>
-  
   <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyALjuy8zAf9oiyWV3h3epsTtx0ZKSccxRo",
+      authDomain: "quranclassesmanagement.firebaseapp.com",
+      projectId: "quranclassesmanagement",
+      storageBucket: "quranclassesmanagement.firebasestorage.app",
+      messagingSenderId: "868247342998",
+      appId: "1:868247342998:web:95908153b6d0f25fb8d7b7",
+      measurementId: "G-F1MW3KMZGG"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     
     // ============================================
@@ -301,8 +312,29 @@
         
         if (teachers.length === 0) {
           document.getElementById('loadingIndicator').innerHTML = `
-            <p style="color:#dc3545;">❌ لم يتم العثور على معلمين في النظام</p>
-            <p style="color:#6c757d; font-size:14px; margin-top:10px;">تأكد من إضافة معلمين في classes collection أولاً</p>
+            <div style="text-align:center; padding:40px; background:#fff3cd; border-radius:15px; border:2px solid #ffc107;">
+              <h2 style="color:#856404; margin-bottom:20px;">⚠️ لم يتم العثور على معلمين</h2>
+              <p style="color:#856404; margin-bottom:15px; line-height:1.8;">
+                لا يوجد معلمون في classes collection بعد.<br>
+                يرجى إضافة معلمين أولاً في Firestore:
+              </p>
+              <div style="background:white; padding:20px; border-radius:10px; margin:20px 0; text-align:right;">
+                <p style="color:#495057; margin-bottom:10px; font-weight:600;">📍 الخطوات:</p>
+                <ol style="color:#6c757d; line-height:2; text-align:right;">
+                  <li>افتح Firebase Console</li>
+                  <li>Firestore Database → classes</li>
+                  <li>أضف مستند جديد بالحقول:
+                    <ul style="margin-top:10px;">
+                      <li>classId: "TCH001"</li>
+                      <li>teacherName: "اسم المعلم"</li>
+                      <li>role: "teacher"</li>
+                      <li>active: true</li>
+                    </ul>
+                  </li>
+                  <li>احفظ ثم حدّث هذه الصفحة</li>
+                </ol>
+              </div>
+            </div>
           `;
           return;
         }
