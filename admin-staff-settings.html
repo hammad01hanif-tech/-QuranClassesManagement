@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة إعدادات المعلمين</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    h1 {
+      text-align: center;
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 32px;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #6c757d;
+      margin-bottom: 40px;
+      font-size: 16px;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: #667eea;
+      font-size: 20px;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .teachers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+      gap: 30px;
+      margin-top: 30px;
+    }
+    
+    .teacher-card {
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 25px;
+      border: 2px solid #e9ecef;
+      transition: all 0.3s;
+    }
+    
+    .teacher-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.1);
+    }
+    
+    .teacher-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #dee2e6;
+    }
+    
+    .teacher-info h3 {
+      color: #2d3748;
+      margin-bottom: 5px;
+      font-size: 22px;
+    }
+    
+    .teacher-info .teacher-id {
+      color: #6c757d;
+      font-size: 14px;
+      font-family: monospace;
+    }
+    
+    .settings-badge {
+      background: #28a745;
+      color: white;
+      padding: 6px 15px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    .settings-badge.not-configured {
+      background: #ffc107;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      color: #495057;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: all 0.3s;
+    }
+    
+    .form-group input:focus, .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    
+    .section-title {
+      color: #667eea;
+      font-size: 16px;
+      font-weight: 700;
+      margin: 25px 0 15px 0;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #667eea;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    .checkbox-group label {
+      margin: 0;
+      cursor: pointer;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 20px;
+    }
+    
+    .btn-save {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-save:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-save:disabled {
+      background: #cbd5e0;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 12px 20px;
+      border-radius: 8px;
+      margin-top: 15px;
+      display: none;
+      text-align: center;
+      font-weight: 600;
+    }
+    
+    .success-message.show {
+      display: block;
+      animation: fadeIn 0.3s;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .info-box {
+      background: #e7f3ff;
+      border-right: 4px solid #2196F3;
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    
+    .info-box p {
+      color: #0d47a1;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+    
+    .info-box p:last-child {
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚙️ إدارة إعدادات المعلمين</h1>
+    <p class="subtitle">تعديل أوقات الدوام والخصميات لكل معلم</p>
+    
+    <div class="info-box">
+      <p><strong>💡 ملاحظة:</strong> هنا يتم تعديل الإعدادات الخاصة بكل معلم (أوقات الدوام، الخصميات، الراتب).</p>
+      <p>سيتم حفظ هذه الإعدادات في Firestore وستُطبق تلقائياً عند تسجيل حضور المعلم.</p>
+    </div>
+    
+    <div id="loadingIndicator" class="loading">
+      <div class="loading-spinner"></div>
+      <p>جاري تحميل بيانات المعلمين...</p>
+    </div>
+    
+    <div id="teachersContainer" class="teachers-grid" style="display:none;"></div>
+  </div>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  
+  <!-- Firebase Config -->
+  <script src="./firebase-config.js"></script>
+  
+  <script>
+    const db = firebase.firestore();
+    
+    // ============================================
+    // تحميل المعلمين من classes collection
+    // ============================================
+    async function loadTeachers() {
+      try {
+        const teachersQuery = await db.collection('classes')
+          .where('role', '==', 'teacher')
+          .get();
+        
+        const teachers = [];
+        for (const doc of teachersQuery.docs) {
+          const teacherData = doc.data();
+          
+          // جلب الإعدادات المحفوظة (إن وجدت)
+          const settingsDoc = await db.collection('staffSettings').doc(doc.id).get();
+          const savedSettings = settingsDoc.exists() ? settingsDoc.data() : null;
+          
+          teachers.push({
+            id: doc.id,
+            name: teacherData.teacherName || teacherData.className || 'بدون اسم',
+            savedSettings: savedSettings,
+            hasSettings: settingsDoc.exists()
+          });
+        }
+        
+        if (teachers.length === 0) {
+          document.getElementById('loadingIndicator').innerHTML = `
+            <p style="color:#dc3545;">❌ لم يتم العثور على معلمين في النظام</p>
+            <p style="color:#6c757d; font-size:14px; margin-top:10px;">تأكد من إضافة معلمين في classes collection أولاً</p>
+          `;
+          return;
+        }
+        
+        renderTeachers(teachers);
+        
+      } catch (error) {
+        console.error('Error loading teachers:', error);
+        document.getElementById('loadingIndicator').innerHTML = `
+          <p style="color:#dc3545;">❌ خطأ في تحميل البيانات</p>
+          <p style="color:#6c757d; font-size:14px; margin-top:10px;">${error.message}</p>
+        `;
+      }
+    }
+    
+    // ============================================
+    // عرض المعلمين في الصفحة
+    // ============================================
+    function renderTeachers(teachers) {
+      const container = document.getElementById('teachersContainer');
+      document.getElementById('loadingIndicator').style.display = 'none';
+      container.style.display = 'grid';
+      
+      container.innerHTML = teachers.map(teacher => {
+        const settings = teacher.savedSettings || getDefaultSettings();
+        
+        return `
+          <div class="teacher-card">
+            <div class="teacher-header">
+              <div class="teacher-info">
+                <h3>${teacher.name}</h3>
+                <span class="teacher-id">ID: ${teacher.id}</span>
+              </div>
+              <span class="settings-badge ${teacher.hasSettings ? '' : 'not-configured'}">
+                ${teacher.hasSettings ? '✅ مُعدّ' : '⚠️ غير مُعدّ'}
+              </span>
+            </div>
+            
+            <form id="form_${teacher.id}" onsubmit="saveTeacherSettings(event, '${teacher.id}', '${teacher.name}')">
+              <!-- الراتب -->
+              <div class="form-group">
+                <label>💰 الراتب الشهري (ريال)</label>
+                <input type="number" name="salary" value="${settings.salary?.monthlySalary || 3000}" required min="0" step="100">
+              </div>
+              
+              <!-- أوقات الدوام -->
+              <div class="section-title">⏰ أوقات الدوام</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>بداية الدوام (دقائق بعد العصر)</label>
+                  <input type="number" name="minutesAfterAsr" value="${settings.workSchedule?.minutesAfterAsr || 15}" required min="0" max="120">
+                </div>
+                <div class="form-group">
+                  <label>نهاية الدوام (دقائق بعد العشاء)</label>
+                  <input type="number" name="minutesAfterIsha" value="${settings.workSchedule?.minutesAfterIsha || 5}" required min="0" max="120">
+                </div>
+              </div>
+              
+              <!-- خصمية التأخير -->
+              <div class="section-title">📉 خصمية التأخير</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>قيمة الخصم (ريال)</label>
+                  <input type="number" name="lateAmount" value="${settings.penalties?.latePenalty?.amount || 5}" required min="0" step="0.5">
+                </div>
+                <div class="form-group">
+                  <label>كل كم دقيقة</label>
+                  <input type="number" name="lateInterval" value="${settings.penalties?.latePenalty?.intervalMinutes || 30}" required min="1">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>الحد الأقصى للخصم اليومي (ريال، 0 = بدون حد)</label>
+                <input type="number" name="lateMaxDaily" value="${settings.penalties?.latePenalty?.maxDailyPenalty || 20}" min="0" step="1">
+              </div>
+              
+              <!-- خصمية الخروج المبكر -->
+              <div class="section-title">🚪 خصمية الخروج المبكر</div>
+              <div class="checkbox-group">
+                <input type="checkbox" name="earlyLeaveEnabled" id="earlyLeave_${teacher.id}" 
+                       ${settings.penalties?.earlyLeavePenalty?.enabled !== false ? 'checked' : ''}>
+                <label for="earlyLeave_${teacher.id}">تفعيل خصمية الخروج المبكر</label>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>قيمة الخصم (ريال)</label>
+                  <input type="number" name="earlyLeaveAmount" value="${settings.penalties?.earlyLeavePenalty?.amount || 5}" min="0" step="0.5">
+                </div>
+                <div class="form-group">
+                  <label>كل كم دقيقة</label>
+                  <input type="number" name="earlyLeaveInterval" value="${settings.penalties?.earlyLeavePenalty?.intervalMinutes || 30}" min="1">
+                </div>
+              </div>
+              
+              <!-- خصمية الغياب -->
+              <div class="section-title">❌ خصمية الغياب</div>
+              <div class="form-group">
+                <label>طريقة الحساب</label>
+                <select name="absenceMethod">
+                  <option value="salary_divided_by_30" ${settings.penalties?.absencePenalty?.calculationMethod === 'salary_divided_by_30' ? 'selected' : ''}>
+                    الراتب ÷ 30
+                  </option>
+                  <option value="fixed_amount" ${settings.penalties?.absencePenalty?.calculationMethod === 'fixed_amount' ? 'selected' : ''}>
+                    مبلغ ثابت
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>المبلغ الثابت (إذا اخترت مبلغ ثابت)</label>
+                <input type="number" name="absenceFixedAmount" value="${settings.penalties?.absencePenalty?.customAmount || 100}" min="0" step="10">
+              </div>
+              
+              <!-- زر الحفظ -->
+              <button type="submit" class="btn btn-save">💾 حفظ الإعدادات</button>
+              
+              <div class="success-message" id="success_${teacher.id}">
+                ✅ تم حفظ الإعدادات بنجاح!
+              </div>
+            </form>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // ============================================
+    // الإعدادات الافتراضية
+    // ============================================
+    function getDefaultSettings() {
+      return {
+        workSchedule: {
+          minutesAfterAsr: 15,
+          minutesAfterIsha: 5,
+          workDays: [0, 1, 2, 3, 4],
+          followsPrayerTimes: true
+        },
+        salary: {
+          monthlySalary: 3000,
+          currency: 'SAR'
+        },
+        penalties: {
+          latePenalty: {
+            enabled: true,
+            amount: 5,
+            intervalMinutes: 30,
+            maxDailyPenalty: 20,
+            roundingMethod: 'ceil'
+          },
+          absencePenalty: {
+            enabled: true,
+            calculationMethod: 'salary_divided_by_30',
+            customAmount: null
+          },
+          earlyLeavePenalty: {
+            enabled: true,
+            amount: 5,
+            intervalMinutes: 30,
+            maxDailyPenalty: 15,
+            roundingMethod: 'ceil'
+          }
+        },
+        active: true
+      };
+    }
+    
+    // ============================================
+    // حفظ إعدادات المعلم
+    // ============================================
+    window.saveTeacherSettings = async function(event, teacherId, teacherName) {
+      event.preventDefault();
+      
+      const form = event.target;
+      const btn = form.querySelector('.btn-save');
+      const successMsg = document.getElementById(`success_${teacherId}`);
+      
+      btn.disabled = true;
+      btn.textContent = '⏳ جاري الحفظ...';
+      successMsg.classList.remove('show');
+      
+      try {
+        const formData = new FormData(form);
+        
+        const settings = {
+          staffId: teacherId,
+          staffName: teacherName,
+          
+          workSchedule: {
+            minutesAfterAsr: parseInt(formData.get('minutesAfterAsr')),
+            minutesAfterIsha: parseInt(formData.get('minutesAfterIsha')),
+            workDays: [0, 1, 2, 3, 4],
+            followsPrayerTimes: true,
+            fixedStartTime: null,
+            fixedEndTime: null,
+            gracePeriod: 0
+          },
+          
+          salary: {
+            monthlySalary: parseFloat(formData.get('salary')),
+            currency: 'SAR'
+          },
+          
+          penalties: {
+            latePenalty: {
+              enabled: true,
+              amount: parseFloat(formData.get('lateAmount')),
+              intervalMinutes: parseInt(formData.get('lateInterval')),
+              graceMinutes: 0,
+              roundingMethod: 'ceil',
+              maxDailyPenalty: parseFloat(formData.get('lateMaxDaily')) || null
+            },
+            
+            absencePenalty: {
+              enabled: true,
+              calculationMethod: formData.get('absenceMethod'),
+              customAmount: formData.get('absenceMethod') === 'fixed_amount' 
+                ? parseFloat(formData.get('absenceFixedAmount')) 
+                : null,
+              allowExcusedAbsence: true,
+              excusedAbsenceDeduction: 0
+            },
+            
+            earlyLeavePenalty: {
+              enabled: formData.get('earlyLeaveEnabled') === 'on',
+              amount: parseFloat(formData.get('earlyLeaveAmount')),
+              intervalMinutes: parseInt(formData.get('earlyLeaveInterval')),
+              graceMinutes: 5,
+              roundingMethod: 'ceil',
+              maxDailyPenalty: 15
+            }
+          },
+          
+          active: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          notes: `تم التحديث من واجهة الإدارة - ${teacherName}`
+        };
+        
+        await db.collection('staffSettings').doc(teacherId).set(settings);
+        
+        btn.textContent = '✅ تم الحفظ';
+        btn.style.background = '#28a745';
+        successMsg.classList.add('show');
+        
+        // إعادة تعيين الزر بعد ثانيتين
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = '💾 حفظ الإعدادات';
+          btn.style.background = '';
+          successMsg.classList.remove('show');
+        }, 3000);
+        
+      } catch (error) {
+        console.error('Error saving settings:', error);
+        btn.textContent = '❌ فشل الحفظ';
+        btn.style.background = '#dc3545';
+        alert('حدث خطأ أثناء الحفظ: ' + error.message);
+        
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = '💾 حفظ الإعدادات';
+          btn.style.background = '';
+        }, 2000);
+      }
+    };
+    
+    // ============================================
+    // تحميل البيانات عند فتح الصفحة
+    // ============================================
+    window.addEventListener('DOMContentLoaded', () => {
+      loadTeachers();
+    });
+  </script>
+</body>
+</html>
