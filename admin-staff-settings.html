@@ -300,13 +300,13 @@
           
           // جلب الإعدادات المحفوظة (إن وجدت)
           const settingsDoc = await db.collection('staffSettings').doc(doc.id).get();
-          const savedSettings = settingsDoc.exists() ? settingsDoc.data() : null;
+          const savedSettings = settingsDoc.exists ? settingsDoc.data() : null;
           
           teachers.push({
             id: doc.id,
             name: teacherData.teacherName || teacherData.className || 'بدون اسم',
             savedSettings: savedSettings,
-            hasSettings: settingsDoc.exists()
+            hasSettings: settingsDoc.exists
           });
         }
         
