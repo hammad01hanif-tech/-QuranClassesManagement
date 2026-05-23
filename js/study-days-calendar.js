@@ -242,6 +242,31 @@ export function getStudyDaysInMonth(year, month) {
 }
 
 /**
+ * الحصول على جميع أيام الشهر (دراسة + إجازات رسمية) ما عدا الويكند
+ * Get all working days in a month (study + official holidays) excluding weekends
+ * @param {number} year - السنة الميلادية
+ * @param {number} month - الشهر الميلادي (1-12)
+ * @returns {Array} مصفوفة بجميع أيام العمل
+ */
+export function getAllWorkingDaysInMonth(year, month) {
+  const workingDays = [];
+  const daysInMonth = new Date(year, month, 0).getDate();
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month - 1, day);
+    // Skip weekends only
+    if (!isWeekend(date)) {
+      workingDays.push({
+        date: formatDateToString(date),
+        dayInfo: getDayInfo(date)
+      });
+    }
+  }
+  
+  return workingDays;
+}
+
+/**
  * الحصول على جميع أيام الإجازة في شهر معين
  * Get all holidays in a specific month
  * @param {number} year - السنة الميلادية
@@ -436,6 +461,7 @@ export default {
   getDayInfo,
   getHolidayInfo,
   getStudyDaysInMonth,
+  getAllWorkingDaysInMonth,
   getHolidaysInMonth,
   countStudyDays,
   countHolidays,

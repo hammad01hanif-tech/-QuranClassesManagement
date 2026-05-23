@@ -22,7 +22,7 @@ import { quranSurahs } from './quran-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, gregorianToHijri, isTodayAStudyDay } from './hijri-date.js';
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
 import { accurateHijriDates } from './accurate-hijri-dates.js';
-import { getMonthlyReport, countStudyDays } from './study-days-calendar.js';
+import { getMonthlyReport, countStudyDays, getAllWorkingDaysInMonth } from './study-days-calendar.js';
 import { getTodayPrayerTimes, getPrayerTimesLocal } from './prayer-times-local.js';
 
 // ✅ نظام Cache بسيط لتقليل القراءات من Firestore
@@ -8003,13 +8003,40 @@ window.openAttendanceRecordModal = function(monthName, year, month) {
   // Show modal
   const modal = document.createElement('div');
   modal.className = 'attendance-modal';
+  
+  // Generate month options
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+  
+  const monthNames = [
+    '', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+  ];
+  
+  // Generate options for past 6 months and next 6 months
+  let monthOptions = '';
+  for (let i = -6; i <= 6; i++) {
+    const targetDate = new Date(currentYear, currentMonth - 1 + i, 1);
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth() + 1;
+    const targetMonthName = monthNames[targetMonth];
+    const selected = (targetYear === year && targetMonth === month) ? 'selected' : '';
+    monthOptions += `<option value="${targetYear}-${targetMonth}" ${selected}>${targetMonthName} ${targetYear}</option>`;
+  }
+  
   modal.innerHTML = `
     <div class="attendance-modal-overlay" onclick="closeAttendanceModal()"></div>
     <div class="attendance-modal-content">
       <div class="attendance-modal-header">
         <div class="modal-header-info">
           <h3>📄 سجل الحضور الشهري</h3>
-          <p>${monthName} ${year}</p>
+          <div class="attendance-month-filter">
+            <label for="attendance-month-selector">📅 الشهر:</label>
+            <select id="attendance-month-selector" onchange="changeAttendanceMonth(this.value)">
+              ${monthOptions}
+            </select>
+          </div>
         </div>
         <button class="modal-close-btn" onclick="closeAttendanceModal()">✕</button>
       </div>
@@ -8055,6 +8082,31 @@ window.openAttendanceRecordModal = function(monthName, year, month) {
   }, 500);
 };
 
+// Change Attendance Month
+window.changeAttendanceMonth = function(value) {
+  const [year, month] = value.split('-').map(Number);
+  const monthNames = [
+    '', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+  ];
+  const monthName = monthNames[month];
+  
+  // Show loading state
+  const tableContainer = document.querySelector('.attendance-table-container');
+  const loadingDiv = document.querySelector('.attendance-loading');
+  
+  if (tableContainer && loadingDiv) {
+    tableContainer.style.display = 'none';
+    tableContainer.innerHTML = '';
+    loadingDiv.style.display = 'block';
+  }
+  
+  // Reload data for new month
+  setTimeout(() => {
+    loadAttendanceData(year, month);
+  }, 300);
+};
+
 // Close Attendance Modal
 window.closeAttendanceModal = function() {
   const modal = document.querySelector('.attendance-modal');
@@ -8066,12 +8118,26 @@ window.closeAttendanceModal = function() {
   }
 };
 
+// Format Gregorian Date (YYYY-MM-DD to readable format)
+function formatGregorianDate(dateStr) {
+  if (!dateStr) return '—';
+  
+  const [year, month, day] = dateStr.split('-');
+  const monthNames = [
+    '', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+  ];
+  
+  return `${parseInt(day)} ${monthNames[parseInt(month)]} ${year}`;
+}
+
 // Load Attendance Data
 async function loadAttendanceData(year, month) {
   try {
     const teacherId = sessionStorage.getItem('loggedInTeacher');
-    const monthlyReport = getMonthlyReport(year, month);
-    const studyDays = monthlyReport.studyDays;
+    
+    // Get all working days in month (excluding weekends only)
+    const allWorkingDays = getAllWorkingDaysInMonth(year, month);
     
     // Fetch staff settings for shift times
     const settings = await getStaffSettings(teacherId);
@@ -8081,7 +8147,7 @@ async function loadAttendanceData(year, month) {
     const attendanceMap = {};
     
     // Fetch records in parallel
-    const fetchPromises = studyDays.map(async (day) => {
+    const fetchPromises = allWorkingDays.map(async (day) => {
       const date = day.date;
       const docId = `${teacherId}_${date}`;
       try {
@@ -8098,7 +8164,7 @@ async function loadAttendanceData(year, month) {
     await Promise.all(fetchPromises);
     
     // Get prayer times for each day to calculate shift times
-    const attendanceRecords = await Promise.all(studyDays.map(async (day) => {
+    const attendanceRecords = await Promise.all(allWorkingDays.map(async (day) => {
       const date = day.date; // Format: YYYY-MM-DD
       const dayInfo = day.dayInfo;
       const record = attendanceMap[date];
@@ -8118,11 +8184,31 @@ async function loadAttendanceData(year, month) {
       
       // Build record based on status
       if (!record) {
+        // Check if it's an official holiday
+        if (dayInfo.isOfficialHoliday) {
+          // Official holiday - no attendance required
+          return {
+            date,
+            dayName: dayInfo.dayNameArabic,
+            gregorianDate: dayInfo.gregorianDate,
+            shiftStart: '—',
+            shiftEnd: '—',
+            status: 'holiday',
+            actualArrival: '—',
+            actualLeave: '—',
+            lateDeduction: 0,
+            earlyLeaveDeduction: 0,
+            absenceDeduction: 0,
+            notes: `إجازة ${dayInfo.holidayInfo?.name || 'رسمية'} 🎉`,
+            isHoliday: true
+          };
+        }
+        
         // No record found - not registered
         return {
           date,
           dayName: dayInfo.dayNameArabic,
-          hijriDate: dayInfo.hijriDate,
+          gregorianDate: dayInfo.gregorianDate,
           shiftStart,
           shiftEnd,
           status: 'not-registered',
@@ -8138,7 +8224,7 @@ async function loadAttendanceData(year, month) {
         return {
           date,
           dayName: dayInfo.dayNameArabic,
-          hijriDate: dayInfo.hijriDate,
+          gregorianDate: dayInfo.gregorianDate,
           shiftStart,
           shiftEnd,
           status: 'absent',
@@ -8157,7 +8243,7 @@ async function loadAttendanceData(year, month) {
         return {
           date,
           dayName: dayInfo.dayNameArabic,
-          hijriDate: dayInfo.hijriDate,
+          gregorianDate: dayInfo.gregorianDate,
           shiftStart,
           shiftEnd,
           status: 'present',
@@ -8166,7 +8252,10 @@ async function loadAttendanceData(year, month) {
           lateDeduction: record.lateDeduction || 0,
           earlyLeaveDeduction: record.earlyLeaveDeduction || 0,
           absenceDeduction: 0,
-          notes: record.checkInNotes || record.checkOutNotes || '—'
+          notes: record.checkInNotes || record.checkOutNotes || '—',
+          lateApprovalStatus: record.lateApprovalStatus,
+          earlyLeaveApprovalStatus: record.earlyLeaveApprovalStatus,
+          absenceApprovalStatus: record.absenceApprovalStatus
         };
       }
     }));
@@ -8214,6 +8303,8 @@ async function loadAttendanceData(year, month) {
                 rowClass = record.absenceApprovalStatus === 'pardoned' ? 'penalty-pardoned' : 'absent-row';
               } else if (record.status === 'not-registered') {
                 rowClass = 'not-registered-row';
+              } else if (record.status === 'holiday') {
+                rowClass = 'holiday-row';
               }
               
               const arrivalClass = record.status === 'absent' ? 'absent-cell' : 
@@ -8238,7 +8329,7 @@ async function loadAttendanceData(year, month) {
                 <tr class="${rowClass}" ${record.status === 'absent' ? absenceClick : ''}>
                   <td class="date-cell">
                     <div class="date-day">${record.dayName}</div>
-                    <div class="date-hijri">${record.hijriDate || record.date}</div>
+                    <div class="date-gregorian">${formatGregorianDate(record.date)}</div>
                   </td>
                   <td class="time-cell">${record.shiftStart}</td>
                   <td class="time-cell ${arrivalClass}">

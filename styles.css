@@ -6334,6 +6334,39 @@ details[open] > summary {
   opacity: 0.9;
 }
 
+.attendance-month-filter {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attendance-month-filter label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.attendance-month-filter select {
+  padding: 6px 12px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.attendance-month-filter select:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+.attendance-month-filter select option {
+  background: #667eea;
+  color: white;
+}
+
 .modal-close-btn {
   width: 36px;
   height: 36px;
@@ -6471,7 +6504,7 @@ details[open] > summary {
   margin-bottom: 2px;
 }
 
-.date-hijri {
+.date-gregorian {
   font-size: 11px;
   color: #64748b;
 }
@@ -6532,6 +6565,16 @@ details[open] > summary {
 
 .not-registered-row:hover {
   background: #f5f5f5 !important;
+}
+
+/* Holiday row styling */
+.holiday-row {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-right: 4px solid #f59e0b;
+}
+
+.holiday-row:hover {
+  background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%) !important;
 }
 
 .deduction-cell {
@@ -6729,7 +6772,7 @@ details[open] > summary {
     font-size: 12px;
   }
 
-  .date-hijri {
+  .date-gregorian {
     font-size: 10px;
   }
 
