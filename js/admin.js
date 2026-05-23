@@ -9190,10 +9190,34 @@ async function loadStaffList() {
     // Use cached staff data from main.js if available (to avoid Firestore reads)
     let staffList = [];
     
-    if (window.staffMembersCache && window.staffMembersCache.length > 0) {
-      // Use cached data
-      staffList = window.staffMembersCache.filter(s => s.role === 'teacher' || s.role === 'viewer');
+    if (window.staffMembersCache && Object.keys(window.staffMembersCache).length > 0) {
+      // Use cached data - staffMembersCache is an object, not array
       console.log('✅ Using cached staff data');
+      
+      Object.entries(window.staffMembersCache).forEach(([staffId, staffData]) => {
+        const role = staffData.role;
+        
+        // Only include teachers and viewers (not admins)
+        if (role === 'teacher' || role === 'viewer') {
+          let roleIcon = '';
+          
+          if (role === 'teacher') {
+            roleIcon = '👨‍🏫';
+          } else if (role === 'viewer') {
+            roleIcon = '📊';
+          }
+          
+          staffList.push({ 
+            id: staffId, 
+            name: staffData.name, 
+            role: role, 
+            roleIcon: roleIcon 
+          });
+        }
+      });
+      
+      // Sort alphabetically
+      staffList.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     } else {
       // Fallback: Fetch from Firestore
       console.log('📥 Fetching staff from Firestore...');
@@ -9206,18 +9230,17 @@ async function loadStaffList() {
         
         // Only include teachers and viewers (not admins)
         if (role === 'teacher' || role === 'viewer') {
-          let name = '';
+          // Use same logic as main.js for getting staff name
+          const name = data.teacherName || data.presenterName || data.adminName || data.className || 'بدون اسم';
           let roleIcon = '';
           
           if (role === 'teacher') {
-            name = data.teacherName || 'معلم غير معروف';
             roleIcon = '👨‍🏫';
           } else if (role === 'viewer') {
-            name = data.presenterName || 'عارض غير معروف';
             roleIcon = '📊';
           }
           
-          staffList.push({ id: staffId, name, role, roleIcon });
+          staffList.push({ id: staffId, name: name, role: role, roleIcon: roleIcon });
         }
       });
       
