@@ -9185,7 +9185,7 @@ async function loadStaffList() {
     if (!staffSelect) return;
     
     // Clear existing options (except first one)
-    staffSelect.innerHTML = '<option value="">-- ÇÎÊÑ ãä ÇáŞÇÆãÉ --</option>';
+    staffSelect.innerHTML = '<option value="">-- ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ --</option>';
     
     // Fetch all staff from classes collection
     const classesSnapshot = await getDocs(collection(db, 'classes'));
@@ -9200,14 +9200,14 @@ async function loadStaffList() {
       let roleIcon = '';
       
       if (role === 'teacher') {
-        name = data.teacherName || 'ãÚáã ÛíÑ ãÚÑæİ';
-        roleIcon = '????';
+        name = data.teacherName || 'ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½';
+        roleIcon = '??ï¿½??';
       } else if (role === 'viewer') {
-        name = data.presenterName || 'ÚÇÑÖ ÛíÑ ãÚÑæİ';
+        name = data.presenterName || 'ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½';
         roleIcon = '??';
       } else if (role === 'admin') {
-        name = data.adminName || 'ÅÏÇÑí ÛíÑ ãÚÑæİ';
-        roleIcon = '????';
+        name = data.adminName || 'ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½';
+        roleIcon = '??ï¿½??';
       } else {
         return; // Skip if no valid role
       }
@@ -9222,7 +9222,7 @@ async function loadStaffList() {
     staffList.forEach(staff => {
       const option = document.createElement('option');
       option.value = staff.id;
-      option.textContent = ${staff.roleIcon} ;
+      option.textContent = `${staff.roleIcon} ${staff.name}`;
       option.dataset.role = staff.role;
       option.dataset.roleIcon = staff.roleIcon;
       staffSelect.appendChild(option);
@@ -9282,13 +9282,13 @@ window.loadStaffAttendanceData = async function() {
   const staffSelect = document.getElementById('staffAttendanceSelect');
   const selectedOption = staffSelect.options[staffSelect.selectedIndex];
   const staffName = selectedOption.textContent;
-  const roleIcon = selectedOption.dataset.roleIcon || '????';
+  const roleIcon = selectedOption.dataset.roleIcon || '??ï¿½??';
   const role = selectedOption.dataset.role || 'teacher';
   
   let roleText = '';
-  if (role === 'teacher') roleText = 'ãÚáã';
-  else if (role === 'viewer') roleText = 'ÚÇÑÖ';
-  else if (role === 'admin') roleText = 'ÅÏÇÑí';
+  if (role === 'teacher') roleText = 'ï¿½ï¿½ï¿½ï¿½';
+  else if (role === 'viewer') roleText = 'ï¿½ï¿½ï¿½ï¿½';
+  else if (role === 'admin') roleText = 'ï¿½ï¿½ï¿½ï¿½ï¿½';
   
   // Fetch staff settings for salary
   let salary = 3000; // Default
@@ -9305,7 +9305,7 @@ window.loadStaffAttendanceData = async function() {
   document.getElementById('staffAvatarIcon').textContent = roleIcon;
   document.getElementById('staffNameDisplay').textContent = staffName;
   document.getElementById('staffRoleDisplay').textContent = roleText;
-  document.getElementById('staffSalaryDisplay').textContent = ${salary} ÑíÇá;
+  document.getElementById('staffSalaryDisplay').textContent = `${salary} Ø±ÙŠØ§Ù„`;
   document.getElementById('staffInfoCard').style.display = 'flex';
   
   // Store current staff ID globally
@@ -9318,7 +9318,7 @@ window.loadStaffAttendanceData = async function() {
 window.viewStaffAttendanceReport = async function() {
   const staffId = window.currentStaffId;
   if (!staffId) {
-    alert('ÇáÑÌÇÁ ÇÎÊíÇÑ ãæÙİ ÃæáÇğ');
+    alert('ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½');
     return;
   }
   
@@ -9334,7 +9334,7 @@ window.viewStaffAttendanceReport = async function() {
     // We'll reuse the same modal and loadAttendanceData function
     
     // Get month name
-    const monthNames = ['', 'ãÍÑã', 'ÕİÑ', 'ÑÈíÚ ÇáÃæá', 'ÑÈíÚ ÇáÂÎÑ', 'ÌãÇÏì ÇáÃæáì', 'ÌãÇÏì ÇáÂÎÑÉ', 'ÑÌÈ', 'ÔÚÈÇä', 'ÑãÖÇä', 'ÔæÇá', 'Ğæ ÇáŞÚÏÉ', 'Ğæ ÇáÍÌÉ'];
+    const monthNames = ['', 'ï¿½ï¿½ï¿½ï¿½', 'ï¿½ï¿½ï¿½', 'ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½', 'ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½', 'ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½', 'ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½', 'ï¿½ï¿½ï¿½', 'ï¿½ï¿½ï¿½ï¿½ï¿½', 'ï¿½ï¿½ï¿½ï¿½ï¿½', 'ï¿½ï¿½ï¿½ï¿½', 'ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½', 'ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½'];
     const monthName = monthNames[month];
     
     // Create temporary session storage for staff
@@ -9345,7 +9345,7 @@ window.viewStaffAttendanceReport = async function() {
     if (window.openAttendanceRecordModal) {
       window.openAttendanceRecordModal(monthName, year, month);
     } else {
-      alert('?? æÙíİÉ ÚÑÖ ÇáÊŞÑíÑ ÛíÑ ãÊÇÍÉ ÍÇáíÇğ');
+      alert('?? ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½');
     }
     
     // Restore previous staff
@@ -9355,7 +9355,7 @@ window.viewStaffAttendanceReport = async function() {
     
   } catch (error) {
     console.error('Error loading attendance report:', error);
-    alert('ÍÏË ÎØÃ İí ÊÍãíá ÇáÊŞÑíÑ');
+    alert('ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½');
   } finally {
     document.getElementById('attendanceLoadingState').style.display = 'none';
   }
@@ -9376,24 +9376,24 @@ window.showPenaltyActionSheet = function(staffId, date, type) {
   sheet.id = 'penaltySheet';
   
   let title = '';
-  if (type === 'late') title = 'ÎÕãíÉ ÇáÊÃÎíÑ';
-  else if (type === 'earlyLeave') title = 'ÎÕãíÉ ÇáÎÑæÌ ÇáãÈßÑ';
-  else if (type === 'absence') title = 'ÎÕãíÉ ÇáÛíÇÈ';
+  if (type === 'late') title = 'Ø®ØµÙ…ÙŠØ© Ø§Ù„ØªØ£Ø®ÙŠØ±';
+  else if (type === 'earlyLeave') title = 'Ø®ØµÙ…ÙŠØ© Ø§Ù„Ø®Ø±ÙˆØ¬ Ø§Ù„Ù…Ø¨ÙƒØ±';
+  else if (type === 'absence') title = 'Ø®ØµÙ…ÙŠØ© Ø§Ù„ØºÙŠØ§Ø¨';
   
-  sheet.innerHTML = 
+  sheet.innerHTML = `
     <div class="sheet-handle"></div>
-    <h3 class="sheet-title"></h3>
+    <h3 class="sheet-title">${title}</h3>
     <div class="sheet-options">
-      <button class="sheet-option-btn approve" onclick="window.updatePenaltyStatus('', '', '', 'approved')">
-        <span class="sheet-option-icon">?</span>
-        <span class="sheet-option-text">ÇÚÊãÇÏ ÇáÎÕã</span>
+      <button class="sheet-option-btn approve" onclick="window.updatePenaltyStatus('${staffId}', '${date}', '${type}', 'approved')">
+        <span class="sheet-option-icon">âœ…</span>
+        <span class="sheet-option-text">Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„Ø®ØµÙ…</span>
       </button>
-      <button class="sheet-option-btn pardon" onclick="window.updatePenaltyStatus('', '', '', 'pardoned')">
-        <span class="sheet-option-icon">??</span>
-        <span class="sheet-option-text">ÓãÇÍ (ÅáÛÇÁ ÇáÎÕã)</span>
+      <button class="sheet-option-btn pardon" onclick="window.updatePenaltyStatus('${staffId}', '${date}', '${type}', 'pardoned')">
+        <span class="sheet-option-icon">ğŸ™</span>
+        <span class="sheet-option-text">Ø³Ù…Ø§Ø­ (Ø¥Ù„ØºØ§Ø¡ Ø§Ù„Ø®ØµÙ…)</span>
       </button>
     </div>
-  ;
+  `;
   
   document.body.appendChild(overlay);
   document.body.appendChild(sheet);
@@ -9428,7 +9428,7 @@ window.closePenaltyActionSheet = function() {
 // Update Penalty Status (Approve/Pardon)
 window.updatePenaltyStatus = async function(staffId, date, type, status) {
   try {
-    const docRef = doc(db, 'teacherAttendance', ${staffId}_);
+    const docRef = doc(db, 'teacherAttendance', `${staffId}_${date}`);
     const updateData = {};
     
     if (type === 'late') {
@@ -9457,14 +9457,14 @@ window.updatePenaltyStatus = async function(staffId, date, type, status) {
     window.closePenaltyActionSheet();
     
     // Show success message
-    alert(status === 'approved' ? '? Êã ÇÚÊãÇÏ ÇáÎÕã' : '? Êã ÇáÓãÇÍ æÅáÛÇÁ ÇáÎÕã');
+    alert(status === 'approved' ? '? ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½' : '? ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½');
     
     // Reload report
     window.viewStaffAttendanceReport();
     
   } catch (error) {
     console.error('Error updating penalty status:', error);
-    alert('ÍÏË ÎØÃ İí ÇáÊÍÏíË');
+    alert('ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½');
   }
 };
 
