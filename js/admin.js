@@ -9185,38 +9185,45 @@ async function loadStaffList() {
     if (!staffSelect) return;
     
     // Clear existing options (except first one)
-    staffSelect.innerHTML = '<option value="">-- ���� �� ������� --</option>';
+    staffSelect.innerHTML = '<option value="">-- اختر من القائمة --</option>';
     
-    // Fetch all staff from classes collection
-    const classesSnapshot = await getDocs(collection(db, 'classes'));
-    const staffList = [];
+    // Use cached staff data from main.js if available (to avoid Firestore reads)
+    let staffList = [];
     
-    classesSnapshot.forEach((doc) => {
-      const data = doc.data();
-      const staffId = doc.id;
-      const role = data.role;
+    if (window.staffMembersCache && window.staffMembersCache.length > 0) {
+      // Use cached data
+      staffList = window.staffMembersCache.filter(s => s.role === 'teacher' || s.role === 'viewer');
+      console.log('✅ Using cached staff data');
+    } else {
+      // Fallback: Fetch from Firestore
+      console.log('📥 Fetching staff from Firestore...');
+      const classesSnapshot = await getDocs(collection(db, 'classes'));
       
-      let name = '';
-      let roleIcon = '';
+      classesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        const staffId = doc.id;
+        const role = data.role;
+        
+        // Only include teachers and viewers (not admins)
+        if (role === 'teacher' || role === 'viewer') {
+          let name = '';
+          let roleIcon = '';
+          
+          if (role === 'teacher') {
+            name = data.teacherName || 'معلم غير معروف';
+            roleIcon = '👨‍🏫';
+          } else if (role === 'viewer') {
+            name = data.presenterName || 'عارض غير معروف';
+            roleIcon = '📊';
+          }
+          
+          staffList.push({ id: staffId, name, role, roleIcon });
+        }
+      });
       
-      if (role === 'teacher') {
-        name = data.teacherName || '���� ��� �����';
-        roleIcon = '??�??';
-      } else if (role === 'viewer') {
-        name = data.presenterName || '���� ��� �����';
-        roleIcon = '??';
-      } else if (role === 'admin') {
-        name = data.adminName || '����� ��� �����';
-        roleIcon = '??�??';
-      } else {
-        return; // Skip if no valid role
-      }
-      
-      staffList.push({ id: staffId, name, role, roleIcon });
-    });
-    
-    // Sort alphabetically
-    staffList.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+      // Sort alphabetically
+      staffList.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    }
     
     // Add to dropdown
     staffList.forEach(staff => {
@@ -9236,14 +9243,20 @@ async function loadStaffList() {
   }
 }
 
-// Initialize Attendance Filters (Month/Year)
+// Initialize Attendance Filters (Month/Year) - GREGORIAN DATES
 function initializeAttendanceFilters() {
   const yearSelect = document.getElementById('attendanceYear');
-  if (!yearSelect) return;
+  const monthSelect = document.getElementById('attendanceMonth');
+  
+  if (!yearSelect || !monthSelect) return;
+  
+  // Get current date (Gregorian)
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1; // 1-12
   
   // Clear and populate years (current + past 2 years)
   yearSelect.innerHTML = '';
-  const currentYear = 1448; // Current Hijri year
   for (let i = 0; i < 3; i++) {
     const year = currentYear - i;
     const option = document.createElement('option');
@@ -9253,12 +9266,10 @@ function initializeAttendanceFilters() {
     yearSelect.appendChild(option);
   }
   
-  // Set current month
-  const monthSelect = document.getElementById('attendanceMonth');
-  if (monthSelect) {
-    const currentMonth = 5; // May = Dhu al-Qadah (11)
-    monthSelect.value = currentMonth;
-  }
+  // Set current month (Gregorian)
+  monthSelect.value = currentMonth;
+  
+  console.log(`✅ Filters initialized: ${currentMonth}/${currentYear}`);
 }
 
 // Load Staff Attendance Data (when staff selected)
@@ -9318,7 +9329,7 @@ window.loadStaffAttendanceData = async function() {
 window.viewStaffAttendanceReport = async function() {
   const staffId = window.currentStaffId;
   if (!staffId) {
-    alert('������ ������ ���� �����');
+    alert('الرجاء اختيار موظف أولاً');
     return;
   }
   
@@ -9330,32 +9341,40 @@ window.viewStaffAttendanceReport = async function() {
   document.getElementById('staffAttendanceReportContainer').style.display = 'none';
   
   try {
-    // Import function from teacher.js to open attendance modal
-    // We'll reuse the same modal and loadAttendanceData function
-    
-    // Get month name
-    const monthNames = ['', '����', '���', '���� �����', '���� �����', '����� ������', '����� ������', '���', '�����', '�����', '����', '�� ������', '�� �����'];
+    // Get month name (Gregorian)
+    const monthNames = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
     const monthName = monthNames[month];
     
-    // Create temporary session storage for staff
+    // Set admin mode flag
     const previousStaff = sessionStorage.getItem('loggedInTeacher');
+    const previousAdminMode = sessionStorage.getItem('loggedInAdmin');
+    
     sessionStorage.setItem('loggedInTeacher', staffId);
+    sessionStorage.setItem('loggedInAdmin', 'true'); // Enable admin mode for penalty actions
     
     // Call the attendance modal function from teacher.js
     if (window.openAttendanceRecordModal) {
       window.openAttendanceRecordModal(monthName, year, month);
     } else {
-      alert('?? ����� ��� ������� ��� ����� ������');
+      alert('⚠️ وظيفة عرض التقرير غير متاحة حالياً');
     }
     
-    // Restore previous staff
+    // Restore previous values
     if (previousStaff) {
       sessionStorage.setItem('loggedInTeacher', previousStaff);
+    } else {
+      sessionStorage.removeItem('loggedInTeacher');
+    }
+    
+    if (previousAdminMode) {
+      sessionStorage.setItem('loggedInAdmin', previousAdminMode);
+    } else {
+      sessionStorage.removeItem('loggedInAdmin');
     }
     
   } catch (error) {
     console.error('Error loading attendance report:', error);
-    alert('��� ��� �� ����� �������');
+    alert('حدث خطأ في تحميل التقرير: ' + error.message);
   } finally {
     document.getElementById('attendanceLoadingState').style.display = 'none';
   }

@@ -8077,22 +8077,25 @@ async function loadAttendanceData(year, month) {
     const settings = await getStaffSettings(teacherId);
     
     // Fetch actual attendance records from Firestore
-    const startDate = studyDays[0]?.date;
-    const endDate = studyDays[studyDays.length - 1]?.date;
-    
-    const attendanceQuery = query(
-      collection(db, 'teacherAttendance'),
-      where('teacherId', '==', teacherId),
-      where('date', '>=', startDate),
-      where('date', '<=', endDate)
-    );
-    
-    const attendanceSnapshot = await getDocs(attendanceQuery);
+    // Using document IDs instead of query to avoid composite index requirement
     const attendanceMap = {};
-    attendanceSnapshot.forEach(doc => {
-      const data = doc.data();
-      attendanceMap[data.date] = data;
+    
+    // Fetch records in parallel
+    const fetchPromises = studyDays.map(async (day) => {
+      const date = day.date;
+      const docId = `${teacherId}_${date}`;
+      try {
+        const docRef = doc(db, 'teacherAttendance', docId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          attendanceMap[date] = docSnap.data();
+        }
+      } catch (error) {
+        console.warn(`Could not fetch attendance for ${date}:`, error);
+      }
     });
+    
+    await Promise.all(fetchPromises);
     
     // Get prayer times for each day to calculate shift times
     const attendanceRecords = await Promise.all(studyDays.map(async (day) => {
