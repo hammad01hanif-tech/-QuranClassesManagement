@@ -23,7 +23,7 @@ import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyD
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
 import { accurateHijriDates } from './accurate-hijri-dates.js';
 import { getMonthlyReport, countStudyDays } from './study-days-calendar.js';
-import { getTodayPrayerTimes } from './prayer-times-local.js';
+import { getTodayPrayerTimes, getPrayerTimesLocal } from './prayer-times-local.js';
 
 // ✅ نظام Cache بسيط لتقليل القراءات من Firestore
 const firestoreCache = {
@@ -8099,12 +8099,12 @@ async function loadAttendanceData(year, month) {
     
     // Get prayer times for each day to calculate shift times
     const attendanceRecords = await Promise.all(studyDays.map(async (day) => {
-      const date = day.date;
+      const date = day.date; // Format: YYYY-MM-DD
       const dayInfo = day.dayInfo;
       const record = attendanceMap[date];
       
-      // Get prayer times for this day
-      const prayerTimes = await getTodayPrayerTimes(new Date(date));
+      // Get prayer times for this specific day
+      const prayerTimes = await getPrayerTimesLocal(date);
       const asrTime = prayerTimes?.asr;
       const ishaTime = prayerTimes?.isha;
       
@@ -8112,10 +8112,8 @@ async function loadAttendanceData(year, month) {
       let shiftStart = '—';
       let shiftEnd = '—';
       if (asrTime && ishaTime) {
-        const shiftStartDate = await calculateShiftStart(asrTime, teacherId);
-        const shiftEndDate = await calculateShiftEnd(ishaTime, teacherId);
-        shiftStart = shiftStartDate ? shiftStartDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
-        shiftEnd = shiftEndDate ? shiftEndDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+        shiftStart = await calculateShiftStart(asrTime, teacherId);
+        shiftEnd = await calculateShiftEnd(ishaTime, teacherId);
       }
       
       // Build record based on status
