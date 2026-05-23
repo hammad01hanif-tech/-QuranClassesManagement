@@ -6496,6 +6496,44 @@ details[open] > summary {
   font-weight: 700;
 }
 
+/* Absent row styling */
+.absent-row {
+  background: #fef2f2 !important;
+}
+
+.absent-row:hover {
+  background: #fee2e2 !important;
+}
+
+.absent-cell {
+  color: #dc2626;
+  background: #fef2f2;
+  font-weight: 700;
+}
+
+.absent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #dc2626;
+  color: white;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+}
+
+/* Not registered row styling */
+.not-registered-row {
+  background: #fafafa;
+  opacity: 0.7;
+}
+
+.not-registered-row:hover {
+  background: #f5f5f5 !important;
+}
+
 .deduction-cell {
   font-weight: 700;
   color: #dc2626;

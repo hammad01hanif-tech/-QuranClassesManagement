@@ -8068,93 +8068,158 @@ window.closeAttendanceModal = function() {
 
 // Load Attendance Data
 async function loadAttendanceData(year, month) {
-  // TODO: Fetch actual attendance data from Firebase
-  // For now, generate sample data
-  
-  const monthlyReport = getMonthlyReport(year, month);
-  const studyDays = monthlyReport.studyDays;
-  
-  // Sample attendance records
-  const attendanceRecords = studyDays.map((day, index) => {
-    const date = new Date(day.date);
-    const dayInfo = day.dayInfo;
+  try {
+    const teacherId = sessionStorage.getItem('loggedInTeacher');
+    const monthlyReport = getMonthlyReport(year, month);
+    const studyDays = monthlyReport.studyDays;
     
-    // Generate sample data
-    const shiftStart = '08:00';
-    const shiftEnd = '14:00';
-    const actualArrival = index % 5 === 0 ? '08:15' : '08:00'; // Some late arrivals
-    const actualLeave = index % 7 === 0 ? '13:45' : '14:00'; // Some early leaves
-    const lateDeduction = actualArrival !== shiftStart ? 4 : 0;
+    // Fetch staff settings for shift times
+    const settings = await getStaffSettings(teacherId);
     
-    // Calculate early leave deduction
-    // If left before 14:00, calculate deduction (2 SAR per 15 minutes)
-    let earlyLeaveDeduction = 0;
-    if (actualLeave !== shiftEnd) {
-      const [leaveHour, leaveMin] = actualLeave.split(':').map(Number);
-      const [endHour, endMin] = shiftEnd.split(':').map(Number);
-      const leaveMinutes = leaveHour * 60 + leaveMin;
-      const endMinutes = endHour * 60 + endMin;
-      const earlyMinutes = endMinutes - leaveMinutes;
-      if (earlyMinutes > 0) {
-        earlyLeaveDeduction = Math.ceil(earlyMinutes / 15) * 2; // 2 SAR per 15 minutes
+    // Fetch actual attendance records from Firestore
+    const startDate = studyDays[0]?.date;
+    const endDate = studyDays[studyDays.length - 1]?.date;
+    
+    const attendanceQuery = query(
+      collection(db, 'teacherAttendance'),
+      where('teacherId', '==', teacherId),
+      where('date', '>=', startDate),
+      where('date', '<=', endDate)
+    );
+    
+    const attendanceSnapshot = await getDocs(attendanceQuery);
+    const attendanceMap = {};
+    attendanceSnapshot.forEach(doc => {
+      const data = doc.data();
+      attendanceMap[data.date] = data;
+    });
+    
+    // Get prayer times for each day to calculate shift times
+    const attendanceRecords = await Promise.all(studyDays.map(async (day) => {
+      const date = day.date;
+      const dayInfo = day.dayInfo;
+      const record = attendanceMap[date];
+      
+      // Get prayer times for this day
+      const prayerTimes = await getTodayPrayerTimes(new Date(date));
+      const asrTime = prayerTimes?.asr;
+      const ishaTime = prayerTimes?.isha;
+      
+      // Calculate shift times based on settings
+      let shiftStart = '—';
+      let shiftEnd = '—';
+      if (asrTime && ishaTime) {
+        const shiftStartDate = await calculateShiftStart(asrTime, teacherId);
+        const shiftEndDate = await calculateShiftEnd(ishaTime, teacherId);
+        shiftStart = shiftStartDate ? shiftStartDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+        shiftEnd = shiftEndDate ? shiftEndDate.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
       }
-    }
-    
-    const notes = index === 0 ? 'مراجعة طبية' : '';
-    
-    return {
-      date: day.date,
-      dayName: dayInfo.dayNameArabic,
-      hijriDate: dayInfo.hijriDate,
-      shiftStart,
-      actualArrival,
-      lateDeduction,
-      shiftEnd,
-      actualLeave,
-      earlyLeaveDeduction,
-      notes
-    };
-  });
+      
+      // Build record based on status
+      if (!record) {
+        // No record found - not registered
+        return {
+          date,
+          dayName: dayInfo.dayNameArabic,
+          hijriDate: dayInfo.hijriDate,
+          shiftStart,
+          shiftEnd,
+          status: 'not-registered',
+          actualArrival: '—',
+          actualLeave: '—',
+          lateDeduction: 0,
+          earlyLeaveDeduction: 0,
+          absenceDeduction: 0,
+          notes: 'لم يتم التسجيل'
+        };
+      } else if (record.status === 'absent') {
+        // Absent record
+        return {
+          date,
+          dayName: dayInfo.dayNameArabic,
+          hijriDate: dayInfo.hijriDate,
+          shiftStart,
+          shiftEnd,
+          status: 'absent',
+          actualArrival: 'غائب',
+          actualLeave: '—',
+          lateDeduction: 0,
+          earlyLeaveDeduction: 0,
+          absenceDeduction: record.absenceDeduction || 0,
+          notes: record.absentReason || 'غياب بدون عذر'
+        };
+      } else {
+        // Present record
+        const checkInTime = record.checkInTime ? new Date(record.checkInTime.seconds * 1000).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+        const checkOutTime = record.checkOutTime ? new Date(record.checkOutTime.seconds * 1000).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+        
+        return {
+          date,
+          dayName: dayInfo.dayNameArabic,
+          hijriDate: dayInfo.hijriDate,
+          shiftStart,
+          shiftEnd,
+          status: 'present',
+          actualArrival: checkInTime,
+          actualLeave: checkOutTime,
+          lateDeduction: record.lateDeduction || 0,
+          earlyLeaveDeduction: record.earlyLeaveDeduction || 0,
+          absenceDeduction: 0,
+          notes: record.checkInNotes || record.checkOutNotes || '—'
+        };
+      }
+    }));
   
-  // Calculate summary
-  const absences = 0; // No absences in sample data
-  const absenceDeductions = absences * 50;
-  const lateDeductions = attendanceRecords.reduce((sum, r) => sum + r.lateDeduction, 0);
-  const earlyLeaveDeductions = attendanceRecords.reduce((sum, r) => sum + r.earlyLeaveDeduction, 0);
-  const totalDeductions = absenceDeductions + lateDeductions + earlyLeaveDeductions;
+    // Calculate summary
+    const absences = attendanceRecords.filter(r => r.status === 'absent').length;
+    const absenceDeductions = attendanceRecords.reduce((sum, r) => sum + r.absenceDeduction, 0);
+    const lateDeductions = attendanceRecords.reduce((sum, r) => sum + r.lateDeduction, 0);
+    const earlyLeaveDeductions = attendanceRecords.reduce((sum, r) => sum + r.earlyLeaveDeduction, 0);
+    const totalDeductions = absenceDeductions + lateDeductions + earlyLeaveDeductions;
   
-  // Build table HTML
-  const tableHTML = `
-    <div class="table-wrapper">
-      <table class="attendance-table keep-table">
-        <thead>
-          <tr>
-            <th>اليوم والتاريخ</th>
-            <th>بداية الدوام</th>
-            <th>وقت الحضور</th>
-            <th>خصمية التأخير</th>
-            <th>نهاية الدوام</th>
-            <th>وقت الخروج</th>
-            <th>خصمية الخروج المبكر</th>
-            <th>الملاحظات</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${attendanceRecords.map(record => `
+    // Build table HTML
+    const tableHTML = `
+      <div class="table-wrapper">
+        <table class="attendance-table keep-table">
+          <thead>
             <tr>
-              <td class="date-cell">
-                <div class="date-day">${record.dayName}</div>
-                <div class="date-hijri">${record.hijriDate || record.date}</div>
-              </td>
-              <td class="time-cell">${record.shiftStart}</td>
-              <td class="time-cell ${record.lateDeduction > 0 ? 'late' : ''}">${record.actualArrival}</td>
-              <td class="deduction-cell">${record.lateDeduction > 0 ? record.lateDeduction + ' ريال' : '—'}</td>
-              <td class="time-cell">${record.shiftEnd}</td>
-              <td class="time-cell ${record.earlyLeaveDeduction > 0 ? 'early' : ''}">${record.actualLeave}</td>
-              <td class="deduction-cell">${record.earlyLeaveDeduction > 0 ? record.earlyLeaveDeduction + ' ريال' : '—'}</td>
-              <td class="notes-cell">${record.notes || '—'}</td>
+              <th>اليوم والتاريخ</th>
+              <th>بداية الدوام</th>
+              <th>وقت الحضور</th>
+              <th>خصمية التأخير</th>
+              <th>نهاية الدوام</th>
+              <th>وقت الخروج</th>
+              <th>خصمية الخروج المبكر</th>
+              <th>الملاحظات</th>
             </tr>
-          `).join('')}
+          </thead>
+          <tbody>
+            ${attendanceRecords.map(record => {
+              // Different styling based on status
+              const rowClass = record.status === 'absent' ? 'absent-row' : 
+                              record.status === 'not-registered' ? 'not-registered-row' : '';
+              const arrivalClass = record.status === 'absent' ? 'absent-cell' : 
+                                  record.lateDeduction > 0 ? 'late' : '';
+              const leaveClass = record.earlyLeaveDeduction > 0 ? 'early' : '';
+              
+              return `
+                <tr class="${rowClass}">
+                  <td class="date-cell">
+                    <div class="date-day">${record.dayName}</div>
+                    <div class="date-hijri">${record.hijriDate || record.date}</div>
+                  </td>
+                  <td class="time-cell">${record.shiftStart}</td>
+                  <td class="time-cell ${arrivalClass}">
+                    ${record.status === 'absent' ? '<span class="absent-badge">غائب 🔴</span>' : record.actualArrival}
+                  </td>
+                  <td class="deduction-cell">${record.lateDeduction > 0 ? record.lateDeduction + ' ريال' : '—'}</td>
+                  <td class="time-cell">${record.shiftEnd}</td>
+                  <td class="time-cell ${leaveClass}">${record.actualLeave}</td>
+                  <td class="deduction-cell">${record.earlyLeaveDeduction > 0 ? record.earlyLeaveDeduction + ' ريال' : '—'}</td>
+                  <td class="notes-cell">${record.notes || '—'}</td>
+                </tr>
+              `;
+            }).join('')}
         </tbody>
       </table>
     </div>
@@ -8202,14 +8267,34 @@ async function loadAttendanceData(year, month) {
     </div>
   `;
   
-  // Hide loading, show table
-  const loadingEl = document.querySelector('.attendance-loading');
-  const tableContainer = document.querySelector('.attendance-table-container');
-  
-  if (loadingEl) loadingEl.style.display = 'none';
-  if (tableContainer) {
-    tableContainer.innerHTML = tableHTML;
-    tableContainer.style.display = 'block';
+    // Hide loading, show table
+    const loadingEl = document.querySelector('.attendance-loading');
+    const tableContainer = document.querySelector('.attendance-table-container');
+    
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (tableContainer) {
+      tableContainer.innerHTML = tableHTML;
+      tableContainer.style.display = 'block';
+    }
+  } catch (error) {
+    console.error('Error loading attendance data:', error);
+    
+    // Show error message
+    const loadingEl = document.querySelector('.attendance-loading');
+    const tableContainer = document.querySelector('.attendance-table-container');
+    
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (tableContainer) {
+      tableContainer.innerHTML = `
+        <div class="error-message">
+          <div class="error-icon">⚠️</div>
+          <div class="error-text">حدث خطأ في تحميل بيانات الحضور</div>
+          <div class="error-details">${error.message}</div>
+          <button class="retry-btn" onclick="location.reload()">إعادة المحاولة</button>
+        </div>
+      `;
+      tableContainer.style.display = 'block';
+    }
   }
 }
 
