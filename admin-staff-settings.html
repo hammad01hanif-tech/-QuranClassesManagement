@@ -461,6 +461,36 @@
                 <input type="number" name="absenceFixedAmount" value="${settings.penalties?.absencePenalty?.customAmount || 100}" min="0" step="10">
               </div>
               
+              <!-- الإجازات السنوية -->
+              <div class="section-title">🏖 الإجازات السنوية</div>
+              <div class="vacation-info-box">
+                <div class="vacation-info-icon">💡</div>
+                <div class="vacation-info-text">
+                  يحق لكل موظف الحصول على <strong>6 أيام إجازة سنوية مدفوعة الأجر</strong> خلال السنة.
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>📅 إجمالي أيام الإجازة السنوية</label>
+                  <input type="number" name="vacationAnnual" value="${settings.vacationDays?.annual || 6}" required min="1" max="30" readonly style="background: #f0f0f0; cursor: not-allowed;">
+                  <small style="color: #666; font-size: 12px;">القيمة الافتراضية: 6 أيام سنوياً</small>
+                </div>
+                <div class="form-group">
+                  <label>✅ الأيام المستخدمة</label>
+                  <input type="number" name="vacationUsed" value="${settings.vacationDays?.used || 0}" required min="0" max="30">
+                  <small style="color: #666; font-size: 12px;">يتم التحديث تلقائياً عند تسجيل إجازة</small>
+                </div>
+              </div>
+              <div class="vacation-balance-display">
+                <div class="balance-icon">🎯</div>
+                <div class="balance-content">
+                  <div class="balance-label">الرصيد المتبقي</div>
+                  <div class="balance-value" id="remaining_${teacher.id}">
+                    ${(settings.vacationDays?.annual || 6) - (settings.vacationDays?.used || 0)} ${((settings.vacationDays?.annual || 6) - (settings.vacationDays?.used || 0)) === 1 ? 'يوم' : 'أيام'}
+                  </div>
+                </div>
+              </div>
+              
               <!-- زر الحفظ -->
               <button type="submit" class="btn btn-save">💾 حفظ الإعدادات</button>
               
@@ -508,6 +538,11 @@
             maxDailyPenalty: 15,
             roundingMethod: 'ceil'
           }
+        },
+        vacationDays: {
+          annual: 6,
+          used: 0,
+          remaining: 6
         },
         active: true
       };
@@ -577,6 +612,12 @@
               roundingMethod: 'ceil',
               maxDailyPenalty: 15
             }
+          },
+          
+          vacationDays: {
+            annual: parseInt(formData.get('vacationAnnual')) || 6,
+            used: parseInt(formData.get('vacationUsed')) || 0,
+            remaining: (parseInt(formData.get('vacationAnnual')) || 6) - (parseInt(formData.get('vacationUsed')) || 0)
           },
           
           active: true,

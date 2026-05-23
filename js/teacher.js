@@ -8227,20 +8227,23 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
           notes: 'لم يتم التسجيل'
         };
       } else if (record.status === 'absent') {
-        // Absent record
+        // Absent record - check if annual vacation
+        const isAnnualVacation = record.isAnnualVacation || false;
+        
         return {
           date,
           dayName: dayInfo.dayNameArabic,
           gregorianDate: dayInfo.gregorianDate,
           shiftStart,
           shiftEnd,
-          status: 'absent',
-          actualArrival: 'غائب',
+          status: isAnnualVacation ? 'annual-vacation' : 'absent',
+          actualArrival: isAnnualVacation ? '🏖' : 'غائب',
           actualLeave: '—',
           lateDeduction: 0,
           earlyLeaveDeduction: 0,
           absenceDeduction: record.absenceDeduction || 0,
-          notes: record.absentReason || 'غياب بدون عذر'
+          notes: isAnnualVacation ? '🏖 إجازة سنوية معتمدة' : (record.absentReason || 'غياب بدون عذر'),
+          isAnnualVacation: isAnnualVacation
         };
       } else {
         // Present record
@@ -8306,7 +8309,9 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
               
               // Determine styling based on status and approval
               let rowClass = '';
-              if (record.status === 'absent') {
+              if (record.status === 'annual-vacation') {
+                rowClass = 'annual-vacation-row';
+              } else if (record.status === 'absent') {
                 rowClass = record.absenceApprovalStatus === 'pardoned' ? 'penalty-pardoned' : 'absent-row';
               } else if (record.status === 'not-registered') {
                 rowClass = 'not-registered-row';
@@ -8315,6 +8320,7 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
               }
               
               const arrivalClass = record.status === 'absent' ? 'absent-cell' : 
+                                  record.status === 'annual-vacation' ? 'vacation-cell' :
                                   record.lateDeduction > 0 ? 'late' : '';
               const leaveClass = record.earlyLeaveDeduction > 0 ? 'early' : '';
               
@@ -8340,7 +8346,9 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
                   </td>
                   <td class="time-cell">${record.shiftStart}</td>
                   <td class="time-cell ${arrivalClass}">
-                    ${record.status === 'absent' ? '<span class="absent-badge">غائب 🔴</span>' : record.actualArrival}
+                    ${record.status === 'annual-vacation' ? '<span class="vacation-badge">🏖 إجازة</span>' : 
+                      record.status === 'absent' ? '<span class="absent-badge">غائب 🔴</span>' : 
+                      record.actualArrival}
                   </td>
                   <td class="deduction-cell ${latePenaltyClass}" ${lateClick}>
                     ${record.lateDeduction > 0 ? (record.lateApprovalStatus === 'pardoned' ? '<strike>' + record.lateDeduction + ' ريال</strike> <span style="color: #f59e0b;">سماح</span>' : record.lateDeduction + ' ريال') : '—'}
@@ -8473,6 +8481,10 @@ async function loadTeacherAttendanceSection(container) {
   const teacherId = sessionStorage.getItem('loggedInTeacher');
   const attendanceStatus = await getTeacherAttendanceStatus(teacherId, today);
   
+  // Get vacation balance
+  const settings = await getStaffSettings(teacherId);
+  const vacationDays = settings.vacationDays || { annual: 6, used: 0, remaining: 6 };
+  
   // Calculate shift times based on staff settings
   let shiftStartTime = '--:--';
   let shiftEndTime = '--:--';
@@ -8523,6 +8535,50 @@ async function loadTeacherAttendanceSection(container) {
             <span class="shift-value" id="shiftEndTime">${shiftEndTime}</span>
           </div>
         </div>
+      </div>
+      
+      <!-- Annual Vacation Balance Card -->
+      <div class="vacation-balance-card">
+        <div class="vacation-card-header">
+          <h3 class="vacation-card-title">🏖 رصيد الإجازات السنوية</h3>
+          <span class="vacation-year-badge">2026</span>
+        </div>
+        <div class="vacation-stats">
+          <div class="vacation-stat-item">
+            <div class="stat-icon">📅</div>
+            <div class="stat-content">
+              <div class="stat-label">المخصص سنوياً</div>
+              <div class="stat-value">${vacationDays.annual} أيام</div>
+            </div>
+          </div>
+          <div class="vacation-stat-item used">
+            <div class="stat-icon">✅</div>
+            <div class="stat-content">
+              <div class="stat-label">المستخدم</div>
+              <div class="stat-value">${vacationDays.used} ${vacationDays.used === 1 ? 'يوم' : 'أيام'}</div>
+            </div>
+          </div>
+          <div class="vacation-stat-item remaining ${vacationDays.remaining === 0 ? 'depleted' : ''}">
+            <div class="stat-icon">${vacationDays.remaining === 0 ? '⚠️' : '🎯'}</div>
+            <div class="stat-content">
+              <div class="stat-label">المتبقي</div>
+              <div class="stat-value">${vacationDays.remaining} ${vacationDays.remaining === 1 ? 'يوم' : 'أيام'}</div>
+            </div>
+          </div>
+        </div>
+        ${vacationDays.remaining === 0 ? `
+          <div class="vacation-depleted-note">
+            <span class="note-icon">💡</span>
+            <span class="note-text">تم استنفاد جميع أيام الإجازة المسموحة لهذا العام</span>
+          </div>
+        ` : `
+          <div class="vacation-progress">
+            <div class="progress-bar-container">
+              <div class="progress-bar" style="width: ${(vacationDays.used / vacationDays.annual) * 100}%"></div>
+            </div>
+            <div class="progress-label">${Math.round((vacationDays.used / vacationDays.annual) * 100)}% مستخدم</div>
+          </div>
+        `}
       </div>
       
       <!-- Main Content Area -->
@@ -8888,7 +8944,12 @@ window.showCheckInModal = function() {
 };
 
 // Show absent modal
-window.showAbsentModal = function() {
+window.showAbsentModal = async function() {
+  // Get staff vacation balance
+  const teacherId = sessionStorage.getItem('loggedInTeacher');
+  const settings = await getStaffSettings(teacherId);
+  const vacationDays = settings.vacationDays || { annual: 6, used: 0, remaining: 6 };
+  
   const modal = document.createElement('div');
   modal.className = 'attendance-modal';
   modal.innerHTML = `
@@ -8908,6 +8969,48 @@ window.showAbsentModal = function() {
           <label>📝 سبب الغياب:</label>
           <textarea id="absentReason" class="notes-textarea" placeholder="اكتب سبب الغياب..." required></textarea>
         </div>
+        
+        <!-- Annual Vacation Option -->
+        <div class="vacation-option-container">
+          <div class="vacation-header">
+            <h4 class="vacation-question">🏖 هل هذا الغياب ضمن إجازتك السنوية؟</h4>
+            <div class="vacation-balance ${vacationDays.remaining === 0 ? 'vacation-depleted' : ''}">
+              <span class="vacation-icon">📅</span>
+              <span class="vacation-text">المتبقي: <strong>${vacationDays.remaining}</strong> من ${vacationDays.annual} أيام</span>
+            </div>
+          </div>
+          
+          <div class="vacation-radio-group">
+            <label class="vacation-radio-label">
+              <input type="radio" name="vacationType" value="yes" ${vacationDays.remaining === 0 ? 'disabled' : ''} onchange="toggleVacationWarning()">
+              <span class="radio-custom"></span>
+              <span class="radio-text">نعم (إجازة سنوية مدفوعة الأجر)</span>
+            </label>
+            <label class="vacation-radio-label">
+              <input type="radio" name="vacationType" value="no" checked onchange="toggleVacationWarning()">
+              <span class="radio-custom"></span>
+              <span class="radio-text">لا (غياب عادي خاضع للخصم)</span>
+            </label>
+          </div>
+          
+          <div id="vacationDepletedWarning" class="vacation-warning" style="display: ${vacationDays.remaining === 0 ? 'block' : 'none'};">
+            <div class="warning-icon">⚠️</div>
+            <div class="warning-content">
+              <strong>لا يوجد رصيد متبقٍ من الإجازات السنوية</strong>
+              <p>تم استنفاد جميع أيام الإجازة المسموحة لهذا العام. وسيتم احتساب هذا اليوم كغياب عادي خاضع للخصم.</p>
+            </div>
+          </div>
+          
+          <div id="vacationConfirmMsg" class="vacation-confirm-msg" style="display: none;">
+            <div class="confirm-icon">✅</div>
+            <div class="confirm-content">
+              <strong>سيتم تسجيل هذا اليوم كإجازة سنوية</strong>
+              <p>• لن يتم خصم أي مبلغ من الراتب</p>
+              <p>• سيتم خصم يوم واحد من رصيد الإجازات السنوية</p>
+              <p>• الرصيد بعد الحفظ: <strong>${vacationDays.remaining - 1}</strong> أيام</p>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div class="modal-footer">
@@ -8922,6 +9025,18 @@ window.showAbsentModal = function() {
   
   document.body.appendChild(modal);
   setTimeout(() => modal.classList.add('show'), 10);
+};
+
+// Toggle vacation warning messages
+window.toggleVacationWarning = function() {
+  const selectedValue = document.querySelector('input[name="vacationType"]:checked').value;
+  const confirmMsg = document.getElementById('vacationConfirmMsg');
+  
+  if (selectedValue === 'yes') {
+    confirmMsg.style.display = 'block';
+  } else {
+    confirmMsg.style.display = 'none';
+  }
 };
 
 // Show check-out modal
@@ -9104,6 +9219,9 @@ window.submitAbsent = async function() {
     return;
   }
   
+  // Check if annual vacation is selected
+  const isAnnualVacation = document.querySelector('input[name="vacationType"]:checked')?.value === 'yes';
+  
   // Disable button
   btn.disabled = true;
   spinner.style.display = 'inline-block';
@@ -9114,32 +9232,61 @@ window.submitAbsent = async function() {
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0];
     
-    // Get staff settings for penalty calculations
+    // Get staff settings for penalty calculations and vacation balance
     const settings = await getStaffSettings(teacherId);
+    const vacationDays = settings.vacationDays || { annual: 6, used: 0, remaining: 6 };
     
-    // Calculate absence deduction based on method
+    // Handle annual vacation
     let absenceDeduction = 0;
-    const absencePenaltySettings = settings.penalties?.absencePenalty || { enabled: true, calculationMethod: 'salary_divided_by_30' };
+    let isVacationDay = false;
+    let updatedVacationDays = null;
     
-    if (absencePenaltySettings.enabled) {
-      const monthlySalary = settings.salary?.monthlySalary || 3000;
+    if (isAnnualVacation && vacationDays.remaining > 0) {
+      // Annual vacation - no deduction
+      absenceDeduction = 0;
+      isVacationDay = true;
       
-      switch (absencePenaltySettings.calculationMethod) {
-        case 'salary_divided_by_30':
-          absenceDeduction = monthlySalary / 30;
-          break;
-        case 'salary_divided_by_study_days':
-          // TODO: Calculate study days in current month
-          absenceDeduction = monthlySalary / 22; // Default 22 working days
-          break;
-        case 'fixed_amount':
-          absenceDeduction = absencePenaltySettings.fixedAmount || 100;
-          break;
-        case 'percentage_of_salary':
-          absenceDeduction = (monthlySalary * (absencePenaltySettings.percentage || 3)) / 100;
-          break;
-        default:
-          absenceDeduction = monthlySalary / 30;
+      // Update vacation balance
+      updatedVacationDays = {
+        annual: vacationDays.annual,
+        used: vacationDays.used + 1,
+        remaining: vacationDays.remaining - 1
+      };
+      
+      // Update staff settings with new vacation balance
+      const settingsRef = doc(db, 'staffSettings', teacherId);
+      await updateDoc(settingsRef, {
+        vacationDays: updatedVacationDays,
+        updatedAt: serverTimestamp()
+      });
+      
+      // Clear cache to force reload
+      const cacheKey = `staffSettings_${teacherId}`;
+      firestoreCache.delete(cacheKey);
+      
+    } else {
+      // Regular absence - calculate deduction
+      const absencePenaltySettings = settings.penalties?.absencePenalty || { enabled: true, calculationMethod: 'salary_divided_by_30' };
+      
+      if (absencePenaltySettings.enabled) {
+        const monthlySalary = settings.salary?.monthlySalary || 3000;
+        
+        switch (absencePenaltySettings.calculationMethod) {
+          case 'salary_divided_by_30':
+            absenceDeduction = monthlySalary / 30;
+            break;
+          case 'salary_divided_by_study_days':
+            absenceDeduction = monthlySalary / 22; // Default 22 working days
+            break;
+          case 'fixed_amount':
+            absenceDeduction = absencePenaltySettings.fixedAmount || 100;
+            break;
+          case 'percentage_of_salary':
+            absenceDeduction = (monthlySalary * (absencePenaltySettings.percentage || 3)) / 100;
+            break;
+          default:
+            absenceDeduction = monthlySalary / 30;
+        }
       }
     }
     
@@ -9150,12 +9297,17 @@ window.submitAbsent = async function() {
       date: dateStr,
       status: 'absent',
       absentReason: reason,
-      absenceDeduction, // Use calculated deduction
+      absenceDeduction,
+      isAnnualVacation: isVacationDay,
       updatedAt: serverTimestamp()
     });
     
     // Show success animation
-    showSuccessAnimation('تم تسجيل الغياب');
+    if (isVacationDay) {
+      showSuccessAnimation('✅ تم تسجيل الإجازة السنوية بنجاح!');
+    } else {
+      showSuccessAnimation('تم تسجيل الغياب');
+    }
     
     // Close modal
     closeAttendanceModal();

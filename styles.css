@@ -6577,6 +6577,440 @@ details[open] > summary {
   background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%) !important;
 }
 
+/* ============================================
+   ANNUAL VACATION SYSTEM STYLES
+   ============================================ */
+
+/* Annual vacation row in monthly table */
+.annual-vacation-row {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-right: 4px solid #10b981;
+}
+
+.annual-vacation-row:hover {
+  background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%) !important;
+}
+
+.vacation-cell {
+  font-weight: 600;
+  color: #059669;
+}
+
+.vacation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Vacation Balance Card (in teacher section) */
+.vacation-balance-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 2px solid #e5e7eb;
+}
+
+.vacation-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.vacation-card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vacation-year-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.vacation-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.vacation-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.vacation-stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.vacation-stat-item.used {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+}
+
+.vacation-stat-item.remaining {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #3b82f6;
+}
+
+.vacation-stat-item.remaining.depleted {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #ef4444;
+}
+
+.stat-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.vacation-depleted-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 10px;
+  border-right: 4px solid #f59e0b;
+  margin-top: 12px;
+}
+
+.note-icon {
+  font-size: 20px;
+}
+
+.note-text {
+  font-size: 14px;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.vacation-progress {
+  margin-top: 12px;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Vacation Option in Absent Modal */
+.vacation-option-container {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+}
+
+.vacation-header {
+  margin-bottom: 16px;
+}
+
+.vacation-question {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vacation-balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e40af;
+  border: 2px solid #3b82f6;
+}
+
+.vacation-balance.vacation-depleted {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.vacation-icon {
+  font-size: 16px;
+}
+
+.vacation-text {
+  font-size: 13px;
+}
+
+.vacation-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.vacation-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.vacation-radio-label:hover {
+  border-color: #667eea;
+  background: #f9fafb;
+}
+
+.vacation-radio-label input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.vacation-radio-label input[type="radio"]:checked ~ .radio-custom {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.vacation-radio-label input[type="radio"]:checked ~ .radio-custom::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.vacation-radio-label input[type="radio"]:disabled ~ .radio-custom {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.vacation-radio-label input[type="radio"]:disabled ~ .radio-text {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.radio-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  background: white;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.radio-custom::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.radio-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  flex: 1;
+}
+
+.vacation-warning,
+.vacation-confirm-msg {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  margin-top: 12px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vacation-warning {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-right: 4px solid #ef4444;
+}
+
+.vacation-confirm-msg {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-right: 4px solid #10b981;
+}
+
+.warning-icon,
+.confirm-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.warning-content,
+.confirm-content {
+  flex: 1;
+}
+
+.warning-content strong,
+.confirm-content strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+.confirm-content strong {
+  color: #065f46;
+}
+
+.warning-content p,
+.confirm-content p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #7f1d1d;
+  line-height: 1.5;
+}
+
+.confirm-content p {
+  color: #064e3b;
+}
+
+/* Admin Settings - Vacation Section */
+.vacation-info-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  border-radius: 10px;
+  border-right: 4px solid #6366f1;
+  margin-bottom: 16px;
+}
+
+.vacation-info-icon {
+  font-size: 24px;
+}
+
+.vacation-info-text {
+  flex: 1;
+  font-size: 14px;
+  color: #3730a3;
+  line-height: 1.6;
+}
+
+.vacation-balance-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-radius: 12px;
+  border: 2px solid #10b981;
+  margin-top: 12px;
+  margin-bottom: 20px;
+}
+
+.balance-icon {
+  font-size: 32px;
+}
+
+.balance-content {
+  flex: 1;
+}
+
+.balance-label {
+  font-size: 13px;
+  color: #065f46;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.balance-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #065f46;
+}
+
 .deduction-cell {
   font-weight: 700;
   color: #dc2626;
