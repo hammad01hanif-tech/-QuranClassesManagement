@@ -58,6 +58,90 @@ const teacherStudentSelect = document.getElementById('teacherStudentSelect');
 const teacherStudentActions = document.getElementById('teacherStudentActions');
 // selectedTeacherStudentSpan removed - element no longer exists in HTML
 
+// ============================================
+// Get Staff Settings from Firestore
+// ============================================
+async function getStaffSettings(staffId) {
+  // Check cache first
+  const cacheKey = `staffSettings_${staffId}`;
+  const cached = firestoreCache.get(cacheKey);
+  if (cached) {
+    console.log('✅ Using cached settings for:', staffId);
+    return cached;
+  }
+  
+  try {
+    const settingsRef = doc(db, 'staffSettings', staffId);
+    const settingsDoc = await getDoc(settingsRef);
+    
+    if (settingsDoc.exists()) {
+      const settings = settingsDoc.data();
+      console.log('✅ Loaded settings from Firestore for:', staffId);
+      
+      // Cache the settings
+      firestoreCache.set(cacheKey, settings);
+      
+      return settings;
+    } else {
+      console.log('⚠️ No settings found for:', staffId, '- using defaults');
+      
+      // Return default settings
+      const defaults = {
+        workSchedule: {
+          minutesAfterAsr: 15,
+          minutesAfterIsha: 5,
+          workDays: [0, 1, 2, 3, 4] // الأحد إلى الخميس
+        },
+        salary: {
+          monthlySalary: 3000
+        },
+        penalties: {
+          latePenalty: {
+            enabled: true,
+            amount: 5,
+            intervalMinutes: 30,
+            maxDailyPenalty: 20,
+            roundingMethod: 'ceil'
+          },
+          earlyLeavePenalty: {
+            enabled: true,
+            amount: 5,
+            intervalMinutes: 30
+          },
+          absencePenalty: {
+            enabled: true,
+            calculationMethod: 'salary_divided_by_30'
+          }
+        }
+      };
+      
+      // Cache the defaults
+      firestoreCache.set(cacheKey, defaults);
+      
+      return defaults;
+    }
+  } catch (error) {
+    console.error('❌ Error loading staff settings:', error);
+    
+    // Return defaults on error
+    return {
+      workSchedule: {
+        minutesAfterAsr: 15,
+        minutesAfterIsha: 5,
+        workDays: [0, 1, 2, 3, 4]
+      },
+      salary: {
+        monthlySalary: 3000
+      },
+      penalties: {
+        latePenalty: { enabled: true, amount: 5, intervalMinutes: 30, maxDailyPenalty: 20 },
+        earlyLeavePenalty: { enabled: true, amount: 5, intervalMinutes: 30 },
+        absencePenalty: { enabled: true, calculationMethod: 'salary_divided_by_30' }
+      }
+    };
+  }
+}
+
 let currentTeacherStudentId = null;
 let currentTeacherStudentName = null;
 let currentTeacherStudentData = null; // Store full student data including level
@@ -8170,6 +8254,14 @@ async function loadTeacherAttendanceSection(container) {
   const teacherId = sessionStorage.getItem('loggedInTeacher');
   const attendanceStatus = await getTeacherAttendanceStatus(teacherId, today);
   
+  // Calculate shift times based on staff settings
+  let shiftStartTime = '--:--';
+  let shiftEndTime = '--:--';
+  if (prayerTimes && teacherId) {
+    shiftStartTime = await calculateShiftStart(prayerTimes.asr, teacherId);
+    shiftEndTime = await calculateShiftEnd(prayerTimes.isha, teacherId);
+  }
+  
   container.innerHTML = `
     <div class="attendance-page">
       <!-- Header -->
@@ -8204,12 +8296,12 @@ async function loadTeacherAttendanceSection(container) {
           <div class="shift-time-item">
             <span class="shift-icon">⏰</span>
             <span class="shift-label">بداية الدوام:</span>
-            <span class="shift-value" id="shiftStartTime">${prayerTimes ? calculateShiftStart(prayerTimes.asr) : '--:--'}</span>
+            <span class="shift-value" id="shiftStartTime">${shiftStartTime}</span>
           </div>
           <div class="shift-time-item">
             <span class="shift-icon">⏰</span>
             <span class="shift-label">نهاية الدوام:</span>
-            <span class="shift-value" id="shiftEndTime">${prayerTimes ? calculateShiftEnd(prayerTimes.isha) : '--:--'}</span>
+            <span class="shift-value" id="shiftEndTime">${shiftEndTime}</span>
           </div>
         </div>
       </div>
@@ -8227,24 +8319,32 @@ async function loadTeacherAttendanceSection(container) {
   }
 }
 
-// Calculate shift start time (15 minutes after Asr)
-function calculateShiftStart(asrTime) {
+// Calculate shift start time (dynamic based on staff settings)
+async function calculateShiftStart(asrTime, staffId) {
   if (!asrTime) return '--:--';
+  
+  // Get staff settings
+  const settings = await getStaffSettings(staffId);
+  const minutesAfterAsr = settings.workSchedule?.minutesAfterAsr || 15;
   
   const [hours, minutes] = asrTime.split(':').map(Number);
   const date = new Date();
-  date.setHours(hours, minutes + 15, 0, 0);
+  date.setHours(hours, minutes + minutesAfterAsr, 0, 0);
   
   return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-// Calculate shift end time (5 minutes after Isha)
-function calculateShiftEnd(ishaTime) {
+// Calculate shift end time (dynamic based on staff settings)
+async function calculateShiftEnd(ishaTime, staffId) {
   if (!ishaTime) return '--:--';
+  
+  // Get staff settings
+  const settings = await getStaffSettings(staffId);
+  const minutesAfterIsha = settings.workSchedule?.minutesAfterIsha || 5;
   
   const [hours, minutes] = ishaTime.split(':').map(Number);
   const date = new Date();
-  date.setHours(hours, minutes + 5, 0, 0);
+  date.setHours(hours, minutes + minutesAfterIsha, 0, 0);
   
   return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
@@ -8714,15 +8814,32 @@ window.submitCheckIn = async function() {
     
     const notes = document.getElementById('checkInNotes').value;
     
+    // Get staff settings for penalty calculations
+    const settings = await getStaffSettings(teacherId);
+    
     // Calculate if late
     const shiftStartElement = document.getElementById('shiftStartTime');
     const shiftStartText = shiftStartElement ? shiftStartElement.textContent : null;
     const shiftStartTime = shiftStartText ? parseArabicTime(shiftStartText) : null;
     
     let lateDeduction = 0;
+    let lateMinutes = 0;
     if (shiftStartTime && checkInTime > shiftStartTime) {
-      const lateMins = Math.floor((checkInTime - shiftStartTime) / (1000 * 60));
-      lateDeduction = Math.ceil(lateMins / 15) * 4; // 4 SAR per 15 minutes
+      lateMinutes = Math.floor((checkInTime - shiftStartTime) / (1000 * 60));
+      
+      // Get penalty settings
+      const penaltySettings = settings.penalties?.latePenalty || { enabled: true, amount: 5, intervalMinutes: 30, maxDailyPenalty: 20 };
+      
+      if (penaltySettings.enabled) {
+        // Calculate number of intervals
+        const intervals = Math.ceil(lateMinutes / penaltySettings.intervalMinutes);
+        lateDeduction = intervals * penaltySettings.amount;
+        
+        // Apply max daily penalty if set
+        if (penaltySettings.maxDailyPenalty && penaltySettings.maxDailyPenalty > 0) {
+          lateDeduction = Math.min(lateDeduction, penaltySettings.maxDailyPenalty);
+        }
+      }
     }
     
     // Save to Firestore
@@ -8778,6 +8895,35 @@ window.submitAbsent = async function() {
     const today = new Date();
     const dateStr = today.toISOString().split('T')[0];
     
+    // Get staff settings for penalty calculations
+    const settings = await getStaffSettings(teacherId);
+    
+    // Calculate absence deduction based on method
+    let absenceDeduction = 0;
+    const absencePenaltySettings = settings.penalties?.absencePenalty || { enabled: true, calculationMethod: 'salary_divided_by_30' };
+    
+    if (absencePenaltySettings.enabled) {
+      const monthlySalary = settings.salary?.monthlySalary || 3000;
+      
+      switch (absencePenaltySettings.calculationMethod) {
+        case 'salary_divided_by_30':
+          absenceDeduction = monthlySalary / 30;
+          break;
+        case 'salary_divided_by_study_days':
+          // TODO: Calculate study days in current month
+          absenceDeduction = monthlySalary / 22; // Default 22 working days
+          break;
+        case 'fixed_amount':
+          absenceDeduction = absencePenaltySettings.fixedAmount || 100;
+          break;
+        case 'percentage_of_salary':
+          absenceDeduction = (monthlySalary * (absencePenaltySettings.percentage || 3)) / 100;
+          break;
+        default:
+          absenceDeduction = monthlySalary / 30;
+      }
+    }
+    
     // Save to Firestore
     const attendanceRef = doc(db, 'teacherAttendance', `${teacherId}_${dateStr}`);
     await setDoc(attendanceRef, {
@@ -8785,7 +8931,7 @@ window.submitAbsent = async function() {
       date: dateStr,
       status: 'absent',
       absentReason: reason,
-      absenceDeduction: 50, // Default absence deduction
+      absenceDeduction, // Use calculated deduction
       updatedAt: serverTimestamp()
     });
     
@@ -8845,15 +8991,27 @@ window.submitCheckOut = async function() {
     
     const notes = document.getElementById('checkOutNotes').value;
     
+    // Get staff settings for penalty calculations
+    const settings = await getStaffSettings(teacherId);
+    
     // Calculate if early leave
     const shiftEndElement = document.getElementById('shiftEndTime');
     const shiftEndText = shiftEndElement ? shiftEndElement.textContent : null;
     const shiftEndTime = shiftEndText ? parseArabicTime(shiftEndText) : null;
     
     let earlyLeaveDeduction = 0;
+    let earlyMinutes = 0;
     if (shiftEndTime && checkOutTime < shiftEndTime) {
-      const earlyMins = Math.floor((shiftEndTime - checkOutTime) / (1000 * 60));
-      earlyLeaveDeduction = Math.ceil(earlyMins / 15) * 2; // 2 SAR per 15 minutes
+      earlyMinutes = Math.floor((shiftEndTime - checkOutTime) / (1000 * 60));
+      
+      // Get penalty settings
+      const penaltySettings = settings.penalties?.earlyLeavePenalty || { enabled: true, amount: 5, intervalMinutes: 30 };
+      
+      if (penaltySettings.enabled) {
+        // Calculate number of intervals
+        const intervals = Math.ceil(earlyMinutes / penaltySettings.intervalMinutes);
+        earlyLeaveDeduction = intervals * penaltySettings.amount;
+      }
     }
     
     // Update Firestore
