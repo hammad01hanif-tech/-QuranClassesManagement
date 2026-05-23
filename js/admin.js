@@ -9346,26 +9346,20 @@ window.viewStaffAttendanceReport = async function() {
     const monthName = monthNames[month];
     
     // Set admin mode flag
-    const previousStaff = sessionStorage.getItem('loggedInTeacher');
     const previousAdminMode = sessionStorage.getItem('loggedInAdmin');
     
-    sessionStorage.setItem('loggedInTeacher', staffId);
-    sessionStorage.setItem('loggedInAdmin', 'true'); // Enable admin mode for penalty actions
+    // Enable admin mode for penalty actions
+    sessionStorage.setItem('loggedInAdmin', 'true');
     
     // Call the attendance modal function from teacher.js
+    // Pass staffId directly instead of using sessionStorage to avoid timing issues
     if (window.openAttendanceRecordModal) {
-      window.openAttendanceRecordModal(monthName, year, month);
+      window.openAttendanceRecordModal(monthName, year, month, staffId);
     } else {
       alert('⚠️ وظيفة عرض التقرير غير متاحة حالياً');
     }
     
-    // Restore previous values
-    if (previousStaff) {
-      sessionStorage.setItem('loggedInTeacher', previousStaff);
-    } else {
-      sessionStorage.removeItem('loggedInTeacher');
-    }
-    
+    // Restore previous admin mode
     if (previousAdminMode) {
       sessionStorage.setItem('loggedInAdmin', previousAdminMode);
     } else {

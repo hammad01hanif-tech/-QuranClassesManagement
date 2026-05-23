@@ -7999,10 +7999,13 @@ function loadTeacherHomeSection(container) {
 }
 
 // Open Attendance Record Modal
-window.openAttendanceRecordModal = function(monthName, year, month) {
+window.openAttendanceRecordModal = function(monthName, year, month, overrideStaffId = null) {
   // Show modal
   const modal = document.createElement('div');
   modal.className = 'attendance-modal';
+  
+  // Store staffId for this modal session
+  window._currentModalStaffId = overrideStaffId;
   
   // Generate month options
   const currentDate = new Date();
@@ -8078,13 +8081,14 @@ window.openAttendanceRecordModal = function(monthName, year, month) {
   
   // Load attendance data
   setTimeout(() => {
-    loadAttendanceData(year, month);
+    loadAttendanceData(year, month, overrideStaffId);
   }, 500);
 };
 
 // Change Attendance Month
 window.changeAttendanceMonth = function(value) {
   const [year, month] = value.split('-').map(Number);
+  const overrideStaffId = window._currentModalStaffId;
   const monthNames = [
     '', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
     'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
@@ -8103,7 +8107,7 @@ window.changeAttendanceMonth = function(value) {
   
   // Reload data for new month
   setTimeout(() => {
-    loadAttendanceData(year, month);
+    loadAttendanceData(year, month, overrideStaffId);
   }, 300);
 };
 
@@ -8114,6 +8118,8 @@ window.closeAttendanceModal = function() {
     modal.classList.remove('show');
     setTimeout(() => {
       modal.remove();
+      // Clear modal staff ID
+      window._currentModalStaffId = null;
     }, 300);
   }
 };
@@ -8132,9 +8138,10 @@ function formatGregorianDate(dateStr) {
 }
 
 // Load Attendance Data
-async function loadAttendanceData(year, month) {
+async function loadAttendanceData(year, month, overrideStaffId = null) {
   try {
-    const teacherId = sessionStorage.getItem('loggedInTeacher');
+    // Use override staffId if provided (from admin), otherwise use session storage
+    const teacherId = overrideStaffId || sessionStorage.getItem('loggedInTeacher');
     
     // Get all working days in month (excluding weekends only)
     const allWorkingDays = getAllWorkingDaysInMonth(year, month);
