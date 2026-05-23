@@ -9155,3 +9155,318 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // END OF WAITING STUDENTS SECTION FUNCTIONS
+
+// ==========================================
+// STAFF ATTENDANCE SECTION
+// ==========================================
+
+// Open Staff Attendance Section
+window.openStaffAttendanceSection = async function() {
+  const section = document.getElementById('staffAttendanceSection');
+  if (section) {
+    section.style.display = 'block';
+    await loadStaffList();
+    initializeAttendanceFilters();
+  }
+};
+
+// Close Staff Attendance Section
+window.closeStaffAttendanceSection = function() {
+  const section = document.getElementById('staffAttendanceSection');
+  if (section) {
+    section.style.display = 'none';
+  }
+};
+
+// Load Staff List for Dropdown
+async function loadStaffList() {
+  try {
+    const staffSelect = document.getElementById('staffAttendanceSelect');
+    if (!staffSelect) return;
+    
+    // Clear existing options (except first one)
+    staffSelect.innerHTML = '<option value="">-- «Œ — „‰ «·ﬁ«∆„… --</option>';
+    
+    // Fetch all staff from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const staffList = [];
+    
+    classesSnapshot.forEach((doc) => {
+      const data = doc.data();
+      const staffId = doc.id;
+      const role = data.role;
+      
+      let name = '';
+      let roleIcon = '';
+      
+      if (role === 'teacher') {
+        name = data.teacherName || '„⁄·„ €Ì— „⁄—Ê›';
+        roleIcon = '??û??';
+      } else if (role === 'viewer') {
+        name = data.presenterName || '⁄«—÷ €Ì— „⁄—Ê›';
+        roleIcon = '??';
+      } else if (role === 'admin') {
+        name = data.adminName || '≈œ«—Ì €Ì— „⁄—Ê›';
+        roleIcon = '??û??';
+      } else {
+        return; // Skip if no valid role
+      }
+      
+      staffList.push({ id: staffId, name, role, roleIcon });
+    });
+    
+    // Sort alphabetically
+    staffList.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    // Add to dropdown
+    staffList.forEach(staff => {
+      const option = document.createElement('option');
+      option.value = staff.id;
+      option.textContent = ${staff.roleIcon} ;
+      option.dataset.role = staff.role;
+      option.dataset.roleIcon = staff.roleIcon;
+      staffSelect.appendChild(option);
+    });
+    
+    // Store in global for later use
+    window.staffListData = staffList;
+    
+  } catch (error) {
+    console.error('Error loading staff list:', error);
+  }
+}
+
+// Initialize Attendance Filters (Month/Year)
+function initializeAttendanceFilters() {
+  const yearSelect = document.getElementById('attendanceYear');
+  if (!yearSelect) return;
+  
+  // Clear and populate years (current + past 2 years)
+  yearSelect.innerHTML = '';
+  const currentYear = 1448; // Current Hijri year
+  for (let i = 0; i < 3; i++) {
+    const year = currentYear - i;
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    if (i === 0) option.selected = true;
+    yearSelect.appendChild(option);
+  }
+  
+  // Set current month
+  const monthSelect = document.getElementById('attendanceMonth');
+  if (monthSelect) {
+    const currentMonth = 5; // May = Dhu al-Qadah (11)
+    monthSelect.value = currentMonth;
+  }
+}
+
+// Load Staff Attendance Data (when staff selected)
+window.loadStaffAttendanceData = async function() {
+  const staffId = document.getElementById('staffAttendanceSelect').value;
+  
+  if (!staffId) {
+    // Reset to empty state
+    document.getElementById('attendanceFilters').style.display = 'none';
+    document.getElementById('staffInfoCard').style.display = 'none';
+    document.getElementById('attendanceEmptyState').style.display = 'block';
+    document.getElementById('staffAttendanceReportContainer').style.display = 'none';
+    return;
+  }
+  
+  // Show filters and info card
+  document.getElementById('attendanceFilters').style.display = 'block';
+  document.getElementById('attendanceEmptyState').style.display = 'none';
+  
+  // Get selected staff data
+  const staffSelect = document.getElementById('staffAttendanceSelect');
+  const selectedOption = staffSelect.options[staffSelect.selectedIndex];
+  const staffName = selectedOption.textContent;
+  const roleIcon = selectedOption.dataset.roleIcon || '??û??';
+  const role = selectedOption.dataset.role || 'teacher';
+  
+  let roleText = '';
+  if (role === 'teacher') roleText = '„⁄·„';
+  else if (role === 'viewer') roleText = '⁄«—÷';
+  else if (role === 'admin') roleText = '≈œ«—Ì';
+  
+  // Fetch staff settings for salary
+  let salary = 3000; // Default
+  try {
+    const settingsDoc = await getDoc(doc(db, 'staffSettings', staffId));
+    if (settingsDoc.exists()) {
+      salary = settingsDoc.data().salary?.monthlySalary || 3000;
+    }
+  } catch (error) {
+    console.error('Error fetching salary:', error);
+  }
+  
+  // Update staff info card
+  document.getElementById('staffAvatarIcon').textContent = roleIcon;
+  document.getElementById('staffNameDisplay').textContent = staffName;
+  document.getElementById('staffRoleDisplay').textContent = roleText;
+  document.getElementById('staffSalaryDisplay').textContent = ${salary} —Ì«·;
+  document.getElementById('staffInfoCard').style.display = 'flex';
+  
+  // Store current staff ID globally
+  window.currentStaffId = staffId;
+  window.currentStaffName = staffName;
+  window.currentStaffSalary = salary;
+};
+
+// View Staff Attendance Report (Open Modal)
+window.viewStaffAttendanceReport = async function() {
+  const staffId = window.currentStaffId;
+  if (!staffId) {
+    alert('«·—Ã«¡ «Œ Ì«— „ÊŸ› √Ê·«');
+    return;
+  }
+  
+  const month = parseInt(document.getElementById('attendanceMonth').value);
+  const year = parseInt(document.getElementById('attendanceYear').value);
+  
+  // Show loading
+  document.getElementById('attendanceLoadingState').style.display = 'block';
+  document.getElementById('staffAttendanceReportContainer').style.display = 'none';
+  
+  try {
+    // Import function from teacher.js to open attendance modal
+    // We'll reuse the same modal and loadAttendanceData function
+    
+    // Get month name
+    const monthNames = ['', '„Õ—„', '’›—', '—»Ì⁄ «·√Ê·', '—»Ì⁄ «·¬Œ—', 'Ã„«œÏ «·√Ê·Ï', 'Ã„«œÏ «·¬Œ—…', '—Ã»', '‘⁄»«‰', '—„÷«‰', '‘Ê«·', '–Ê «·ﬁ⁄œ…', '–Ê «·ÕÃ…'];
+    const monthName = monthNames[month];
+    
+    // Create temporary session storage for staff
+    const previousStaff = sessionStorage.getItem('loggedInTeacher');
+    sessionStorage.setItem('loggedInTeacher', staffId);
+    
+    // Call the attendance modal function from teacher.js
+    if (window.openAttendanceRecordModal) {
+      window.openAttendanceRecordModal(monthName, year, month);
+    } else {
+      alert('?? ÊŸÌ›… ⁄—÷ «· ﬁ—Ì— €Ì— „ «Õ… Õ«·Ì«');
+    }
+    
+    // Restore previous staff
+    if (previousStaff) {
+      sessionStorage.setItem('loggedInTeacher', previousStaff);
+    }
+    
+  } catch (error) {
+    console.error('Error loading attendance report:', error);
+    alert('ÕœÀ Œÿ√ ›Ì  Õ„Ì· «· ﬁ—Ì—');
+  } finally {
+    document.getElementById('attendanceLoadingState').style.display = 'none';
+  }
+};
+
+// Show Penalty Action Sheet (for approving/pardoning penalties)
+window.showPenaltyActionSheet = function(staffId, date, type) {
+  // type: 'late', 'earlyLeave', 'absence'
+  
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'sheet-overlay';
+  overlay.onclick = () => closePenaltyActionSheet();
+  
+  // Create action sheet
+  const sheet = document.createElement('div');
+  sheet.className = 'penalty-action-sheet';
+  sheet.id = 'penaltySheet';
+  
+  let title = '';
+  if (type === 'late') title = 'Œ’„Ì… «· √ŒÌ—';
+  else if (type === 'earlyLeave') title = 'Œ’„Ì… «·Œ—ÊÃ «·„»ﬂ—';
+  else if (type === 'absence') title = 'Œ’„Ì… «·€Ì«»';
+  
+  sheet.innerHTML = 
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title"></h3>
+    <div class="sheet-options">
+      <button class="sheet-option-btn approve" onclick="window.updatePenaltyStatus('', '', '', 'approved')">
+        <span class="sheet-option-icon">?</span>
+        <span class="sheet-option-text">«⁄ „«œ «·Œ’„</span>
+      </button>
+      <button class="sheet-option-btn pardon" onclick="window.updatePenaltyStatus('', '', '', 'pardoned')">
+        <span class="sheet-option-icon">??</span>
+        <span class="sheet-option-text">”„«Õ (≈·€«¡ «·Œ’„)</span>
+      </button>
+    </div>
+  ;
+  
+  document.body.appendChild(overlay);
+  document.body.appendChild(sheet);
+  
+  // Animate in
+  setTimeout(() => {
+    overlay.classList.add('show');
+    sheet.classList.add('show');
+  }, 10);
+  
+  // Store for closing
+  window.currentPenaltyOverlay = overlay;
+  window.currentPenaltySheet = sheet;
+};
+
+// Close Penalty Action Sheet
+window.closePenaltyActionSheet = function() {
+  const overlay = window.currentPenaltyOverlay;
+  const sheet = window.currentPenaltySheet;
+  
+  if (overlay && sheet) {
+    overlay.classList.remove('show');
+    sheet.classList.remove('show');
+    
+    setTimeout(() => {
+      overlay.remove();
+      sheet.remove();
+    }, 300);
+  }
+};
+
+// Update Penalty Status (Approve/Pardon)
+window.updatePenaltyStatus = async function(staffId, date, type, status) {
+  try {
+    const docRef = doc(db, 'teacherAttendance', ${staffId}_);
+    const updateData = {};
+    
+    if (type === 'late') {
+      updateData.lateApprovalStatus = status;
+      if (status === 'pardoned') {
+        updateData.lateDeduction = 0;
+      }
+    } else if (type === 'earlyLeave') {
+      updateData.earlyLeaveApprovalStatus = status;
+      if (status === 'pardoned') {
+        updateData.earlyLeaveDeduction = 0;
+      }
+    } else if (type === 'absence') {
+      updateData.absenceApprovalStatus = status;
+      if (status === 'pardoned') {
+        updateData.absenceDeduction = 0;
+      }
+    }
+    
+    updateData.updatedAt = serverTimestamp();
+    updateData.updatedBy = 'admin';
+    
+    await updateDoc(docRef, updateData);
+    
+    // Close action sheet
+    window.closePenaltyActionSheet();
+    
+    // Show success message
+    alert(status === 'approved' ? '?  „ «⁄ „«œ «·Œ’„' : '?  „ «·”„«Õ Ê≈·€«¡ «·Œ’„');
+    
+    // Reload report
+    window.viewStaffAttendanceReport();
+    
+  } catch (error) {
+    console.error('Error updating penalty status:', error);
+    alert('ÕœÀ Œÿ√ ›Ì «· ÕœÌÀ');
+  }
+};
+
+console.log('? Staff Attendance functions loaded');
+

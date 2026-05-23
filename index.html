@@ -936,6 +936,16 @@
           <!-- More Menu Grid -->
           <div class="more-menu-grid">
             
+            <!-- Staff Attendance Card -->
+            <div class="more-menu-card" onclick="window.openStaffAttendanceSection()">
+              <div class="more-card-icon">👨‍🏫</div>
+              <div class="more-card-content">
+                <h4 class="more-card-title">تحضير المعلمين والطاقم</h4>
+                <p class="more-card-desc">متابعة واعتماد الحضور والخصميات</p>
+              </div>
+              <div class="more-card-arrow">←</div>
+            </div>
+            
             <!-- Waiting Students Card -->
             <div class="more-menu-card" onclick="window.openWaitingStudentsSection()">
               <div class="more-card-icon">⏳</div>
@@ -1210,6 +1220,100 @@
             </div>
             
           </div>
+        </div>
+
+        <!-- Staff Attendance Section (Full Page) -->
+        <div id="staffAttendanceSection" class="admin-full-page-section" style="display: none;">
+          
+          <!-- Header with Back Button -->
+          <div class="full-page-header">
+            <button class="back-btn" onclick="window.closeStaffAttendanceSection()">
+              <span class="back-arrow">→</span>
+            </button>
+            <h2 class="full-page-title">👨‍🏫 تحضير المعلمين والطاقم</h2>
+            <div class="header-spacer"></div>
+          </div>
+
+          <!-- Staff Attendance Content -->
+          <div class="staff-attendance-container">
+            
+            <!-- Staff Selector Section -->
+            <div class="staff-selector-section">
+              <label class="staff-selector-label">
+                <span class="label-icon">👤</span>
+                <span class="label-text">اختر المعلم / الموظف</span>
+              </label>
+              <select class="staff-selector-dropdown" id="staffAttendanceSelect" onchange="window.loadStaffAttendanceData()">
+                <option value="">-- اختر من القائمة --</option>
+              </select>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="attendance-filters" id="attendanceFilters" style="display: none;">
+              <div class="filter-row">
+                <div class="filter-item">
+                  <label class="filter-label">الشهر</label>
+                  <select class="filter-select" id="attendanceMonth" onchange="window.loadStaffAttendanceData()">
+                    <option value="1">محرم</option>
+                    <option value="2">صفر</option>
+                    <option value="3">ربيع الأول</option>
+                    <option value="4">ربيع الآخر</option>
+                    <option value="5">جمادى الأولى</option>
+                    <option value="6">جمادى الآخرة</option>
+                    <option value="7">رجب</option>
+                    <option value="8">شعبان</option>
+                    <option value="9">رمضان</option>
+                    <option value="10">شوال</option>
+                    <option value="11">ذو القعدة</option>
+                    <option value="12">ذو الحجة</option>
+                  </select>
+                </div>
+                <div class="filter-item">
+                  <label class="filter-label">السنة</label>
+                  <select class="filter-select" id="attendanceYear" onchange="window.loadStaffAttendanceData()">
+                    <!-- Will be populated dynamically -->
+                  </select>
+                </div>
+              </div>
+              <button class="view-report-btn" onclick="window.viewStaffAttendanceReport()">
+                <span class="btn-icon">📊</span>
+                <span class="btn-text">استعراض التقرير</span>
+              </button>
+            </div>
+
+            <!-- Staff Info Card (Shows after selection) -->
+            <div class="staff-info-card" id="staffInfoCard" style="display: none;">
+              <div class="staff-avatar">
+                <span id="staffAvatarIcon">👨‍🏫</span>
+              </div>
+              <div class="staff-details">
+                <h3 class="staff-name" id="staffNameDisplay">--</h3>
+                <p class="staff-role" id="staffRoleDisplay">--</p>
+              </div>
+              <div class="staff-salary">
+                <div class="salary-label">الراتب الشهري</div>
+                <div class="salary-value" id="staffSalaryDisplay">--</div>
+              </div>
+            </div>
+
+            <!-- Empty State (Before selection) -->
+            <div class="attendance-empty-state" id="attendanceEmptyState">
+              <div class="empty-state-icon">🧑‍💼</div>
+              <h3 class="empty-state-title">اختر موظفاً لعرض سجلات الحضور</h3>
+              <p class="empty-state-desc">استخدم القائمة أعلاه لاختيار المعلم أو الموظف</p>
+            </div>
+
+            <!-- Loading State -->
+            <div class="attendance-loading-state" id="attendanceLoadingState" style="display: none;">
+              <div class="loading-spinner-lg"></div>
+              <p>جاري تحميل سجلات الحضور...</p>
+            </div>
+
+            <!-- Attendance Report Container -->
+            <div id="staffAttendanceReportContainer" style="display: none;"></div>
+
+          </div>
+
         </div>
 
       </div>

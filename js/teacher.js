@@ -8170,11 +8170,20 @@ async function loadAttendanceData(year, month) {
       }
     }));
   
-    // Calculate summary
+    // Calculate summary (excluding pardoned penalties)
     const absences = attendanceRecords.filter(r => r.status === 'absent').length;
-    const absenceDeductions = attendanceRecords.reduce((sum, r) => sum + r.absenceDeduction, 0);
-    const lateDeductions = attendanceRecords.reduce((sum, r) => sum + r.lateDeduction, 0);
-    const earlyLeaveDeductions = attendanceRecords.reduce((sum, r) => sum + r.earlyLeaveDeduction, 0);
+    const absenceDeductions = attendanceRecords.reduce((sum, r) => {
+      if (r.absenceApprovalStatus === 'pardoned') return sum;
+      return sum + r.absenceDeduction;
+    }, 0);
+    const lateDeductions = attendanceRecords.reduce((sum, r) => {
+      if (r.lateApprovalStatus === 'pardoned') return sum;
+      return sum + r.lateDeduction;
+    }, 0);
+    const earlyLeaveDeductions = attendanceRecords.reduce((sum, r) => {
+      if (r.earlyLeaveApprovalStatus === 'pardoned') return sum;
+      return sum + r.earlyLeaveDeduction;
+    }, 0);
     const totalDeductions = absenceDeductions + lateDeductions + earlyLeaveDeductions;
   
     // Build table HTML
@@ -8195,15 +8204,37 @@ async function loadAttendanceData(year, month) {
           </thead>
           <tbody>
             ${attendanceRecords.map(record => {
-              // Different styling based on status
-              const rowClass = record.status === 'absent' ? 'absent-row' : 
-                              record.status === 'not-registered' ? 'not-registered-row' : '';
+              // Check if we're in admin mode (for penalty actions)
+              const isAdminMode = sessionStorage.getItem('loggedInAdmin') === 'true';
+              
+              // Determine styling based on status and approval
+              let rowClass = '';
+              if (record.status === 'absent') {
+                rowClass = record.absenceApprovalStatus === 'pardoned' ? 'penalty-pardoned' : 'absent-row';
+              } else if (record.status === 'not-registered') {
+                rowClass = 'not-registered-row';
+              }
+              
               const arrivalClass = record.status === 'absent' ? 'absent-cell' : 
                                   record.lateDeduction > 0 ? 'late' : '';
               const leaveClass = record.earlyLeaveDeduction > 0 ? 'early' : '';
               
+              // Penalty cell classes based on approval status
+              const latePenaltyClass = record.lateApprovalStatus === 'pardoned' ? 'penalty-pardoned' : 
+                                       record.lateDeduction > 0 ? 'penalty-approved' : '';
+              const earlyPenaltyClass = record.earlyLeaveApprovalStatus === 'pardoned' ? 'penalty-pardoned' : 
+                                        record.earlyLeaveDeduction > 0 ? 'penalty-approved' : '';
+              
+              // Onclick handlers for admin mode
+              const lateClick = isAdminMode && record.lateDeduction > 0 ? 
+                `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'late')" style="cursor: pointer;"` : '';
+              const earlyClick = isAdminMode && record.earlyLeaveDeduction > 0 ? 
+                `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'earlyLeave')" style="cursor: pointer;"` : '';
+              const absenceClick = isAdminMode && record.status === 'absent' ? 
+                `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'absence')" style="cursor: pointer;"` : '';
+              
               return `
-                <tr class="${rowClass}">
+                <tr class="${rowClass}" ${record.status === 'absent' ? absenceClick : ''}>
                   <td class="date-cell">
                     <div class="date-day">${record.dayName}</div>
                     <div class="date-hijri">${record.hijriDate || record.date}</div>
@@ -8212,10 +8243,14 @@ async function loadAttendanceData(year, month) {
                   <td class="time-cell ${arrivalClass}">
                     ${record.status === 'absent' ? '<span class="absent-badge">غائب 🔴</span>' : record.actualArrival}
                   </td>
-                  <td class="deduction-cell">${record.lateDeduction > 0 ? record.lateDeduction + ' ريال' : '—'}</td>
+                  <td class="deduction-cell ${latePenaltyClass}" ${lateClick}>
+                    ${record.lateDeduction > 0 ? (record.lateApprovalStatus === 'pardoned' ? '<strike>' + record.lateDeduction + ' ريال</strike> <span style="color: #f59e0b;">سماح</span>' : record.lateDeduction + ' ريال') : '—'}
+                  </td>
                   <td class="time-cell">${record.shiftEnd}</td>
                   <td class="time-cell ${leaveClass}">${record.actualLeave}</td>
-                  <td class="deduction-cell">${record.earlyLeaveDeduction > 0 ? record.earlyLeaveDeduction + ' ريال' : '—'}</td>
+                  <td class="deduction-cell ${earlyPenaltyClass}" ${earlyClick}>
+                    ${record.earlyLeaveDeduction > 0 ? (record.earlyLeaveApprovalStatus === 'pardoned' ? '<strike>' + record.earlyLeaveDeduction + ' ريال</strike> <span style="color: #f59e0b;">سماح</span>' : record.earlyLeaveDeduction + ' ريال') : '—'}
+                  </td>
                   <td class="notes-cell">${record.notes || '—'}</td>
                 </tr>
               `;
