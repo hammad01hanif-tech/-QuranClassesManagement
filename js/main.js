@@ -338,6 +338,10 @@ window.loginStudent = async function() {
     
     document.getElementById('studentLogin').style.display = 'none';
     document.getElementById('studentDashboard').style.display = 'block';
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+    
     updateDateTime();
     
     // Initialize student dashboard
@@ -385,6 +389,9 @@ window.loginTeacher = async function() {
   // Show NEW design instead of old
   document.getElementById('newTeacherDesign').style.display = 'block';
   document.getElementById('oldTeacherDesign').style.display = 'none';
+  
+  // Scroll to top
+  window.scrollTo(0, 0);
   
   // Update staff name in header
   const teacherNameHeader = document.getElementById('teacherNameHeader');
