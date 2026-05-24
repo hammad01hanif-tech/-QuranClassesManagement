@@ -7,6 +7,24 @@ body {
   margin: 0;
 }
 
+/* Ensure sections are visible when display is set to block */
+#adminSection,
+#teacherSection,
+#studentSection,
+#viewerSection {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure login containers are visible */
+#teacherLogin,
+#studentLogin,
+#viewerLogin {
+  position: relative;
+  z-index: 2;
+  min-height: 400px;
+}
+
 /* Pulse Animation for Inbox Badge */
 @keyframes pulse {
   0%, 100% {
