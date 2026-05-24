@@ -208,6 +208,29 @@ window.selectRole = function(role) {
     // Hide new design until login
     const newViewerDesign2 = document.getElementById('newViewerDesign');
     console.log('🎯 Checking newViewerDesign again in viewer section:', !!newViewerDesign2);
+    
+    // WAIT 1 SECOND AND CHECK AGAIN
+    setTimeout(() => {
+      console.log('⏰ ========== AFTER 1 SECOND ==========');
+      console.log('⏰ viewerSection display:', viewerSection.style.display);
+      console.log('⏰ viewerSection computed display:', window.getComputedStyle(viewerSection).display);
+      console.log('⏰ viewerSection offsetHeight:', viewerSection.offsetHeight);
+      console.log('⏰ viewerLogin offsetHeight:', viewerLogin.offsetHeight);
+      
+      // TRY FORCING DIMENSIONS
+      console.log('🚨 FORCING viewerLogin dimensions...');
+      viewerLogin.style.width = '450px';
+      viewerLogin.style.height = '600px';
+      viewerLogin.style.backgroundColor = 'yellow';
+      viewerLogin.style.border = '5px solid red';
+      
+      setTimeout(() => {
+        console.log('🚨 AFTER FORCING:');
+        console.log('  - viewerLogin offsetHeight:', viewerLogin.offsetHeight);
+        console.log('  - viewerLogin offsetWidth:', viewerLogin.offsetWidth);
+        console.log('  - viewerLogin scrollHeight:', viewerLogin.scrollHeight);
+      }, 100);
+    }, 1000);
     if (newViewerDesign2) {
       console.log('🎯 newViewerDesign2 display BEFORE hiding:', newViewerDesign2.style.display);
       console.log('🎯 newViewerDesign2 computed display BEFORE:', window.getComputedStyle(newViewerDesign2).display);
