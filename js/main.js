@@ -636,6 +636,9 @@ window.loginViewer = function() {
     bottomNav.style.display = 'flex';
   }
   
+  // Scroll to top to show dashboard
+  window.scrollTo(0, 0);
+  
   // Update Hijri date
   updateViewerHijriDate();
   
