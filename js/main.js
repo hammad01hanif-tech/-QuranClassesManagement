@@ -92,7 +92,6 @@ window.selectRole = function(role) {
 
 // Mark that selectRole is ready (for the stub function in index.html)
 window.selectRoleReady = true;
-console.log('✅ window.selectRole is now ready');
 
 // Initialize date and time display with Hijri calendar
 function updateDateTime() {
