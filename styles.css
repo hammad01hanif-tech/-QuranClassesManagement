@@ -27,6 +27,9 @@ body {
   position: relative;
   z-index: 2;
   min-height: 400px;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Pulse Animation for Inbox Badge */
