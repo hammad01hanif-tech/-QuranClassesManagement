@@ -58,26 +58,60 @@ window.selectRole = function(role) {
       }
     }, 100);
   } else if (role === 'teacher') {
-    document.getElementById('teacherSection').style.display = 'block';
-    document.getElementById('teacherLogin').style.display = 'block';
-    document.getElementById('teacherDashboard').style.display = 'none';
+    const teacherSection = document.getElementById('teacherSection');
+    const teacherLogin = document.getElementById('teacherLogin');
+    const teacherDashboard = document.getElementById('teacherDashboard');
+    
+    console.log('🔍 teacherSection found:', !!teacherSection);
+    console.log('🔍 teacherLogin found:', !!teacherLogin);
+    console.log('🔍 teacherDashboard found:', !!teacherDashboard);
+    
+    teacherSection.style.display = 'block';
+    teacherLogin.style.display = 'block';
+    teacherDashboard.style.display = 'none';
+    
+    console.log('✅ teacherSection displayed');
     loadStaffForLogin(); // Load all staff members (teachers + viewers + admins)
   } else if (role === 'student') {
-    document.getElementById('studentSection').style.display = 'block';
-    document.getElementById('studentLogin').style.display = 'block';
-    document.getElementById('studentDashboard').style.display = 'none';
+    const studentSection = document.getElementById('studentSection');
+    const studentLogin = document.getElementById('studentLogin');
+    const studentDashboard = document.getElementById('studentDashboard');
+    
+    console.log('🔍 studentSection found:', !!studentSection);
+    console.log('🔍 studentLogin found:', !!studentLogin);
+    console.log('🔍 studentDashboard found:', !!studentDashboard);
+    
+    studentSection.style.display = 'block';
+    studentLogin.style.display = 'block';
+    studentDashboard.style.display = 'none';
+    
+    console.log('✅ studentSection displayed');
+    console.log('✅ studentLogin computed display:', window.getComputedStyle(studentLogin).display);
+    console.log('✅ studentLogin offsetHeight:', studentLogin.offsetHeight);
+    console.log('✅ studentLogin offsetWidth:', studentLogin.offsetWidth);
+    
     loadTeachersForStudent(); // Load teachers list
   } else if (role === 'viewer') {
     console.log('🎯 ========== VIEWER ROLE SELECTED ==========');
     
-    document.getElementById('viewerSection').style.display = 'block';
-    console.log('🎯 viewerSection display set to: block');
+    const viewerSection = document.getElementById('viewerSection');
+    const viewerLogin = document.getElementById('viewerLogin');
+    const viewerDashboard = document.getElementById('viewerDashboard');
     
-    document.getElementById('viewerLogin').style.display = 'block';
-    console.log('🎯 viewerLogin display set to: block');
+    console.log('🔍 viewerSection found:', !!viewerSection);
+    console.log('🔍 viewerLogin found:', !!viewerLogin);
+    console.log('🔍 viewerDashboard found:', !!viewerDashboard);
     
-    document.getElementById('viewerDashboard').style.display = 'none';
-    console.log('🎯 viewerDashboard display set to: none');
+    viewerSection.style.display = 'block';
+    viewerLogin.style.display = 'block';
+    viewerDashboard.style.display = 'none';
+    
+    console.log('✅ viewerSection displayed');
+    console.log('✅ viewerLogin computed display:', window.getComputedStyle(viewerLogin).display);
+    console.log('✅ viewerLogin offsetHeight:', viewerLogin.offsetHeight);
+    console.log('✅ viewerLogin offsetWidth:', viewerLogin.offsetWidth);
+    console.log('✅ viewerSection computed display:', window.getComputedStyle(viewerSection).display);
+    console.log('✅ viewerSection offsetHeight:', viewerSection.offsetHeight);
     
     // Hide new design until login
     const newViewerDesign2 = document.getElementById('newViewerDesign');
