@@ -62,15 +62,20 @@ window.selectRole = function(role) {
     const teacherLogin = document.getElementById('teacherLogin');
     const teacherDashboard = document.getElementById('teacherDashboard');
     
-    console.log('🔍 teacherSection found:', !!teacherSection);
-    console.log('🔍 teacherLogin found:', !!teacherLogin);
-    console.log('🔍 teacherDashboard found:', !!teacherDashboard);
+    console.log('🔍 TEACHER - teacherSection found:', !!teacherSection);
+    console.log('🔍 TEACHER - teacherLogin found:', !!teacherLogin);
+    console.log('🔍 TEACHER - teacherDashboard found:', !!teacherDashboard);
     
     teacherSection.style.display = 'block';
     teacherLogin.style.display = 'block';
     teacherDashboard.style.display = 'none';
     
-    console.log('✅ teacherSection displayed');
+    console.log('✅ TEACHER - teacherSection computed display:', window.getComputedStyle(teacherSection).display);
+    console.log('✅ TEACHER - teacherSection offsetHeight:', teacherSection.offsetHeight);
+    console.log('✅ TEACHER - teacherLogin computed display:', window.getComputedStyle(teacherLogin).display);
+    console.log('✅ TEACHER - teacherLogin offsetHeight:', teacherLogin.offsetHeight);
+    console.log('✅ TEACHER - teacherLogin offsetWidth:', teacherLogin.offsetWidth);
+    
     loadStaffForLogin(); // Load all staff members (teachers + viewers + admins)
   } else if (role === 'student') {
     const studentSection = document.getElementById('studentSection');
