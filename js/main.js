@@ -132,6 +132,9 @@ window.selectRole = function(role) {
     console.log('  - transform:', vsStyle.transform);
     console.log('  - margin:', vsStyle.margin);
     console.log('  - padding:', vsStyle.padding);
+    console.log('  - font-size:', vsStyle.fontSize);
+    console.log('  - max-width:', vsStyle.maxWidth);
+    console.log('  - max-height:', vsStyle.maxHeight);
     
     const vlStyle = window.getComputedStyle(viewerLogin);
     console.log('🔍 viewerLogin FULL CSS:');
@@ -141,6 +144,12 @@ window.selectRole = function(role) {
     console.log('  - height:', vlStyle.height);
     console.log('  - margin:', vlStyle.margin);
     console.log('  - padding:', vlStyle.padding);
+    console.log('  - font-size:', vlStyle.fontSize);
+    console.log('  - line-height:', vlStyle.lineHeight);
+    console.log('  - max-width:', vlStyle.maxWidth);
+    console.log('  - max-height:', vlStyle.maxHeight);
+    console.log('  - min-width:', vlStyle.minWidth);
+    console.log('  - min-height:', vlStyle.minHeight);
     
     // CHECK CHILDREN
     console.log('🔍 viewerLogin CHILDREN:');
