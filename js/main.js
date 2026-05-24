@@ -118,6 +118,30 @@ window.selectRole = function(role) {
     console.log('✅ viewerSection computed display:', window.getComputedStyle(viewerSection).display);
     console.log('✅ viewerSection offsetHeight:', viewerSection.offsetHeight);
     
+    // FULL CSS DEBUG
+    const vsStyle = window.getComputedStyle(viewerSection);
+    console.log('🔍 viewerSection FULL CSS:');
+    console.log('  - position:', vsStyle.position);
+    console.log('  - top:', vsStyle.top);
+    console.log('  - left:', vsStyle.left);
+    console.log('  - width:', vsStyle.width);
+    console.log('  - height:', vsStyle.height);
+    console.log('  - overflow:', vsStyle.overflow);
+    console.log('  - visibility:', vsStyle.visibility);
+    console.log('  - opacity:', vsStyle.opacity);
+    console.log('  - transform:', vsStyle.transform);
+    console.log('  - margin:', vsStyle.margin);
+    console.log('  - padding:', vsStyle.padding);
+    
+    const vlStyle = window.getComputedStyle(viewerLogin);
+    console.log('🔍 viewerLogin FULL CSS:');
+    console.log('  - position:', vlStyle.position);
+    console.log('  - display:', vlStyle.display);
+    console.log('  - width:', vlStyle.width);
+    console.log('  - height:', vlStyle.height);
+    console.log('  - margin:', vlStyle.margin);
+    console.log('  - padding:', vlStyle.padding);
+    
     // Hide new design until login
     const newViewerDesign2 = document.getElementById('newViewerDesign');
     console.log('🎯 Checking newViewerDesign again in viewer section:', !!newViewerDesign2);
