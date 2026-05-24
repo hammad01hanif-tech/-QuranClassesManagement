@@ -1234,6 +1234,11 @@ function updateViewerInboxBadge(count) {
   const badge = document.getElementById('viewerInboxBadge');
   const btn = document.getElementById('viewerInboxBtn');
   
+  if (!badge || !btn) {
+    console.warn('⚠️ viewerInboxBadge or viewerInboxBtn not found');
+    return;
+  }
+  
   if (count > 0) {
     badge.textContent = count;
     badge.style.display = 'inline-flex';

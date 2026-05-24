@@ -810,6 +810,12 @@ window.loginViewer = function() {
   // Show new design
   document.getElementById('newViewerDesign').style.display = 'block';
   
+  // Show bottom navigation
+  const bottomNav = document.getElementById('viewerBottomNav');
+  if (bottomNav) {
+    bottomNav.style.display = 'flex';
+  }
+  
   // Update Hijri date
   updateViewerHijriDate();
   

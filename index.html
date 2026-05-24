@@ -2961,11 +2961,6 @@
   <!-- Viewer Section -->
   <div id="viewerSection" style="display:none;">
     
-    <!-- TEST ELEMENT - للتأكد من أن viewerSection يعمل -->
-    <div style="background: red; color: white; padding: 50px; font-size: 30px; text-align: center; margin: 20px;">
-      🚨 TEST: إذا شفت هذا النص، معناه viewerSection يعمل! 🚨
-    </div>
-    
     <!-- Viewer Login -->
     <div id="viewerLogin" class="login-container">
       <h2>تسجيل دخول عارض الأجزاء</h2>
@@ -3434,7 +3429,7 @@
       </div>
 
       <!-- Bottom Navigation Bar -->
-      <div class="bottom-nav-bar">
+      <div class="bottom-nav-bar" id="viewerBottomNav" style="display:none;">
         <button class="nav-item active" onclick="window.switchViewerSection('home')" data-section="home">
           <span class="nav-icon">🏠</span>
           <span class="nav-label">الرئيسية</span>
