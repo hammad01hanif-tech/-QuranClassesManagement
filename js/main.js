@@ -150,11 +150,44 @@ window.selectRole = function(role) {
     console.log('  - max-height:', vlStyle.maxHeight);
     console.log('  - min-width:', vlStyle.minWidth);
     console.log('  - min-height:', vlStyle.minHeight);
+    console.log('  - box-sizing:', vlStyle.boxSizing);
+    console.log('  - float:', vlStyle.float);
+    console.log('  🚨 scrollHeight:', viewerLogin.scrollHeight);
+    console.log('  🚨 scrollWidth:', viewerLogin.scrollWidth);
+    console.log('  🚨 clientHeight:', viewerLogin.clientHeight);
+    console.log('  🚨 clientWidth:', viewerLogin.clientWidth);
     
     // CHECK CHILDREN
     console.log('🔍 viewerLogin CHILDREN:');
     console.log('  - childNodes count:', viewerLogin.childNodes.length);
     console.log('  - children count:', viewerLogin.children.length);
+    
+    // FIRST CHILD DEEP ANALYSIS
+    if (viewerLogin.children.length > 0) {
+      const firstChild = viewerLogin.children[0];
+      const fcStyle = window.getComputedStyle(firstChild);
+      console.log('🚨 FIRST CHILD (H2) DEEP CSS:');
+      console.log('  - tagName:', firstChild.tagName);
+      console.log('  - innerHTML:', firstChild.innerHTML.substring(0, 50));
+      console.log('  - display:', fcStyle.display);
+      console.log('  - width:', fcStyle.width);
+      console.log('  - height:', fcStyle.height);
+      console.log('  - font-size:', fcStyle.fontSize);
+      console.log('  - color:', fcStyle.color);
+      console.log('  - float:', fcStyle.float);
+      console.log('  - position:', fcStyle.position);
+      console.log('  - box-sizing:', fcStyle.boxSizing);
+      console.log('  - overflow:', fcStyle.overflow);
+      console.log('  - margin:', fcStyle.margin);
+      console.log('  - padding:', fcStyle.padding);
+      console.log('  - offsetHeight:', firstChild.offsetHeight);
+      console.log('  - offsetWidth:', firstChild.offsetWidth);
+      console.log('  - scrollHeight:', firstChild.scrollHeight);
+      console.log('  - scrollWidth:', firstChild.scrollWidth);
+      console.log('  - clientHeight:', firstChild.clientHeight);
+      console.log('  - clientWidth:', firstChild.clientWidth);
+    }
+    
     Array.from(viewerLogin.children).forEach((child, i) => {
       const childStyle = window.getComputedStyle(child);
       console.log(`  [${i}] ${child.tagName}#${child.id || 'no-id'}.${child.className}:`, 
