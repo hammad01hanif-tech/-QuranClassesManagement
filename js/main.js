@@ -10,9 +10,6 @@ console.log('✅ Main.js is loading - defining window.selectRole');
 
 // Global role selection function - defined immediately
 window.selectRole = function(role) {
-  console.log('🎯 ========== selectRole called ==========');
-  console.log('🎯 Selected role:', role);
-  
   // Hide role selection
   document.getElementById('roleSelection').style.display = 'none';
   
@@ -24,13 +21,8 @@ window.selectRole = function(role) {
   
   // Hide new viewer design
   const newViewerDesign = document.getElementById('newViewerDesign');
-  console.log('🎯 newViewerDesign element found:', !!newViewerDesign);
   if (newViewerDesign) {
-    console.log('🎯 newViewerDesign display BEFORE hiding:', newViewerDesign.style.display);
     newViewerDesign.style.display = 'none';
-    console.log('🎯 newViewerDesign display AFTER hiding:', newViewerDesign.style.display);
-  } else {
-    console.error('❌ newViewerDesign element NOT FOUND!');
   }
   
   if (role === 'admin') {
@@ -70,30 +62,15 @@ window.selectRole = function(role) {
     teacherLogin.style.display = 'block';
     teacherDashboard.style.display = 'none';
     
-    console.log('✅ TEACHER - teacherSection computed display:', window.getComputedStyle(teacherSection).display);
-    console.log('✅ TEACHER - teacherSection offsetHeight:', teacherSection.offsetHeight);
-    console.log('✅ TEACHER - teacherLogin computed display:', window.getComputedStyle(teacherLogin).display);
-    console.log('✅ TEACHER - teacherLogin offsetHeight:', teacherLogin.offsetHeight);
-    console.log('✅ TEACHER - teacherLogin offsetWidth:', teacherLogin.offsetWidth);
-    
     loadStaffForLogin(); // Load all staff members (teachers + viewers + admins)
   } else if (role === 'student') {
     const studentSection = document.getElementById('studentSection');
     const studentLogin = document.getElementById('studentLogin');
     const studentDashboard = document.getElementById('studentDashboard');
     
-    console.log('🔍 studentSection found:', !!studentSection);
-    console.log('🔍 studentLogin found:', !!studentLogin);
-    console.log('🔍 studentDashboard found:', !!studentDashboard);
-    
     studentSection.style.display = 'block';
     studentLogin.style.display = 'block';
     studentDashboard.style.display = 'none';
-    
-    console.log('✅ studentSection displayed');
-    console.log('✅ studentLogin computed display:', window.getComputedStyle(studentLogin).display);
-    console.log('✅ studentLogin offsetHeight:', studentLogin.offsetHeight);
-    console.log('✅ studentLogin offsetWidth:', studentLogin.offsetWidth);
     
     loadTeachersForStudent(); // Load teachers list
   } else if (role === 'viewer') {
