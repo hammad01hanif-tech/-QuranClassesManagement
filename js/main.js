@@ -97,175 +97,19 @@ window.selectRole = function(role) {
     
     loadTeachersForStudent(); // Load teachers list
   } else if (role === 'viewer') {
-    console.log('🎯 ========== VIEWER ROLE SELECTED ==========');
-    
     const viewerSection = document.getElementById('viewerSection');
     const viewerLogin = document.getElementById('viewerLogin');
     const viewerDashboard = document.getElementById('viewerDashboard');
-    
-    console.log('🔍 viewerSection found:', !!viewerSection);
-    console.log('🔍 viewerLogin found:', !!viewerLogin);
-    console.log('🔍 viewerDashboard found:', !!viewerDashboard);
+    const newViewerDesign = document.getElementById('newViewerDesign');
     
     viewerSection.style.display = 'block';
     viewerLogin.style.display = 'block';
     viewerDashboard.style.display = 'none';
     
-    console.log('✅ viewerSection displayed');
-    console.log('✅ viewerLogin computed display:', window.getComputedStyle(viewerLogin).display);
-    console.log('✅ viewerLogin offsetHeight:', viewerLogin.offsetHeight);
-    console.log('✅ viewerLogin offsetWidth:', viewerLogin.offsetWidth);
-    console.log('✅ viewerSection computed display:', window.getComputedStyle(viewerSection).display);
-    console.log('✅ viewerSection offsetHeight:', viewerSection.offsetHeight);
-    
-    // FULL CSS DEBUG
-    const vsStyle = window.getComputedStyle(viewerSection);
-    console.log('🔍 viewerSection FULL CSS:');
-    console.log('  - position:', vsStyle.position);
-    console.log('  - top:', vsStyle.top);
-    console.log('  - left:', vsStyle.left);
-    console.log('  - width:', vsStyle.width);
-    console.log('  - height:', vsStyle.height);
-    console.log('  - overflow:', vsStyle.overflow);
-    console.log('  - visibility:', vsStyle.visibility);
-    console.log('  - opacity:', vsStyle.opacity);
-    console.log('  - transform:', vsStyle.transform);
-    console.log('  - margin:', vsStyle.margin);
-    console.log('  - padding:', vsStyle.padding);
-    console.log('  - font-size:', vsStyle.fontSize);
-    console.log('  - max-width:', vsStyle.maxWidth);
-    console.log('  - max-height:', vsStyle.maxHeight);
-    
-    const vlStyle = window.getComputedStyle(viewerLogin);
-    console.log('🔍 viewerLogin FULL CSS:');
-    console.log('  - position:', vlStyle.position);
-    console.log('  - display:', vlStyle.display);
-    console.log('  - width:', vlStyle.width);
-    console.log('  - height:', vlStyle.height);
-    console.log('  - margin:', vlStyle.margin);
-    console.log('  - padding:', vlStyle.padding);
-    console.log('  - font-size:', vlStyle.fontSize);
-    console.log('  - line-height:', vlStyle.lineHeight);
-    console.log('  - max-width:', vlStyle.maxWidth);
-    console.log('  - max-height:', vlStyle.maxHeight);
-    console.log('  - min-width:', vlStyle.minWidth);
-    console.log('  - min-height:', vlStyle.minHeight);
-    console.log('  - box-sizing:', vlStyle.boxSizing);
-    console.log('  - float:', vlStyle.float);
-    console.log('  🚨 scrollHeight:', viewerLogin.scrollHeight);
-    console.log('  🚨 scrollWidth:', viewerLogin.scrollWidth);
-    console.log('  🚨 clientHeight:', viewerLogin.clientHeight);
-    console.log('  🚨 clientWidth:', viewerLogin.clientWidth);
-    
-    // CHECK CHILDREN
-    console.log('🔍 viewerLogin CHILDREN:');
-    console.log('  - childNodes count:', viewerLogin.childNodes.length);
-    console.log('  - children count:', viewerLogin.children.length);
-    
-    // FIRST CHILD DEEP ANALYSIS
-    if (viewerLogin.children.length > 0) {
-      const firstChild = viewerLogin.children[0];
-      const fcStyle = window.getComputedStyle(firstChild);
-      console.log('🚨 FIRST CHILD (H2) DEEP CSS:');
-      console.log('  - tagName:', firstChild.tagName);
-      console.log('  - innerHTML:', firstChild.innerHTML.substring(0, 50));
-      console.log('  - display:', fcStyle.display);
-      console.log('  - width:', fcStyle.width);
-      console.log('  - height:', fcStyle.height);
-      console.log('  - font-size:', fcStyle.fontSize);
-      console.log('  - color:', fcStyle.color);
-      console.log('  - float:', fcStyle.float);
-      console.log('  - position:', fcStyle.position);
-      console.log('  - box-sizing:', fcStyle.boxSizing);
-      console.log('  - overflow:', fcStyle.overflow);
-      console.log('  - margin:', fcStyle.margin);
-      console.log('  - padding:', fcStyle.padding);
-      console.log('  - offsetHeight:', firstChild.offsetHeight);
-      console.log('  - offsetWidth:', firstChild.offsetWidth);
-      console.log('  - scrollHeight:', firstChild.scrollHeight);
-      console.log('  - scrollWidth:', firstChild.scrollWidth);
-      console.log('  - clientHeight:', firstChild.clientHeight);
-      console.log('  - clientWidth:', firstChild.clientWidth);
-    }
-    
-    Array.from(viewerLogin.children).forEach((child, i) => {
-      const childStyle = window.getComputedStyle(child);
-      console.log(`  [${i}] ${child.tagName}#${child.id || 'no-id'}.${child.className}:`, 
-        'display:', childStyle.display,
-        'height:', child.offsetHeight,
-        'width:', child.offsetWidth);
-    });
-    
-    // CHECK TEST ELEMENT
-    const testElements = viewerSection.querySelectorAll('[style*="background: red"]');
-    console.log('🚨 TEST ELEMENTS found:', testElements.length);
-    if (testElements.length > 0) {
-      testElements.forEach((el, i) => {
-        console.log(`  TEST[${i}]:`, 'offsetHeight:', el.offsetHeight, 'offsetWidth:', el.offsetWidth);
-      });
-    }
-    
     // Hide new design until login
-    const newViewerDesign2 = document.getElementById('newViewerDesign');
-    console.log('🎯 Checking newViewerDesign again in viewer section:', !!newViewerDesign2);
-    
-    // CHECK PARENT CHAIN
-    console.log('🔗 ========== PARENT CHAIN ==========');
-    let current = viewerSection;
-    let depth = 0;
-    while (current && depth < 10) {
-      const computed = window.getComputedStyle(current);
-      console.log(`[${depth}] ${current.tagName}#${current.id || 'no-id'}.${current.className}:`,
-        'display:', computed.display,
-        'position:', computed.position,
-        'offsetHeight:', current.offsetHeight,
-        'offsetWidth:', current.offsetWidth);
-      current = current.parentElement;
-      depth++;
+    if (newViewerDesign) {
+      newViewerDesign.style.display = 'none';
     }
-    console.log('🔗 Reached parent:', current ? current.tagName : 'null');
-    
-    // CHECK IF IN BODY
-    console.log('🔗 viewerSection.parentElement:', viewerSection.parentElement?.tagName);
-    console.log('🔗 Is in document.body?', document.body.contains(viewerSection));
-    console.log('🔗 document.body display:', window.getComputedStyle(document.body).display);
-    console.log('🔗 document.body offsetHeight:', document.body.offsetHeight);
-    
-    // WAIT 1 SECOND AND CHECK AGAIN
-    setTimeout(() => {
-      console.log('⏰ ========== AFTER 1 SECOND ==========');
-      console.log('⏰ viewerSection display:', viewerSection.style.display);
-      console.log('⏰ viewerSection computed display:', window.getComputedStyle(viewerSection).display);
-      console.log('⏰ viewerSection offsetHeight:', viewerSection.offsetHeight);
-      console.log('⏰ viewerLogin offsetHeight:', viewerLogin.offsetHeight);
-      
-      // TRY FORCING DIMENSIONS
-      console.log('🚨 FORCING viewerLogin dimensions...');
-      viewerLogin.style.width = '450px';
-      viewerLogin.style.height = '600px';
-      viewerLogin.style.backgroundColor = 'yellow';
-      viewerLogin.style.border = '5px solid red';
-      
-      setTimeout(() => {
-        console.log('🚨 AFTER FORCING:');
-        console.log('  - viewerLogin offsetHeight:', viewerLogin.offsetHeight);
-        console.log('  - viewerLogin offsetWidth:', viewerLogin.offsetWidth);
-        console.log('  - viewerLogin scrollHeight:', viewerLogin.scrollHeight);
-      }, 100);
-    }, 1000);
-    if (newViewerDesign2) {
-      console.log('🎯 newViewerDesign2 display BEFORE hiding:', newViewerDesign2.style.display);
-      console.log('🎯 newViewerDesign2 computed display BEFORE:', window.getComputedStyle(newViewerDesign2).display);
-      newViewerDesign2.style.display = 'none';
-      console.log('🎯 newViewerDesign2 display AFTER hiding:', newViewerDesign2.style.display);
-      console.log('🎯 newViewerDesign2 computed display AFTER:', window.getComputedStyle(newViewerDesign2).display);
-      console.log('🎯 newViewerDesign2 parent element:', newViewerDesign2.parentElement?.id);
-      console.log('🎯 newViewerDesign2 classList:', newViewerDesign2.classList.toString());
-    } else {
-      console.error('❌ newViewerDesign2 element NOT FOUND in viewer section!');
-    }
-    
-    console.log('🎯 ========== END VIEWER ROLE ==========');
   }
 };
 
