@@ -209,6 +209,28 @@ window.selectRole = function(role) {
     const newViewerDesign2 = document.getElementById('newViewerDesign');
     console.log('🎯 Checking newViewerDesign again in viewer section:', !!newViewerDesign2);
     
+    // CHECK PARENT CHAIN
+    console.log('🔗 ========== PARENT CHAIN ==========');
+    let current = viewerSection;
+    let depth = 0;
+    while (current && depth < 10) {
+      const computed = window.getComputedStyle(current);
+      console.log(`[${depth}] ${current.tagName}#${current.id || 'no-id'}.${current.className}:`,
+        'display:', computed.display,
+        'position:', computed.position,
+        'offsetHeight:', current.offsetHeight,
+        'offsetWidth:', current.offsetWidth);
+      current = current.parentElement;
+      depth++;
+    }
+    console.log('🔗 Reached parent:', current ? current.tagName : 'null');
+    
+    // CHECK IF IN BODY
+    console.log('🔗 viewerSection.parentElement:', viewerSection.parentElement?.tagName);
+    console.log('🔗 Is in document.body?', document.body.contains(viewerSection));
+    console.log('🔗 document.body display:', window.getComputedStyle(document.body).display);
+    console.log('🔗 document.body offsetHeight:', document.body.offsetHeight);
+    
     // WAIT 1 SECOND AND CHECK AGAIN
     setTimeout(() => {
       console.log('⏰ ========== AFTER 1 SECOND ==========');
