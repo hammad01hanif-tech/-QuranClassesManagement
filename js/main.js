@@ -142,6 +142,27 @@ window.selectRole = function(role) {
     console.log('  - margin:', vlStyle.margin);
     console.log('  - padding:', vlStyle.padding);
     
+    // CHECK CHILDREN
+    console.log('🔍 viewerLogin CHILDREN:');
+    console.log('  - childNodes count:', viewerLogin.childNodes.length);
+    console.log('  - children count:', viewerLogin.children.length);
+    Array.from(viewerLogin.children).forEach((child, i) => {
+      const childStyle = window.getComputedStyle(child);
+      console.log(`  [${i}] ${child.tagName}#${child.id || 'no-id'}.${child.className}:`, 
+        'display:', childStyle.display,
+        'height:', child.offsetHeight,
+        'width:', child.offsetWidth);
+    });
+    
+    // CHECK TEST ELEMENT
+    const testElements = viewerSection.querySelectorAll('[style*="background: red"]');
+    console.log('🚨 TEST ELEMENTS found:', testElements.length);
+    if (testElements.length > 0) {
+      testElements.forEach((el, i) => {
+        console.log(`  TEST[${i}]:`, 'offsetHeight:', el.offsetHeight, 'offsetWidth:', el.offsetWidth);
+      });
+    }
+    
     // Hide new design until login
     const newViewerDesign2 = document.getElementById('newViewerDesign');
     console.log('🎯 Checking newViewerDesign again in viewer section:', !!newViewerDesign2);
