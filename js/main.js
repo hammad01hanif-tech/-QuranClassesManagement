@@ -649,13 +649,28 @@ window.loginViewer = function() {
   console.log('  - viewerLogin offsetHeight:', viewerLogin.offsetHeight);
   console.log('  - newViewerDesign display:', newViewerDesign.style.display);
   
+  // Hide login with multiple methods to ensure it works
   viewerLogin.style.display = 'none';
+  viewerLogin.style.visibility = 'hidden';
+  viewerLogin.style.position = 'absolute';
+  viewerLogin.style.top = '-9999px';
+  viewerLogin.style.zIndex = '-1';
+  viewerLogin.style.opacity = '0';
+  viewerLogin.style.pointerEvents = 'none';
+  
   newViewerDesign.style.display = 'block';
+  newViewerDesign.style.visibility = 'visible';
+  newViewerDesign.style.position = 'relative';
+  newViewerDesign.style.zIndex = '1';
+  newViewerDesign.style.opacity = '1';
   
   console.log('🔍 After hiding:');
   console.log('  - viewerLogin display:', viewerLogin.style.display);
+  console.log('  - viewerLogin visibility:', viewerLogin.style.visibility);
+  console.log('  - viewerLogin position:', viewerLogin.style.position);
   console.log('  - viewerLogin offsetHeight:', viewerLogin.offsetHeight);
   console.log('  - newViewerDesign display:', newViewerDesign.style.display);
+  console.log('  - newViewerDesign visibility:', newViewerDesign.style.visibility);
   console.log('  - newViewerDesign offsetHeight:', newViewerDesign.offsetHeight);
   
   // Show bottom navigation
