@@ -336,8 +336,24 @@ window.loginStudent = async function() {
     sessionStorage.setItem('loggedInStudent', studentId);
     sessionStorage.setItem('loggedInStudentName', studentName);
     
-    document.getElementById('studentLogin').style.display = 'none';
-    document.getElementById('studentDashboard').style.display = 'block';
+    const studentLogin = document.getElementById('studentLogin');
+    const studentDashboard = document.getElementById('studentDashboard');
+    
+    // Hide login with multiple methods to ensure it works
+    studentLogin.style.display = 'none';
+    studentLogin.style.visibility = 'hidden';
+    studentLogin.style.position = 'absolute';
+    studentLogin.style.top = '-9999px';
+    studentLogin.style.zIndex = '-1';
+    studentLogin.style.opacity = '0';
+    studentLogin.style.pointerEvents = 'none';
+    
+    // Show dashboard
+    studentDashboard.style.display = 'block';
+    studentDashboard.style.visibility = 'visible';
+    studentDashboard.style.position = 'relative';
+    studentDashboard.style.zIndex = '1';
+    studentDashboard.style.opacity = '1';
     
     // Scroll to top
     window.scrollTo(0, 0);
@@ -384,11 +400,29 @@ window.loginTeacher = async function() {
   
   // Login successful
   errorDiv.classList.remove('show');
-  document.getElementById('teacherLogin').style.display = 'none';
   
-  // Show NEW design instead of old
-  document.getElementById('newTeacherDesign').style.display = 'block';
-  document.getElementById('oldTeacherDesign').style.display = 'none';
+  const teacherLogin = document.getElementById('teacherLogin');
+  const newTeacherDesign = document.getElementById('newTeacherDesign');
+  const oldTeacherDesign = document.getElementById('oldTeacherDesign');
+  
+  // Hide login with multiple methods to ensure it works
+  teacherLogin.style.display = 'none';
+  teacherLogin.style.visibility = 'hidden';
+  teacherLogin.style.position = 'absolute';
+  teacherLogin.style.top = '-9999px';
+  teacherLogin.style.zIndex = '-1';
+  teacherLogin.style.opacity = '0';
+  teacherLogin.style.pointerEvents = 'none';
+  
+  // Show NEW design
+  newTeacherDesign.style.display = 'block';
+  newTeacherDesign.style.visibility = 'visible';
+  newTeacherDesign.style.position = 'relative';
+  newTeacherDesign.style.zIndex = '1';
+  newTeacherDesign.style.opacity = '1';
+  
+  // Hide old design
+  oldTeacherDesign.style.display = 'none';
   
   // Scroll to top
   window.scrollTo(0, 0);
