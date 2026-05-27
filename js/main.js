@@ -614,37 +614,60 @@ function restoreUserSession() {
 
 // Viewer login function
 window.loginViewer = function() {
+  console.log('🎯 loginViewer called');
   const viewerId = document.getElementById('viewerIdInput').value;
   const password = document.getElementById('viewerPasswordInput').value;
   const errorDiv = document.getElementById('viewerLoginError');
   
+  console.log('📝 ViewerId:', viewerId);
+  console.log('📝 Password:', password ? '***' : '(empty)');
+  
   if (!password) {
+    console.log('❌ No password entered');
     errorDiv.textContent = 'الرجاء إدخال الرقم السري';
     errorDiv.style.display = 'block';
     return;
   }
   
   if (password !== 'v12345') {
+    console.log('❌ Wrong password');
     errorDiv.textContent = 'الرقم السري غير صحيح';
     errorDiv.style.display = 'block';
     return;
   }
   
+  console.log('✅ Password correct - logging in...');
+  
   // Login successful
   errorDiv.style.display = 'none';
-  document.getElementById('viewerLogin').style.display = 'none';
   
-  // Show new design
-  document.getElementById('newViewerDesign').style.display = 'block';
+  const viewerLogin = document.getElementById('viewerLogin');
+  const newViewerDesign = document.getElementById('newViewerDesign');
+  
+  console.log('🔍 Before hiding:');
+  console.log('  - viewerLogin display:', viewerLogin.style.display);
+  console.log('  - viewerLogin offsetHeight:', viewerLogin.offsetHeight);
+  console.log('  - newViewerDesign display:', newViewerDesign.style.display);
+  
+  viewerLogin.style.display = 'none';
+  newViewerDesign.style.display = 'block';
+  
+  console.log('🔍 After hiding:');
+  console.log('  - viewerLogin display:', viewerLogin.style.display);
+  console.log('  - viewerLogin offsetHeight:', viewerLogin.offsetHeight);
+  console.log('  - newViewerDesign display:', newViewerDesign.style.display);
+  console.log('  - newViewerDesign offsetHeight:', newViewerDesign.offsetHeight);
   
   // Show bottom navigation
   const bottomNav = document.getElementById('viewerBottomNav');
   if (bottomNav) {
     bottomNav.style.display = 'flex';
+    console.log('✅ Bottom nav shown');
   }
   
   // Scroll to top to show dashboard
   window.scrollTo(0, 0);
+  console.log('✅ Scrolled to top');
   
   // Update Hijri date
   updateViewerHijriDate();
