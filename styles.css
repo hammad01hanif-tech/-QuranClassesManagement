@@ -8782,6 +8782,407 @@ details[open] > summary {
   border-left: 4px solid #f59e0b !important;
 }
 
+/* ============================================
+   تعديل/إضافة سجل الحضور - Admin Edit Modal
+   ============================================ */
+
+/* التاريخ القابل للضغط */
+.clickable-date {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.clickable-date:hover {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%) !important;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+/* Admin Edit Header */
+.admin-edit-header {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: white;
+  padding: 24px;
+  border-radius: 20px 20px 0 0;
+}
+
+.admin-edit-header .header-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-edit-header .header-subtitle {
+  font-size: 14px;
+  opacity: 0.95;
+  font-weight: 500;
+}
+
+.admin-edit-header .modal-close {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.admin-edit-header .modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+/* Form Sections */
+.form-section {
+  margin-bottom: 24px;
+}
+
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 10px;
+}
+
+.form-label.required::after {
+  content: '*';
+  color: #ef4444;
+  margin-right: 4px;
+}
+
+.label-icon {
+  font-size: 18px;
+}
+
+/* Status Radio Group */
+.status-radio-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.status-radio-label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.status-radio-label:hover {
+  background: #f3f4f6;
+  border-color: #0ea5e9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+}
+
+.status-radio-label input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.radio-custom {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  margin-left: 12px;
+  position: relative;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.status-radio-label input[type="radio"]:checked + .radio-custom {
+  border-color: #0ea5e9;
+  background: #0ea5e9;
+}
+
+.status-radio-label input[type="radio"]:checked + .radio-custom::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+.status-radio-label input[type="radio"]:checked ~ .radio-text {
+  color: #0ea5e9;
+  font-weight: 700;
+}
+
+.radio-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #4b5563;
+  transition: all 0.3s ease;
+}
+
+/* Time Input Field */
+.time-input-field {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  direction: ltr;
+  text-align: center;
+  transition: all 0.3s ease;
+  font-family: 'Cairo', sans-serif;
+}
+
+.time-input-field:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+}
+
+.time-input-field::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: brightness(0) saturate(100%) invert(44%) sepia(92%) saturate(1969%) hue-rotate(180deg) brightness(97%) contrast(91%);
+}
+
+/* Notes Textarea Field */
+.notes-textarea-field {
+  width: 100%;
+  min-height: 100px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2937;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  resize: vertical;
+  transition: all 0.3s ease;
+  font-family: 'Cairo', sans-serif;
+}
+
+.notes-textarea-field:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+}
+
+.notes-textarea-field::placeholder {
+  color: #9ca3af;
+}
+
+/* Vacation Section - Compact Design */
+.vacation-option-section {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.vacation-header-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.vacation-balance-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+  flex-shrink: 0;
+}
+
+.vacation-balance-compact.vacation-depleted {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.vacation-icon {
+  font-size: 16px;
+}
+
+.vacation-text strong {
+  font-size: 16px;
+  color: #f59e0b;
+}
+
+.vacation-depleted strong {
+  color: #dc2626;
+}
+
+/* Vacation Radio Group - Compact */
+.vacation-radio-group-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.vacation-radio-label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.vacation-radio-label:hover {
+  background: white;
+  border-color: #f59e0b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.vacation-radio-label input[type="radio"]:disabled {
+  cursor: not-allowed;
+}
+
+.vacation-radio-label input[type="radio"]:disabled + .radio-custom {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.vacation-radio-label input[type="radio"]:disabled ~ .radio-text {
+  color: #9ca3af;
+}
+
+.vacation-radio-label:has(input[type="radio"]:disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.vacation-radio-label:has(input[type="radio"]:disabled):hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.vacation-radio-label input[type="radio"]:checked {
+  border-color: #f59e0b;
+}
+
+.vacation-radio-label input[type="radio"]:checked + .radio-custom {
+  border-color: #f59e0b;
+  background: #f59e0b;
+}
+
+.vacation-radio-label input[type="radio"]:checked ~ .radio-text {
+  color: #92400e;
+}
+
+/* Vacation Messages */
+.vacation-warning {
+  display: none;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: rgba(254, 226, 226, 0.9);
+  border-radius: 10px;
+  border-right: 4px solid #dc2626;
+}
+
+.vacation-warning .warning-icon {
+  font-size: 20px;
+  margin-left: 8px;
+}
+
+.vacation-warning .warning-content {
+  font-size: 14px;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.vacation-confirm-msg {
+  display: none;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: rgba(209, 250, 229, 0.9);
+  border-radius: 10px;
+  border-right: 4px solid #10b981;
+}
+
+.vacation-confirm-msg .confirm-icon {
+  font-size: 20px;
+  margin-left: 8px;
+}
+
+.vacation-confirm-msg .confirm-content {
+  font-size: 14px;
+  font-weight: 600;
+  color: #065f46;
+}
+
+/* Success Toast */
+.success-toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 16px 28px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.success-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Button Spinner */
+.btn-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .staff-info-card {
@@ -8800,5 +9201,22 @@ details[open] > summary {
   
   .filter-row {
     grid-template-columns: 1fr;
+  }
+  
+  .status-radio-group {
+    grid-template-columns: 1fr;
+  }
+  
+  .vacation-radio-group-compact {
+    grid-template-columns: 1fr;
+  }
+  
+  .vacation-header-compact {
+    flex-direction: column;
+  }
+  
+  .vacation-balance-compact {
+    width: 100%;
+    justify-content: center;
   }
 }

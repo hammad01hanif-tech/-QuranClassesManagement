@@ -15,6 +15,7 @@ import {
   deleteDoc,
   deleteField,
   serverTimestamp,
+  Timestamp,
   onSnapshot
 } from '../firebase-config.js';
 
@@ -8338,10 +8339,13 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
               const absenceClick = isAdminMode && record.status === 'absent' ? 
                 `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'absence')" style="cursor: pointer;"` : '';
               
+              // onclick handler for editing (admin only)
+              const dateClickHandler = isAdminMode ? `onclick="window.openEditAttendanceModal('${teacherId}', '${record.date}', '${record.dayName}', ${JSON.stringify(record).replace(/"/g, '&quot;')})" style="cursor: pointer;" class="clickable-date"` : '';
+              
               return `
                 <tr class="${rowClass}" ${record.status === 'absent' ? absenceClick : ''}>
-                  <td class="date-cell">
-                    <div class="date-day">${record.dayName}</div>
+                  <td class="date-cell" ${dateClickHandler}>
+                    <div class="date-day">${record.dayName}${isAdminMode ? ' <span style="font-size:12px">✏️</span>' : ''}</div>
                     <div class="date-gregorian">${formatGregorianDate(record.date)}</div>
                   </td>
                   <td class="time-cell">${record.shiftStart}</td>
@@ -8445,6 +8449,461 @@ window.downloadAttendancePDF = function() {
   alert('⚠️ وظيفة تحميل PDF قيد التطوير');
   // TODO: Implement PDF generation using jsPDF or similar library
 };
+
+// ===== Admin: Edit/Add Attendance Record Modal =====
+window.openEditAttendanceModal = async function(staffId, date, dayName, recordData) {
+  console.log('Opening edit modal:', {staffId, date, dayName, recordData});
+  
+  // Check if admin mode
+  const isAdminMode = sessionStorage.getItem('loggedInAdmin') === 'true';
+  if (!isAdminMode) {
+    alert('⚠️ هذه الخاصية متاحة للإدارة فقط');
+    return;
+  }
+  
+  // Parse recordData if it's a string
+  const record = typeof recordData === 'string' ? JSON.parse(recordData) : recordData;
+  
+  // Get staff info
+  const staffInfo = window.staffMembersCache[staffId];
+  const staffName = staffInfo ? staffInfo.name : staffId;
+  
+  // Get vacation balance
+  const settings = await getStaffSettings(staffId);
+  const vacationDays = settings.vacationDays || { annual: 6, used: 0, remaining: 6 };
+  
+  // Determine if this is an edit (has existing record) or add (no record)
+  const isEdit = record.status !== 'not-registered';
+  const modalTitle = isEdit ? '✏️ تعديل سجل الحضور' : '➕ إضافة تسجيل حضور';
+  
+  // Extract current values (for edit mode)
+  let currentCheckIn = '';
+  let currentCheckOut = '';
+  let currentStatus = 'present';
+  let currentIsAnnualVacation = false;
+  let currentNotes = '';
+  
+  if (isEdit) {
+    if (record.status === 'present') {
+      // Extract time from "HH:MM ص/م" format
+      if (record.actualArrival && record.actualArrival !== '—') {
+        currentCheckIn = convertArabicTimeTo24Hour(record.actualArrival);
+      }
+      if (record.actualLeave && record.actualLeave !== '—') {
+        currentCheckOut = convertArabicTimeTo24Hour(record.actualLeave);
+      }
+      currentStatus = 'present';
+    } else if (record.status === 'absent' || record.status === 'annual-vacation') {
+      currentStatus = 'absent';
+      currentIsAnnualVacation = record.isAnnualVacation || false;
+      currentNotes = record.notes || '';
+    }
+  }
+  
+  // Create modal
+  const modal = document.createElement('div');
+  modal.className = 'attendance-modal edit-attendance-modal';
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="closeEditAttendanceModal()"></div>
+    <div class="modal-bottom-sheet edit-sheet">
+      <div class="modal-header">
+        <h3>${modalTitle}</h3>
+        <button class="modal-close" onclick="closeEditAttendanceModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <!-- Day Info Header -->
+        <div class="day-info-header">
+          <div class="day-info-row">
+            <span class="info-icon">👤</span>
+            <span class="info-text"><strong>${staffName}</strong></span>
+          </div>
+          <div class="day-info-row">
+            <span class="info-icon">📅</span>
+            <span class="info-text">${dayName} — ${formatGregorianDate(date)}</span>
+          </div>
+        </div>
+        
+        <!-- Status Selector -->
+        <div class="form-group">
+          <label class="form-label">📊 حالة اليوم</label>
+          <div class="status-radio-group">
+            <label class="radio-label">
+              <input type="radio" name="editStatus" value="present" ${currentStatus === 'present' ? 'checked' : ''} onchange="toggleEditStatusFields()">
+              <span class="radio-custom"></span>
+              <span class="radio-text">✅ حاضر</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="editStatus" value="absent" ${currentStatus === 'absent' ? 'checked' : ''} onchange="toggleEditStatusFields()">
+              <span class="radio-custom"></span>
+              <span class="radio-text">❌ غائب</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Present Fields (shown when status = present) -->
+        <div id="presentFields" style="display: ${currentStatus === 'present' ? 'block' : 'none'};">
+          <div class="form-group">
+            <label class="form-label">🕐 وقت الحضور ${isEdit ? '' : '<span style="color:#dc3545;">*</span>'}</label>
+            <input type="time" id="editCheckInTime" class="time-input" value="${currentCheckIn}" ${isEdit ? '' : 'required'}>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">🕐 وقت الانصراف ${isEdit ? '' : '<span style="color:#dc3545;">*</span>'}</label>
+            <input type="time" id="editCheckOutTime" class="time-input" value="${currentCheckOut}" ${isEdit ? '' : 'required'}>
+          </div>
+        </div>
+        
+        <!-- Absent Fields (shown when status = absent) -->
+        <div id="absentFields" style="display: ${currentStatus === 'absent' ? 'block' : 'none'};">
+          <!-- Annual Vacation Option -->
+          <div class="vacation-option-box">
+            <label class="form-label">🏖 هل الغياب ضمن الإجازة السنوية؟</label>
+            <div class="vacation-balance ${vacationDays.remaining === 0 ? 'vacation-depleted' : ''}">
+              <span class="vacation-icon">📅</span>
+              <span class="vacation-text">المتبقي: <strong>${vacationDays.remaining}</strong> من ${vacationDays.annual} أيام</span>
+            </div>
+            
+            <div class="vacation-radio-group">
+              <label class="vacation-radio-label">
+                <input type="radio" name="editIsVacation" value="yes" ${currentIsAnnualVacation ? 'checked' : ''} ${vacationDays.remaining === 0 ? 'disabled' : ''} onchange="toggleEditVacationWarning()">
+                <span class="radio-custom"></span>
+                <span class="radio-text">نعم (إجازة سنوية مدفوعة الأجر)</span>
+              </label>
+              <label class="vacation-radio-label">
+                <input type="radio" name="editIsVacation" value="no" ${!currentIsAnnualVacation ? 'checked' : ''} onchange="toggleEditVacationWarning()">
+                <span class="radio-custom"></span>
+                <span class="radio-text">لا (غياب عادي خاضع للخصم)</span>
+              </label>
+            </div>
+            
+            <div id="editVacationDepletedWarning" class="vacation-warning" style="display: ${vacationDays.remaining === 0 ? 'block' : 'none'};">
+              <div class="warning-icon">⚠️</div>
+              <div class="warning-content">
+                <strong>لا يوجد رصيد متبقٍ من الإجازات السنوية</strong>
+                <p>تم استنفاد جميع أيام الإجازة المسموحة لهذا العام. سيتم احتساب هذا اليوم كغياب عادي خاضع للخصم.</p>
+              </div>
+            </div>
+            
+            <div id="editVacationConfirmMsg" class="vacation-confirm-msg" style="display: ${currentIsAnnualVacation ? 'block' : 'none'};">
+              <div class="confirm-icon">✅</div>
+              <div class="confirm-content">
+                <strong>سيتم تسجيل هذا اليوم كإجازة سنوية</strong>
+                <p>• لن يتم خصم أي مبلغ من الراتب</p>
+                <p>• سيتم خصم يوم واحد من رصيد الإجازات السنوية</p>
+                <p>• الرصيد بعد الحفظ: <strong>${vacationDays.remaining - 1}</strong> أيام</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Notes (always shown) -->
+        <div class="form-group">
+          <label class="form-label">📝 ملاحظات</label>
+          <textarea id="editNotes" class="notes-textarea" placeholder="مثال: تعديل إداري، المعلم نسي التسجيل، ظرف طارئ...">${currentNotes}</textarea>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="modal-btn primary" onclick="saveEditedAttendance('${staffId}', '${date}', ${isEdit}, ${JSON.stringify(record).replace(/"/g, '&quot;')})" id="saveEditBtn">
+          <span class="btn-spinner" style="display: none;">⏳</span>
+          <span class="btn-text">💾 حفظ ${isEdit ? 'التعديلات' : 'السجل'}</span>
+        </button>
+        <button class="modal-btn secondary" onclick="closeEditAttendanceModal()">إلغاء</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  setTimeout(() => modal.classList.add('show'), 10);
+  
+  // Store modal reference
+  window._editAttendanceModal = modal;
+};
+
+// Close Edit Attendance Modal
+window.closeEditAttendanceModal = function() {
+  const modal = window._editAttendanceModal;
+  if (modal) {
+    modal.classList.remove('show');
+    setTimeout(() => modal.remove(), 300);
+    window._editAttendanceModal = null;
+  }
+};
+
+// Toggle fields based on status
+window.toggleEditStatusFields = function() {
+  const status = document.querySelector('input[name="editStatus"]:checked').value;
+  const presentFields = document.getElementById('presentFields');
+  const absentFields = document.getElementById('absentFields');
+  
+  if (status === 'present') {
+    presentFields.style.display = 'block';
+    absentFields.style.display = 'none';
+  } else {
+    presentFields.style.display = 'none';
+    absentFields.style.display = 'block';
+  }
+};
+
+// Toggle vacation warning
+window.toggleEditVacationWarning = function() {
+  const selectedValue = document.querySelector('input[name="editIsVacation"]:checked').value;
+  const confirmMsg = document.getElementById('editVacationConfirmMsg');
+  
+  if (selectedValue === 'yes') {
+    confirmMsg.style.display = 'block';
+  } else {
+    confirmMsg.style.display = 'none';
+  }
+};
+
+// Convert Arabic time format (HH:MM ص/م) to 24-hour format (HH:MM)
+function convertArabicTimeTo24Hour(arabicTime) {
+  if (!arabicTime || arabicTime === '—') return '';
+  
+  // Remove Arabic characters and trim
+  let timeStr = arabicTime.replace(/[صم]/g, '').trim();
+  const isPM = arabicTime.includes('م');
+  const isAM = arabicTime.includes('ص');
+  
+  // Extract hours and minutes
+  const [hours, minutes] = timeStr.split(':').map(str => parseInt(str.trim()));
+  
+  let finalHours = hours;
+  if (isPM && hours !== 12) {
+    finalHours = hours + 12;
+  } else if (isAM && hours === 12) {
+    finalHours = 0;
+  }
+  
+  return `${String(finalHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+// Save Edited Attendance
+window.saveEditedAttendance = async function(staffId, date, isEdit, oldRecordData) {
+  try {
+    const saveBtn = document.getElementById('saveEditBtn');
+    const spinner = saveBtn.querySelector('.btn-spinner');
+    const btnText = saveBtn.querySelector('.btn-text');
+    
+    // Show loading
+    spinner.style.display = 'inline-block';
+    btnText.textContent = 'جاري الحفظ...';
+    saveBtn.disabled = true;
+    
+    // Get form values
+    const status = document.querySelector('input[name="editStatus"]:checked').value;
+    
+    if (status === 'present') {
+      // Validate required fields for new records
+      const checkInTime = document.getElementById('editCheckInTime').value;
+      const checkOutTime = document.getElementById('editCheckOutTime').value;
+      
+      if (!isEdit && (!checkInTime || !checkOutTime)) {
+        alert('⚠️ يجب تعبئة وقت الحضور والانصراف');
+        spinner.style.display = 'none';
+        btnText.textContent = isEdit ? '💾 حفظ التعديلات' : '💾 حفظ السجل';
+        saveBtn.disabled = false;
+        return;
+      }
+      
+      // Save as present
+      await savePresentRecord(staffId, date, checkInTime, checkOutTime);
+      
+    } else {
+      // Save as absent
+      const isAnnualVacation = document.querySelector('input[name="editIsVacation"]:checked').value === 'yes';
+      const notes = document.getElementById('editNotes').value.trim();
+      
+      await saveAbsentRecord(staffId, date, isAnnualVacation, notes);
+    }
+    
+    // Close modal
+    closeEditAttendanceModal();
+    
+    // Show success message
+    alert('✅ تم حفظ التعديلات بنجاح');
+    
+    // Reload attendance report
+    const currentMonthSelector = document.getElementById('attendance-month-selector');
+    if (currentMonthSelector) {
+      const [year, month] = currentMonthSelector.value.split('-').map(Number);
+      setTimeout(() => {
+        loadAttendanceData(year, month, staffId);
+      }, 500);
+    }
+    
+  } catch (error) {
+    console.error('Error saving attendance:', error);
+    alert('❌ حدث خطأ في الحفظ: ' + error.message);
+    
+    // Reset button
+    const saveBtn = document.getElementById('saveEditBtn');
+    if (saveBtn) {
+      const spinner = saveBtn.querySelector('.btn-spinner');
+      const btnText = saveBtn.querySelector('.btn-text');
+      spinner.style.display = 'none';
+      btnText.textContent = isEdit ? '💾 حفظ التعديلات' : '💾 حفظ السجل';
+      saveBtn.disabled = false;
+    }
+  }
+};
+
+// Save Present Record (with penalty calculations)
+async function savePresentRecord(staffId, date, checkInTime, checkOutTime) {
+  // Get staff settings
+  const settings = await getStaffSettings(staffId);
+  
+  // Get prayer times for the day
+  const prayerTimes = await getPrayerTimesLocal(date);
+  if (!prayerTimes) {
+    throw new Error('لا يمكن الحصول على مواقيت الصلاة لهذا التاريخ');
+  }
+  
+  // Calculate shift times
+  const minutesAfterAsr = settings.workSchedule?.minutesAfterAsr || 15;
+  const minutesAfterIsha = settings.workSchedule?.minutesAfterIsha || 5;
+  
+  const asrTime = prayerTimes.asr;
+  const ishaTime = prayerTimes.isha;
+  
+  // Calculate expected shift times
+  const shiftStartTime = addMinutesToTime(asrTime, minutesAfterAsr);
+  const shiftEndTime = addMinutesToTime(ishaTime, minutesAfterIsha);
+  
+  // Calculate penalties
+  const lateDeduction = calculateLateDeduction(checkInTime, shiftStartTime, settings);
+  const earlyLeaveDeduction = calculateEarlyLeaveDeduction(checkOutTime, shiftEndTime, settings);
+  
+  // Get notes
+  const notes = document.getElementById('editNotes').value.trim();
+  
+  // Create attendance record
+  const docRef = doc(db, 'teacherAttendance', `${staffId}_${date}`);
+  const attendanceData = {
+    staffId: staffId,
+    date: date,
+    checkInTime: createTimestamp(date, checkInTime),
+    checkOutTime: createTimestamp(date, checkOutTime),
+    status: 'present',
+    lateDeduction: lateDeduction,
+    earlyLeaveDeduction: earlyLeaveDeduction,
+    checkInNotes: notes,
+    updatedAt: serverTimestamp(),
+    updatedBy: 'admin'
+  };
+  
+  await setDoc(docRef, attendanceData, { merge: true });
+}
+
+// Save Absent Record (with vacation handling)
+async function saveAbsentRecord(staffId, date, isAnnualVacation, notes) {
+  // Get staff settings
+  const settings = await getStaffSettings(staffId);
+  const vacationDays = settings.vacationDays || { annual: 6, used: 0, remaining: 6 };
+  
+  // Check vacation balance if trying to use annual vacation
+  if (isAnnualVacation && vacationDays.remaining <= 0) {
+    throw new Error('لا يوجد رصيد متبقٍ من الإجازات السنوية');
+  }
+  
+  // Calculate absence deduction
+  let absenceDeduction = 0;
+  if (!isAnnualVacation) {
+    // Calculate based on settings
+    const monthlySalary = settings.salary || 3000;
+    const daysInMonth = 30; // Standard calculation
+    absenceDeduction = monthlySalary / daysInMonth;
+  }
+  
+  // Create attendance record
+  const docRef = doc(db, 'teacherAttendance', `${staffId}_${date}`);
+  const attendanceData = {
+    staffId: staffId,
+    date: date,
+    status: 'absent',
+    isAnnualVacation: isAnnualVacation,
+    absenceDeduction: absenceDeduction,
+    absentReason: notes || (isAnnualVacation ? 'إجازة سنوية' : 'غياب'),
+    updatedAt: serverTimestamp(),
+    updatedBy: 'admin'
+  };
+  
+  await setDoc(docRef, attendanceData, { merge: true });
+  
+  // Update vacation balance if annual vacation
+  if (isAnnualVacation) {
+    const staffSettingsRef = doc(db, 'staffSettings', staffId);
+    await updateDoc(staffSettingsRef, {
+      'vacationDays.used': vacationDays.used + 1,
+      'vacationDays.remaining': vacationDays.remaining - 1,
+      updatedAt: serverTimestamp()
+    });
+  }
+}
+
+// Helper: Add minutes to time string (HH:MM format)
+function addMinutesToTime(timeStr, minutes) {
+  const [hours, mins] = timeStr.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours, mins + minutes, 0, 0);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+// Helper: Create Firestore Timestamp from date and time
+function createTimestamp(dateStr, timeStr) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const date = new Date(year, month - 1, day, hours, minutes, 0);
+  return Timestamp.fromDate(date);
+}
+
+// Helper: Calculate late deduction
+function calculateLateDeduction(actualTime, expectedTime, settings) {
+  const graceMinutes = settings.penaltyRules?.lateGracePeriod || 10;
+  const penaltyPerInterval = settings.penaltyRules?.latePenaltyAmount || 5;
+  const penaltyInterval = settings.penaltyRules?.latePenaltyInterval || 30;
+  
+  const lateMinutes = getTimeDifferenceInMinutes(expectedTime, actualTime);
+  
+  if (lateMinutes <= graceMinutes) return 0;
+  
+  const penalizableMinutes = lateMinutes - graceMinutes;
+  const intervals = Math.ceil(penalizableMinutes / penaltyInterval);
+  
+  return intervals * penaltyPerInterval;
+}
+
+// Helper: Calculate early leave deduction
+function calculateEarlyLeaveDeduction(actualTime, expectedTime, settings) {
+  const graceMinutes = settings.penaltyRules?.earlyLeaveGracePeriod || 5;
+  const penaltyPerInterval = settings.penaltyRules?.earlyLeavePenaltyAmount || 10;
+  const penaltyInterval = settings.penaltyRules?.earlyLeavePenaltyInterval || 30;
+  
+  const earlyMinutes = getTimeDifferenceInMinutes(actualTime, expectedTime);
+  
+  if (earlyMinutes <= graceMinutes) return 0;
+  
+  const penalizableMinutes = earlyMinutes - graceMinutes;
+  const intervals = Math.ceil(penalizableMinutes / penaltyInterval);
+  
+  return intervals * penaltyPerInterval;
+}
+
+// Helper: Get time difference in minutes
+function getTimeDifferenceInMinutes(time1, time2) {
+  const [h1, m1] = time1.split(':').map(Number);
+  const [h2, m2] = time2.split(':').map(Number);
+  
+  const totalMinutes1 = h1 * 60 + m1;
+  const totalMinutes2 = h2 * 60 + m2;
+  
+  return Math.abs(totalMinutes2 - totalMinutes1);
+}
+
+// Import Timestamp from firebase
+import { Timestamp } from '../firebase-config.js';
 
 // Load Reports Section
 function loadTeacherReportsSection(container) {
@@ -9598,5 +10057,400 @@ function updateTeacherDateTime() {
 // Start date/time updater
 setInterval(updateTeacherDateTime, 1000);
 updateTeacherDateTime();
+
+// ============================================
+// تعديل/إضافة سجل الحضور (للإدارة فقط)
+// ============================================
+
+/**
+ * فتح نافذة تعديل/إضافة سجل الحضور
+ * @param {string} staffId - معرف الموظف
+ * @param {string} date - تاريخ اليوم (YYYY-MM-DD)
+ * @param {string} dayName - اسم اليوم
+ * @param {object} record - سجل الحضور الحالي (إن وجد)
+ */
+window.openEditAttendanceModal = async function(staffId, date, dayName, record) {
+  // التحقق من صلاحية الإدارة
+  const isAdmin = sessionStorage.getItem('loggedInAdmin') === 'true';
+  if (!isAdmin) {
+    alert('⚠️ هذه الخاصية متاحة للإدارة فقط');
+    return;
+  }
+  
+  // Get staff settings for vacation balance
+  const settings = await getStaffSettings(staffId);
+  const vacationDays = settings.vacationDays || { annual: 6, used: 0, remaining: 6 };
+  
+  // تحديد نوع النافذة: تعديل أم إضافة
+  const isEdit = record && record.status !== 'not-registered' && record.status !== 'holiday';
+  const title = isEdit ? 'تعديل سجل الحضور' : 'إضافة تسجيل حضور';
+  const icon = isEdit ? '✏️' : '➕';
+  
+  // قيم افتراضية من السجل الحالي
+  let defaultCheckIn = '';
+  let defaultCheckOut = '';
+  let defaultStatus = 'present';
+  let defaultIsAnnualVacation = false;
+  let defaultNotes = '';
+  
+  if (isEdit && record.status === 'present') {
+    // تحويل الوقت من النص إلى HH:MM format
+    defaultCheckIn = convertTimeToInput(record.actualArrival);
+    defaultCheckOut = convertTimeToInput(record.actualLeave);
+    defaultStatus = 'present';
+    defaultNotes = record.notes !== '—' ? record.notes : '';
+  } else if (isEdit && (record.status === 'absent' || record.status === 'annual-vacation')) {
+    defaultStatus = 'absent';
+    defaultIsAnnualVacation = record.status === 'annual-vacation' || record.isAnnualVacation || false;
+    defaultNotes = record.notes !== '—' ? record.notes : '';
+  }
+  
+  // إنشاء Modal
+  const modal = document.createElement('div');
+  modal.className = 'attendance-modal edit-attendance-modal';
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="closeEditAttendanceModal()"></div>
+    <div class="modal-bottom-sheet">
+      <div class="modal-header admin-edit-header">
+        <div class="header-content">
+          <h3>${icon} ${title}</h3>
+          <div class="header-subtitle">${dayName} — ${formatGregorianDate(date)}</div>
+        </div>
+        <button class="modal-close" onclick="closeEditAttendanceModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <!-- حالة اليوم -->
+        <div class="form-section">
+          <label class="form-label">
+            <span class="label-icon">📋</span>
+            <span class="label-text">حالة اليوم</span>
+          </label>
+          <div class="status-radio-group">
+            <label class="status-radio-label">
+              <input type="radio" name="dayStatus" value="present" ${defaultStatus === 'present' ? 'checked' : ''} onchange="toggleStatusFields()">
+              <span class="radio-custom"></span>
+              <span class="radio-text">✅ حاضر</span>
+            </label>
+            <label class="status-radio-label">
+              <input type="radio" name="dayStatus" value="absent" ${defaultStatus === 'absent' ? 'checked' : ''} onchange="toggleStatusFields()">
+              <span class="radio-custom"></span>
+              <span class="radio-text">❌ غائب</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- حقول الحضور (تظهر فقط إذا كان حاضر) -->
+        <div id="presenceFields" style="display: ${defaultStatus === 'present' ? 'block' : 'none'}">
+          <div class="form-section">
+            <label class="form-label required">
+              <span class="label-icon">🕐</span>
+              <span class="label-text">وقت الحضور</span>
+            </label>
+            <input type="time" id="editCheckInTime" class="time-input-field" value="${defaultCheckIn}" required>
+          </div>
+          
+          <div class="form-section">
+            <label class="form-label required">
+              <span class="label-icon">📤</span>
+              <span class="label-text">وقت الانصراف</span>
+            </label>
+            <input type="time" id="editCheckOutTime" class="time-input-field" value="${defaultCheckOut}" required>
+          </div>
+        </div>
+        
+        <!-- حقول الغياب (تظهر فقط إذا كان غائب) -->
+        <div id="absenceFields" style="display: ${defaultStatus === 'absent' ? 'block' : 'none'}">
+          <div class="form-section vacation-option-section">
+            <div class="vacation-header-compact">
+              <label class="form-label">
+                <span class="label-icon">🏖</span>
+                <span class="label-text">هل الغياب ضمن الإجازة السنوية؟</span>
+              </label>
+              <div class="vacation-balance-compact ${vacationDays.remaining === 0 ? 'vacation-depleted' : ''}">
+                <span class="vacation-icon">📅</span>
+                <span class="vacation-text">المتبقي: <strong>${vacationDays.remaining}</strong>/${vacationDays.annual}</span>
+              </div>
+            </div>
+            
+            <div class="vacation-radio-group-compact">
+              <label class="vacation-radio-label">
+                <input type="radio" name="vacationType" value="yes" ${defaultIsAnnualVacation ? 'checked' : ''} ${vacationDays.remaining === 0 ? 'disabled' : ''} onchange="toggleVacationWarning()">
+                <span class="radio-custom"></span>
+                <span class="radio-text">نعم (إجازة سنوية)</span>
+              </label>
+              <label class="vacation-radio-label">
+                <input type="radio" name="vacationType" value="no" ${!defaultIsAnnualVacation ? 'checked' : ''} onchange="toggleVacationWarning()">
+                <span class="radio-custom"></span>
+                <span class="radio-text">لا (غياب عادي)</span>
+              </label>
+            </div>
+            
+            ${vacationDays.remaining === 0 ? `
+              <div class="vacation-warning" style="display: block;">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-content">لا يوجد رصيد متبقٍ من الإجازات السنوية</div>
+              </div>
+            ` : `
+              <div id="vacationConfirmMsg" class="vacation-confirm-msg" style="display: ${defaultIsAnnualVacation ? 'block' : 'none'};">
+                <div class="confirm-icon">✅</div>
+                <div class="confirm-content">سيتم احتساب هذا اليوم كإجازة سنوية مدفوعة الأجر</div>
+              </div>
+            `}
+          </div>
+        </div>
+        
+        <!-- الملاحظات -->
+        <div class="form-section">
+          <label class="form-label">
+            <span class="label-icon">📝</span>
+            <span class="label-text">الملاحظات</span>
+          </label>
+          <textarea id="editNotes" class="notes-textarea-field" placeholder="مثال: تعديل إداري، المعلم نسي التسجيل، ظرف طارئ...">${defaultNotes}</textarea>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="modal-btn primary" onclick="saveEditedAttendance('${staffId}', '${date}')" id="saveEditBtn">
+          <span class="btn-spinner" style="display: none;">⏳</span>
+          <span class="btn-text">💾 حفظ التعديلات</span>
+        </button>
+        <button class="modal-btn secondary" onclick="closeEditAttendanceModal()">إلغاء</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  setTimeout(() => modal.classList.add('show'), 10);
+  
+  // تخزين البيانات للاستخدام لاحقاً
+  window._editAttendanceData = {
+    staffId,
+    date,
+    dayName,
+    originalRecord: record,
+    vacationDays
+  };
+};
+
+/**
+ * تبديل عرض الحقول حسب حالة اليوم
+ */
+window.toggleStatusFields = function() {
+  const selectedStatus = document.querySelector('input[name="dayStatus"]:checked').value;
+  const presenceFields = document.getElementById('presenceFields');
+  const absenceFields = document.getElementById('absenceFields');
+  
+  if (selectedStatus === 'present') {
+    presenceFields.style.display = 'block';
+    absenceFields.style.display = 'none';
+  } else {
+    presenceFields.style.display = 'none';
+    absenceFields.style.display = 'block';
+  }
+};
+
+/**
+ * تبديل رسالة تأكيد الإجازة
+ */
+window.toggleVacationWarning = function() {
+  const vacationType = document.querySelector('input[name="vacationType"]:checked')?.value;
+  const confirmMsg = document.getElementById('vacationConfirmMsg');
+  
+  if (confirmMsg) {
+    confirmMsg.style.display = vacationType === 'yes' ? 'block' : 'none';
+  }
+};
+
+/**
+ * حفظ التعديلات
+ */
+window.saveEditedAttendance = async function(staffId, date) {
+  const btn = document.getElementById('saveEditBtn');
+  const btnText = btn.querySelector('.btn-text');
+  const btnSpinner = btn.querySelector('.btn-spinner');
+  
+  try {
+    // إظهار loading
+    btn.disabled = true;
+    btnSpinner.style.display = 'inline-block';
+    btnText.style.display = 'none';
+    
+    const selectedStatus = document.querySelector('input[name="dayStatus"]:checked').value;
+    const notes = document.getElementById('editNotes').value.trim();
+    
+    const docRef = doc(db, 'teacherAttendance', `${staffId}_${date}`);
+    
+    if (selectedStatus === 'present') {
+      // حالة حاضر
+      const checkInTime = document.getElementById('editCheckInTime').value;
+      const checkOutTime = document.getElementById('editCheckOutTime').value;
+      
+      // التحقق من ملء الحقول
+      if (!checkInTime || !checkOutTime) {
+        alert('⚠️ يرجى تعبئة وقت الحضور والانصراف');
+        return;
+      }
+      
+      // تحويل الأوقات إلى Timestamp
+      const checkInDate = new Date(date + 'T' + checkInTime + ':00');
+      const checkOutDate = new Date(date + 'T' + checkOutTime + ':00');
+      
+      // حساب الخصميات (سيتم تنفيذه لاحقاً في الـ backend)
+      // هنا نحفظ البيانات الأساسية فقط
+      
+      const attendanceData = {
+        teacherId: staffId,
+        staffId: staffId,
+        date: date,
+        gregorianDate: date,
+        checkInTime: Timestamp.fromDate(checkInDate),
+        checkOutTime: Timestamp.fromDate(checkOutDate),
+        status: 'present',
+        checkInNotes: notes,
+        lateDeduction: 0, // TODO: حساب تلقائي
+        earlyLeaveDeduction: 0, // TODO: حساب تلقائي
+        absenceDeduction: 0,
+        updatedAt: serverTimestamp(),
+        updatedBy: 'admin',
+        editedManually: true
+      };
+      
+      await setDoc(docRef, attendanceData, { merge: true });
+      
+    } else {
+      // حالة غائب
+      const isAnnualVacation = document.querySelector('input[name="vacationType"]:checked')?.value === 'yes';
+      
+      // التحقق من رصيد الإجازات
+      if (isAnnualVacation) {
+        const editData = window._editAttendanceData;
+        if (editData.vacationDays.remaining <= 0) {
+          alert('⚠️ لا يوجد رصيد كافٍ من الإجازات السنوية');
+          return;
+        }
+      }
+      
+      const attendanceData = {
+        teacherId: staffId,
+        staffId: staffId,
+        date: date,
+        gregorianDate: date,
+        status: 'absent',
+        isAnnualVacation: isAnnualVacation,
+        absentReason: notes || (isAnnualVacation ? 'إجازة سنوية معتمدة' : 'غياب'),
+        checkInTime: null,
+        checkOutTime: null,
+        lateDeduction: 0,
+        earlyLeaveDeduction: 0,
+        absenceDeduction: isAnnualVacation ? 0 : 0, // TODO: حساب تلقائي
+        updatedAt: serverTimestamp(),
+        updatedBy: 'admin',
+        editedManually: true
+      };
+      
+      await setDoc(docRef, attendanceData, { merge: true });
+      
+      // تحديث رصيد الإجازات إذا كانت إجازة سنوية
+      if (isAnnualVacation) {
+        const settingsRef = doc(db, 'staffSettings', staffId);
+        const currentSettings = await getDoc(settingsRef);
+        
+        if (currentSettings.exists()) {
+          const currentVacation = currentSettings.data().vacationDays || { annual: 6, used: 0, remaining: 6 };
+          await updateDoc(settingsRef, {
+            'vacationDays.used': currentVacation.used + 1,
+            'vacationDays.remaining': Math.max(0, currentVacation.remaining - 1),
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+    }
+    
+    // إغلاق النافذة
+    closeEditAttendanceModal();
+    
+    // إظهار رسالة نجاح
+    showSuccessMessage('✅ تم حفظ التعديلات بنجاح');
+    
+    // إعادة تحميل التقرير
+    setTimeout(() => {
+      if (window.viewStaffAttendanceReport) {
+        window.viewStaffAttendanceReport();
+      }
+    }, 500);
+    
+  } catch (error) {
+    console.error('Error saving attendance:', error);
+    alert('حدث خطأ في الحفظ: ' + error.message);
+  } finally {
+    // إخفاء loading
+    btn.disabled = false;
+    btnSpinner.style.display = 'none';
+    btnText.style.display = 'inline-block';
+  }
+};
+
+/**
+ * إغلاق نافذة التعديل
+ */
+window.closeEditAttendanceModal = function() {
+  const modal = document.querySelector('.edit-attendance-modal');
+  if (modal) {
+    modal.classList.remove('show');
+    setTimeout(() => {
+      modal.remove();
+      window._editAttendanceData = null;
+    }, 300);
+  }
+};
+
+/**
+ * تحويل وقت من نص عربي إلى HH:MM format
+ */
+function convertTimeToInput(timeStr) {
+  if (!timeStr || timeStr === '—' || timeStr === 'غائب' || timeStr.includes('إجازة')) {
+    return '';
+  }
+  
+  // إزالة AM/PM بالعربي
+  timeStr = timeStr.replace(/ص|م/g, '').trim();
+  
+  // استخراج الساعات والدقائق
+  const match = timeStr.match(/(\d{1,2}):(\d{2})/);
+  if (match) {
+    let hours = parseInt(match[1]);
+    const minutes = match[2];
+    
+    // تحويل إلى 24 ساعة (الأوقات عادة مسائية)
+    // هذا تخمين - قد يحتاج تحسين
+    if (hours < 12) {
+      hours += 12;
+    }
+    
+    return `${String(hours).padStart(2, '0')}:${minutes}`;
+  }
+  
+  return '';
+}
+
+/**
+ * عرض رسالة نجاح
+ */
+function showSuccessMessage(message) {
+  const toast = document.createElement('div');
+  toast.className = 'success-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+  
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
 
 console.log('✅ New teacher design functions loaded');
