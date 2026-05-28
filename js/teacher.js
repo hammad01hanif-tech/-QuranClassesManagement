@@ -22,7 +22,7 @@ import { quranSurahs } from './quran-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, gregorianToHijri, isTodayAStudyDay } from './hijri-date.js';
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
 import { accurateHijriDates } from './accurate-hijri-dates.js';
-import { getMonthlyReport, countStudyDays, getAllWorkingDaysInMonth } from './study-days-calendar.js';
+import { getMonthlyReport, countStudyDays, getAllWorkingDaysInMonth, getDayInfo, isWeekend, isOfficialHoliday } from './study-days-calendar.js';
 import { getTodayPrayerTimes, getPrayerTimesLocal } from './prayer-times-local.js';
 
 // ✅ نظام Cache بسيط لتقليل القراءات من Firestore
@@ -8883,8 +8883,85 @@ function parseArabicTime(timeStr) {
   return date;
 }
 
+// ===== عرض رسالة تنبيه عند محاولة التسجيل في يوم غير مسموح =====
+function showDayTypeWarningModal(options) {
+  const modal = document.createElement('div');
+  modal.className = 'attendance-modal day-warning-modal';
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="closeDayWarningModal()"></div>
+    <div class="modal-bottom-sheet">
+      <div class="warning-header ${options.type}">
+        <div class="warning-icon-large">${options.icon}</div>
+        <h2 class="warning-title">${options.title}</h2>
+      </div>
+      
+      <div class="modal-body">
+        <div class="warning-message-box">
+          <div class="warning-message-main">${options.message}</div>
+          ${options.subtitle ? `<div class="warning-message-sub">${options.subtitle}</div>` : ''}
+        </div>
+        
+        <div class="study-days-info">
+          <div class="info-icon">📅</div>
+          <div class="info-text">
+            <div class="info-title">أيام الدراسة:</div>
+            <div class="info-value">الأحد • الإثنين • الثلاثاء • الأربعاء • الخميس</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="modal-btn primary" onclick="closeDayWarningModal()">
+          <span class="btn-text">حسناً، فهمت</span>
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  setTimeout(() => modal.classList.add('show'), 10);
+}
+
+// Close day warning modal
+window.closeDayWarningModal = function() {
+  const modal = document.querySelector('.day-warning-modal');
+  if (modal) {
+    modal.classList.remove('show');
+    setTimeout(() => modal.remove(), 300);
+  }
+};
+
 // Show check-in modal
 window.showCheckInModal = function() {
+  // ===== التحقق من نوع اليوم قبل السماح بالتسجيل =====
+  const today = new Date();
+  const todayInfo = getDayInfo(today);
+  
+  // 🚫 فحص: هل اليوم ويكند (جمعة أو سبت)؟
+  if (todayInfo.isWeekend) {
+    showDayTypeWarningModal({
+      icon: '🏖️',
+      title: 'اليوم إجازة أسبوعية',
+      message: 'لا يمكن تسجيل الحضور في أيام الجمعة والسبت',
+      subtitle: 'التحضير متاح فقط من الأحد إلى الخميس',
+      type: 'weekend'
+    });
+    return;
+  }
+  
+  // 🚫 فحص: هل اليوم إجازة رسمية؟
+  if (todayInfo.isOfficialHoliday) {
+    showDayTypeWarningModal({
+      icon: '🎉',
+      title: 'اليوم إجازة رسمية',
+      message: `الآن فترة إجازة ${todayInfo.holidayInfo.name}`,
+      subtitle: `من ${todayInfo.holidayInfo.startGregorian} إلى ${todayInfo.holidayInfo.endGregorian}`,
+      type: 'holiday'
+    });
+    return;
+  }
+  
+  // ✅ اليوم يوم دراسة عادي - افتح المودل
   const modal = document.createElement('div');
   modal.className = 'attendance-modal';
   modal.innerHTML = `
