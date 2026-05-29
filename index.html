@@ -1281,19 +1281,19 @@
               </button>
             </div>
 
-            <!-- Staff Info Card (Shows after selection) -->
-            <div class="staff-info-card" id="staffInfoCard" style="display: none;">
-              <div class="staff-avatar">
-                <span id="staffAvatarIcon">👨‍🏫</span>
+            <!-- Staff Settings Card (Shows after selection) -->
+            <div class="staff-settings-card-admin" id="staffInfoCard" style="display: none;" onclick="window.openStaffSettingsFromAdmin()">
+              <div class="settings-card-icon">⚙️</div>
+              <div class="settings-card-content">
+                <h4 class="settings-card-title">إعدادات بيانات الحضور والانصراف</h4>
+                <p class="settings-card-description">إدارة الراتب، أوقات الدوام، الخصميات، والإجازات</p>
+                <div class="settings-card-staff-info">
+                  <span class="staff-badge" id="staffNameDisplay">--</span>
+                  <span class="staff-badge" id="staffRoleDisplay">--</span>
+                  <span class="staff-badge salary" id="staffSalaryDisplay">--</span>
+                </div>
               </div>
-              <div class="staff-details">
-                <h3 class="staff-name" id="staffNameDisplay">--</h3>
-                <p class="staff-role" id="staffRoleDisplay">--</p>
-              </div>
-              <div class="staff-salary">
-                <div class="salary-label">الراتب الشهري</div>
-                <div class="salary-value" id="staffSalaryDisplay">--</div>
-              </div>
+              <div class="settings-card-arrow">◀</div>
             </div>
 
             <!-- Empty State (Before selection) -->

@@ -9335,8 +9335,7 @@ window.loadStaffAttendanceData = async function() {
     console.error('Error fetching salary:', error);
   }
   
-  // Update staff info card
-  document.getElementById('staffAvatarIcon').textContent = roleIcon;
+  // Update staff settings card
   document.getElementById('staffNameDisplay').textContent = staffName;
   document.getElementById('staffRoleDisplay').textContent = roleText;
   document.getElementById('staffSalaryDisplay').textContent = `${salary} ريال`;
@@ -9346,6 +9345,22 @@ window.loadStaffAttendanceData = async function() {
   window.currentStaffId = staffId;
   window.currentStaffName = staffName;
   window.currentStaffSalary = salary;
+};
+
+// Open Staff Settings Modal from Admin Section
+window.openStaffSettingsFromAdmin = function() {
+  const staffId = window.currentStaffId;
+  if (!staffId) {
+    alert('الرجاء اختيار موظف أولاً');
+    return;
+  }
+  
+  // Call the staff settings modal
+  if (window.openStaffSettingsModal) {
+    window.openStaffSettingsModal(staffId);
+  } else {
+    alert('وظيفة الإعدادات غير متاحة');
+  }
 };
 
 // View Staff Attendance Report (Open Modal)
@@ -9747,12 +9762,22 @@ window.openStaffSettingsModal = async function(staffId) {
                 </div>
               </div>
               
+              <!-- حقل تعديل الأيام المستخدمة (للمدير فقط) -->
+              <div class="form-group">
+                <label class="form-label">
+                  <span class="label-icon">✏️</span>
+                  <span class="label-text">عدد الأيام المستخدمة</span>
+                </label>
+                <input type="number" id="vacationUsedDays" class="form-input" value="${settings.vacationDays?.used || 0}" min="0" max="6" onchange="updateVacationPreview()">
+                <p class="input-hint">💡 يمكن للمدير تعديل الأيام المستخدمة يدوياً</p>
+              </div>
+              
               <div class="vacation-stats-grid">
                 <div class="vacation-stat-card">
                   <div class="vacation-stat-icon">📅</div>
                   <div class="vacation-stat-content">
                     <div class="vacation-stat-label">إجمالي أيام الإجازة السنوية</div>
-                    <div class="vacation-stat-value">${settings.vacationDays?.annual || 6} أيام</div>
+                    <div class="vacation-stat-value" id="vacationAnnualPreview">${settings.vacationDays?.annual || 6} أيام</div>
                   </div>
                 </div>
                 
@@ -9760,15 +9785,15 @@ window.openStaffSettingsModal = async function(staffId) {
                   <div class="vacation-stat-icon">📊</div>
                   <div class="vacation-stat-content">
                     <div class="vacation-stat-label">الأيام المستخدمة</div>
-                    <div class="vacation-stat-value">${settings.vacationDays?.used || 0} أيام</div>
+                    <div class="vacation-stat-value" id="vacationUsedPreview">${settings.vacationDays?.used || 0} أيام</div>
                   </div>
                 </div>
                 
-                <div class="vacation-stat-card remaining ${(settings.vacationDays?.remaining || 6) === 0 ? 'depleted' : ''}">
+                <div class="vacation-stat-card remaining" id="vacationRemainingCard">
                   <div class="vacation-stat-icon">🎯</div>
                   <div class="vacation-stat-content">
                     <div class="vacation-stat-label">الرصيد المتبقي</div>
-                    <div class="vacation-stat-value">${settings.vacationDays?.remaining || 6} أيام</div>
+                    <div class="vacation-stat-value" id="vacationRemainingPreview">${settings.vacationDays?.remaining || 6} أيام</div>
                   </div>
                 </div>
               </div>
@@ -9818,6 +9843,26 @@ window.toggleEarlyLeaveFields = function() {
 };
 
 /**
+ * Update vacation preview when used days change
+ */
+window.updateVacationPreview = function() {
+  const usedDays = parseInt(document.getElementById('vacationUsedDays').value) || 0;
+  const annualDays = 6;
+  const remainingDays = Math.max(0, annualDays - usedDays);
+  
+  // Update preview cards
+  document.getElementById('vacationUsedPreview').textContent = usedDays + ' أيام';
+  document.getElementById('vacationRemainingPreview').textContent = remainingDays + ' أيام';
+  
+  // Update card style based on remaining days
+  const remainingCard = document.getElementById('vacationRemainingCard');
+  remainingCard.classList.remove('depleted');
+  if (remainingDays === 0) {
+    remainingCard.classList.add('depleted');
+  }
+};
+
+/**
  * Close staff settings modal
  */
 window.closeStaffSettingsModal = function() {
@@ -9861,8 +9906,8 @@ window.saveStaffSettings = async function(staffId, staffName) {
       },
       vacationDays: {
         annual: 6,
-        used: (await getDoc(doc(db, 'staffSettings', staffId))).data()?.vacationDays?.used || 0,
-        remaining: 6 - ((await getDoc(doc(db, 'staffSettings', staffId))).data()?.vacationDays?.used || 0)
+        used: parseInt(document.getElementById('vacationUsedDays').value) || 0,
+        remaining: 6 - (parseInt(document.getElementById('vacationUsedDays').value) || 0)
       },
       updatedAt: serverTimestamp(),
       updatedBy: 'admin'

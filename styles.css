@@ -8449,6 +8449,80 @@ details[open] > summary {
   color: white;
 }
 
+/* Staff Settings Card in Admin Section */
+.staff-settings-card-admin {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 2px solid #d1d5db;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.staff-settings-card-admin:hover {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+}
+
+.staff-settings-card-admin .settings-card-icon {
+  font-size: 48px;
+  flex-shrink: 0;
+}
+
+.staff-settings-card-admin .settings-card-content {
+  flex: 1;
+}
+
+.staff-settings-card-admin .settings-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.staff-settings-card-admin .settings-card-description {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 12px 0;
+}
+
+.staff-settings-card-staff-info {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.staff-settings-card-admin .staff-badge {
+  padding: 4px 12px;
+  background: #e0f2fe;
+  color: #0369a1;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.staff-settings-card-admin .staff-badge.salary {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.staff-settings-card-admin .settings-card-arrow {
+  font-size: 24px;
+  color: #9ca3af;
+  transition: all 0.3s ease;
+}
+
+.staff-settings-card-admin:hover .settings-card-arrow {
+  color: #3b82f6;
+  transform: translateX(-5px);
+}
+
 .staff-avatar {
   background: rgba(255, 255, 255, 0.2);
   width: 60px;
