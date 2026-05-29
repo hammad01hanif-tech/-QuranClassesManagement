@@ -8411,6 +8411,18 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
         </div>
       </div>
     </div>
+    
+    <!-- زر إعدادات بيانات الحضور (للإدارة فقط) -->
+    ${sessionStorage.getItem('loggedInAdmin') === 'true' ? `
+      <div class="staff-settings-card" onclick="window.openStaffSettingsModal('${teacherId}')">
+        <div class="settings-card-icon">⚙️</div>
+        <div class="settings-card-content">
+          <h4 class="settings-card-title">إعدادات بيانات الحضور والانصراف</h4>
+          <p class="settings-card-description">إدارة الراتب، أوقات الدوام، الخصميات، والإجازات</p>
+        </div>
+        <div class="settings-card-arrow">◀</div>
+      </div>
+    ` : ''}
   `;
   
     // Hide loading, show table

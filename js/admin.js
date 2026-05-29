@@ -9500,9 +9500,444 @@ window.updatePenaltyStatus = async function(staffId, date, type, status) {
     
   } catch (error) {
     console.error('Error updating penalty status:', error);
-    alert('��� ��� �� �������');
+    alert('حدث خطأ في التحديث');
   }
 };
 
-console.log('? Staff Attendance functions loaded');
+// ============================================
+// إعدادات بيانات الحضور والانصراف (Staff Settings Modal)
+// ============================================
+
+/**
+ * فتح نافذة إعدادات بيانات الحضور والانصراف
+ * @param {string} staffId - معرف الموظف
+ */
+window.openStaffSettingsModal = async function(staffId) {
+  try {
+    // جلب بيانات الموظف الأساسية
+    const classDoc = await getDoc(doc(db, 'classes', staffId));
+    if (!classDoc.exists()) {
+      alert('⚠️ لم يتم العثور على بيانات الموظف');
+      return;
+    }
+    
+    const classData = classDoc.data();
+    const staffName = classData.teacherName || classData.presenterName || classData.adminName || 'غير محدد';
+    const staffRole = classData.role || 'teacher';
+    
+    // تحديد نوع الوظيفة بالعربي
+    const roleLabels = {
+      'teacher': '👨‍🏫 معلم',
+      'viewer': '👁️ عارض', 
+      'admin': '⚙️ إداري',
+      'presenter': '🎤 مقدم'
+    };
+    const roleLabel = roleLabels[staffRole] || '❓ ' + staffRole;
+    
+    // جلب الإعدادات الحالية
+    const settingsDoc = await getDoc(doc(db, 'staffSettings', staffId));
+    const hasSettings = settingsDoc.exists();
+    const settings = hasSettings ? settingsDoc.data() : getDefaultStaffSettings();
+    
+    // إنشاء Modal
+    const modal = document.createElement('div');
+    modal.className = 'staff-settings-modal';
+    modal.innerHTML = `
+      <div class="modal-overlay" onclick="closeStaffSettingsModal()"></div>
+      <div class="staff-settings-sheet">
+        <!-- Header -->
+        <div class="settings-sheet-header">
+          <div class="settings-header-content">
+            <h2>⚙️ إعدادات بيانات الحضور والانصراف</h2>
+            <p class="settings-header-subtitle">إدارة شاملة لجميع إعدادات الموظف</p>
+          </div>
+          <button class="settings-close-btn" onclick="closeStaffSettingsModal()">✕</button>
+        </div>
+        
+        <!-- Body -->
+        <div class="settings-sheet-body">
+          <!-- بطاقة معلومات الموظف -->
+          <div class="staff-info-card-settings">
+            <div class="staff-avatar">
+              ${staffRole === 'teacher' ? '👨‍🏫' : staffRole === 'viewer' ? '👁️' : '⚙️'}
+            </div>
+            <div class="staff-details">
+              <h3 class="staff-name">${staffName}</h3>
+              <div class="staff-meta">
+                <span class="staff-id-badge">🆔 ${staffId}</span>
+                <span class="staff-role-badge">${roleLabel}</span>
+              </div>
+            </div>
+            <div class="staff-status-badge ${hasSettings ? 'configured' : 'needs-review'}">
+              ${hasSettings ? '✅ مُعدّ' : '⚠️ يحتاج مراجعة'}
+            </div>
+          </div>
+          
+          <!-- Form -->
+          <form id="staffSettingsForm" class="settings-form">
+            <!-- القسم 1: الراتب الشهري -->
+            <div class="settings-section">
+              <div class="section-header-icon">
+                <span class="section-icon">💰</span>
+                <h4 class="section-title">الراتب الشهري</h4>
+              </div>
+              <div class="form-group">
+                <label class="form-label">
+                  <span class="label-icon">💵</span>
+                  <span class="label-text">الراتب الشهري (ريال)</span>
+                </label>
+                <input type="number" id="monthlySalary" class="form-input" value="${settings.salary || 3000}" min="0" step="100" required>
+                <p class="input-hint">💡 الراتب الأساسي قبل الخصومات</p>
+              </div>
+            </div>
+            
+            <!-- القسم 2: أوقات الدوام -->
+            <div class="settings-section">
+              <div class="section-header-icon">
+                <span class="section-icon">⏰</span>
+                <h4 class="section-title">أوقات الدوام</h4>
+              </div>
+              
+              <div class="form-group-row">
+                <div class="form-group">
+                  <label class="form-label">
+                    <span class="label-icon">🕌</span>
+                    <span class="label-text">بداية الدوام</span>
+                  </label>
+                  <div class="input-with-suffix">
+                    <input type="number" id="minutesAfterAsr" class="form-input" value="${settings.workSchedule?.minutesAfterAsr || 15}" min="0" max="120" required>
+                    <span class="input-suffix">دقيقة بعد العصر</span>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">
+                    <span class="label-icon">🌙</span>
+                    <span class="label-text">نهاية الدوام</span>
+                  </label>
+                  <div class="input-with-suffix">
+                    <input type="number" id="minutesAfterIsha" class="form-input" value="${settings.workSchedule?.minutesAfterIsha || 5}" min="0" max="120" required>
+                    <span class="input-suffix">دقيقة بعد العشاء</span>
+                  </div>
+                </div>
+              </div>
+              <p class="input-hint">💡 يتم حساب مواعيد الدوام تلقائياً حسب مواقيت الصلاة</p>
+            </div>
+            
+            <!-- القسم 3: خصمية التأخير -->
+            <div class="settings-section">
+              <div class="section-header-icon">
+                <span class="section-icon">📉</span>
+                <h4 class="section-title">خصمية التأخير</h4>
+              </div>
+              
+              <div class="form-group-row">
+                <div class="form-group">
+                  <label class="form-label">
+                    <span class="label-icon">💸</span>
+                    <span class="label-text">قيمة الخصم (ريال)</span>
+                  </label>
+                  <input type="number" id="latePenaltyAmount" class="form-input" value="${settings.penaltyRules?.latePenaltyAmount || 5}" min="0" step="1" required>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">
+                    <span class="label-icon">⏱</span>
+                    <span class="label-text">كل كم دقيقة</span>
+                  </label>
+                  <input type="number" id="latePenaltyInterval" class="form-input" value="${settings.penaltyRules?.latePenaltyInterval || 30}" min="1" max="120" required>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">
+                  <span class="label-icon">🚫</span>
+                  <span class="label-text">الحد الأقصى للخصم اليومي (ريال)</span>
+                </label>
+                <input type="number" id="lateDailyMaxPenalty" class="form-input" value="${settings.penaltyRules?.lateDailyMaxPenalty || 0}" min="0" step="5">
+                <p class="input-hint">💡 ضع 0 لعدم تحديد حد أقصى</p>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">
+                  <span class="label-icon">⏳</span>
+                  <span class="label-text">فترة السماح (دقائق)</span>
+                </label>
+                <input type="number" id="lateGracePeriod" class="form-input" value="${settings.penaltyRules?.lateGracePeriod || 10}" min="0" max="60" required>
+                <p class="input-hint">💡 عدد الدقائق المسموح بها قبل بدء الخصم</p>
+              </div>
+            </div>
+            
+            <!-- القسم 4: خصمية الخروج المبكر -->
+            <div class="settings-section">
+              <div class="section-header-icon">
+                <span class="section-icon">🚪</span>
+                <h4 class="section-title">خصمية الخروج المبكر</h4>
+              </div>
+              
+              <div class="toggle-group">
+                <label class="toggle-label">
+                  <input type="checkbox" id="earlyLeaveEnabled" class="toggle-input" ${settings.penaltyRules?.earlyLeaveEnabled !== false ? 'checked' : ''} onchange="toggleEarlyLeaveFields()">
+                  <span class="toggle-slider"></span>
+                  <span class="toggle-text">تفعيل خصمية الخروج المبكر</span>
+                </label>
+              </div>
+              
+              <div id="earlyLeaveFields" style="display: ${settings.penaltyRules?.earlyLeaveEnabled !== false ? 'block' : 'none'}">
+                <div class="form-group-row">
+                  <div class="form-group">
+                    <label class="form-label">
+                      <span class="label-icon">💸</span>
+                      <span class="label-text">قيمة الخصم (ريال)</span>
+                    </label>
+                    <input type="number" id="earlyLeavePenaltyAmount" class="form-input" value="${settings.penaltyRules?.earlyLeavePenaltyAmount || 5}" min="0" step="1">
+                  </div>
+                  
+                  <div class="form-group">
+                    <label class="form-label">
+                      <span class="label-icon">⏱</span>
+                      <span class="label-text">كل كم دقيقة</span>
+                    </label>
+                    <input type="number" id="earlyLeavePenaltyInterval" class="form-input" value="${settings.penaltyRules?.earlyLeavePenaltyInterval || 30}" min="1" max="120">
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">
+                    <span class="label-icon">⏳</span>
+                    <span class="label-text">فترة السماح (دقائق)</span>
+                  </label>
+                  <input type="number" id="earlyLeaveGracePeriod" class="form-input" value="${settings.penaltyRules?.earlyLeaveGracePeriod || 5}" min="0" max="60">
+                </div>
+              </div>
+            </div>
+            
+            <!-- القسم 5: خصمية الغياب -->
+            <div class="settings-section">
+              <div class="section-header-icon">
+                <span class="section-icon">❌</span>
+                <h4 class="section-title">خصمية الغياب</h4>
+              </div>
+              
+              <div class="info-card">
+                <div class="info-icon">💡</div>
+                <div class="info-content">
+                  <p class="info-text">يتم حساب خصمية الغياب تلقائياً:</p>
+                  <p class="info-formula">💰 الراتب الشهري ÷ 30 يوم</p>
+                </div>
+              </div>
+              
+              <div class="calculation-preview">
+                <div class="preview-label">الخصم المتوقع لكل يوم غياب:</div>
+                <div class="preview-value" id="absenceDeductionPreview">${Math.round((settings.salary || 3000) / 30)} ريال</div>
+              </div>
+            </div>
+            
+            <!-- القسم 6: الإجازات السنوية -->
+            <div class="settings-section vacation-section">
+              <div class="section-header-icon">
+                <span class="section-icon">🏖</span>
+                <h4 class="section-title">الإجازات السنوية</h4>
+              </div>
+              
+              <div class="vacation-info-card">
+                <div class="vacation-info-icon">💡</div>
+                <div class="vacation-info-text">
+                  يحق لكل موظف الحصول على <strong>6 أيام إجازة سنوية مدفوعة الأجر</strong> خلال السنة
+                </div>
+              </div>
+              
+              <div class="vacation-stats-grid">
+                <div class="vacation-stat-card">
+                  <div class="vacation-stat-icon">📅</div>
+                  <div class="vacation-stat-content">
+                    <div class="vacation-stat-label">إجمالي أيام الإجازة السنوية</div>
+                    <div class="vacation-stat-value">${settings.vacationDays?.annual || 6} أيام</div>
+                  </div>
+                </div>
+                
+                <div class="vacation-stat-card used">
+                  <div class="vacation-stat-icon">📊</div>
+                  <div class="vacation-stat-content">
+                    <div class="vacation-stat-label">الأيام المستخدمة</div>
+                    <div class="vacation-stat-value">${settings.vacationDays?.used || 0} أيام</div>
+                  </div>
+                </div>
+                
+                <div class="vacation-stat-card remaining ${(settings.vacationDays?.remaining || 6) === 0 ? 'depleted' : ''}">
+                  <div class="vacation-stat-icon">🎯</div>
+                  <div class="vacation-stat-content">
+                    <div class="vacation-stat-label">الرصيد المتبقي</div>
+                    <div class="vacation-stat-value">${settings.vacationDays?.remaining || 6} أيام</div>
+                  </div>
+                </div>
+              </div>
+              
+              <p class="input-hint">💡 يتم تحديث الرصيد تلقائياً عند تسجيل إجازة سنوية</p>
+            </div>
+          </form>
+        </div>
+        
+        <!-- Footer -->
+        <div class="settings-sheet-footer">
+          <button type="button" class="settings-btn primary" onclick="saveStaffSettings('${staffId}', '${staffName}')" id="saveSettingsBtn">
+            <span class="btn-spinner" style="display: none;">⏳</span>
+            <span class="btn-text">💾 حفظ جميع الإعدادات</span>
+          </button>
+          <button type="button" class="settings-btn secondary" onclick="closeStaffSettingsModal()">
+            إلغاء
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    setTimeout(() => modal.classList.add('show'), 10);
+    
+    // Update absence deduction preview when salary changes
+    const salaryInput = document.getElementById('monthlySalary');
+    salaryInput.addEventListener('input', () => {
+      const salary = parseFloat(salaryInput.value) || 3000;
+      const absenceDeduction = Math.round(salary / 30);
+      document.getElementById('absenceDeductionPreview').textContent = absenceDeduction + ' ريال';
+    });
+    
+  } catch (error) {
+    console.error('Error opening staff settings modal:', error);
+    alert('حدث خطأ في فتح الإعدادات: ' + error.message);
+  }
+};
+
+/**
+ * Toggle early leave fields
+ */
+window.toggleEarlyLeaveFields = function() {
+  const enabled = document.getElementById('earlyLeaveEnabled').checked;
+  const fields = document.getElementById('earlyLeaveFields');
+  fields.style.display = enabled ? 'block' : 'none';
+};
+
+/**
+ * Close staff settings modal
+ */
+window.closeStaffSettingsModal = function() {
+  const modal = document.querySelector('.staff-settings-modal');
+  if (modal) {
+    modal.classList.remove('show');
+    setTimeout(() => modal.remove(), 300);
+  }
+};
+
+/**
+ * Save staff settings
+ */
+window.saveStaffSettings = async function(staffId, staffName) {
+  const btn = document.getElementById('saveSettingsBtn');
+  const btnText = btn.querySelector('.btn-text');
+  const btnSpinner = btn.querySelector('.btn-spinner');
+  
+  try {
+    // Show loading
+    btn.disabled = true;
+    btnSpinner.style.display = 'inline-block';
+    btnText.style.display = 'none';
+    
+    // Collect form data
+    const settingsData = {
+      salary: parseFloat(document.getElementById('monthlySalary').value) || 3000,
+      workSchedule: {
+        minutesAfterAsr: parseInt(document.getElementById('minutesAfterAsr').value) || 15,
+        minutesAfterIsha: parseInt(document.getElementById('minutesAfterIsha').value) || 5
+      },
+      penaltyRules: {
+        latePenaltyAmount: parseFloat(document.getElementById('latePenaltyAmount').value) || 5,
+        latePenaltyInterval: parseInt(document.getElementById('latePenaltyInterval').value) || 30,
+        lateDailyMaxPenalty: parseFloat(document.getElementById('lateDailyMaxPenalty').value) || 0,
+        lateGracePeriod: parseInt(document.getElementById('lateGracePeriod').value) || 10,
+        earlyLeaveEnabled: document.getElementById('earlyLeaveEnabled').checked,
+        earlyLeavePenaltyAmount: parseFloat(document.getElementById('earlyLeavePenaltyAmount').value) || 5,
+        earlyLeavePenaltyInterval: parseInt(document.getElementById('earlyLeavePenaltyInterval').value) || 30,
+        earlyLeaveGracePeriod: parseInt(document.getElementById('earlyLeaveGracePeriod').value) || 5
+      },
+      vacationDays: {
+        annual: 6,
+        used: (await getDoc(doc(db, 'staffSettings', staffId))).data()?.vacationDays?.used || 0,
+        remaining: 6 - ((await getDoc(doc(db, 'staffSettings', staffId))).data()?.vacationDays?.used || 0)
+      },
+      updatedAt: serverTimestamp(),
+      updatedBy: 'admin'
+    };
+    
+    // Save to Firestore
+    await setDoc(doc(db, 'staffSettings', staffId), settingsData, { merge: true });
+    
+    // Close modal
+    closeStaffSettingsModal();
+    
+    // Show success message
+    showSuccessToast(`✅ تم حفظ إعدادات ${staffName} بنجاح`);
+    
+    // Reload attendance report if open
+    setTimeout(() => {
+      if (window.viewStaffAttendanceReport) {
+        window.viewStaffAttendanceReport();
+      }
+    }, 500);
+    
+  } catch (error) {
+    console.error('Error saving staff settings:', error);
+    alert('حدث خطأ في الحفظ: ' + error.message);
+  } finally {
+    // Reset button
+    btn.disabled = false;
+    btnSpinner.style.display = 'none';
+    btnText.style.display = 'inline-block';
+  }
+};
+
+/**
+ * Get default staff settings
+ */
+function getDefaultStaffSettings() {
+  return {
+    salary: 3000,
+    workSchedule: {
+      minutesAfterAsr: 15,
+      minutesAfterIsha: 5
+    },
+    penaltyRules: {
+      latePenaltyAmount: 5,
+      latePenaltyInterval: 30,
+      lateDailyMaxPenalty: 0,
+      lateGracePeriod: 10,
+      earlyLeaveEnabled: true,
+      earlyLeavePenaltyAmount: 5,
+      earlyLeavePenaltyInterval: 30,
+      earlyLeaveGracePeriod: 5
+    },
+    vacationDays: {
+      annual: 6,
+      used: 0,
+      remaining: 6
+    }
+  };
+}
+
+/**
+ * Show success toast
+ */
+function showSuccessToast(message) {
+  const toast = document.createElement('div');
+  toast.className = 'success-toast-message';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => toast.classList.add('show'), 10);
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+console.log('✅ Staff Attendance functions loaded');
 
