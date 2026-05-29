@@ -9923,21 +9923,5 @@ function getDefaultStaffSettings() {
   };
 }
 
-/**
- * Show success toast
- */
-function showSuccessToast(message) {
-  const toast = document.createElement('div');
-  toast.className = 'success-toast-message';
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  
-  setTimeout(() => toast.classList.add('show'), 10);
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-
 console.log('✅ Staff Attendance functions loaded');
 
