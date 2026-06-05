@@ -160,6 +160,92 @@ async function getStaffSettings(staffId) {
   }
 }
 
+// ============================================
+// Get Teacher Incentives for a Specific Month
+// ============================================
+async function getTeacherIncentivesForMonth(teacherId, year, month) {
+  try {
+    // Format month as YYYY-MM (e.g., "2026-06")
+    const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+    
+    console.log('🎁 Fetching incentives for teacher:', teacherId, 'Month:', monthKey);
+    
+    // Query teacherIncentives collection
+    const incentivesRef = collection(db, 'teacherIncentives');
+    const q = query(
+      incentivesRef,
+      where('teacherId', '==', teacherId),
+      where('month', '==', monthKey),
+      orderBy('createdAt', 'desc')
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      console.log('ℹ️ No incentives found for this month');
+      return {
+        total: 0,
+        count: 0,
+        incentives: [],
+        automatic: { count: 0, total: 0 },
+        manual: { count: 0, total: 0 }
+      };
+    }
+    
+    let totalAmount = 0;
+    let automaticCount = 0;
+    let automaticTotal = 0;
+    let manualCount = 0;
+    let manualTotal = 0;
+    const incentives = [];
+    
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const amount = typeof data.amount === 'number' ? data.amount : parseFloat(data.amount) || 0;
+      
+      totalAmount += amount;
+      
+      if (data.type === 'automatic') {
+        automaticCount++;
+        automaticTotal += amount;
+      } else if (data.type === 'manual') {
+        manualCount++;
+        manualTotal += amount;
+      }
+      
+      incentives.push({
+        id: docSnap.id,
+        ...data,
+        amount: amount
+      });
+    });
+    
+    console.log('✅ Incentives loaded:', {
+      total: totalAmount,
+      count: incentives.length,
+      automatic: { count: automaticCount, total: automaticTotal },
+      manual: { count: manualCount, total: manualTotal }
+    });
+    
+    return {
+      total: totalAmount,
+      count: incentives.length,
+      incentives: incentives,
+      automatic: { count: automaticCount, total: automaticTotal },
+      manual: { count: manualCount, total: manualTotal }
+    };
+  } catch (error) {
+    console.error('❌ Error fetching incentives:', error);
+    return {
+      total: 0,
+      count: 0,
+      incentives: [],
+      automatic: { count: 0, total: 0 },
+      manual: { count: 0, total: 0 }
+    };
+  }
+}
+
 let currentTeacherStudentId = null;
 let currentTeacherStudentName = null;
 let currentTeacherStudentData = null; // Store full student data including level
@@ -7932,9 +8018,25 @@ async function loadTeacherHomeSection(container) {
     console.error('Error fetching salary:', error);
   }
   
+  // Fetch incentives for current month
+  let incentivesData = {
+    total: 0,
+    count: 0,
+    incentives: [],
+    automatic: { count: 0, total: 0 },
+    manual: { count: 0, total: 0 }
+  };
+  
+  try {
+    incentivesData = await getTeacherIncentivesForMonth(teacherId, currentYear, currentMonth);
+    console.log('🎁 Incentives data loaded:', incentivesData);
+  } catch (error) {
+    console.error('Error fetching incentives:', error);
+  }
+  
   const absentDays = totalStudyDays - attendedDays;
   const totalDeductions = absentDays * deductionPerDay;
-  const expectedSalary = baseSalary - totalDeductions;
+  const expectedSalary = baseSalary - totalDeductions + incentivesData.total;
   
   // Get month name in Arabic
   const monthNames = [
@@ -7942,6 +8044,37 @@ async function loadTeacherHomeSection(container) {
     'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
   ];
   const currentMonthName = monthNames[currentMonth - 1];
+  
+  // Generate incentives HTML
+  const incentivesHTML = incentivesData.count > 0 
+    ? `
+      <div class="salary-row">
+        <div class="salary-item incentives clickable" onclick="window.openIncentivesBottomSheet(${JSON.stringify(incentivesData).replace(/"/g, '&quot;')}, '${currentMonthName}')">
+          <span class="salary-icon">🎁</span>
+          <div class="salary-details">
+            <div class="salary-label">الحوافز والمكافآت</div>
+            <div class="salary-amount incentives-amount">+${incentivesData.total.toLocaleString('ar-SA')} ريال</div>
+            <div class="salary-meta">
+              ${incentivesData.automatic.count > 0 ? `${incentivesData.automatic.count} حافز تلقائي` : ''}
+              ${incentivesData.automatic.count > 0 && incentivesData.manual.count > 0 ? ' • ' : ''}
+              ${incentivesData.manual.count > 0 ? `${incentivesData.manual.count} حافز يدوي` : ''}
+            </div>
+          </div>
+          <span class="salary-arrow">◀</span>
+        </div>
+      </div>
+    `
+    : `
+      <div class="salary-row">
+        <div class="salary-item incentives no-incentives">
+          <span class="salary-icon">🎁</span>
+          <div class="salary-details">
+            <div class="salary-label">الحوافز والمكافآت</div>
+            <div class="salary-meta">لا توجد حوافز في الشهر الحالي</div>
+          </div>
+        </div>
+      </div>
+    `;
   
   container.innerHTML = `
     <div class="teacher-home-container">
@@ -7990,6 +8123,8 @@ async function loadTeacherHomeSection(container) {
             </div>
           </div>
           
+          ${incentivesHTML}
+          
           <!-- Expected Salary Highlight -->
           <div class="salary-row expected-salary-row">
             <div class="salary-item expected-salary">
@@ -8037,6 +8172,137 @@ async function loadTeacherHomeSection(container) {
     </div>
   `;
 }
+
+// ============================================
+// Open Incentives Bottom Sheet with Details
+// ============================================
+window.openIncentivesBottomSheet = function(incentivesData, monthName) {
+  console.log('🎁 Opening incentives bottom sheet:', incentivesData);
+  
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'bottom-sheet-overlay';
+  overlay.onclick = function() {
+    closeIncentivesBottomSheet();
+  };
+  
+  // Create bottom sheet
+  const bottomSheet = document.createElement('div');
+  bottomSheet.className = 'incentives-bottom-sheet';
+  bottomSheet.id = 'incentivesBottomSheet';
+  
+  // Generate incentive items HTML
+  let incentivesListHTML = '';
+  
+  if (incentivesData.incentives && incentivesData.incentives.length > 0) {
+    incentivesData.incentives.forEach(incentive => {
+      const isAutomatic = incentive.type === 'automatic';
+      const typeLabel = isAutomatic ? 'تلقائي' : 'يدوي';
+      const typeClass = isAutomatic ? 'automatic' : 'manual';
+      const iconLabel = isAutomatic ? '⚡' : '✍️';
+      
+      // Format date
+      let dateDisplay = '';
+      if (incentive.createdAt && incentive.createdAt.toDate) {
+        const date = incentive.createdAt.toDate();
+        dateDisplay = date.toLocaleDateString('ar-SA', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      }
+      
+      incentivesListHTML += `
+        <div class="incentive-item ${typeClass}">
+          <div class="incentive-item-header">
+            <div class="incentive-type-badge">
+              <span class="badge-icon">${iconLabel}</span>
+              <span class="badge-text">${typeLabel}</span>
+            </div>
+            <div class="incentive-amount">+${incentive.amount.toLocaleString('ar-SA')} ريال</div>
+          </div>
+          <div class="incentive-item-body">
+            <div class="incentive-reason">${incentive.reason || incentive.incentiveName || 'حافز'}</div>
+            ${dateDisplay ? `<div class="incentive-date">${dateDisplay}</div>` : ''}
+            ${incentive.grantedByName ? `<div class="incentive-granted-by">منحها: ${incentive.grantedByName}</div>` : ''}
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    incentivesListHTML = `
+      <div class="no-incentives-message">
+        <div class="no-incentives-icon">🎁</div>
+        <div class="no-incentives-text">لا توجد حوافز في الشهر الحالي</div>
+      </div>
+    `;
+  }
+  
+  bottomSheet.innerHTML = `
+    <div class="bottom-sheet-header">
+      <div class="bottom-sheet-handle"></div>
+      <h3 class="bottom-sheet-title">الحوافز والمكافآت - ${monthName}</h3>
+      <button class="bottom-sheet-close" onclick="closeIncentivesBottomSheet()">✕</button>
+    </div>
+    
+    <div class="bottom-sheet-summary">
+      <div class="summary-card total">
+        <div class="summary-label">إجمالي الحوافز</div>
+        <div class="summary-value">${incentivesData.total.toLocaleString('ar-SA')} ريال</div>
+        <div class="summary-count">${incentivesData.count} حافز</div>
+      </div>
+      
+      ${incentivesData.automatic.count > 0 ? `
+        <div class="summary-card automatic">
+          <div class="summary-label">⚡ حوافز تلقائية</div>
+          <div class="summary-value">${incentivesData.automatic.total.toLocaleString('ar-SA')} ريال</div>
+          <div class="summary-count">${incentivesData.automatic.count} حافز</div>
+        </div>
+      ` : ''}
+      
+      ${incentivesData.manual.count > 0 ? `
+        <div class="summary-card manual">
+          <div class="summary-label">✍️ حوافز يدوية</div>
+          <div class="summary-value">${incentivesData.manual.total.toLocaleString('ar-SA')} ريال</div>
+          <div class="summary-count">${incentivesData.manual.count} حافز</div>
+        </div>
+      ` : ''}
+    </div>
+    
+    <div class="bottom-sheet-content">
+      <h4 class="content-title">تفاصيل الحوافز</h4>
+      <div class="incentives-list">
+        ${incentivesListHTML}
+      </div>
+    </div>
+  `;
+  
+  // Add to DOM
+  document.body.appendChild(overlay);
+  document.body.appendChild(bottomSheet);
+  
+  // Trigger animation after a small delay
+  setTimeout(() => {
+    overlay.classList.add('active');
+    bottomSheet.classList.add('active');
+  }, 10);
+};
+
+// Close Incentives Bottom Sheet
+window.closeIncentivesBottomSheet = function() {
+  const overlay = document.querySelector('.bottom-sheet-overlay');
+  const bottomSheet = document.getElementById('incentivesBottomSheet');
+  
+  if (overlay) {
+    overlay.classList.remove('active');
+    setTimeout(() => overlay.remove(), 300);
+  }
+  
+  if (bottomSheet) {
+    bottomSheet.classList.remove('active');
+    setTimeout(() => bottomSheet.remove(), 300);
+  }
+};
 
 // Open Attendance Record Modal
 window.openAttendanceRecordModal = function(monthName, year, month, overrideStaffId = null) {
