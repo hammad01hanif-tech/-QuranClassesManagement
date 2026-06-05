@@ -9814,7 +9814,7 @@ window.openStaffSettingsModal = async function(staffId) {
                 <div class="vacation-info-text">
                   <strong>الحوافز التلقائية:</strong> تُمنح تلقائياً عند اجتياز الطلاب للأجزاء أو الأحزاب
                   <br>
-                  <strong>الحوافز اليدوية:</strong> يمنحها المدير حسب تقديره
+                  <strong>الحوافز الخاصة:</strong> يمنحها المدير حسب تقديره
                 </div>
               </div>
               
@@ -9896,12 +9896,12 @@ window.openStaffSettingsModal = async function(staffId) {
                 </div>
               </div>
               
-              <!-- الحوافز اليدوية -->
+              <!-- الحوافز الخاصة -->
               <div class="incentives-subsection">
                 <div class="subsection-header">
                   <h5 class="subsection-title">
                     <span class="subsection-icon">✍️</span>
-                    الحوافز اليدوية
+                    الحوافز الخاصة
                   </h5>
                 </div>
                 
@@ -9913,15 +9913,15 @@ window.openStaffSettingsModal = async function(staffId) {
                   </label>
                 </div>
                 
-                <p class="input-hint">💡 عند التفعيل، يمكن للمدير منح حوافز يدوية للمعلمين بأي مبلغ وسبب يحدده</p>
+                <p class="input-hint">💡 عند التفعيل، يمكن للمدير منح حوافز خاصة للمعلمين بأي مبلغ وسبب يحدده</p>
                 
-                <!-- زر منح حافز يدوي -->
+                <!-- زر منح حافز خاص -->
                 <div class="manual-incentive-action" style="margin-top: 16px;">
                   <button type="button" class="grant-incentive-btn" onclick="openGrantManualIncentiveModal('${staffId}', '${staffName}')" ${settings.incentiveSettings?.manual?.enabled !== true ? 'disabled' : ''}>
                     <span class="btn-icon">🎁</span>
-                    <span class="btn-text">منح حافز يدوي</span>
+                    <span class="btn-text">منح حافز خاص</span>
                   </button>
-                  ${settings.incentiveSettings?.manual?.enabled !== true ? '<p class="input-hint" style="margin-top: 8px; color: #dc2626;">⚠️ يجب تفعيل الحوافز اليدوية أولاً</p>' : ''}
+                  ${settings.incentiveSettings?.manual?.enabled !== true ? '<p class="input-hint" style="margin-top: 8px; color: #dc2626;">⚠️ يجب تفعيل الحوافز الخاصة أولاً</p>' : ''}
                 </div>
               </div>
               
@@ -9946,7 +9946,7 @@ window.openStaffSettingsModal = async function(staffId) {
                 <div class="vacation-stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
                   <div class="vacation-stat-icon">✍️</div>
                   <div class="vacation-stat-content">
-                    <div class="vacation-stat-label" style="color: rgba(255,255,255,0.9);">الحوافز اليدوية</div>
+                    <div class="vacation-stat-label" style="color: rgba(255,255,255,0.9);">الحوافز الخاصة</div>
                     <div class="vacation-stat-value" id="manualIncentivePreview">${settings.incentiveSettings?.manual?.enabled === true ? 'مفعّلة' : 'معطّلة'}</div>
                   </div>
                 </div>
@@ -10064,7 +10064,7 @@ window.openGrantManualIncentiveModal = function(teacherId, teacherName) {
       <!-- Header -->
       <div class="settings-sheet-header">
         <div class="settings-header-content">
-          <h3 class="settings-title">🎁 منح حافز يدوي</h3>
+          <h3 class="settings-title">🎁 منح حافز خاص</h3>
           <p class="settings-subtitle">للمعلم: ${teacherName}</p>
         </div>
         <button class="close-btn" onclick="closeGrantIncentiveModal()">✕</button>
@@ -10176,7 +10176,7 @@ window.grantManualIncentive = async function(teacherId, teacherName) {
     btnSpinner.style.display = 'inline-block';
     btnText.style.display = 'none';
     
-    console.log('🎁 منح حافز يدوي:', { teacherId, teacherName, reason, amount });
+    console.log('🎁 منح حافز خاص:', { teacherId, teacherName, reason, amount });
     
     // Create incentive record
     const incentiveId = `INC_MANUAL_${teacherId}_${Date.now()}`;
@@ -10196,7 +10196,7 @@ window.grantManualIncentive = async function(teacherId, teacherName) {
       incentiveType: 'manual_grant',
       
       // الوصف والمبلغ
-      incentiveName: 'حافز يدوي',
+      incentiveName: 'حافز خاص',
       reason: reason,
       amount: amount,
       currency: 'SAR',
@@ -10441,7 +10441,7 @@ function getDefaultStaffSettings() {
         }
       },
       manual: {
-        enabled: false                    // الحوافز اليدوية معطّلة افتراضياً
+        enabled: false                    // الحوافز الخاصة معطّلة افتراضياً
       }
     }
   };

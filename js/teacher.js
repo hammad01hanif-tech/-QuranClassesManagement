@@ -8065,7 +8065,7 @@ async function loadTeacherHomeSection(container) {
             <div class="salary-meta">
               ${incentivesData.automatic.count > 0 ? `${incentivesData.automatic.count} حافز تلقائي` : ''}
               ${incentivesData.automatic.count > 0 && incentivesData.manual.count > 0 ? ' • ' : ''}
-              ${incentivesData.manual.count > 0 ? `${incentivesData.manual.count} حافز يدوي` : ''}
+              ${incentivesData.manual.count > 0 ? `${incentivesData.manual.count} حافز خاص` : ''}
             </div>
           </div>
           <span class="salary-arrow">◀</span>
