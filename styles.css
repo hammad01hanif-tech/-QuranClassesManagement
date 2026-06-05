@@ -9450,7 +9450,8 @@ details[open] > summary {
   backdrop-filter: blur(4px);
 }
 
-.staff-settings-sheet {
+.staff-settings-sheet,
+.settings-sheet {
   position: relative;
   width: 90%;
   max-width: 900px;
@@ -9461,6 +9462,7 @@ details[open] > summary {
   display: flex;
   flex-direction: column;
   animation: slideUp 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  z-index: 10001;
 }
 
 @keyframes slideUp {
@@ -9486,19 +9488,34 @@ details[open] > summary {
   flex-shrink: 0;
 }
 
-.settings-header-content h2 {
+.settings-header-content {
+  flex: 1;
+}
+
+.settings-header-content h2,
+.settings-title {
   margin: 0 0 6px 0;
   font-size: 24px;
   font-weight: 700;
+  color: white;
 }
 
-.settings-header-subtitle {
+.settings-header-content h3 {
+  margin: 0 0 6px 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.settings-header-subtitle,
+.settings-subtitle {
   margin: 0;
   font-size: 14px;
   opacity: 0.95;
+  color: white;
 }
 
-.settings-close-btn {
+.settings-close-btn,
+.close-btn {
   background: rgba(255, 255, 255, 0.2);
   color: white;
   border: none;
@@ -9509,9 +9526,13 @@ details[open] > summary {
   cursor: pointer;
   transition: all 0.3s ease;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.settings-close-btn:hover {
+.settings-close-btn:hover,
+.close-btn:hover {
   background: rgba(255, 255, 255, 0.3);
   transform: rotate(90deg);
 }
