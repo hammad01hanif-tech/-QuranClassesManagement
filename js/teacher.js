@@ -171,12 +171,13 @@ async function getTeacherIncentivesForMonth(teacherId, year, month) {
     console.log('🎁 Fetching incentives for teacher:', teacherId, 'Month:', monthKey);
     
     // Query teacherIncentives collection
+    // Note: Removed orderBy to avoid requiring a composite index
+    // We'll sort the results in code instead
     const incentivesRef = collection(db, 'teacherIncentives');
     const q = query(
       incentivesRef,
       where('teacherId', '==', teacherId),
-      where('month', '==', monthKey),
-      orderBy('createdAt', 'desc')
+      where('month', '==', monthKey)
     );
     
     const snapshot = await getDocs(q);
@@ -218,6 +219,13 @@ async function getTeacherIncentivesForMonth(teacherId, year, month) {
         ...data,
         amount: amount
       });
+    });
+    
+    // Sort incentives by createdAt (newest first) in code
+    incentives.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return timeB - timeA; // Descending order (newest first)
     });
     
     console.log('✅ Incentives loaded:', {
