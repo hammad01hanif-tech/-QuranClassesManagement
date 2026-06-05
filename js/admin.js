@@ -9601,7 +9601,7 @@ window.openStaffSettingsModal = async function(staffId) {
                   <span class="label-icon">💵</span>
                   <span class="label-text">الراتب الشهري (ريال)</span>
                 </label>
-                <input type="number" id="monthlySalary" class="form-input" value="${settings.salary || 3000}" min="0" step="100" required>
+                <input type="number" id="monthlySalary" class="form-input" value="${(settings.salary && typeof settings.salary === 'object') ? (settings.salary.monthlySalary || 3000) : (settings.salary || 3000)}" min="0" step="100" required>
                 <p class="input-hint">💡 الراتب الأساسي قبل الخصومات</p>
               </div>
             </div>
@@ -9652,7 +9652,7 @@ window.openStaffSettingsModal = async function(staffId) {
                     <span class="label-icon">💸</span>
                     <span class="label-text">قيمة الخصم (ريال)</span>
                   </label>
-                  <input type="number" id="latePenaltyAmount" class="form-input" value="${settings.penaltyRules?.latePenaltyAmount || 5}" min="0" step="1" required>
+                  <input type="number" id="latePenaltyAmount" class="form-input" value="${settings.penalties?.latePenalty?.amount || 5}" min="0" step="1" required>
                 </div>
                 
                 <div class="form-group">
@@ -9660,7 +9660,7 @@ window.openStaffSettingsModal = async function(staffId) {
                     <span class="label-icon">⏱</span>
                     <span class="label-text">كل كم دقيقة</span>
                   </label>
-                  <input type="number" id="latePenaltyInterval" class="form-input" value="${settings.penaltyRules?.latePenaltyInterval || 30}" min="1" max="120" required>
+                  <input type="number" id="latePenaltyInterval" class="form-input" value="${settings.penalties?.latePenalty?.intervalMinutes || 30}" min="1" max="120" required>
                 </div>
               </div>
               
@@ -9669,7 +9669,7 @@ window.openStaffSettingsModal = async function(staffId) {
                   <span class="label-icon">🚫</span>
                   <span class="label-text">الحد الأقصى للخصم اليومي (ريال)</span>
                 </label>
-                <input type="number" id="lateDailyMaxPenalty" class="form-input" value="${settings.penaltyRules?.lateDailyMaxPenalty || 0}" min="0" step="5">
+                <input type="number" id="lateDailyMaxPenalty" class="form-input" value="${settings.penalties?.latePenalty?.maxDailyPenalty || 0}" min="0" step="5">
                 <p class="input-hint">💡 ضع 0 لعدم تحديد حد أقصى</p>
               </div>
               
@@ -9678,7 +9678,7 @@ window.openStaffSettingsModal = async function(staffId) {
                   <span class="label-icon">⏳</span>
                   <span class="label-text">فترة السماح (دقائق)</span>
                 </label>
-                <input type="number" id="lateGracePeriod" class="form-input" value="${settings.penaltyRules?.lateGracePeriod || 10}" min="0" max="60" required>
+                <input type="number" id="lateGracePeriod" class="form-input" value="${settings.penalties?.latePenalty?.graceMinutes || 0}" min="0" max="60" required>
                 <p class="input-hint">💡 عدد الدقائق المسموح بها قبل بدء الخصم</p>
               </div>
             </div>
@@ -9692,20 +9692,20 @@ window.openStaffSettingsModal = async function(staffId) {
               
               <div class="toggle-group">
                 <label class="toggle-label">
-                  <input type="checkbox" id="earlyLeaveEnabled" class="toggle-input" ${settings.penaltyRules?.earlyLeaveEnabled !== false ? 'checked' : ''} onchange="toggleEarlyLeaveFields()">
+                  <input type="checkbox" id="earlyLeaveEnabled" class="toggle-input" ${settings.penalties?.earlyLeavePenalty?.enabled !== false ? 'checked' : ''} onchange="toggleEarlyLeaveFields()">
                   <span class="toggle-slider"></span>
                   <span class="toggle-text">تفعيل خصمية الخروج المبكر</span>
                 </label>
               </div>
               
-              <div id="earlyLeaveFields" style="display: ${settings.penaltyRules?.earlyLeaveEnabled !== false ? 'block' : 'none'}">
+              <div id="earlyLeaveFields" style="display: ${settings.penalties?.earlyLeavePenalty?.enabled !== false ? 'block' : 'none'}">
                 <div class="form-group-row">
                   <div class="form-group">
                     <label class="form-label">
                       <span class="label-icon">💸</span>
                       <span class="label-text">قيمة الخصم (ريال)</span>
                     </label>
-                    <input type="number" id="earlyLeavePenaltyAmount" class="form-input" value="${settings.penaltyRules?.earlyLeavePenaltyAmount || 5}" min="0" step="1">
+                    <input type="number" id="earlyLeavePenaltyAmount" class="form-input" value="${settings.penalties?.earlyLeavePenalty?.amount || 5}" min="0" step="1">
                   </div>
                   
                   <div class="form-group">
@@ -9713,7 +9713,7 @@ window.openStaffSettingsModal = async function(staffId) {
                       <span class="label-icon">⏱</span>
                       <span class="label-text">كل كم دقيقة</span>
                     </label>
-                    <input type="number" id="earlyLeavePenaltyInterval" class="form-input" value="${settings.penaltyRules?.earlyLeavePenaltyInterval || 30}" min="1" max="120">
+                    <input type="number" id="earlyLeavePenaltyInterval" class="form-input" value="${settings.penalties?.earlyLeavePenalty?.intervalMinutes || 30}" min="1" max="120">
                   </div>
                 </div>
                 
@@ -9722,7 +9722,7 @@ window.openStaffSettingsModal = async function(staffId) {
                     <span class="label-icon">⏳</span>
                     <span class="label-text">فترة السماح (دقائق)</span>
                   </label>
-                  <input type="number" id="earlyLeaveGracePeriod" class="form-input" value="${settings.penaltyRules?.earlyLeaveGracePeriod || 5}" min="0" max="60">
+                  <input type="number" id="earlyLeaveGracePeriod" class="form-input" value="${settings.penalties?.earlyLeavePenalty?.graceMinutes || 5}" min="0" max="60">
                 </div>
               </div>
             </div>
@@ -9744,7 +9744,7 @@ window.openStaffSettingsModal = async function(staffId) {
               
               <div class="calculation-preview">
                 <div class="preview-label">الخصم المتوقع لكل يوم غياب:</div>
-                <div class="preview-value" id="absenceDeductionPreview">${Math.round((settings.salary || 3000) / 30)} ريال</div>
+                <div class="preview-value" id="absenceDeductionPreview">${Math.round(((settings.salary && typeof settings.salary === 'object') ? (settings.salary.monthlySalary || 3000) : (settings.salary || 3000)) / 30)} ريال</div>
               </div>
             </div>
             
@@ -9799,6 +9799,158 @@ window.openStaffSettingsModal = async function(staffId) {
               </div>
               
               <p class="input-hint">💡 يتم تحديث الرصيد تلقائياً عند تسجيل إجازة سنوية</p>
+            </div>
+            
+            <!-- القسم 7: الحوافز 🎁 -->
+            <div class="settings-section incentives-section">
+              <div class="section-header-icon">
+                <span class="section-icon">🎁</span>
+                <h4 class="section-title">نظام الحوافز</h4>
+              </div>
+              
+              <!-- بطاقة معلومات توضيحية -->
+              <div class="vacation-info-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                <div class="vacation-info-icon">💡</div>
+                <div class="vacation-info-text">
+                  <strong>الحوافز التلقائية:</strong> تُمنح تلقائياً عند اجتياز الطلاب للأجزاء أو الأحزاب
+                  <br>
+                  <strong>الحوافز اليدوية:</strong> يمنحها المدير حسب تقديره
+                </div>
+              </div>
+              
+              <!-- الحوافز التلقائية -->
+              <div class="incentives-subsection">
+                <div class="subsection-header">
+                  <h5 class="subsection-title">
+                    <span class="subsection-icon">🤖</span>
+                    الحوافز التلقائية
+                  </h5>
+                </div>
+                
+                <!-- حافز اجتياز الجزء -->
+                <div class="incentive-card juz-incentive">
+                  <div class="incentive-card-header">
+                    <div class="toggle-group" style="margin: 0;">
+                      <label class="toggle-label">
+                        <input type="checkbox" id="juzIncentiveEnabled" class="toggle-input" ${settings.incentiveSettings?.automatic?.juzIncentive?.enabled !== false ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-text">📖 حافز اجتياز الجزء</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div class="incentive-card-body">
+                    <div class="form-group-row">
+                      <div class="form-group" style="flex: 1;">
+                        <label class="form-label">
+                          <span class="label-icon">💰</span>
+                          <span class="label-text">مبلغ الحافز (ريال)</span>
+                        </label>
+                        <input type="number" id="juzIncentiveAmount" class="form-input" value="${settings.incentiveSettings?.automatic?.juzIncentive?.amount || '25'}" min="0" step="5" oninput="updateIncentivePreviews()" required>
+                      </div>
+                      
+                      <div class="form-group" style="flex: 2;">
+                        <label class="form-label">
+                          <span class="label-icon">📝</span>
+                          <span class="label-text">وصف الحافز</span>
+                        </label>
+                        <input type="text" id="juzIncentiveDescription" class="form-input" value="${settings.incentiveSettings?.automatic?.juzIncentive?.description || 'حافز اجتياز جزء'}" required>
+                      </div>
+                    </div>
+                    <p class="input-hint">💡 يُمنح هذا المبلغ تلقائياً للمعلم عند اجتياز أي طالب لجزء كامل</p>
+                  </div>
+                </div>
+                
+                <!-- حافز اجتياز الحزب -->
+                <div class="incentive-card hizb-incentive">
+                  <div class="incentive-card-header">
+                    <div class="toggle-group" style="margin: 0;">
+                      <label class="toggle-label">
+                        <input type="checkbox" id="hizbIncentiveEnabled" class="toggle-input" ${settings.incentiveSettings?.automatic?.hizbIncentive?.enabled !== false ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-text">📚 حافز اجتياز الحزب</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div class="incentive-card-body">
+                    <div class="form-group-row">
+                      <div class="form-group" style="flex: 1;">
+                        <label class="form-label">
+                          <span class="label-icon">💰</span>
+                          <span class="label-text">مبلغ الحافز (ريال)</span>
+                        </label>
+                        <input type="number" id="hizbIncentiveAmount" class="form-input" value="${settings.incentiveSettings?.automatic?.hizbIncentive?.amount || '25'}" min="0" step="5" oninput="updateIncentivePreviews()" required>
+                      </div>
+                      
+                      <div class="form-group" style="flex: 2;">
+                        <label class="form-label">
+                          <span class="label-icon">📝</span>
+                          <span class="label-text">وصف الحافز</span>
+                        </label>
+                        <input type="text" id="hizbIncentiveDescription" class="form-input" value="${settings.incentiveSettings?.automatic?.hizbIncentive?.description || 'حافز اجتياز حزب'}" required>
+                      </div>
+                    </div>
+                    <p class="input-hint">💡 يُمنح هذا المبلغ تلقائياً للمعلم عند اجتياز أي طالب لحزب كامل</p>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- الحوافز اليدوية -->
+              <div class="incentives-subsection">
+                <div class="subsection-header">
+                  <h5 class="subsection-title">
+                    <span class="subsection-icon">✍️</span>
+                    الحوافز اليدوية
+                  </h5>
+                </div>
+                
+                <div class="toggle-group">
+                  <label class="toggle-label">
+                    <input type="checkbox" id="manualIncentiveEnabled" class="toggle-input" ${settings.incentiveSettings?.manual?.enabled === true ? 'checked' : ''} onchange="updateIncentivePreviews()">
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-text">تفعيل إمكانية منح حوافز يدوية</span>
+                  </label>
+                </div>
+                
+                <p class="input-hint">💡 عند التفعيل، يمكن للمدير منح حوافز يدوية للمعلمين بأي مبلغ وسبب يحدده</p>
+                
+                <!-- زر منح حافز يدوي -->
+                <div class="manual-incentive-action" style="margin-top: 16px;">
+                  <button type="button" class="grant-incentive-btn" onclick="openGrantManualIncentiveModal('${staffId}', '${staffName}')" ${settings.incentiveSettings?.manual?.enabled !== true ? 'disabled' : ''}>
+                    <span class="btn-icon">🎁</span>
+                    <span class="btn-text">منح حافز يدوي</span>
+                  </button>
+                  ${settings.incentiveSettings?.manual?.enabled !== true ? '<p class="input-hint" style="margin-top: 8px; color: #dc2626;">⚠️ يجب تفعيل الحوافز اليدوية أولاً</p>' : ''}
+                </div>
+              </div>
+              
+              <!-- ملخص الحوافز -->
+              <div class="vacation-stats-grid">
+                <div class="vacation-stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                  <div class="vacation-stat-icon">📖</div>
+                  <div class="vacation-stat-content">
+                    <div class="vacation-stat-label" style="color: rgba(255,255,255,0.9);">حافز الجزء</div>
+                    <div class="vacation-stat-value" id="juzIncentivePreview">${settings.incentiveSettings?.automatic?.juzIncentive?.amount || '25'} ريال</div>
+                  </div>
+                </div>
+                
+                <div class="vacation-stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                  <div class="vacation-stat-icon">📚</div>
+                  <div class="vacation-stat-content">
+                    <div class="vacation-stat-label" style="color: rgba(255,255,255,0.9);">حافز الحزب</div>
+                    <div class="vacation-stat-value" id="hizbIncentivePreview">${settings.incentiveSettings?.automatic?.hizbIncentive?.amount || '25'} ريال</div>
+                  </div>
+                </div>
+                
+                <div class="vacation-stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                  <div class="vacation-stat-icon">✍️</div>
+                  <div class="vacation-stat-content">
+                    <div class="vacation-stat-label" style="color: rgba(255,255,255,0.9);">الحوافز اليدوية</div>
+                    <div class="vacation-stat-value" id="manualIncentivePreview">${settings.incentiveSettings?.manual?.enabled === true ? 'مفعّلة' : 'معطّلة'}</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </form>
         </div>
@@ -9863,6 +10015,32 @@ window.updateVacationPreview = function() {
 };
 
 /**
+ * Update incentive preview cards
+ */
+window.updateIncentivePreviews = function() {
+  // Update Juz incentive preview
+  const juzAmount = document.getElementById('juzIncentiveAmount')?.value || '25';
+  const juzPreview = document.getElementById('juzIncentivePreview');
+  if (juzPreview) {
+    juzPreview.textContent = juzAmount + ' ريال';
+  }
+  
+  // Update Hizb incentive preview
+  const hizbAmount = document.getElementById('hizbIncentiveAmount')?.value || '25';
+  const hizbPreview = document.getElementById('hizbIncentivePreview');
+  if (hizbPreview) {
+    hizbPreview.textContent = hizbAmount + ' ريال';
+  }
+  
+  // Update Manual incentive preview
+  const manualEnabled = document.getElementById('manualIncentiveEnabled')?.checked;
+  const manualPreview = document.getElementById('manualIncentivePreview');
+  if (manualPreview) {
+    manualPreview.textContent = manualEnabled ? 'مفعّلة' : 'معطّلة';
+  }
+};
+
+/**
  * Close staff settings modal
  */
 window.closeStaffSettingsModal = function() {
@@ -9870,6 +10048,216 @@ window.closeStaffSettingsModal = function() {
   if (modal) {
     modal.classList.remove('show');
     setTimeout(() => modal.remove(), 300);
+  }
+};
+
+/**
+ * Open modal to grant manual incentive
+ */
+window.openGrantManualIncentiveModal = function(teacherId, teacherName) {
+  // Create modal HTML
+  const modal = document.createElement('div');
+  modal.className = 'staff-settings-modal grant-incentive-modal show';
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="closeGrantIncentiveModal()"></div>
+    <div class="settings-sheet" style="max-width: 600px;">
+      <!-- Header -->
+      <div class="settings-sheet-header">
+        <div class="settings-header-content">
+          <h3 class="settings-title">🎁 منح حافز يدوي</h3>
+          <p class="settings-subtitle">للمعلم: ${teacherName}</p>
+        </div>
+        <button class="close-btn" onclick="closeGrantIncentiveModal()">✕</button>
+      </div>
+      
+      <!-- Body -->
+      <div class="settings-sheet-body">
+        <form class="incentive-form" id="manualIncentiveForm">
+          <!-- حقل السبب -->
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">📝</span>
+              <span class="label-text">سبب منح الحافز</span>
+            </label>
+            <textarea id="incentiveReason" class="form-textarea" rows="4" placeholder="مثال: تميز في الأداء - حفظ 5 طلاب لأجزاء كاملة هذا الشهر" required></textarea>
+            <p class="input-hint">💡 اكتب أي سبب أو ملاحظة توضح سبب منح هذا الحافز</p>
+          </div>
+          
+          <!-- حقل المبلغ -->
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">💰</span>
+              <span class="label-text">مبلغ الحافز (ريال)</span>
+            </label>
+            <input type="number" id="incentiveAmount" class="form-input" min="0" step="5" placeholder="100" required>
+            <p class="input-hint">💡 أدخل المبلغ بالريال السعودي</p>
+          </div>
+          
+          <!-- بطاقة معاينة -->
+          <div class="incentive-preview-card">
+            <div class="preview-icon">🎁</div>
+            <div class="preview-content">
+              <div class="preview-label">سيتم منح حافز بقيمة:</div>
+              <div class="preview-amount" id="incentivePreviewAmount">0 ريال</div>
+              <div class="preview-teacher">للمعلم: ${teacherName}</div>
+            </div>
+          </div>
+        </form>
+      </div>
+      
+      <!-- Footer -->
+      <div class="settings-sheet-footer">
+        <button type="button" class="settings-btn primary" onclick="grantManualIncentive('${teacherId}', '${teacherName}')" id="grantIncentiveBtn">
+          <span class="btn-spinner" style="display: none;">⏳</span>
+          <span class="btn-text">✅ تأكيد ومنح الحافز</span>
+        </button>
+        <button type="button" class="settings-btn secondary" onclick="closeGrantIncentiveModal()">
+          إلغاء
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Add event listener to update preview
+  setTimeout(() => {
+    const amountInput = document.getElementById('incentiveAmount');
+    if (amountInput) {
+      amountInput.addEventListener('input', function() {
+        const amount = parseFloat(this.value) || 0;
+        const preview = document.getElementById('incentivePreviewAmount');
+        if (preview) {
+          preview.textContent = amount + ' ريال';
+        }
+      });
+      amountInput.focus();
+    }
+  }, 100);
+};
+
+/**
+ * Close grant incentive modal
+ */
+window.closeGrantIncentiveModal = function() {
+  const modal = document.querySelector('.grant-incentive-modal');
+  if (modal) {
+    modal.classList.remove('show');
+    setTimeout(() => modal.remove(), 300);
+  }
+};
+
+/**
+ * Grant manual incentive to teacher
+ */
+window.grantManualIncentive = async function(teacherId, teacherName) {
+  const btn = document.getElementById('grantIncentiveBtn');
+  const btnText = btn.querySelector('.btn-text');
+  const btnSpinner = btn.querySelector('.btn-spinner');
+  
+  try {
+    // Get form values
+    const reason = document.getElementById('incentiveReason').value.trim();
+    const amount = parseFloat(document.getElementById('incentiveAmount').value);
+    
+    // Validate
+    if (!reason) {
+      alert('⚠️ يرجى إدخال سبب منح الحافز');
+      return;
+    }
+    
+    if (!amount || amount <= 0) {
+      alert('⚠️ يرجى إدخال مبلغ صحيح');
+      return;
+    }
+    
+    // Show loading
+    btn.disabled = true;
+    btnSpinner.style.display = 'inline-block';
+    btnText.style.display = 'none';
+    
+    console.log('🎁 منح حافز يدوي:', { teacherId, teacherName, reason, amount });
+    
+    // Create incentive record
+    const incentiveId = `INC_MANUAL_${teacherId}_${Date.now()}`;
+    const now = new Date();
+    const currentMonth = now.toISOString().substring(0, 7); // "2026-06"
+    const currentYear = now.getFullYear();
+    
+    const incentiveData = {
+      // المعرفات الأساسية
+      incentiveId: incentiveId,
+      teacherId: teacherId,
+      teacherName: teacherName,
+      
+      // التصنيف
+      type: 'manual',
+      source: 'admin',
+      incentiveType: 'manual_grant',
+      
+      // الوصف والمبلغ
+      incentiveName: 'حافز يدوي',
+      reason: reason,
+      amount: amount,
+      currency: 'SAR',
+      
+      // التواريخ
+      createdAt: serverTimestamp(),
+      month: currentMonth,
+      year: currentYear,
+      
+      // معلومات المنح
+      grantedBy: 'admin',
+      grantedByName: 'المدير',
+      status: 'approved',
+      
+      // بيانات إضافية
+      metadata: {
+        manualEntry: true,
+        source: 'admin_panel'
+      }
+    };
+    
+    // Save to Firestore
+    await setDoc(doc(db, 'teacherIncentives', incentiveId), incentiveData);
+    
+    console.log('✅ تم منح الحافز بنجاح');
+    
+    // Send notification to teacher
+    try {
+      const notificationId = `NOTIF_INCENTIVE_${teacherId}_${Date.now()}`;
+      await setDoc(doc(db, 'teacherNotifications', notificationId), {
+        notificationId: notificationId,
+        teacherId: teacherId,
+        type: 'incentive_granted',
+        title: '🎁 حافز جديد من الإدارة',
+        message: `تم منحك حافز بقيمة ${amount} ريال\\n${reason}`,
+        incentiveId: incentiveId,
+        amount: amount,
+        reason: reason,
+        createdAt: serverTimestamp(),
+        read: false
+      });
+      
+      console.log('✅ تم إرسال إشعار الحافز للمعلم');
+    } catch (notifError) {
+      console.error('⚠️ خطأ في إرسال الإشعار (لكن الحافز تم منحه):', notifError);
+    }
+    
+    // Close modal
+    closeGrantIncentiveModal();
+    
+    // Show success message
+    showSuccessToast(`✅ تم منح حافز بقيمة ${amount} ريال للمعلم ${teacherName}`);
+    
+  } catch (error) {
+    console.error('❌ خطأ في منح الحافز:', error);
+    alert('حدث خطأ في منح الحافز: ' + error.message);
+  } finally {
+    // Reset button
+    btn.disabled = false;
+    btnSpinner.style.display = 'none';
+    btnText.style.display = 'inline-block';
   }
 };
 
@@ -9887,34 +10275,85 @@ window.saveStaffSettings = async function(staffId, staffName) {
     btnSpinner.style.display = 'inline-block';
     btnText.style.display = 'none';
     
-    // Collect form data
+    // Collect form data (matching Firestore structure)
     const settingsData = {
-      salary: parseFloat(document.getElementById('monthlySalary').value) || 3000,
+      salary: {
+        monthlySalary: parseFloat(document.getElementById('monthlySalary').value) || 3000,
+        currency: 'SAR'
+      },
       workSchedule: {
         minutesAfterAsr: parseInt(document.getElementById('minutesAfterAsr').value) || 15,
-        minutesAfterIsha: parseInt(document.getElementById('minutesAfterIsha').value) || 5
+        minutesAfterIsha: parseInt(document.getElementById('minutesAfterIsha').value) || 5,
+        followsPrayerTimes: true,
+        fixedStartTime: null,
+        fixedEndTime: null,
+        gracePeriod: 0
       },
-      penaltyRules: {
-        latePenaltyAmount: parseFloat(document.getElementById('latePenaltyAmount').value) || 5,
-        latePenaltyInterval: parseInt(document.getElementById('latePenaltyInterval').value) || 30,
-        lateDailyMaxPenalty: parseFloat(document.getElementById('lateDailyMaxPenalty').value) || 0,
-        lateGracePeriod: parseInt(document.getElementById('lateGracePeriod').value) || 10,
-        earlyLeaveEnabled: document.getElementById('earlyLeaveEnabled').checked,
-        earlyLeavePenaltyAmount: parseFloat(document.getElementById('earlyLeavePenaltyAmount').value) || 5,
-        earlyLeavePenaltyInterval: parseInt(document.getElementById('earlyLeavePenaltyInterval').value) || 30,
-        earlyLeaveGracePeriod: parseInt(document.getElementById('earlyLeaveGracePeriod').value) || 5
+      penalties: {
+        latePenalty: {
+          enabled: true,
+          amount: parseFloat(document.getElementById('latePenaltyAmount').value) || 5,
+          intervalMinutes: parseInt(document.getElementById('latePenaltyInterval').value) || 30,
+          graceMinutes: parseInt(document.getElementById('lateGracePeriod').value) || 0,
+          maxDailyPenalty: parseFloat(document.getElementById('lateDailyMaxPenalty').value) || null,
+          roundingMethod: 'ceil'
+        },
+        earlyLeavePenalty: {
+          enabled: document.getElementById('earlyLeaveEnabled').checked,
+          amount: parseFloat(document.getElementById('earlyLeavePenaltyAmount').value) || 5,
+          intervalMinutes: parseInt(document.getElementById('earlyLeavePenaltyInterval').value) || 30,
+          graceMinutes: parseInt(document.getElementById('earlyLeaveGracePeriod').value) || 5,
+          maxDailyPenalty: 15,
+          roundingMethod: 'ceil'
+        },
+        absencePenalty: {
+          enabled: true,
+          calculationMethod: 'salary_divided_by_30',
+          customAmount: null,
+          allowExcusedAbsence: true,
+          excusedAbsenceDeduction: 0
+        }
       },
       vacationDays: {
         annual: 6,
         used: parseInt(document.getElementById('vacationUsedDays').value) || 0,
         remaining: 6 - (parseInt(document.getElementById('vacationUsedDays').value) || 0)
       },
+      // 🎁 إعدادات الحوافز
+      incentiveSettings: {
+        automatic: {
+          juzIncentive: {
+            amount: document.getElementById('juzIncentiveAmount').value.toString(),
+            description: document.getElementById('juzIncentiveDescription').value || 'حافز اجتياز جزء',
+            enabled: document.getElementById('juzIncentiveEnabled').checked
+          },
+          hizbIncentive: {
+            amount: document.getElementById('hizbIncentiveAmount').value.toString(),
+            description: document.getElementById('hizbIncentiveDescription').value || 'حافز اجتياز حزب',
+            enabled: document.getElementById('hizbIncentiveEnabled').checked
+          }
+        },
+        manual: {
+          enabled: document.getElementById('manualIncentiveEnabled').checked
+        }
+      },
       updatedAt: serverTimestamp(),
       updatedBy: 'admin'
     };
     
+    console.log('💾 Saving staff settings:', JSON.stringify(settingsData, null, 2));
+    
     // Save to Firestore
     await setDoc(doc(db, 'staffSettings', staffId), settingsData, { merge: true });
+    
+    console.log('✅ Settings saved successfully for:', staffId);
+    
+    // Clear cache to force reload
+    if (window.firestoreCache) {
+      const cacheKey = `staffSettings_${staffId}`;
+      window.firestoreCache.delete(cacheKey);
+      console.log('🗑️ Cleared cache for:', cacheKey);
+    }
     
     // Close modal
     closeStaffSettingsModal();
@@ -9945,25 +10384,65 @@ window.saveStaffSettings = async function(staffId, staffName) {
  */
 function getDefaultStaffSettings() {
   return {
-    salary: 3000,
+    salary: {
+      monthlySalary: 3000,
+      currency: 'SAR'
+    },
     workSchedule: {
       minutesAfterAsr: 15,
-      minutesAfterIsha: 5
+      minutesAfterIsha: 5,
+      followsPrayerTimes: true,
+      fixedStartTime: null,
+      fixedEndTime: null,
+      gracePeriod: 0
     },
-    penaltyRules: {
-      latePenaltyAmount: 5,
-      latePenaltyInterval: 30,
-      lateDailyMaxPenalty: 0,
-      lateGracePeriod: 10,
-      earlyLeaveEnabled: true,
-      earlyLeavePenaltyAmount: 5,
-      earlyLeavePenaltyInterval: 30,
-      earlyLeaveGracePeriod: 5
+    penalties: {
+      latePenalty: {
+        enabled: true,
+        amount: 5,
+        intervalMinutes: 30,
+        graceMinutes: 0,
+        maxDailyPenalty: null,
+        roundingMethod: 'ceil'
+      },
+      earlyLeavePenalty: {
+        enabled: true,
+        amount: 5,
+        intervalMinutes: 30,
+        graceMinutes: 5,
+        maxDailyPenalty: 15,
+        roundingMethod: 'ceil'
+      },
+      absencePenalty: {
+        enabled: true,
+        calculationMethod: 'salary_divided_by_30',
+        customAmount: null,
+        allowExcusedAbsence: true,
+        excusedAbsenceDeduction: 0
+      }
     },
     vacationDays: {
       annual: 6,
       used: 0,
       remaining: 6
+    },
+    // 🎁 إعدادات الحوافز (الجديدة)
+    incentiveSettings: {
+      automatic: {
+        juzIncentive: {
+          amount: "25",                   // المبلغ كـ string
+          description: "حافز اجتياز جزء",
+          enabled: true                   // مفعّل افتراضياً
+        },
+        hizbIncentive: {
+          amount: "25",                   // المبلغ كـ string
+          description: "حافز اجتياز حزب",
+          enabled: true                   // مفعّل افتراضياً
+        }
+      },
+      manual: {
+        enabled: false                    // الحوافز اليدوية معطّلة افتراضياً
+      }
     }
   };
 }

@@ -7100,6 +7100,11 @@ details[open] > summary {
   border-color: #fca5a5;
 }
 
+.summary-item.expected-salary-item {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border-color: #86efac;
+}
+
 .summary-icon {
   font-size: 28px;
   line-height: 1;
@@ -7122,6 +7127,10 @@ details[open] > summary {
   color: #b91c1c;
 }
 
+.summary-item.expected-salary-item .summary-label {
+  color: #166534;
+}
+
 .summary-value {
   font-size: 20px;
   font-weight: 800;
@@ -7131,6 +7140,11 @@ details[open] > summary {
 
 .summary-item.total .summary-value {
   color: #dc2626;
+  font-size: 24px;
+}
+
+.summary-item.expected-salary-item .summary-value {
+  color: #16a34a;
   font-size: 24px;
 }
 
@@ -9846,6 +9860,186 @@ details[open] > summary {
 
 .vacation-stat-card.depleted .vacation-stat-value {
   color: #991b1b;
+}
+
+/* 🎁 Incentives Section */
+.incentives-section {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+  border: 3px solid #fbbf24 !important;
+}
+
+.incentives-subsection {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.incentives-subsection:last-of-type {
+  margin-bottom: 0;
+}
+
+.subsection-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.subsection-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.subsection-icon {
+  font-size: 24px;
+}
+
+.incentive-card {
+  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 100%);
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.incentive-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.incentive-card:last-child {
+  margin-bottom: 0;
+}
+
+.incentive-card-header {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  padding: 16px 20px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.juz-incentive .incentive-card-header {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.hizb-incentive .incentive-card-header {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.incentive-card-body {
+  padding: 20px;
+}
+
+/* Manual Incentive Action */
+.grant-incentive-btn {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Cairo', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.grant-incentive-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  transform: translateY(-2px);
+}
+
+.grant-incentive-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.6;
+}
+
+.grant-incentive-btn .btn-icon {
+  font-size: 20px;
+}
+
+/* Grant Incentive Modal */
+.form-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  background: white;
+  border: 2px solid #d1d5db;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  font-family: 'Cairo', sans-serif;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.form-textarea::placeholder {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.incentive-preview-card {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #fbbf24;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+}
+
+.preview-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.preview-content {
+  flex: 1;
+}
+
+.preview-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 6px;
+}
+
+.preview-amount {
+  font-size: 28px;
+  font-weight: 900;
+  color: #78350f;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.preview-teacher {
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
 }
 
 /* Footer */

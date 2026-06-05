@@ -78,6 +78,7 @@ async function getStaffSettings(staffId) {
     if (settingsDoc.exists()) {
       const settings = settingsDoc.data();
       console.log('✅ Loaded settings from Firestore for:', staffId);
+      console.log('📋 Settings structure:', JSON.stringify(settings, null, 2));
       
       // Cache the settings
       firestoreCache.set(cacheKey, settings);
@@ -86,33 +87,49 @@ async function getStaffSettings(staffId) {
     } else {
       console.log('⚠️ No settings found for:', staffId, '- using defaults');
       
-      // Return default settings
+      // Return default settings (matching Firestore structure)
       const defaults = {
+        salary: {
+          monthlySalary: 3000,
+          currency: 'SAR'
+        },
         workSchedule: {
           minutesAfterAsr: 15,
           minutesAfterIsha: 5,
-          workDays: [0, 1, 2, 3, 4] // الأحد إلى الخميس
-        },
-        salary: {
-          monthlySalary: 3000
+          followsPrayerTimes: true,
+          fixedStartTime: null,
+          fixedEndTime: null,
+          gracePeriod: 0
         },
         penalties: {
           latePenalty: {
             enabled: true,
             amount: 5,
             intervalMinutes: 30,
-            maxDailyPenalty: 20,
+            graceMinutes: 0,
+            maxDailyPenalty: null,
             roundingMethod: 'ceil'
           },
           earlyLeavePenalty: {
             enabled: true,
             amount: 5,
-            intervalMinutes: 30
+            intervalMinutes: 30,
+            graceMinutes: 5,
+            maxDailyPenalty: 15,
+            roundingMethod: 'ceil'
           },
           absencePenalty: {
             enabled: true,
-            calculationMethod: 'salary_divided_by_30'
+            calculationMethod: 'salary_divided_by_30',
+            customAmount: null,
+            allowExcusedAbsence: true,
+            excusedAbsenceDeduction: 0
           }
+        },
+        vacationDays: {
+          annual: 6,
+          used: 0,
+          remaining: 6
         }
       };
       
@@ -7877,7 +7894,7 @@ window.switchTeacherSection = function(sectionName) {
 };
 
 // Load Home Section
-function loadTeacherHomeSection(container) {
+async function loadTeacherHomeSection(container) {
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
@@ -7890,9 +7907,31 @@ function loadTeacherHomeSection(container) {
   const totalStudyDays = monthlyReport.studyDaysCount;
   const attendedDays = totalStudyDays; // Placeholder - will be replaced with actual data
   
-  // Salary calculations
-  const baseSalary = 1000; // Base salary in SAR
-  const deductionPerDay = 50; // Deduction per absent day
+  // Get teacher ID and salary from settings
+  const teacherId = sessionStorage.getItem('loggedInTeacher');
+  let baseSalary = 3000; // Default salary
+  let deductionPerDay = 100; // Default deduction per absent day
+  
+  // Fetch actual salary from staffSettings
+  try {
+    const settings = await getStaffSettings(teacherId);
+    console.log('📊 Settings loaded for teacher home:', settings);
+    
+    // Access salary correctly - it's stored as an object with monthlySalary property
+    if (settings.salary && typeof settings.salary === 'object') {
+      baseSalary = settings.salary.monthlySalary || 3000;
+    } else if (typeof settings.salary === 'number') {
+      baseSalary = settings.salary;
+    } else {
+      baseSalary = 3000;
+    }
+    
+    console.log('💰 Base salary:', baseSalary);
+    deductionPerDay = Math.round(baseSalary / 30); // Calculate daily deduction
+  } catch (error) {
+    console.error('Error fetching salary:', error);
+  }
+  
   const absentDays = totalStudyDays - attendedDays;
   const totalDeductions = absentDays * deductionPerDay;
   const expectedSalary = baseSalary - totalDeductions;
@@ -7946,7 +7985,7 @@ function loadTeacherHomeSection(container) {
               <div class="salary-details">
                 <div class="salary-label">الخصومات الحالية</div>
                 <div class="salary-amount deduction-amount">${totalDeductions.toLocaleString('ar-SA')} ريال</div>
-                ${absentDays > 0 ? `<div class="salary-meta">${absentDays} يوم غياب × ${deductionPerDay} ريال</div>` : '<div class="salary-meta">لا توجد خصومات</div>'}
+                ${absentDays > 0 ? `<div class="salary-meta">${absentDays} يوم غياب × ${deductionPerDay.toLocaleString('ar-SA')} ريال</div>` : '<div class="salary-meta">لا توجد خصومات</div>'}
               </div>
             </div>
           </div>
@@ -8286,6 +8325,17 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
       return sum + r.earlyLeaveDeduction;
     }, 0);
     const totalDeductions = absenceDeductions + lateDeductions + earlyLeaveDeductions;
+    
+    // Get salary from staffSettings - handle both object and number formats
+    let baseSalary = 3000;
+    if (settings.salary && typeof settings.salary === 'object') {
+      baseSalary = settings.salary.monthlySalary || 3000;
+    } else if (typeof settings.salary === 'number') {
+      baseSalary = settings.salary;
+    }
+    
+    console.log('💰 Salary in monthly report:', baseSalary);
+    const expectedSalary = baseSalary - totalDeductions;
   
     // Build table HTML
     const tableHTML = `
@@ -8375,6 +8425,13 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
       <h4>📊 الملخص النهائي</h4>
       <div class="summary-grid">
         <div class="summary-item">
+          <span class="summary-icon">�</span>
+          <div class="summary-details">
+            <div class="summary-label">الراتب الأساسي</div>
+            <div class="summary-value">${baseSalary.toLocaleString('ar-SA')} ريال</div>
+          </div>
+        </div>
+        <div class="summary-item">
           <span class="summary-icon">📅</span>
           <div class="summary-details">
             <div class="summary-label">عدد الغيابات</div>
@@ -8385,28 +8442,35 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
           <span class="summary-icon">💸</span>
           <div class="summary-details">
             <div class="summary-label">خصومات الغياب</div>
-            <div class="summary-value">${absenceDeductions} ريال</div>
+            <div class="summary-value">${absenceDeductions.toLocaleString('ar-SA')} ريال</div>
           </div>
         </div>
         <div class="summary-item">
           <span class="summary-icon">⏰</span>
           <div class="summary-details">
             <div class="summary-label">خصومات التأخير</div>
-            <div class="summary-value">${lateDeductions} ريال</div>
+            <div class="summary-value">${lateDeductions.toLocaleString('ar-SA')} ريال</div>
           </div>
         </div>
         <div class="summary-item">
           <span class="summary-icon">🚪</span>
           <div class="summary-details">
             <div class="summary-label">خصومات الخروج المبكر</div>
-            <div class="summary-value">${earlyLeaveDeductions} ريال</div>
+            <div class="summary-value">${earlyLeaveDeductions.toLocaleString('ar-SA')} ريال</div>
           </div>
         </div>
         <div class="summary-item total">
           <span class="summary-icon">📉</span>
           <div class="summary-details">
             <div class="summary-label">إجمالي الخصومات</div>
-            <div class="summary-value">${totalDeductions} ريال</div>
+            <div class="summary-value">${totalDeductions.toLocaleString('ar-SA')} ريال</div>
+          </div>
+        </div>
+        <div class="summary-item expected-salary-item">
+          <span class="summary-icon">✅</span>
+          <div class="summary-details">
+            <div class="summary-label">الراتب المتوقع</div>
+            <div class="summary-value">${expectedSalary.toLocaleString('ar-SA')} ريال</div>
           </div>
         </div>
       </div>
@@ -9472,17 +9536,40 @@ window.submitCheckIn = async function() {
     if (shiftStartTime && checkInTime > shiftStartTime) {
       lateMinutes = Math.floor((checkInTime - shiftStartTime) / (1000 * 60));
       
-      // Get penalty settings
-      const penaltySettings = settings.penalties?.latePenalty || { enabled: true, amount: 5, intervalMinutes: 30, maxDailyPenalty: 20 };
+      // Get penalty settings from staffSettings.penalties.latePenalty
+      const latePenalty = settings.penalties?.latePenalty || {
+        enabled: true,
+        amount: 5,
+        intervalMinutes: 30,
+        graceMinutes: 0,
+        maxDailyPenalty: null,
+        roundingMethod: 'ceil'
+      };
       
-      if (penaltySettings.enabled) {
-        // Calculate number of intervals
-        const intervals = Math.ceil(lateMinutes / penaltySettings.intervalMinutes);
-        lateDeduction = intervals * penaltySettings.amount;
+      console.log('⏰ Late penalty settings:', latePenalty);
+      console.log('⏰ Late minutes:', lateMinutes);
+      
+      // Check if penalty is enabled
+      if (latePenalty.enabled) {
+        // Apply grace period
+        const gracePeriod = latePenalty.graceMinutes || 0;
+        const effectiveLateMinutes = Math.max(0, lateMinutes - gracePeriod);
         
-        // Apply max daily penalty if set
-        if (penaltySettings.maxDailyPenalty && penaltySettings.maxDailyPenalty > 0) {
-          lateDeduction = Math.min(lateDeduction, penaltySettings.maxDailyPenalty);
+        console.log('⏰ Effective late minutes after grace period:', effectiveLateMinutes);
+        
+        if (effectiveLateMinutes > 0) {
+          // Calculate number of intervals
+          const intervals = Math.ceil(effectiveLateMinutes / latePenalty.intervalMinutes);
+          lateDeduction = intervals * latePenalty.amount;
+          
+          console.log('⏰ Intervals:', intervals, 'Deduction before max:', lateDeduction);
+          
+          // Apply max daily penalty if set
+          if (latePenalty.maxDailyPenalty && latePenalty.maxDailyPenalty > 0) {
+            lateDeduction = Math.min(lateDeduction, latePenalty.maxDailyPenalty);
+          }
+          
+          console.log('💰 Final late deduction:', lateDeduction);
         }
       }
     }
@@ -9576,29 +9663,39 @@ window.submitAbsent = async function() {
       firestoreCache.delete(cacheKey);
       
     } else {
-      // Regular absence - calculate deduction
-      const absencePenaltySettings = settings.penalties?.absencePenalty || { enabled: true, calculationMethod: 'salary_divided_by_30' };
+      // Regular absence - calculate deduction based on salary
+      let monthlySalary = 3000;
       
-      if (absencePenaltySettings.enabled) {
-        const monthlySalary = settings.salary?.monthlySalary || 3000;
-        
-        switch (absencePenaltySettings.calculationMethod) {
+      // Access salary correctly - it's stored as an object with monthlySalary property
+      if (settings.salary && typeof settings.salary === 'object') {
+        monthlySalary = settings.salary.monthlySalary || 3000;
+      } else if (typeof settings.salary === 'number') {
+        monthlySalary = settings.salary;
+      }
+      
+      // Get absence penalty settings from staffSettings.penalties.absencePenalty
+      const absencePenalty = settings.penalties?.absencePenalty || {
+        enabled: true,
+        calculationMethod: 'salary_divided_by_30'
+      };
+      
+      console.log('❌ Absence penalty settings:', absencePenalty);
+      console.log('💰 Monthly salary for absence calculation:', monthlySalary);
+      
+      if (absencePenalty.enabled) {
+        switch (absencePenalty.calculationMethod) {
           case 'salary_divided_by_30':
-            absenceDeduction = monthlySalary / 30;
+            absenceDeduction = Math.round(monthlySalary / 30);
             break;
-          case 'salary_divided_by_study_days':
-            absenceDeduction = monthlySalary / 22; // Default 22 working days
-            break;
-          case 'fixed_amount':
-            absenceDeduction = absencePenaltySettings.fixedAmount || 100;
-            break;
-          case 'percentage_of_salary':
-            absenceDeduction = (monthlySalary * (absencePenaltySettings.percentage || 3)) / 100;
+          case 'custom_amount':
+            absenceDeduction = absencePenalty.customAmount || 100;
             break;
           default:
-            absenceDeduction = monthlySalary / 30;
+            absenceDeduction = Math.round(monthlySalary / 30);
         }
       }
+      
+      console.log('💰 Final absence deduction:', absenceDeduction);
     }
     
     // Save to Firestore
@@ -9686,13 +9783,41 @@ window.submitCheckOut = async function() {
     if (shiftEndTime && checkOutTime < shiftEndTime) {
       earlyMinutes = Math.floor((shiftEndTime - checkOutTime) / (1000 * 60));
       
-      // Get penalty settings
-      const penaltySettings = settings.penalties?.earlyLeavePenalty || { enabled: true, amount: 5, intervalMinutes: 30 };
+      // Get penalty settings from staffSettings.penalties.earlyLeavePenalty
+      const earlyLeavePenalty = settings.penalties?.earlyLeavePenalty || {
+        enabled: true,
+        amount: 5,
+        intervalMinutes: 30,
+        graceMinutes: 5,
+        maxDailyPenalty: 15,
+        roundingMethod: 'ceil'
+      };
       
-      if (penaltySettings.enabled) {
-        // Calculate number of intervals
-        const intervals = Math.ceil(earlyMinutes / penaltySettings.intervalMinutes);
-        earlyLeaveDeduction = intervals * penaltySettings.amount;
+      console.log('🚪 Early leave penalty settings:', earlyLeavePenalty);
+      console.log('🚪 Early minutes:', earlyMinutes);
+      
+      // Check if early leave penalty is enabled
+      if (earlyLeavePenalty.enabled) {
+        // Apply grace period
+        const gracePeriod = earlyLeavePenalty.graceMinutes || 0;
+        const effectiveEarlyMinutes = Math.max(0, earlyMinutes - gracePeriod);
+        
+        console.log('🚪 Effective early minutes after grace period:', effectiveEarlyMinutes);
+        
+        if (effectiveEarlyMinutes > 0) {
+          // Calculate number of intervals
+          const intervals = Math.ceil(effectiveEarlyMinutes / earlyLeavePenalty.intervalMinutes);
+          earlyLeaveDeduction = intervals * earlyLeavePenalty.amount;
+          
+          console.log('🚪 Intervals:', intervals, 'Deduction before max:', earlyLeaveDeduction);
+          
+          // Apply max daily penalty if set
+          if (earlyLeavePenalty.maxDailyPenalty && earlyLeavePenalty.maxDailyPenalty > 0) {
+            earlyLeaveDeduction = Math.min(earlyLeaveDeduction, earlyLeavePenalty.maxDailyPenalty);
+          }
+          
+          console.log('💰 Final early leave deduction:', earlyLeaveDeduction);
+        }
       }
     }
     

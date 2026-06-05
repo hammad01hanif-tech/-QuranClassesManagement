@@ -22,6 +22,167 @@ import { quranHizbData } from './quran-hizb-data.js';
 let viewerNotificationsListener = null;
 
 // ============================================
+// AUTOMATIC TEACHER INCENTIVES SYSTEM
+// ============================================
+
+/**
+ * منح حافز تلقائي للمعلم عند اجتياز طالب لجزء أو حزب
+ * Grant automatic incentive to teacher when student passes Juz or Hizb
+ * 
+ * @param {string} teacherId - معرف المعلم
+ * @param {string} teacherName - اسم المعلم
+ * @param {string} type - نوع الإنجاز: 'juz' أو 'hizb'
+ * @param {number} number - رقم الجزء أو الحزب
+ * @param {string} reportId - معرف التقرير (للربط وتجنب التكرار)
+ * @param {string} studentName - اسم الطالب
+ */
+async function grantAutomaticIncentive(teacherId, teacherName, type, number, reportId, studentName) {
+  try {
+    console.log('🎁 بدء عملية منح حافز تلقائي:', {
+      teacherId,
+      teacherName,
+      type,
+      number,
+      reportId,
+      studentName
+    });
+    
+    // 1️⃣ جلب إعدادات المعلم من staffSettings
+    const settingsDoc = await getDoc(doc(db, 'staffSettings', teacherId));
+    
+    if (!settingsDoc.exists()) {
+      console.log('⚠️ لا توجد إعدادات للمعلم - لن يتم منح حافز');
+      return;
+    }
+    
+    const settings = settingsDoc.data();
+    const automaticSettings = settings.incentiveSettings?.automatic;
+    
+    if (!automaticSettings) {
+      console.log('⚠️ لا توجد إعدادات حوافز تلقائية للمعلم');
+      return;
+    }
+    
+    // 2️⃣ تحديد نوع الحافز حسب الإنجاز (juz أو hizb)
+    const incentiveKey = type === 'juz' ? 'juzIncentive' : 'hizbIncentive';
+    const incentiveConfig = automaticSettings[incentiveKey];
+    
+    if (!incentiveConfig) {
+      console.log(`⚠️ لا توجد إعدادات حافز لـ ${type}`);
+      return;
+    }
+    
+    // 3️⃣ التحقق من تفعيل هذا النوع
+    if (!incentiveConfig.enabled) {
+      console.log(`⚠️ حوافز ${type} غير مفعّلة للمعلم`);
+      return;
+    }
+    
+    // 4️⃣ الحصول على المبلغ (تحويل من string إلى number)
+    const incentiveAmount = parseFloat(incentiveConfig.amount) || 20;
+    const incentiveDescription = `${incentiveConfig.description || (type === 'juz' ? 'حافز اجتياز جزء' : 'حافز اجتياز حزب')} ${number}`;
+    const achievementType = type === 'juz' ? 'juz_completion' : 'hizb_completion';
+    
+    console.log('💰 مبلغ الحافز:', incentiveAmount, 'ريال');
+    console.log('📝 وصف الحافز:', incentiveDescription);
+    
+    console.log('💰 مبلغ الحافز:', incentiveAmount, 'ريال');
+    console.log('📝 وصف الحافز:', incentiveDescription);
+    
+    // 5️⃣ التحقق من عدم وجود حافز مُمنوح مسبقاً لنفس التقرير
+    const existingQuery = query(
+      collection(db, 'teacherIncentives'),
+      where('teacherId', '==', teacherId),
+      where('metadata.reportId', '==', reportId)
+    );
+    
+    const existingSnapshot = await getDocs(existingQuery);
+    if (!existingSnapshot.empty) {
+      console.log('⚠️ يوجد حافز ممنوح مسبقاً لهذا التقرير - لن يتم التكرار');
+      return;
+    }
+    
+    // 6️⃣ إنشاء سجل الحافز التلقائي
+    const incentiveId = `INC_${teacherId}_${Date.now()}`;
+    const now = new Date();
+    const currentMonth = now.toISOString().substring(0, 7); // "2026-06"
+    const currentYear = now.getFullYear(); // 2026
+    
+    const incentiveData = {
+      // المعرفات الأساسية
+      incentiveId: incentiveId,
+      teacherId: teacherId,
+      teacherName: teacherName,
+      
+      // التصنيف
+      type: 'automatic',
+      source: 'viewer',
+      incentiveType: achievementType,
+      
+      // الوصف والمبلغ
+      incentiveName: incentiveDescription,
+      reason: `${incentiveDescription} - الطالب: ${studentName}`,
+      amount: incentiveAmount,
+      currency: 'SAR',
+      
+      // التواريخ (للدورة الشهرية والتقارير)
+      createdAt: serverTimestamp(),
+      month: currentMonth,
+      year: currentYear,
+      
+      // معلومات الإنشاء
+      grantedBy: 'system',
+      grantedByName: 'النظام التلقائي',
+      
+      // الحالة
+      status: 'approved',
+      
+      // بيانات إضافية (metadata) للربط والاستعلام
+      metadata: {
+        reportId: reportId,
+        studentName: studentName,
+        achievementNumber: number,
+        collectionName: type === 'juz' ? 'juzDisplays' : 'hizbDisplays'
+      }
+    };
+    
+    // حفظ في Firestore
+    await setDoc(doc(db, 'teacherIncentives', incentiveId), incentiveData);
+    
+    console.log('✅ تم منح الحافز التلقائي بنجاح!', {
+      incentiveId,
+      amount: incentiveAmount,
+      description: incentiveDescription
+    });
+    
+    // 7️⃣ إرسال إشعار للمعلم (اختياري)
+    try {
+      const notificationId = `NOTIF_INCENTIVE_${teacherId}_${Date.now()}`;
+      await setDoc(doc(db, 'teacherNotifications', notificationId), {
+        notificationId: notificationId,
+        teacherId: teacherId,
+        type: 'incentive_granted',
+        title: '🎁 حافز تلقائي جديد',
+        message: `تم منحك حافز ${incentiveAmount} ريال - ${incentiveDescription} للطالب ${studentName}`,
+        incentiveId: incentiveId,
+        amount: incentiveAmount,
+        reason: incentiveDescription,
+        createdAt: serverTimestamp(),
+        read: false
+      });
+      
+      console.log('✅ تم إرسال إشعار الحافز للمعلم');
+    } catch (notifError) {
+      console.error('⚠️ خطأ في إرسال الإشعار (لكن الحافز تم منحه):', notifError);
+    }
+    
+  } catch (error) {
+    console.error('❌ خطأ في منح الحافز التلقائي:', error);
+    // لا نعرض alert للمستخدم لأنها عملية خلفية
+  }
+}
+
+// ============================================
 // VIEWERS LIST - قائمة العارضين
 // ============================================
 const VIEWERS_LIST = [
@@ -458,6 +619,21 @@ window.saveNewJuzDisplay = async function() {
       createdAt: serverTimestamp(),
       status: normalizedDisplayDate ? 'completed' : 'incomplete'
     });
+    
+    console.log('✅ تم حفظ الجزء بنجاح:', reportId);
+    
+    // 🎁 منح حافز تلقائي إذا تم إدخال تاريخ العرض (completed)
+    if (normalizedDisplayDate) {
+      console.log('🎁 محاولة منح حافز تلقائي للجزء...');
+      await grantAutomaticIncentive(
+        teacherId,
+        teacherName,
+        'juz',
+        parseInt(juzNumber),
+        reportId,
+        studentName
+      );
+    }
     
     messageDiv.style.display = 'block';
     messageDiv.style.background = '#e8f5e9';
@@ -929,6 +1105,19 @@ window.updateJuzDisplayDate = async function(reportId) {
       attemptsCount: totalAttempts,
       updatedAt: serverTimestamp()
     });
+    
+    console.log('✅ تم تحديث تاريخ العرض للجزء:', reportId);
+    
+    // 🎁 منح حافز تلقائي (الآن أصبح completed)
+    console.log('🎁 محاولة منح حافز تلقائي بعد التحديث...');
+    await grantAutomaticIncentive(
+      currentData.teacherId,
+      currentData.teacherName,
+      'juz',
+      currentData.juzNumber,
+      reportId,
+      currentData.studentName
+    );
     
     alert('✅ تم تحديث التاريخ بنجاح!');
     
@@ -2650,6 +2839,17 @@ window.saveDisplayDateFromModal = async function(reportId, type) {
     });
     
     console.log(`✅ ${type} display date saved:`, normalizedDate);
+    
+    // 🎁 منح حافز تلقائي (الآن أصبح completed)
+    console.log(`🎁 محاولة منح حافز تلقائي للـ ${type}...`);
+    await grantAutomaticIncentive(
+      currentData.teacherId,
+      currentData.teacherName,
+      type, // 'juz' أو 'hizb'
+      type === 'juz' ? currentData.juzNumber : currentData.hizbNumber,
+      reportId,
+      currentData.studentName
+    );
     
     // Hide form, show success and action buttons
     const formContainer = document.getElementById(`formContainer_${reportId}`);
