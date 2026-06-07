@@ -50,19 +50,42 @@ window.selectRole = function(role) {
       }
     }, 100);
   } else if (role === 'teacher') {
+    console.log('👨‍🏫 Teacher role selected');
+    
     const teacherSection = document.getElementById('teacherSection');
     const teacherLogin = document.getElementById('teacherLogin');
     const teacherDashboard = document.getElementById('teacherDashboard');
+    const newTeacherDesign = document.getElementById('newTeacherDesign');
+    const oldTeacherDesign = document.getElementById('oldTeacherDesign');
     
     console.log('🔍 TEACHER - teacherSection found:', !!teacherSection);
     console.log('🔍 TEACHER - teacherLogin found:', !!teacherLogin);
     console.log('🔍 TEACHER - teacherDashboard found:', !!teacherDashboard);
+    console.log('🔍 TEACHER - newTeacherDesign found:', !!newTeacherDesign);
     
-    teacherSection.style.display = 'block';
-    teacherLogin.style.display = 'block';
-    teacherDashboard.style.display = 'none';
+    if (teacherSection) {
+      teacherSection.style.display = 'block';
+      teacherSection.style.visibility = 'visible';
+    }
+    
+    if (teacherLogin) {
+      teacherLogin.style.display = 'block';
+    }
+    
+    if (teacherDashboard) {
+      teacherDashboard.style.display = 'none';
+    }
+    
+    if (newTeacherDesign) {
+      newTeacherDesign.style.display = 'none';
+    }
+    
+    if (oldTeacherDesign) {
+      oldTeacherDesign.style.display = 'none';
+    }
     
     loadStaffForLogin(); // Load all staff members (teachers + viewers + admins)
+    console.log('✅ Teacher login screen displayed');
   } else if (role === 'student') {
     const studentSection = document.getElementById('studentSection');
     const studentLogin = document.getElementById('studentLogin');
@@ -132,6 +155,9 @@ setInterval(updateDateTime, 60000);
 
 // Show role selection page
 window.showRoleSelection = function() {
+  console.log('🔄 showRoleSelection() called');
+  console.trace('Call stack:'); // Show who called this function
+  
   document.getElementById('roleSelection').style.display = 'flex';
   document.getElementById('adminSection').style.display = 'none';
   document.getElementById('teacherSection').style.display = 'none';
@@ -150,6 +176,8 @@ window.showRoleSelection = function() {
   if (newViewerDesign) {
     newViewerDesign.style.display = 'none';
   }
+  
+  console.log('✅ Role selection shown');
 };
 
 // Logout function
@@ -561,46 +589,98 @@ async function restoreUserSession() {
   const loggedInTeacher = sessionStorage.getItem('loggedInTeacher');
   const loggedInTeacherName = sessionStorage.getItem('loggedInTeacherName');
   
+  console.log('🔍 Checking teacher session...');
+  console.log('  - loggedInTeacher:', loggedInTeacher);
+  console.log('  - loggedInTeacherName:', loggedInTeacherName);
+  
   if (loggedInTeacher && loggedInTeacherName) {
-    console.log('🔄 Restoring teacher session:', loggedInTeacher);
+    console.log('✅ Teacher session found! Restoring...', loggedInTeacher);
     
-    // Hide role selection and teacher login
-    document.getElementById('roleSelection').style.display = 'none';
-    document.getElementById('teacherSection').style.display = 'block';
-    document.getElementById('teacherLogin').style.display = 'none';
+    // Get elements
+    const roleSelection = document.getElementById('roleSelection');
+    const teacherSection = document.getElementById('teacherSection');
+    const teacherLogin = document.getElementById('teacherLogin');
+    const newTeacherDesign = document.getElementById('newTeacherDesign');
+    const oldTeacherDesign = document.getElementById('oldTeacherDesign');
+    const teacherDashboard = document.getElementById('teacherDashboard');
+    
+    console.log('📋 Elements check:');
+    console.log('  - roleSelection:', !!roleSelection);
+    console.log('  - teacherSection:', !!teacherSection);
+    console.log('  - teacherLogin:', !!teacherLogin);
+    console.log('  - newTeacherDesign:', !!newTeacherDesign);
+    
+    // Hide role selection FIRST
+    if (roleSelection) {
+      roleSelection.style.display = 'none';
+      roleSelection.style.visibility = 'hidden';
+      console.log('✓ roleSelection hidden');
+    }
+    
+    // Show teacher section
+    if (teacherSection) {
+      teacherSection.style.display = 'block';
+      teacherSection.style.visibility = 'visible';
+      console.log('✓ teacherSection shown');
+    }
+    
+    // Hide teacher login
+    if (teacherLogin) {
+      teacherLogin.style.display = 'none';
+      console.log('✓ teacherLogin hidden');
+    }
     
     // Show NEW design instead of old
-    document.getElementById('newTeacherDesign').style.display = 'block';
-    document.getElementById('oldTeacherDesign').style.display = 'none';
+    if (newTeacherDesign) {
+      newTeacherDesign.style.display = 'block';
+      newTeacherDesign.style.visibility = 'visible';
+      console.log('✓ newTeacherDesign shown');
+    }
+    
+    if (oldTeacherDesign) {
+      oldTeacherDesign.style.display = 'none';
+    }
     
     // OLD design (preserved but hidden)
-    document.getElementById('teacherDashboard').style.display = 'block';
+    if (teacherDashboard) {
+      teacherDashboard.style.display = 'block';
+    }
     
     // Restore teacher info in OLD design
-    document.getElementById('teacherClassDisplay').textContent = loggedInTeacher;
-    document.getElementById('teacherNameDisplay').textContent = loggedInTeacherName;
+    const teacherClassDisplay = document.getElementById('teacherClassDisplay');
+    const teacherNameDisplay = document.getElementById('teacherNameDisplay');
+    if (teacherClassDisplay) teacherClassDisplay.textContent = loggedInTeacher;
+    if (teacherNameDisplay) teacherNameDisplay.textContent = loggedInTeacherName;
     
     // Update teacher name in NEW design header
     const teacherNameHeader = document.getElementById('teacherNameHeader');
     if (teacherNameHeader) {
       teacherNameHeader.textContent = loggedInTeacherName;
+      console.log('✓ teacherNameHeader updated');
     }
     
     // Initialize teacher dashboard
     updateDateTime();
+    console.log('🔧 Calling initTeacher...');
     initTeacher(loggedInTeacher);
+    console.log('✅ initTeacher completed');
     
     if (typeof window.checkCleanupButton === 'function') {
       window.checkCleanupButton();
     }
     
-    // Load home section for new design
+    // Load home section for new design with longer delay (like admin)
     setTimeout(() => {
+      console.log('🏠 Loading teacher home section...');
       if (typeof window.switchTeacherSection === 'function') {
         window.switchTeacherSection('home');
+        console.log('✅ Home section loaded');
+      } else {
+        console.error('❌ switchTeacherSection not found!');
       }
-    }, 100);
+    }, 300); // Increased to 300ms like admin
     
+    console.log('✅ Teacher session restore complete!');
     return; // Exit early
   }
   
@@ -653,8 +733,29 @@ async function restoreUserSession() {
   
   // No session found - show role selection
   console.log('👤 No active session - showing role selection');
-  document.getElementById('roleSelection').style.display = 'flex';
+  const roleSelection = document.getElementById('roleSelection');
+  if (roleSelection) {
+    roleSelection.style.display = 'flex';
+    roleSelection.style.visibility = 'visible';
+  }
 }
+
+// Double-check that roleSelection stays hidden after restore
+setTimeout(() => {
+  const loggedInTeacher = sessionStorage.getItem('loggedInTeacher');
+  const loggedInAdmin = sessionStorage.getItem('loggedInAdmin');
+  const loggedInStudent = sessionStorage.getItem('loggedInStudent');
+  const loggedInViewer = sessionStorage.getItem('loggedInViewer');
+  
+  if (loggedInTeacher || loggedInAdmin || loggedInStudent || loggedInViewer) {
+    const roleSelection = document.getElementById('roleSelection');
+    if (roleSelection && roleSelection.style.display !== 'none') {
+      console.warn('⚠️ roleSelection was visible - forcing hide!');
+      roleSelection.style.display = 'none';
+      roleSelection.style.visibility = 'hidden';
+    }
+  }
+}, 500);
 
 // ===== Viewer Functions =====
 
