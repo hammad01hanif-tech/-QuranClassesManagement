@@ -515,16 +515,16 @@ function restoreActiveTab() {
 }
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   updateDateTime();
   console.log('Main.js loaded successfully');
   
   // Check if user is already logged in and restore their session
-  restoreUserSession();
+  await restoreUserSession();
 });
 
 // Restore user session on page reload
-function restoreUserSession() {
+async function restoreUserSession() {
   // Check for Admin session
   const loggedInAdmin = sessionStorage.getItem('loggedInAdmin');
   
@@ -537,7 +537,19 @@ function restoreUserSession() {
     
     // Initialize admin dashboard
     updateDateTime();
-    initAdmin();
+    await initAdmin();
+    console.log('✅ initAdmin() completed');
+    
+    // Initialize new admin design after ensuring everything is ready
+    setTimeout(async () => {
+      if (window.initNewAdminDesign) {
+        console.log('✅ Calling initNewAdminDesign after session restore');
+        await window.initNewAdminDesign();
+        console.log('✅ initNewAdminDesign() completed');
+      } else {
+        console.error('❌ initNewAdminDesign not found after session restore!');
+      }
+    }, 300);
     
     // Restore active tab after a small delay to ensure DOM is ready
     setTimeout(() => restoreActiveTab(), 100);
@@ -886,39 +898,6 @@ window.viewerShowStats = function() {
   
   displayArea.innerHTML = html;
 };
-
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('Main.js loaded - selectRole is available');
-  updateDateTime();
-  
-  // Check if admin was logged in (restore session after page refresh)
-  const wasAdminLoggedIn = sessionStorage.getItem('loggedInAdmin');
-  if (wasAdminLoggedIn === 'true') {
-    console.log('🔄 Restoring admin session after page refresh...');
-    
-    // Hide role selection
-    document.getElementById('roleSelection').style.display = 'none';
-    
-    // Show admin section
-    document.getElementById('adminSection').style.display = 'block';
-    
-    // Initialize admin
-    await initAdmin();
-    console.log('✅ initAdmin() completed');
-    
-    // Initialize new admin design after ensuring everything is ready
-    setTimeout(async () => {
-      if (window.initNewAdminDesign) {
-        console.log('✅ Calling initNewAdminDesign after session restore');
-        await window.initNewAdminDesign();
-        console.log('✅ initNewAdminDesign() completed');
-      } else {
-        console.error('❌ initNewAdminDesign not found after session restore!');
-      }
-    }, 300);
-  }
-});
 
 // =====================================================
 // REGISTRATION SECTION - NEW FUNCTIONS
