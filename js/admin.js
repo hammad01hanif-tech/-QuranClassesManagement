@@ -3195,11 +3195,18 @@ window.logoutFromAdmin = function() {
     sessionStorage.removeItem('loggedInAdmin');
     localStorage.removeItem('adminLoggedIn');
     
-    // Hide admin section
-    document.getElementById('adminSection').style.display = 'none';
+    // Hide admin section with !important
+    const adminSection = document.getElementById('adminSection');
+    if (adminSection) {
+      adminSection.style.setProperty('display', 'none', 'important');
+    }
     
-    // Show role selection
-    document.getElementById('roleSelection').style.display = 'flex';
+    // Show role selection with !important
+    const roleSelection = document.getElementById('roleSelection');
+    if (roleSelection) {
+      roleSelection.style.setProperty('display', 'flex', 'important');
+      roleSelection.style.setProperty('visibility', 'visible', 'important');
+    }
     
     // Show success message
     console.log('✅ تم تسجيل الخروج بنجاح');

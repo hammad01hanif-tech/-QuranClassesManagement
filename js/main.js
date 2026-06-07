@@ -158,23 +158,41 @@ window.showRoleSelection = function() {
   console.log('🔄 showRoleSelection() called');
   console.trace('Call stack:'); // Show who called this function
   
-  document.getElementById('roleSelection').style.display = 'flex';
-  document.getElementById('adminSection').style.display = 'none';
-  document.getElementById('teacherSection').style.display = 'none';
-  document.getElementById('studentSection').style.display = 'none';
-  document.getElementById('viewerSection').style.display = 'none';
-  document.getElementById('teacherLogin').style.display = 'none';
-  document.getElementById('teacherDashboard').style.display = 'none';
+  const roleSelection = document.getElementById('roleSelection');
+  const adminSection = document.getElementById('adminSection');
+  const teacherSection = document.getElementById('teacherSection');
+  const studentSection = document.getElementById('studentSection');
+  const viewerSection = document.getElementById('viewerSection');
+  const teacherLogin = document.getElementById('teacherLogin');
+  const teacherDashboard = document.getElementById('teacherDashboard');
+  const newTeacherDesign = document.getElementById('newTeacherDesign');
+  const oldTeacherDesign = document.getElementById('oldTeacherDesign');
+  
+  // Show roleSelection with !important to override any previous !important
+  if (roleSelection) {
+    roleSelection.style.setProperty('display', 'flex', 'important');
+    roleSelection.style.setProperty('visibility', 'visible', 'important');
+  }
+  
+  // Hide all sections with !important
+  if (adminSection) adminSection.style.setProperty('display', 'none', 'important');
+  if (teacherSection) teacherSection.style.setProperty('display', 'none', 'important');
+  if (studentSection) studentSection.style.setProperty('display', 'none', 'important');
+  if (viewerSection) viewerSection.style.setProperty('display', 'none', 'important');
+  if (teacherLogin) teacherLogin.style.setProperty('display', 'none', 'important');
+  if (teacherDashboard) teacherDashboard.style.setProperty('display', 'none', 'important');
+  if (newTeacherDesign) newTeacherDesign.style.setProperty('display', 'none', 'important');
+  if (oldTeacherDesign) oldTeacherDesign.style.setProperty('display', 'none', 'important');
   
   const studentLogin = document.getElementById('studentLogin');
   const studentDashboard = document.getElementById('studentDashboard');
-  if (studentLogin) studentLogin.style.display = 'none';
-  if (studentDashboard) studentDashboard.style.display = 'none';
+  if (studentLogin) studentLogin.style.setProperty('display', 'none', 'important');
+  if (studentDashboard) studentDashboard.style.setProperty('display', 'none', 'important');
   
   // Hide new viewer design
   const newViewerDesign = document.getElementById('newViewerDesign');
   if (newViewerDesign) {
-    newViewerDesign.style.display = 'none';
+    newViewerDesign.style.setProperty('display', 'none', 'important');
   }
   
   console.log('✅ Role selection shown');
@@ -492,16 +510,32 @@ window.loginTeacher = async function() {
 
 // Teacher logout function
 window.logoutTeacher = function() {
+  console.log('🚪 Teacher logout initiated');
+  
   stopNotificationsListener(); // Stop listening for notifications
+  
+  // Clear session storage
   sessionStorage.removeItem('loggedInTeacher');
   sessionStorage.removeItem('loggedInTeacherName');
-  document.getElementById('teacherIdSelect').value = '';
-  document.getElementById('teacherPasswordInput').value = '';
   
-  // Hide new design
-  document.getElementById('newTeacherDesign').style.display = 'none';
-  document.getElementById('oldTeacherDesign').style.display = 'none';
+  // Clear login form
+  const teacherIdSelect = document.getElementById('teacherIdSelect');
+  const teacherPasswordInput = document.getElementById('teacherPasswordInput');
+  if (teacherIdSelect) teacherIdSelect.value = '';
+  if (teacherPasswordInput) teacherPasswordInput.value = '';
   
+  // Hide all teacher designs with !important
+  const newTeacherDesign = document.getElementById('newTeacherDesign');
+  const oldTeacherDesign = document.getElementById('oldTeacherDesign');
+  const teacherSection = document.getElementById('teacherSection');
+  
+  if (newTeacherDesign) newTeacherDesign.style.setProperty('display', 'none', 'important');
+  if (oldTeacherDesign) oldTeacherDesign.style.setProperty('display', 'none', 'important');
+  if (teacherSection) teacherSection.style.setProperty('display', 'none', 'important');
+  
+  console.log('✅ Teacher logged out successfully');
+  
+  // Show role selection
   window.showRoleSelection();
 };
 
