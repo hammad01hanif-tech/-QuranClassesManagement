@@ -612,29 +612,31 @@ async function restoreUserSession() {
     
     // Hide role selection FIRST
     if (roleSelection) {
-      roleSelection.style.display = 'none';
-      roleSelection.style.visibility = 'hidden';
-      console.log('✓ roleSelection hidden');
+      roleSelection.style.setProperty('display', 'none', 'important');
+      roleSelection.style.setProperty('visibility', 'hidden', 'important');
+      console.log('✓ roleSelection hidden with !important');
     }
     
     // Show teacher section
     if (teacherSection) {
-      teacherSection.style.display = 'block';
-      teacherSection.style.visibility = 'visible';
+      teacherSection.style.setProperty('display', 'block', 'important');
+      teacherSection.style.setProperty('visibility', 'visible', 'important');
       console.log('✓ teacherSection shown');
     }
     
     // Hide teacher login
     if (teacherLogin) {
-      teacherLogin.style.display = 'none';
-      console.log('✓ teacherLogin hidden');
+      teacherLogin.style.setProperty('display', 'none', 'important');
+      teacherLogin.style.setProperty('visibility', 'hidden', 'important');
+      teacherLogin.style.setProperty('opacity', '0', 'important');
+      console.log('✓ teacherLogin hidden with !important');
     }
     
     // Show NEW design instead of old
     if (newTeacherDesign) {
-      newTeacherDesign.style.display = 'block';
-      newTeacherDesign.style.visibility = 'visible';
-      console.log('✓ newTeacherDesign shown');
+      newTeacherDesign.style.setProperty('display', 'block', 'important');
+      newTeacherDesign.style.setProperty('visibility', 'visible', 'important');
+      console.log('✓ newTeacherDesign shown with !important');
     }
     
     if (oldTeacherDesign) {

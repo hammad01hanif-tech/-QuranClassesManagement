@@ -20,16 +20,13 @@ body {
   box-sizing: border-box;
 }
 
-/* Ensure login containers are visible */
+/* Login containers styling - removed !important to allow JS control */
 #teacherLogin,
 #studentLogin,
 #viewerLogin {
   position: relative;
   z-index: 2;
   min-height: 400px;
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
 }
 
 /* Pulse Animation for Inbox Badge */
