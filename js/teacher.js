@@ -9376,8 +9376,287 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
 
 // Download Attendance PDF
 window.downloadAttendancePDF = function() {
-  alert('⚠️ وظيفة تحميل PDF قيد التطوير');
-  // TODO: Implement PDF generation using jsPDF or similar library
+  try {
+    console.log('📄 Starting PDF generation...');
+    
+    // Get data from modal
+    const modal = document.querySelector('.attendance-modal');
+    if (!modal) {
+      alert('⚠️ لا يمكن العثور على بيانات السجل');
+      return;
+    }
+    
+    // Get teacher info
+    const teacherId = window._currentModalStaffId || sessionStorage.getItem('loggedInTeacher');
+    
+    // Get month/year from selector
+    const monthSelector = document.getElementById('attendance-month-selector');
+    if (!monthSelector) {
+      alert('⚠️ لا يمكن تحديد الشهر');
+      return;
+    }
+    
+    const [year, month] = monthSelector.value.split('-');
+    const monthNames = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    const monthName = monthNames[parseInt(month)];
+    
+    // Extract table data
+    const tableRows = modal.querySelectorAll('.attendance-table tbody tr');
+    const tableData = [];
+    
+    tableRows.forEach(row => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 8) {
+        // Extract day and date (remove edit emoji)
+        const dayCell = cells[0].querySelector('.date-day');
+        const dateCell = cells[0].querySelector('.date-gregorian');
+        const dayText = dayCell ? dayCell.textContent.replace('✏️', '').replace(/\s+/g, ' ').trim() : '—';
+        const dateText = dateCell ? dateCell.textContent.trim() : '—';
+        
+        // Extract other cells and clean emojis
+        const shiftStart = cells[1].textContent.trim();
+        const arrival = cells[2].textContent.replace(/🏖|🔴|إجازة/g, '').trim();
+        const latePenalty = cells[3].textContent.replace(/ريال/g, '').trim();
+        const shiftEnd = cells[4].textContent.trim();
+        const leave = cells[5].textContent.replace(/—/g, '').trim() || '—';
+        const earlyPenalty = cells[6].textContent.replace(/ريال/g, '').trim();
+        const notes = cells[7].textContent.replace(/لم يتم التسجيل|—/g, '').trim() || '';
+        
+        // Detect row type for styling
+        const rowClass = row.className;
+        let rowStyle = {};
+        let cellStyles = {};
+        
+        if (rowClass.includes('absent-row')) {
+          rowStyle = { fillColor: [254, 226, 226] }; // Light red
+        } else if (rowClass.includes('holiday-row')) {
+          rowStyle = { fillColor: [220, 252, 231] }; // Light green
+        } else if (rowClass.includes('not-registered-row')) {
+          rowStyle = { fillColor: [243, 244, 246] }; // Gray
+        }
+        
+        // Detect penalties for highlighting
+        if (latePenalty && latePenalty !== '—' && !latePenalty.includes('سماح')) {
+          cellStyles.late = { fillColor: [254, 202, 202], fontStyle: 'bold' };
+        } else if (latePenalty && latePenalty.includes('سماح')) {
+          cellStyles.late = { fillColor: [255, 237, 213], textColor: [245, 158, 11] };
+        }
+        
+        if (earlyPenalty && earlyPenalty !== '—' && !earlyPenalty.includes('سماح')) {
+          cellStyles.early = { fillColor: [254, 202, 202], fontStyle: 'bold' };
+        } else if (earlyPenalty && earlyPenalty.includes('سماح')) {
+          cellStyles.early = { fillColor: [255, 237, 213], textColor: [245, 158, 11] };
+        }
+        
+        tableData.push({
+          data: [
+            `${dayText}\n${dateText}`,
+            shiftStart,
+            arrival || '—',
+            latePenalty || '—',
+            shiftEnd,
+            leave,
+            earlyPenalty || '—',
+            notes || '—'
+          ],
+          style: rowStyle,
+          cellStyles: cellStyles
+        });
+      }
+    });
+    
+    // Extract summary data
+    const summaryItems = modal.querySelectorAll('.summary-item');
+    let baseSalary = '—';
+    let absences = '—';
+    let absenceDeductions = '—';
+    let lateDeductions = '—';
+    let earlyDeductions = '—';
+    let totalDeductions = '—';
+    let expectedSalary = '—';
+    
+    summaryItems.forEach(item => {
+      const label = item.querySelector('.summary-label')?.textContent.trim();
+      const value = item.querySelector('.summary-value')?.textContent.trim();
+      
+      if (label && value) {
+        if (label.includes('الراتب الأساسي')) baseSalary = value;
+        else if (label.includes('عدد الغيابات')) absences = value;
+        else if (label.includes('خصومات الغياب')) absenceDeductions = value;
+        else if (label.includes('خصومات التأخير')) lateDeductions = value;
+        else if (label.includes('الخروج المبكر')) earlyDeductions = value;
+        else if (label.includes('إجمالي الخصومات')) totalDeductions = value;
+        else if (label.includes('الراتب المتوقع')) expectedSalary = value;
+      }
+    });
+    
+    // Create PDF
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    // Header
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('سجل الحضور الشهري', doc.internal.pageSize.width / 2, 12, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`الشهر: ${monthName} ${year}`, doc.internal.pageSize.width / 2, 18, { align: 'center' });
+    
+    // Table with optimized size for single page
+    doc.autoTable({
+      startY: 24,
+      head: [['اليوم', 'بداية', 'حضور', 'خصم تأخير', 'نهاية', 'انصراف', 'خصم خروج', 'ملاحظات']],
+      body: tableData.map(row => row.data),
+      styles: {
+        font: 'helvetica',
+        fontSize: 7,
+        cellPadding: 1.5,
+        halign: 'center',
+        valign: 'middle',
+        lineWidth: 0.1,
+        lineColor: [200, 200, 200],
+        textColor: [0, 0, 0]
+      },
+      headStyles: {
+        fillColor: [102, 126, 234],
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        fontStyle: 'bold',
+        halign: 'center',
+        cellPadding: 2
+      },
+      columnStyles: {
+        0: { cellWidth: 28, halign: 'center', fontSize: 6.5 },
+        1: { cellWidth: 18, halign: 'center' },
+        2: { cellWidth: 22, halign: 'center' },
+        3: { cellWidth: 20, halign: 'center' },
+        4: { cellWidth: 18, halign: 'center' },
+        5: { cellWidth: 22, halign: 'center' },
+        6: { cellWidth: 20, halign: 'center' },
+        7: { cellWidth: 'auto', halign: 'center', fontSize: 6.5 }
+      },
+      didParseCell: function(data) {
+        // Apply custom row styles
+        if (data.section === 'body') {
+          const rowIndex = data.row.index;
+          if (tableData[rowIndex]) {
+            // Apply row-level style
+            if (tableData[rowIndex].style.fillColor) {
+              data.cell.styles.fillColor = tableData[rowIndex].style.fillColor;
+            }
+            
+            // Apply cell-level styles
+            if (data.column.index === 3 && tableData[rowIndex].cellStyles.late) {
+              Object.assign(data.cell.styles, tableData[rowIndex].cellStyles.late);
+            }
+            if (data.column.index === 6 && tableData[rowIndex].cellStyles.early) {
+              Object.assign(data.cell.styles, tableData[rowIndex].cellStyles.early);
+            }
+          }
+        }
+      },
+      margin: { top: 24, left: 8, right: 8, bottom: 15 },
+      tableWidth: 'auto',
+      showHead: 'firstPage'
+    });
+    
+    // Summary section
+    const finalY = doc.lastAutoTable.finalY + 5;
+    
+    // Check if summary fits on current page
+    if (finalY > doc.internal.pageSize.height - 60) {
+      doc.addPage();
+      finalY = 20;
+    }
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('الملخص النهائي', doc.internal.pageSize.width / 2, finalY, { align: 'center' });
+    
+    // Summary table - compact horizontal layout
+    doc.autoTable({
+      startY: finalY + 3,
+      head: [['البيان', 'القيمة', 'البيان', 'القيمة']],
+      body: [
+        ['الراتب الأساسي', baseSalary, 'عدد الغيابات', absences],
+        ['خصم الغياب', absenceDeductions, 'خصم التأخير', lateDeductions],
+        ['خصم الخروج', earlyDeductions, 'إجمالي الخصومات', totalDeductions],
+        ['', '', 'الراتب المتوقع', expectedSalary]
+      ],
+      styles: {
+        font: 'helvetica',
+        fontSize: 8,
+        cellPadding: 2,
+        halign: 'center',
+        lineWidth: 0.1,
+        lineColor: [200, 200, 200]
+      },
+      headStyles: {
+        fillColor: [102, 126, 234],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8
+      },
+      columnStyles: {
+        0: { cellWidth: 40, halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] },
+        1: { cellWidth: 30, halign: 'center' },
+        2: { cellWidth: 40, halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] },
+        3: { cellWidth: 30, halign: 'center' }
+      },
+      didParseCell: function(data) {
+        if (data.section === 'body') {
+          // Highlight total deductions
+          if (data.row.index === 2 && data.column.index === 3) {
+            data.cell.styles.fillColor = [254, 202, 202];
+            data.cell.styles.fontStyle = 'bold';
+          }
+          // Highlight expected salary
+          if (data.row.index === 3 && data.column.index === 3) {
+            data.cell.styles.fillColor = [187, 247, 208];
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fontSize = 9;
+          }
+          // Hide empty cells
+          if (data.row.index === 3 && (data.column.index === 0 || data.column.index === 1)) {
+            data.cell.styles.fillColor = [255, 255, 255];
+            data.cell.styles.lineWidth = 0;
+          }
+        }
+      },
+      margin: { left: (doc.internal.pageSize.width - 140) / 2 },
+      tableWidth: 140
+    });
+    
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `تم الإنشاء: ${new Date().toLocaleDateString('ar-SA')} | الصفحة ${i} من ${pageCount}`,
+        doc.internal.pageSize.width / 2,
+        doc.internal.pageSize.height - 8,
+        { align: 'center' }
+      );
+    }
+    
+    // Save PDF
+    const fileName = `attendance-${teacherId}-${monthName}-${year}.pdf`;
+    doc.save(fileName);
+    
+    console.log('✅ PDF generated successfully:', fileName);
+    
+  } catch (error) {
+    console.error('❌ Error generating PDF:', error);
+    alert('حدث خطأ في إنشاء ملف PDF. يرجى المحاولة مرة أخرى.');
+  }
 };
 
 // Load Reports Section
