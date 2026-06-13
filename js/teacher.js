@@ -530,12 +530,24 @@ let scores = {
 // Initialize teacher section with specific class
 export function initTeacher(teacherClassId) {
   currentTeacherClassId = teacherClassId;
+  
+  // ✅ Get teacher ID from session storage for penalties listener
+  const teacherId = sessionStorage.getItem('loggedInTeacher');
+  
   loadTeacherStudents(teacherClassId);
   setupEventListeners();
   loadTodayStrugglingStudents(teacherClassId);
   loadMonthlyScores(teacherClassId);
   startNotificationsListener(teacherClassId); // Start listening for notifications
-  setupPenaltiesListener(teacherClassId); // ✅ Start listening for penalties across all tabs
+  
+  // ✅ Use teacherId (not teacherClassId) for penalties listener
+  if (teacherId) {
+    setupPenaltiesListener(teacherId); // ✅ Start listening for penalties across all tabs
+    console.log('✅ Penalties listener initialized for teacher:', teacherId);
+  } else {
+    console.warn('⚠️ No teacherId found in session storage - penalties listener not started');
+  }
+  
   startNotAssessedScheduler(); // Start scheduler for checking not-assessed students at 9 PM
   updateTeacherNotificationBadge(); // Update notification badge
 }
