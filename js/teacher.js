@@ -9073,6 +9073,8 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
           lateDeduction: 0,
           earlyLeaveDeduction: 0,
           absenceDeduction: record.absenceDeduction || 0,
+          absenceDeductionOriginal: record.absenceDeductionOriginal || 0,
+          absenceApprovalStatus: record.absenceApprovalStatus,
           notes: isAnnualVacation ? '🏖 إجازة سنوية معتمدة' : (record.absentReason || 'غياب بدون عذر'),
           isAnnualVacation: isAnnualVacation
         };
@@ -9096,12 +9098,15 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
           actualArrival: checkInTime,
           actualLeave: checkOutTime,
           lateDeduction: record.lateDeduction || 0,
-          earlyLeaveDeduction: record.earlyLeaveDeduction || 0,
-          absenceDeduction: 0,
-          notes: record.checkInNotes || record.checkOutNotes || '—',
+          lateDeductionOriginal: record.lateDeductionOriginal || 0,
           lateApprovalStatus: record.lateApprovalStatus,
+          earlyLeaveDeduction: record.earlyLeaveDeduction || 0,
+          earlyLeaveDeductionOriginal: record.earlyLeaveDeductionOriginal || 0,
           earlyLeaveApprovalStatus: record.earlyLeaveApprovalStatus,
-          absenceApprovalStatus: record.absenceApprovalStatus
+          absenceDeduction: 0,
+          absenceDeductionOriginal: 0,
+          absenceApprovalStatus: record.absenceApprovalStatus,
+          notes: record.checkInNotes || record.checkOutNotes || '—'
         };
       }
     }));
