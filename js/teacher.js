@@ -8904,6 +8904,57 @@ window.closeAttendanceModal = function() {
   }
 };
 
+// ✅ Refresh Attendance Modal (تحديث البيانات دون إعادة فتح)
+window.refreshAttendanceModal = async function() {
+  console.log('🔄 Refreshing attendance modal data...');
+  
+  // التحقق من وجود modal مفتوح
+  const modal = document.querySelector('.attendance-modal');
+  if (!modal) {
+    console.warn('⚠️ No modal found to refresh');
+    return;
+  }
+  
+  // الحصول على البيانات المخزنة
+  const teacherId = window._currentModalStaffId || sessionStorage.getItem('loggedInTeacher');
+  const monthSelector = document.getElementById('attendance-month-selector');
+  
+  if (!monthSelector) {
+    console.warn('⚠️ Cannot find attendance-month-selector');
+    return;
+  }
+  
+  // القيمة بصيغة "YYYY-MM"
+  const [selectedYear, selectedMonth] = monthSelector.value.split('-').map(Number);
+  
+  console.log('📅 Reloading data for:', { teacherId, year: selectedYear, month: selectedMonth });
+  
+  // ✅ إظهار loading state
+  const tableContainer = modal.querySelector('.attendance-table-container');
+  const loadingDiv = modal.querySelector('.attendance-loading');
+  
+  if (tableContainer && loadingDiv) {
+    // إخفاء الجدول وإظهار loading
+    tableContainer.style.display = 'none';
+    loadingDiv.style.display = 'block';
+    
+    try {
+      // إعادة تحميل البيانات
+      await loadAttendanceData(selectedYear, selectedMonth, teacherId);
+      console.log('✅ Attendance modal refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error refreshing modal:', error);
+      // إظهار الجدول مرة أخرى في حالة الخطأ
+      tableContainer.style.display = 'block';
+      loadingDiv.style.display = 'none';
+      throw error;
+    }
+  } else {
+    await loadAttendanceData(selectedYear, selectedMonth, teacherId);
+    console.log('✅ Attendance modal refreshed successfully');
+  }
+};
+
 // Format Gregorian Date (YYYY-MM-DD to readable format)
 function formatGregorianDate(dateStr) {
   if (!dateStr) return '—';
@@ -10896,27 +10947,38 @@ window.saveEditedAttendance = async function(staffId, date) {
         }
       }
       
-      // ✅ حساب خصمية الغياب
+      // ✅ حساب خصمية الغياب مباشرة من settings
       let absenceDeduction = 0;
       if (!isAnnualVacation) {
         // التحقق من تفعيل خصمية الغياب
         const absencePenalty = settings.penalties?.absencePenalty || {
           enabled: true,
-          calculationMethod: 'fixed',
+          calculationMethod: 'salary_divided_by_30',
           fixedAmount: 100
         };
         
         console.log('⚙️ Absence penalty settings:', absencePenalty);
         
         if (absencePenalty.enabled) {
-          // حساب عدد أيام الدراسة في الشهر
-          const monthYear = date.substring(0, 7); // YYYY-MM
-          const [year, month] = monthYear.split('-').map(Number);
-          const monthlyReport = getMonthlyReport(year, month);
-          const studyDaysInMonth = monthlyReport ? monthlyReport.studyDaysCount : 22; // افتراضي 22 يوم
+          // ✅ حساب الخصمية مباشرة من الإعدادات
+          const salary = settings.salary?.monthlySalary || settings.salary || 3000;
           
-          absenceDeduction = calculateAbsencePenalty(staffId, false, studyDaysInMonth);
-          console.log('💰 Absence penalty:', absenceDeduction, 'SAR');
+          if (absencePenalty.calculationMethod === 'salary_divided_by_30') {
+            absenceDeduction = Math.round(salary / 30);
+          } else if (absencePenalty.calculationMethod === 'salary_divided_by_study_days') {
+            // حساب أيام الدراسة في الشهر
+            const monthYear = date.substring(0, 7);
+            const [year, month] = monthYear.split('-').map(Number);
+            // استخدام 22 كقيمة افتراضية (يمكن تحسينها لاحقاً)
+            const studyDaysInMonth = 22;
+            absenceDeduction = Math.round(salary / studyDaysInMonth);
+          } else if (absencePenalty.calculationMethod === 'fixed') {
+            absenceDeduction = absencePenalty.fixedAmount || 100;
+          } else {
+            absenceDeduction = Math.round(salary / 30);
+          }
+          
+          console.log('💰 Absence penalty calculated:', absenceDeduction, 'SAR from salary', salary);
         } else {
           console.log('⚠️ Absence penalty is DISABLED in settings - no deduction');
         }

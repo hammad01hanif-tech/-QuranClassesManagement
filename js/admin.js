@@ -9552,12 +9552,16 @@ window.updatePenaltyStatus = async function(staffId, date, type, status) {
     
     // Show success message
     const statusMsg = status === 'approved' ? '✅ تم اعتماد الخصمية' : '🙏 تم السماح وإلغاء الخصمية';
-    alert(statusMsg);
-    
     console.log('✅ Penalty status updated successfully:', statusMsg);
     
-    // Reload report
-    window.viewStaffAttendanceReport();
+    // ✅ تحديث السجل الشهري مباشرة بدلاً من إعادة فتح modal
+    if (window.refreshAttendanceModal) {
+      await window.refreshAttendanceModal();
+      alert(statusMsg);
+    } else {
+      alert(statusMsg);
+      window.viewStaffAttendanceReport();
+    }
     
   } catch (error) {
     console.error('Error updating penalty status:', error);
