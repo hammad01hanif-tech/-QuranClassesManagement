@@ -286,8 +286,8 @@ async function getMonthlyPenalties(teacherId, year, month) {
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       
-      // Late penalties
-      if (data.lateDeduction && data.lateDeduction > 0) {
+      // ✅ Late penalties (exclude pardoned)
+      if (data.lateDeduction && data.lateDeduction > 0 && data.lateApprovalStatus !== 'pardoned') {
         lateCount++;
         latePenalties += data.lateDeduction;
         totalPenalties += data.lateDeduction;
@@ -298,8 +298,8 @@ async function getMonthlyPenalties(teacherId, year, month) {
         });
       }
       
-      // Early leave penalties
-      if (data.earlyLeaveDeduction && data.earlyLeaveDeduction > 0) {
+      // ✅ Early leave penalties (exclude pardoned)
+      if (data.earlyLeaveDeduction && data.earlyLeaveDeduction > 0 && data.earlyLeaveApprovalStatus !== 'pardoned') {
         earlyLeaveCount++;
         earlyLeavePenalties += data.earlyLeaveDeduction;
         totalPenalties += data.earlyLeaveDeduction;
@@ -310,8 +310,8 @@ async function getMonthlyPenalties(teacherId, year, month) {
         });
       }
       
-      // Absence penalties (only if not annual vacation)
-      if (data.absenceDeduction && data.absenceDeduction > 0 && !data.isAnnualVacation) {
+      // ✅ Absence penalties (exclude pardoned and annual vacations)
+      if (data.absenceDeduction && data.absenceDeduction > 0 && !data.isAnnualVacation && data.absenceApprovalStatus !== 'pardoned') {
         absentCount++;
         absentPenalties += data.absenceDeduction;
         totalPenalties += data.absenceDeduction;
@@ -371,9 +371,9 @@ function setupPenaltiesListener(teacherId) {
   
   // Real-time listener
   unsubscribePenalties = onSnapshot(attendanceQuery, (snapshot) => {
-    console.log('🔔 Penalties data changed! Recalculating...');
+    console.log('🔔 Penalties data changed! Snapshot size:', snapshot.size);
     
-    // Recalculate penalties from snapshot
+    // Recalculate penalties from snapshot (excluding pardoned penalties)
     let totalPenalties = 0;
     let lateCount = 0;
     let latePenalties = 0;
@@ -385,22 +385,22 @@ function setupPenaltiesListener(teacherId) {
     snapshot.forEach((doc) => {
       const data = doc.data();
       
-      // Late penalties
-      if (data.lateDeduction && data.lateDeduction > 0) {
+      // ✅ Late penalties (exclude pardoned)
+      if (data.lateDeduction && data.lateDeduction > 0 && data.lateApprovalStatus !== 'pardoned') {
         lateCount++;
         latePenalties += data.lateDeduction;
         totalPenalties += data.lateDeduction;
       }
       
-      // Early leave penalties
-      if (data.earlyLeaveDeduction && data.earlyLeaveDeduction > 0) {
+      // ✅ Early leave penalties (exclude pardoned)
+      if (data.earlyLeaveDeduction && data.earlyLeaveDeduction > 0 && data.earlyLeaveApprovalStatus !== 'pardoned') {
         earlyLeaveCount++;
         earlyLeavePenalties += data.earlyLeaveDeduction;
         totalPenalties += data.earlyLeaveDeduction;
       }
       
-      // Absence penalties (only if not annual vacation)
-      if (data.absenceDeduction && data.absenceDeduction > 0 && !data.isAnnualVacation) {
+      // ✅ Absence penalties (exclude pardoned and annual vacation)
+      if (data.absenceDeduction && data.absenceDeduction > 0 && !data.isAnnualVacation && data.absenceApprovalStatus !== 'pardoned') {
         absentCount++;
         absentPenalties += data.absenceDeduction;
         totalPenalties += data.absenceDeduction;
@@ -9134,15 +9134,49 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
                                         record.earlyLeaveDeduction > 0 ? 'penalty-approved' : '';
               
               // Onclick handlers for admin mode
-              const lateClick = isAdminMode && record.lateDeduction > 0 ? 
+              const lateClick = isAdminMode && (record.lateDeduction > 0 || record.lateDeductionOriginal > 0) ? 
                 `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'late')" style="cursor: pointer;"` : '';
-              const earlyClick = isAdminMode && record.earlyLeaveDeduction > 0 ? 
+              const earlyClick = isAdminMode && (record.earlyLeaveDeduction > 0 || record.earlyLeaveDeductionOriginal > 0) ? 
                 `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'earlyLeave')" style="cursor: pointer;"` : '';
-              const absenceClick = isAdminMode && record.status === 'absent' ? 
+              const absenceClick = isAdminMode && (record.status === 'absent' || record.absenceDeduction > 0 || record.absenceDeductionOriginal > 0) ? 
                 `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'absence')" style="cursor: pointer;"` : '';
               
               // onclick handler for editing (admin only)
               const dateClickHandler = isAdminMode ? `onclick="window.openEditAttendanceModal('${teacherId}', '${record.date}', '${record.dayName}', ${JSON.stringify(record).replace(/"/g, '&quot;')})" style="cursor: pointer;" class="clickable-date"` : '';
+              
+              // ✅ حساب خصمية الغياب للعرض (حتى لو كانت pardoned)
+              let absenceDisplay = '—';
+              if (record.status === 'absent' && !record.isAnnualVacation) {
+                if (record.absenceApprovalStatus === 'pardoned' && record.absenceDeductionOriginal > 0) {
+                  absenceDisplay = `<strike>${record.absenceDeductionOriginal} ريال</strike> <span style="color: #f59e0b;">سماح</span>`;
+                } else if (record.absenceDeduction > 0) {
+                  absenceDisplay = `${record.absenceDeduction} ريال`;
+                } else if (record.absenceDeductionOriginal > 0) {
+                  absenceDisplay = `<strike>${record.absenceDeductionOriginal} ريال</strike> <span style="color: #f59e0b;">سماح</span>`;
+                }
+              }
+              
+              const absencePenaltyClass = record.absenceApprovalStatus === 'pardoned' ? 'penalty-pardoned' : 
+                                          record.absenceDeduction > 0 ? 'penalty-approved' : '';
+              
+              // ✅ عرض القيمة الأصلية في حالة السماح
+              let lateDisplay = '—';
+              if (record.lateDeductionOriginal > 0 && record.lateApprovalStatus === 'pardoned') {
+                lateDisplay = `<strike>${record.lateDeductionOriginal} ريال</strike> <span style="color: #f59e0b;">سماح</span>`;
+              } else if (record.lateDeduction > 0) {
+                lateDisplay = record.lateApprovalStatus === 'pardoned' ? 
+                  `<strike>${record.lateDeduction} ريال</strike> <span style="color: #f59e0b;">سماح</span>` : 
+                  `${record.lateDeduction} ريال`;
+              }
+              
+              let earlyDisplay = '—';
+              if (record.earlyLeaveDeductionOriginal > 0 && record.earlyLeaveApprovalStatus === 'pardoned') {
+                earlyDisplay = `<strike>${record.earlyLeaveDeductionOriginal} ريال</strike> <span style="color: #f59e0b;">سماح</span>`;
+              } else if (record.earlyLeaveDeduction > 0) {
+                earlyDisplay = record.earlyLeaveApprovalStatus === 'pardoned' ? 
+                  `<strike>${record.earlyLeaveDeduction} ريال</strike> <span style="color: #f59e0b;">سماح</span>` : 
+                  `${record.earlyLeaveDeduction} ريال`;
+              }
               
               return `
                 <tr class="${rowClass}" ${record.status === 'absent' ? absenceClick : ''}>
@@ -9153,16 +9187,16 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
                   <td class="time-cell">${record.shiftStart}</td>
                   <td class="time-cell ${arrivalClass}">
                     ${record.status === 'annual-vacation' ? '<span class="vacation-badge">🏖 إجازة</span>' : 
-                      record.status === 'absent' ? '<span class="absent-badge">غائب 🔴</span>' : 
+                      record.status === 'absent' ? `<span class="absent-badge">غائب 🔴</span>${absenceDisplay !== '—' ? '<br><span style="font-size:12px;color:#ef4444;">' + absenceDisplay + '</span>' : ''}` : 
                       record.actualArrival}
                   </td>
                   <td class="deduction-cell ${latePenaltyClass}" ${lateClick}>
-                    ${record.lateDeduction > 0 ? (record.lateApprovalStatus === 'pardoned' ? '<strike>' + record.lateDeduction + ' ريال</strike> <span style="color: #f59e0b;">سماح</span>' : record.lateDeduction + ' ريال') : '—'}
+                    ${lateDisplay}
                   </td>
                   <td class="time-cell">${record.shiftEnd}</td>
                   <td class="time-cell ${leaveClass}">${record.actualLeave}</td>
                   <td class="deduction-cell ${earlyPenaltyClass}" ${earlyClick}>
-                    ${record.earlyLeaveDeduction > 0 ? (record.earlyLeaveApprovalStatus === 'pardoned' ? '<strike>' + record.earlyLeaveDeduction + ' ريال</strike> <span style="color: #f59e0b;">سماح</span>' : record.earlyLeaveDeduction + ' ريال') : '—'}
+                    ${earlyDisplay}
                   </td>
                   <td class="notes-cell">${record.notes || '—'}</td>
                 </tr>

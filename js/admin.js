@@ -9487,35 +9487,74 @@ window.closePenaltyActionSheet = function() {
 window.updatePenaltyStatus = async function(staffId, date, type, status) {
   try {
     const docRef = doc(db, 'teacherAttendance', `${staffId}_${date}`);
+    
+    // ✅ جلب البيانات الحالية لحفظ القيمة الأصلية
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      alert('⚠️ سجل الحضور غير موجود');
+      return;
+    }
+    
+    const currentData = docSnap.data();
     const updateData = {};
     
     if (type === 'late') {
       updateData.lateApprovalStatus = status;
       if (status === 'pardoned') {
+        // ✅ حفظ القيمة الأصلية قبل جعلها صفر
+        if (!currentData.lateDeductionOriginal && currentData.lateDeduction > 0) {
+          updateData.lateDeductionOriginal = currentData.lateDeduction;
+        }
         updateData.lateDeduction = 0;
+        console.log('🙏 Late penalty pardoned: Original', currentData.lateDeduction, 'SAR');
+      } else if (status === 'approved' && currentData.lateDeductionOriginal) {
+        // ✅ إعادة الخصمية الأصلية عند الاعتماد
+        updateData.lateDeduction = currentData.lateDeductionOriginal;
+        updateData.lateDeductionOriginal = null; // حذف القيمة المحفوظة
+        console.log('✅ Late penalty approved: Restored', updateData.lateDeduction, 'SAR');
       }
     } else if (type === 'earlyLeave') {
       updateData.earlyLeaveApprovalStatus = status;
       if (status === 'pardoned') {
+        if (!currentData.earlyLeaveDeductionOriginal && currentData.earlyLeaveDeduction > 0) {
+          updateData.earlyLeaveDeductionOriginal = currentData.earlyLeaveDeduction;
+        }
         updateData.earlyLeaveDeduction = 0;
+        console.log('🙏 Early leave penalty pardoned: Original', currentData.earlyLeaveDeduction, 'SAR');
+      } else if (status === 'approved' && currentData.earlyLeaveDeductionOriginal) {
+        updateData.earlyLeaveDeduction = currentData.earlyLeaveDeductionOriginal;
+        updateData.earlyLeaveDeductionOriginal = null;
+        console.log('✅ Early leave penalty approved: Restored', updateData.earlyLeaveDeduction, 'SAR');
       }
     } else if (type === 'absence') {
       updateData.absenceApprovalStatus = status;
       if (status === 'pardoned') {
+        if (!currentData.absenceDeductionOriginal && currentData.absenceDeduction > 0) {
+          updateData.absenceDeductionOriginal = currentData.absenceDeduction;
+        }
         updateData.absenceDeduction = 0;
+        console.log('🙏 Absence penalty pardoned: Original', currentData.absenceDeduction, 'SAR');
+      } else if (status === 'approved' && currentData.absenceDeductionOriginal) {
+        updateData.absenceDeduction = currentData.absenceDeductionOriginal;
+        updateData.absenceDeductionOriginal = null;
+        console.log('✅ Absence penalty approved: Restored', updateData.absenceDeduction, 'SAR');
       }
     }
     
     updateData.updatedAt = serverTimestamp();
     updateData.updatedBy = 'admin';
     
+    console.log('💾 Updating penalty status:', updateData);
     await updateDoc(docRef, updateData);
     
     // Close action sheet
     window.closePenaltyActionSheet();
     
     // Show success message
-    alert(status === 'approved' ? '? �� ������ �����' : '? �� ������ ������ �����');
+    const statusMsg = status === 'approved' ? '✅ تم اعتماد الخصمية' : '🙏 تم السماح وإلغاء الخصمية';
+    alert(statusMsg);
+    
+    console.log('✅ Penalty status updated successfully:', statusMsg);
     
     // Reload report
     window.viewStaffAttendanceReport();
