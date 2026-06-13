@@ -9375,9 +9375,9 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
 }
 
 // Download Attendance PDF
-window.downloadAttendancePDF = function() {
+window.downloadAttendancePDF = async function() {
   try {
-    console.log('📄 Starting PDF generation...');
+    console.log('📄 Starting PDF generation with html2canvas...');
     
     // Get data from modal
     const modal = document.querySelector('.attendance-modal');
@@ -9400,68 +9400,90 @@ window.downloadAttendancePDF = function() {
     const monthNames = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
     const monthName = monthNames[parseInt(month)];
     
+    // Show loading message
+    const loadingMsg = document.createElement('div');
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px 50px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      z-index: 10001;
+      text-align: center;
+      font-size: 18px;
+      color: #667eea;
+    `;
+    loadingMsg.innerHTML = '⏳ جاري إنشاء التقرير...';
+    document.body.appendChild(loadingMsg);
+    
     // Extract table data
     const tableRows = modal.querySelectorAll('.attendance-table tbody tr');
-    const tableData = [];
+    let tableRowsHTML = '';
     
-    tableRows.forEach(row => {
+    tableRows.forEach((row, index) => {
       const cells = row.querySelectorAll('td');
       if (cells.length >= 8) {
-        // Extract day and date (remove edit emoji)
+        // Get row class for styling
+        const rowClass = row.className;
+        let bgColor = 'white';
+        if (rowClass.includes('absent-row')) {
+          bgColor = '#fee2e2';
+        } else if (rowClass.includes('holiday-row')) {
+          bgColor = '#dcfce7';
+        } else if (rowClass.includes('not-registered-row')) {
+          bgColor = '#f3f4f6';
+        } else if (index % 2 === 0) {
+          bgColor = '#f8f9fa';
+        }
+        
+        // Extract cell data (remove edit emoji)
         const dayCell = cells[0].querySelector('.date-day');
         const dateCell = cells[0].querySelector('.date-gregorian');
-        const dayText = dayCell ? dayCell.textContent.replace('✏️', '').replace(/\s+/g, ' ').trim() : '—';
-        const dateText = dateCell ? dateCell.textContent.trim() : '—';
+        const dayText = dayCell ? dayCell.textContent.replace('✏️', '').trim() : '—';
+        const dateText = dateCell ? dateCell.textContent.trim() : '';
         
-        // Extract other cells and clean emojis
         const shiftStart = cells[1].textContent.trim();
-        const arrival = cells[2].textContent.replace(/🏖|🔴|إجازة/g, '').trim();
-        const latePenalty = cells[3].textContent.replace(/ريال/g, '').trim();
+        const arrival = cells[2].textContent.replace(/🏖|🔴/g, '').trim();
+        const latePenalty = cells[3].textContent.trim();
         const shiftEnd = cells[4].textContent.trim();
-        const leave = cells[5].textContent.replace(/—/g, '').trim() || '—';
-        const earlyPenalty = cells[6].textContent.replace(/ريال/g, '').trim();
-        const notes = cells[7].textContent.replace(/لم يتم التسجيل|—/g, '').trim() || '';
+        const leave = cells[5].textContent.trim();
+        const earlyPenalty = cells[6].textContent.trim();
+        const notes = cells[7].textContent.trim();
         
-        // Detect row type for styling
-        const rowClass = row.className;
-        let rowStyle = {};
-        let cellStyles = {};
+        // Apply special styling for penalties
+        let latePenaltyStyle = '';
+        let earlyPenaltyStyle = '';
         
-        if (rowClass.includes('absent-row')) {
-          rowStyle = { fillColor: [254, 226, 226] }; // Light red
-        } else if (rowClass.includes('holiday-row')) {
-          rowStyle = { fillColor: [220, 252, 231] }; // Light green
-        } else if (rowClass.includes('not-registered-row')) {
-          rowStyle = { fillColor: [243, 244, 246] }; // Gray
+        if (latePenalty.includes('سماح')) {
+          latePenaltyStyle = 'background: #ffedd5; color: #f59e0b; font-weight: bold;';
+        } else if (latePenalty !== '—' && latePenalty !== '') {
+          latePenaltyStyle = 'background: #fecaca; font-weight: bold; color: #dc2626;';
         }
         
-        // Detect penalties for highlighting
-        if (latePenalty && latePenalty !== '—' && !latePenalty.includes('سماح')) {
-          cellStyles.late = { fillColor: [254, 202, 202], fontStyle: 'bold' };
-        } else if (latePenalty && latePenalty.includes('سماح')) {
-          cellStyles.late = { fillColor: [255, 237, 213], textColor: [245, 158, 11] };
+        if (earlyPenalty.includes('سماح')) {
+          earlyPenaltyStyle = 'background: #ffedd5; color: #f59e0b; font-weight: bold;';
+        } else if (earlyPenalty !== '—' && earlyPenalty !== '') {
+          earlyPenaltyStyle = 'background: #fecaca; font-weight: bold; color: #dc2626;';
         }
         
-        if (earlyPenalty && earlyPenalty !== '—' && !earlyPenalty.includes('سماح')) {
-          cellStyles.early = { fillColor: [254, 202, 202], fontStyle: 'bold' };
-        } else if (earlyPenalty && earlyPenalty.includes('سماح')) {
-          cellStyles.early = { fillColor: [255, 237, 213], textColor: [245, 158, 11] };
-        }
-        
-        tableData.push({
-          data: [
-            `${dayText}\n${dateText}`,
-            shiftStart,
-            arrival || '—',
-            latePenalty || '—',
-            shiftEnd,
-            leave,
-            earlyPenalty || '—',
-            notes || '—'
-          ],
-          style: rowStyle,
-          cellStyles: cellStyles
-        });
+        tableRowsHTML += `
+          <tr style="background: ${bgColor};">
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 11px; text-align: center;">
+              <div style="font-weight: bold;">${dayText}</div>
+              <div style="font-size: 10px; color: #666;">${dateText}</div>
+            </td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 11px; text-align: center;">${shiftStart}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 11px; text-align: center;">${arrival || '—'}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 11px; text-align: center; ${latePenaltyStyle}">${latePenalty || '—'}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 11px; text-align: center;">${shiftEnd}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 11px; text-align: center;">${leave || '—'}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 11px; text-align: center; ${earlyPenaltyStyle}">${earlyPenalty || '—'}</td>
+            <td style="padding: 8px; border: 1px solid #dee2e6; font-size: 10px; text-align: center;">${notes || '—'}</td>
+          </tr>
+        `;
       }
     });
     
@@ -9490,168 +9512,127 @@ window.downloadAttendancePDF = function() {
       }
     });
     
-    // Create PDF
+    // Create temporary container with HTML content
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 1000px;
+      background: white;
+      padding: 30px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="color: #667eea; margin: 0 0 8px 0; font-size: 28px;">📊 سجل الحضور الشهري</h1>
+        <p style="color: #666; font-size: 16px; margin: 0;">${monthName} ${year}</p>
+      </div>
+      
+      <div style="margin-bottom: 20px; overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead>
+            <tr>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">اليوم</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">بداية</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">حضور</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">خصم تأخير</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">نهاية</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">انصراف</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">خصم خروج</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHTML}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="margin-top: 25px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+        <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 20px; text-align: center; border-bottom: 2px solid #667eea; padding-bottom: 8px;">📋 الملخص النهائي</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 700px; margin: 0 auto;">
+          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
+            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">الراتب الأساسي</div>
+            <div style="font-size: 18px; font-weight: bold; color: #667eea;">${baseSalary}</div>
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
+            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">عدد الغيابات</div>
+            <div style="font-size: 18px; font-weight: bold; color: #ef4444;">${absences}</div>
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
+            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">خصومات الغياب</div>
+            <div style="font-size: 16px; font-weight: bold; color: #dc2626;">${absenceDeductions}</div>
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
+            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">خصومات التأخير</div>
+            <div style="font-size: 16px; font-weight: bold; color: #dc2626;">${lateDeductions}</div>
+          </div>
+          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
+            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">خصومات الخروج المبكر</div>
+            <div style="font-size: 16px; font-weight: bold; color: #dc2626;">${earlyDeductions}</div>
+          </div>
+          <div style="background: #fee2e2; padding: 12px; border-radius: 6px; border: 2px solid #ef4444;">
+            <div style="color: #7f1d1d; font-size: 12px; margin-bottom: 4px; font-weight: bold;">⚠️ إجمالي الخصومات</div>
+            <div style="font-size: 20px; font-weight: bold; color: #dc2626;">${totalDeductions}</div>
+          </div>
+          <div style="background: #dcfce7; padding: 12px; border-radius: 6px; border: 2px solid #22c55e; grid-column: span 2;">
+            <div style="color: #14532d; font-size: 12px; margin-bottom: 4px; font-weight: bold; text-align: center;">✅ الراتب المتوقع</div>
+            <div style="font-size: 24px; font-weight: bold; color: #16a34a; text-align: center;">${expectedSalary}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin-top: 25px; padding-top: 15px; border-top: 2px solid #e5e7eb;">
+        <p style="margin: 5px 0; color: #999; font-size: 11px;">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    console.log('📸 Converting HTML to canvas...');
+    
+    // Convert HTML to canvas using html2canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    console.log('✅ Canvas created successfully');
+    
+    // Remove temporary container
+    document.body.removeChild(container);
+    
+    // Create PDF from canvas
+    console.log('📄 Creating PDF from canvas...');
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({
-      orientation: 'landscape',
+      orientation: 'p',
       unit: 'mm',
       format: 'a4'
     });
     
-    // Header
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('سجل الحضور الشهري', doc.internal.pageSize.width / 2, 12, { align: 'center' });
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`الشهر: ${monthName} ${year}`, doc.internal.pageSize.width / 2, 18, { align: 'center' });
-    
-    // Table with optimized size for single page
-    doc.autoTable({
-      startY: 24,
-      head: [['اليوم', 'بداية', 'حضور', 'خصم تأخير', 'نهاية', 'انصراف', 'خصم خروج', 'ملاحظات']],
-      body: tableData.map(row => row.data),
-      styles: {
-        font: 'helvetica',
-        fontSize: 7,
-        cellPadding: 1.5,
-        halign: 'center',
-        valign: 'middle',
-        lineWidth: 0.1,
-        lineColor: [200, 200, 200],
-        textColor: [0, 0, 0]
-      },
-      headStyles: {
-        fillColor: [102, 126, 234],
-        textColor: [255, 255, 255],
-        fontSize: 8,
-        fontStyle: 'bold',
-        halign: 'center',
-        cellPadding: 2
-      },
-      columnStyles: {
-        0: { cellWidth: 28, halign: 'center', fontSize: 6.5 },
-        1: { cellWidth: 18, halign: 'center' },
-        2: { cellWidth: 22, halign: 'center' },
-        3: { cellWidth: 20, halign: 'center' },
-        4: { cellWidth: 18, halign: 'center' },
-        5: { cellWidth: 22, halign: 'center' },
-        6: { cellWidth: 20, halign: 'center' },
-        7: { cellWidth: 'auto', halign: 'center', fontSize: 6.5 }
-      },
-      didParseCell: function(data) {
-        // Apply custom row styles
-        if (data.section === 'body') {
-          const rowIndex = data.row.index;
-          if (tableData[rowIndex]) {
-            // Apply row-level style
-            if (tableData[rowIndex].style.fillColor) {
-              data.cell.styles.fillColor = tableData[rowIndex].style.fillColor;
-            }
-            
-            // Apply cell-level styles
-            if (data.column.index === 3 && tableData[rowIndex].cellStyles.late) {
-              Object.assign(data.cell.styles, tableData[rowIndex].cellStyles.late);
-            }
-            if (data.column.index === 6 && tableData[rowIndex].cellStyles.early) {
-              Object.assign(data.cell.styles, tableData[rowIndex].cellStyles.early);
-            }
-          }
-        }
-      },
-      margin: { top: 24, left: 8, right: 8, bottom: 15 },
-      tableWidth: 'auto',
-      showHead: 'firstPage'
-    });
-    
-    // Summary section
-    const finalY = doc.lastAutoTable.finalY + 5;
-    
-    // Check if summary fits on current page
-    if (finalY > doc.internal.pageSize.height - 60) {
-      doc.addPage();
-      finalY = 20;
-    }
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('الملخص النهائي', doc.internal.pageSize.width / 2, finalY, { align: 'center' });
-    
-    // Summary table - compact horizontal layout
-    doc.autoTable({
-      startY: finalY + 3,
-      head: [['البيان', 'القيمة', 'البيان', 'القيمة']],
-      body: [
-        ['الراتب الأساسي', baseSalary, 'عدد الغيابات', absences],
-        ['خصم الغياب', absenceDeductions, 'خصم التأخير', lateDeductions],
-        ['خصم الخروج', earlyDeductions, 'إجمالي الخصومات', totalDeductions],
-        ['', '', 'الراتب المتوقع', expectedSalary]
-      ],
-      styles: {
-        font: 'helvetica',
-        fontSize: 8,
-        cellPadding: 2,
-        halign: 'center',
-        lineWidth: 0.1,
-        lineColor: [200, 200, 200]
-      },
-      headStyles: {
-        fillColor: [102, 126, 234],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 8
-      },
-      columnStyles: {
-        0: { cellWidth: 40, halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] },
-        1: { cellWidth: 30, halign: 'center' },
-        2: { cellWidth: 40, halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] },
-        3: { cellWidth: 30, halign: 'center' }
-      },
-      didParseCell: function(data) {
-        if (data.section === 'body') {
-          // Highlight total deductions
-          if (data.row.index === 2 && data.column.index === 3) {
-            data.cell.styles.fillColor = [254, 202, 202];
-            data.cell.styles.fontStyle = 'bold';
-          }
-          // Highlight expected salary
-          if (data.row.index === 3 && data.column.index === 3) {
-            data.cell.styles.fillColor = [187, 247, 208];
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fontSize = 9;
-          }
-          // Hide empty cells
-          if (data.row.index === 3 && (data.column.index === 0 || data.column.index === 1)) {
-            data.cell.styles.fillColor = [255, 255, 255];
-            data.cell.styles.lineWidth = 0;
-          }
-        }
-      },
-      margin: { left: (doc.internal.pageSize.width - 140) / 2 },
-      tableWidth: 140
-    });
-    
-    // Footer
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(150, 150, 150);
-      doc.text(
-        `تم الإنشاء: ${new Date().toLocaleDateString('ar-SA')} | الصفحة ${i} من ${pageCount}`,
-        doc.internal.pageSize.width / 2,
-        doc.internal.pageSize.height - 8,
-        { align: 'center' }
-      );
-    }
+    doc.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    console.log('✅ PDF generated successfully');
     
     // Save PDF
-    const fileName = `attendance-${teacherId}-${monthName}-${year}.pdf`;
+    const fileName = `سجل_حضور_${monthName}_${year}.pdf`;
     doc.save(fileName);
     
-    console.log('✅ PDF generated successfully:', fileName);
+    console.log('🎉 PDF saved successfully:', fileName);
+    
+    // Remove loading message
+    loadingMsg.remove();
+    
+    alert('✅ تم تصدير التقرير بنجاح!');
     
   } catch (error) {
     console.error('❌ Error generating PDF:', error);
