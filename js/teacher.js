@@ -25,6 +25,7 @@ import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsD
 import { accurateHijriDates } from './accurate-hijri-dates.js';
 import { getMonthlyReport, countStudyDays, getAllWorkingDaysInMonth, getDayInfo, isWeekend, isOfficialHoliday } from './study-days-calendar.js';
 import { getTodayPrayerTimes, getPrayerTimesLocal } from './prayer-times-local.js';
+import { calculateAbsencePenalty } from './attendance-calculator.js';
 
 // ✅ نظام Cache بسيط لتقليل القراءات من Firestore
 const firestoreCache = {
@@ -254,6 +255,240 @@ async function getTeacherIncentivesForMonth(teacherId, year, month) {
   }
 }
 
+// ============================================
+// Get Monthly Penalties (Deductions)
+// ============================================
+async function getMonthlyPenalties(teacherId, year, month) {
+  try {
+    const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+    console.log('💰 Fetching penalties for teacher:', teacherId, 'Month:', monthStr);
+    
+    // Query all attendance records for this month
+    const attendanceQuery = query(
+      collection(db, 'teacherAttendance'),
+      where('teacherId', '==', teacherId),
+      where('date', '>=', `${monthStr}-01`),
+      where('date', '<=', `${monthStr}-31`)
+    );
+    
+    const querySnapshot = await getDocs(attendanceQuery);
+    
+    let totalPenalties = 0;
+    let lateCount = 0;
+    let latePenalties = 0;
+    let earlyLeaveCount = 0;
+    let earlyLeavePenalties = 0;
+    let absentCount = 0;
+    let absentPenalties = 0;
+    
+    const details = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      
+      // Late penalties
+      if (data.lateDeduction && data.lateDeduction > 0) {
+        lateCount++;
+        latePenalties += data.lateDeduction;
+        totalPenalties += data.lateDeduction;
+        details.push({
+          date: data.date,
+          type: 'late',
+          amount: data.lateDeduction
+        });
+      }
+      
+      // Early leave penalties
+      if (data.earlyLeaveDeduction && data.earlyLeaveDeduction > 0) {
+        earlyLeaveCount++;
+        earlyLeavePenalties += data.earlyLeaveDeduction;
+        totalPenalties += data.earlyLeaveDeduction;
+        details.push({
+          date: data.date,
+          type: 'earlyLeave',
+          amount: data.earlyLeaveDeduction
+        });
+      }
+      
+      // Absence penalties (only if not annual vacation)
+      if (data.absenceDeduction && data.absenceDeduction > 0 && !data.isAnnualVacation) {
+        absentCount++;
+        absentPenalties += data.absenceDeduction;
+        totalPenalties += data.absenceDeduction;
+        details.push({
+          date: data.date,
+          type: 'absent',
+          amount: data.absenceDeduction
+        });
+      }
+    });
+    
+    console.log('✅ Penalties loaded:', {
+      total: totalPenalties,
+      late: { count: lateCount, total: latePenalties },
+      earlyLeave: { count: earlyLeaveCount, total: earlyLeavePenalties },
+      absent: { count: absentCount, total: absentPenalties }
+    });
+    
+    return {
+      total: totalPenalties,
+      late: { count: lateCount, total: latePenalties },
+      earlyLeave: { count: earlyLeaveCount, total: earlyLeavePenalties },
+      absent: { count: absentCount, total: absentPenalties },
+      details: details
+    };
+  } catch (error) {
+    console.error('❌ Error fetching penalties:', error);
+    return {
+      total: 0,
+      late: { count: 0, total: 0 },
+      earlyLeave: { count: 0, total: 0 },
+      absent: { count: 0, total: 0 },
+      details: []
+    };
+  }
+}
+
+// ============================================
+// Setup real-time listener for penalties
+// ============================================
+function setupPenaltiesListener(teacherId) {
+  console.log('👂 Setting up penalties listener for:', teacherId);
+  
+  // Get current month
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+  
+  // Query for current month attendance
+  const attendanceQuery = query(
+    collection(db, 'teacherAttendance'),
+    where('teacherId', '==', teacherId),
+    where('date', '>=', `${monthStr}-01`),
+    where('date', '<=', `${monthStr}-31`)
+  );
+  
+  // Real-time listener
+  unsubscribePenalties = onSnapshot(attendanceQuery, (snapshot) => {
+    console.log('🔔 Penalties data changed! Recalculating...');
+    
+    // Recalculate penalties from snapshot
+    let totalPenalties = 0;
+    let lateCount = 0;
+    let latePenalties = 0;
+    let earlyLeaveCount = 0;
+    let earlyLeavePenalties = 0;
+    let absentCount = 0;
+    let absentPenalties = 0;
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      
+      // Late penalties
+      if (data.lateDeduction && data.lateDeduction > 0) {
+        lateCount++;
+        latePenalties += data.lateDeduction;
+        totalPenalties += data.lateDeduction;
+      }
+      
+      // Early leave penalties
+      if (data.earlyLeaveDeduction && data.earlyLeaveDeduction > 0) {
+        earlyLeaveCount++;
+        earlyLeavePenalties += data.earlyLeaveDeduction;
+        totalPenalties += data.earlyLeaveDeduction;
+      }
+      
+      // Absence penalties (only if not annual vacation)
+      if (data.absenceDeduction && data.absenceDeduction > 0 && !data.isAnnualVacation) {
+        absentCount++;
+        absentPenalties += data.absenceDeduction;
+        totalPenalties += data.absenceDeduction;
+      }
+    });
+    
+    const penaltiesData = {
+      total: totalPenalties,
+      late: { count: lateCount, total: latePenalties },
+      earlyLeave: { count: earlyLeaveCount, total: earlyLeavePenalties },
+      absent: { count: absentCount, total: absentPenalties }
+    };
+    
+    console.log('✅ Penalties recalculated:', penaltiesData);
+    
+    // Store data globally for when card becomes available
+    window.currentPenaltiesData = penaltiesData;
+    
+    // Update UI if card exists
+    updatePenaltiesCard(penaltiesData);
+  }, (error) => {
+    console.error('❌ Error in penalties listener:', error);
+  });
+  
+  console.log('✅ Penalties listener active');
+}
+
+// ============================================
+// Update penalties card in UI
+// ============================================
+function updatePenaltiesCard(penaltiesData) {
+  console.log('🔄 Updating penalties card with:', penaltiesData);
+  
+  // Find penalties card
+  const deductionsCard = document.querySelector('.salary-item.deductions');
+  if (!deductionsCard) {
+    console.warn('⚠️ Penalties card not found in DOM - will update when available');
+    return;
+  }
+  
+  console.log('✅ Found penalties card, updating...');
+  
+  // Update total amount
+  const amountElement = deductionsCard.querySelector('.salary-amount.deduction-amount');
+  if (amountElement) {
+    amountElement.textContent = `${penaltiesData.total.toLocaleString('ar-SA')} ريال`;
+  }
+  
+  // Update metadata
+  const metaElement = deductionsCard.querySelector('.salary-meta');
+  if (metaElement) {
+    if (penaltiesData.total > 0) {
+      const parts = [];
+      if (penaltiesData.late.count > 0) parts.push(`${penaltiesData.late.count} تأخير`);
+      if (penaltiesData.earlyLeave.count > 0) parts.push(`${penaltiesData.earlyLeave.count} خروج مبكر`);
+      if (penaltiesData.absent.count > 0) parts.push(`${penaltiesData.absent.count} غياب`);
+      metaElement.innerHTML = parts.join(' • ');
+      
+      // Make clickable
+      deductionsCard.classList.add('clickable');
+      if (!deductionsCard.querySelector('.salary-arrow')) {
+        deductionsCard.innerHTML += '<span class="salary-arrow">◀</span>';
+      }
+    } else {
+      metaElement.textContent = 'لا توجد خصومات';
+      deductionsCard.classList.remove('clickable');
+      const arrow = deductionsCard.querySelector('.salary-arrow');
+      if (arrow) arrow.remove();
+    }
+  }
+  
+  // Update expected salary
+  const expectedAmountElement = document.querySelector('.salary-amount.expected-amount');
+  if (expectedAmountElement) {
+    // Get base salary and incentives
+    const baseSalaryElement = document.querySelector('.salary-item.base-salary .salary-amount');
+    const baseSalary = baseSalaryElement ? parseFloat(baseSalaryElement.textContent.replace(/[^0-9.-]+/g, '')) : 0;
+    
+    const incentivesElement = document.querySelector('.salary-item.incentives .incentives-amount');
+    const incentivesAmount = incentivesElement ? parseFloat(incentivesElement.textContent.replace(/[^0-9.-]+/g, '')) : 0;
+    
+    const expectedSalary = baseSalary - penaltiesData.total + incentivesAmount;
+    expectedAmountElement.textContent = `${expectedSalary.toLocaleString('ar-SA')} ريال`;
+  }
+  
+  console.log('✅ Penalties card updated successfully with', penaltiesData.total, 'SAR');
+}
+
 let currentTeacherStudentId = null;
 let currentTeacherStudentName = null;
 let currentTeacherStudentData = null; // Store full student data including level
@@ -280,6 +515,7 @@ function getStudyDaysForHijriMonth(monthKey) {
 }
 
 let notificationsListener = null; // For real-time notifications
+let unsubscribePenalties = null; // For real-time penalties updates
 
 // Score values
 let scores = {
@@ -299,6 +535,7 @@ export function initTeacher(teacherClassId) {
   loadTodayStrugglingStudents(teacherClassId);
   loadMonthlyScores(teacherClassId);
   startNotificationsListener(teacherClassId); // Start listening for notifications
+  setupPenaltiesListener(teacherClassId); // ✅ Start listening for penalties across all tabs
   startNotAssessedScheduler(); // Start scheduler for checking not-assessed students at 9 PM
   updateTeacherNotificationBadge(); // Update notification badge
 }
@@ -5229,6 +5466,10 @@ export function stopNotificationsListener() {
     notificationsListener();
     notificationsListener = null;
   }
+  if (unsubscribePenalties) {
+    unsubscribePenalties();
+    unsubscribePenalties = null;
+  }
 }
 
 // ============================================
@@ -8042,8 +8283,23 @@ async function loadTeacherHomeSection(container) {
     console.error('Error fetching incentives:', error);
   }
   
-  const absentDays = totalStudyDays - attendedDays;
-  const totalDeductions = absentDays * deductionPerDay;
+  // Fetch penalties (deductions) for current month
+  let penaltiesData = {
+    total: 0,
+    late: { count: 0, total: 0 },
+    earlyLeave: { count: 0, total: 0 },
+    absent: { count: 0, total: 0 },
+    details: []
+  };
+  
+  try {
+    penaltiesData = await getMonthlyPenalties(teacherId, currentYear, currentMonth);
+    console.log('💰 Penalties data loaded:', penaltiesData);
+  } catch (error) {
+    console.error('Error fetching penalties:', error);
+  }
+  
+  const totalDeductions = penaltiesData.total;
   const expectedSalary = baseSalary - totalDeductions + incentivesData.total;
   
   // Get month name in Arabic
@@ -8121,13 +8377,22 @@ async function loadTeacherHomeSection(container) {
           </div>
           
           <div class="salary-row">
-            <div class="salary-item deductions">
+            <div class="salary-item deductions ${totalDeductions > 0 ? 'clickable' : ''}" ${totalDeductions > 0 ? `onclick="window.openPenaltiesBottomSheet(${JSON.stringify(penaltiesData).replace(/"/g, '&quot;')}, '${currentMonthName}')"` : ''}>
               <span class="salary-icon">📉</span>
               <div class="salary-details">
                 <div class="salary-label">الخصومات الحالية</div>
                 <div class="salary-amount deduction-amount">${totalDeductions.toLocaleString('ar-SA')} ريال</div>
-                ${absentDays > 0 ? `<div class="salary-meta">${absentDays} يوم غياب × ${deductionPerDay.toLocaleString('ar-SA')} ريال</div>` : '<div class="salary-meta">لا توجد خصومات</div>'}
+                ${totalDeductions > 0 ? `
+                  <div class="salary-meta">
+                    ${penaltiesData.late.count > 0 ? `${penaltiesData.late.count} تأخير` : ''}
+                    ${penaltiesData.late.count > 0 && (penaltiesData.earlyLeave.count > 0 || penaltiesData.absent.count > 0) ? ' • ' : ''}
+                    ${penaltiesData.earlyLeave.count > 0 ? `${penaltiesData.earlyLeave.count} خروج مبكر` : ''}
+                    ${penaltiesData.earlyLeave.count > 0 && penaltiesData.absent.count > 0 ? ' • ' : ''}
+                    ${penaltiesData.absent.count > 0 ? `${penaltiesData.absent.count} غياب` : ''}
+                  </div>
+                ` : '<div class="salary-meta">لا توجد خصومات</div>'}
               </div>
+              ${totalDeductions > 0 ? '<span class="salary-arrow">◀</span>' : ''}
             </div>
           </div>
           
@@ -8179,6 +8444,101 @@ async function loadTeacherHomeSection(container) {
       </button>
     </div>
   `;
+  
+  // ✅ Update penalties card if data is already available from global listener
+  if (window.currentPenaltiesData) {
+    console.log('♻️ Updating card with pre-loaded penalties data:', window.currentPenaltiesData);
+    updatePenaltiesCard(window.currentPenaltiesData);
+  }
+  
+  // ============================================
+  // Setup Real-time Listener for Attendance Changes
+  // ============================================
+  const monthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+  
+  // Stop previous listener if exists
+  if (window.teacherAttendanceListener) {
+    window.teacherAttendanceListener();
+    window.teacherAttendanceListener = null;
+  }
+  
+  // Create real-time listener for attendance changes
+  const attendanceQuery = query(
+    collection(db, 'teacherAttendance'),
+    where('teacherId', '==', teacherId),
+    where('date', '>=', `${monthStr}-01`),
+    where('date', '<=', `${monthStr}-31`)
+  );
+  
+  window.teacherAttendanceListener = onSnapshot(attendanceQuery, async (snapshot) => {
+    console.log('🔄 Attendance changed! Snapshot size:', snapshot.size);
+    
+    // Recalculate penalties
+    const updatedPenalties = await getMonthlyPenalties(teacherId, currentYear, currentMonth);
+    console.log('📊 Updated penalties:', updatedPenalties);
+    
+    const updatedTotalDeductions = updatedPenalties.total;
+    const updatedExpectedSalary = baseSalary - updatedTotalDeductions + incentivesData.total;
+    
+    // Update deductions card
+    const deductionsCard = container.querySelector('.salary-item.deductions');
+    if (deductionsCard) {
+      console.log('✅ Found deductions card, updating...');
+      const isClickable = updatedTotalDeductions > 0;
+      
+      // Update classes
+      if (isClickable) {
+        deductionsCard.classList.add('clickable');
+      } else {
+        deductionsCard.classList.remove('clickable');
+      }
+      
+      // Update onclick
+      if (isClickable) {
+        deductionsCard.onclick = function() {
+          window.openPenaltiesBottomSheet(updatedPenalties, currentMonthName);
+        };
+      } else {
+        deductionsCard.onclick = null;
+      }
+      
+      // Update HTML content
+      deductionsCard.innerHTML = `
+        <span class="salary-icon">📉</span>
+        <div class="salary-details">
+          <div class="salary-label">الخصومات الحالية</div>
+          <div class="salary-amount deduction-amount">${updatedTotalDeductions.toLocaleString('ar-SA')} ريال</div>
+          ${updatedTotalDeductions > 0 ? `
+            <div class="salary-meta">
+              ${updatedPenalties.late.count > 0 ? `${updatedPenalties.late.count} تأخير` : ''}
+              ${updatedPenalties.late.count > 0 && (updatedPenalties.earlyLeave.count > 0 || updatedPenalties.absent.count > 0) ? ' • ' : ''}
+              ${updatedPenalties.earlyLeave.count > 0 ? `${updatedPenalties.earlyLeave.count} خروج مبكر` : ''}
+              ${updatedPenalties.earlyLeave.count > 0 && updatedPenalties.absent.count > 0 ? ' • ' : ''}
+              ${updatedPenalties.absent.count > 0 ? `${updatedPenalties.absent.count} غياب` : ''}
+            </div>
+          ` : '<div class="salary-meta">لا توجد خصومات</div>'}
+        </div>
+        ${updatedTotalDeductions > 0 ? '<span class="salary-arrow">◀</span>' : ''}
+      `;
+      
+      console.log('✅ Deductions card updated with total:', updatedTotalDeductions, 'SAR');
+    } else {
+      console.warn('⚠️ Deductions card not found in DOM!');
+    }
+    
+    // Update expected salary
+    const expectedSalaryAmount = container.querySelector('.salary-item.expected-salary .expected-amount');
+    if (expectedSalaryAmount) {
+      expectedSalaryAmount.textContent = `${updatedExpectedSalary.toLocaleString('ar-SA')} ريال`;
+      console.log('✅ Expected salary updated:', updatedExpectedSalary, 'SAR');
+    } else {
+      console.warn('⚠️ Expected salary element not found in DOM!');
+    }
+    
+    console.log('✅ Real-time penalties update completed!');
+  }, (error) => {
+    console.error('❌ Error in attendance listener:', error);
+  });
 }
 
 // ============================================
@@ -8300,6 +8660,112 @@ window.openIncentivesBottomSheet = function(incentivesData, monthName) {
 window.closeIncentivesBottomSheet = function() {
   const overlay = document.querySelector('.bottom-sheet-overlay');
   const bottomSheet = document.getElementById('incentivesBottomSheet');
+  
+  if (overlay) {
+    overlay.classList.remove('active');
+    setTimeout(() => overlay.remove(), 300);
+  }
+  
+  if (bottomSheet) {
+    bottomSheet.classList.remove('active');
+    setTimeout(() => bottomSheet.remove(), 300);
+  }
+};
+
+// ============================================
+// Open Penalties Bottom Sheet with Details
+// ============================================
+window.openPenaltiesBottomSheet = function(penaltiesData, monthName) {
+  console.log('💰 Opening penalties bottom sheet:', penaltiesData);
+  
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'bottom-sheet-overlay';
+  overlay.onclick = function() {
+    closePenaltiesBottomSheet();
+  };
+  
+  // Create bottom sheet
+  const bottomSheet = document.createElement('div');
+  bottomSheet.className = 'incentives-bottom-sheet penalties-bottom-sheet';
+  bottomSheet.id = 'penaltiesBottomSheet';
+  
+  // Generate summary HTML
+  const summaryHTML = `
+    <div class="summary-cards">
+      ${penaltiesData.late.count > 0 ? `
+        <div class="summary-card late-card">
+          <div class="summary-icon">⏰</div>
+          <div class="summary-content">
+            <div class="summary-label">التأخير</div>
+            <div class="summary-value">${penaltiesData.late.count} مرة</div>
+            <div class="summary-amount">-${penaltiesData.late.total.toLocaleString('ar-SA')} ريال</div>
+          </div>
+        </div>
+      ` : ''}
+      
+      ${penaltiesData.earlyLeave.count > 0 ? `
+        <div class="summary-card early-leave-card">
+          <div class="summary-icon">🚪</div>
+          <div class="summary-content">
+            <div class="summary-label">الخروج المبكر</div>
+            <div class="summary-value">${penaltiesData.earlyLeave.count} مرة</div>
+            <div class="summary-amount">-${penaltiesData.earlyLeave.total.toLocaleString('ar-SA')} ريال</div>
+          </div>
+        </div>
+      ` : ''}
+      
+      ${penaltiesData.absent.count > 0 ? `
+        <div class="summary-card absent-card">
+          <div class="summary-icon">❌</div>
+          <div class="summary-content">
+            <div class="summary-label">الغياب</div>
+            <div class="summary-value">${penaltiesData.absent.count} يوم</div>
+            <div class="summary-amount">-${penaltiesData.absent.total.toLocaleString('ar-SA')} ريال</div>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+  
+  bottomSheet.innerHTML = `
+    <div class="bottom-sheet-header">
+      <h3>📉 تفاصيل الخصميات - ${monthName}</h3>
+      <button class="close-sheet-btn" onclick="closePenaltiesBottomSheet()">✕</button>
+    </div>
+    
+    <div class="bottom-sheet-body">
+      <div class="incentives-summary penalties-summary">
+        <div class="summary-row">
+          <span class="summary-label">إجمالي الخصميات</span>
+          <span class="summary-value penalties-total">-${penaltiesData.total.toLocaleString('ar-SA')} ريال</span>
+        </div>
+      </div>
+      
+      ${summaryHTML}
+      
+      <div class="incentives-note">
+        <span class="note-icon">ℹ️</span>
+        <span class="note-text">الخصميات يتم احتسابها تلقائياً بناءً على سياسة الحضور والانصراف</span>
+      </div>
+    </div>
+  `;
+  
+  // Add to DOM
+  document.body.appendChild(overlay);
+  document.body.appendChild(bottomSheet);
+  
+  // Trigger animation after a small delay
+  setTimeout(() => {
+    overlay.classList.add('active');
+    bottomSheet.classList.add('active');
+  }, 10);
+};
+
+// Close Penalties Bottom Sheet
+window.closePenaltiesBottomSheet = function() {
+  const overlay = document.querySelector('.bottom-sheet-overlay');
+  const bottomSheet = document.getElementById('penaltiesBottomSheet');
   
   if (overlay) {
     overlay.classList.remove('active');
@@ -8564,6 +9030,11 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
         const checkInTime = record.checkInTime ? new Date(record.checkInTime.seconds * 1000).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
         const checkOutTime = record.checkOutTime ? new Date(record.checkOutTime.seconds * 1000).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
         
+        // 🔍 Debug: Check late deduction value
+        if (record.lateDeduction !== undefined && record.lateDeduction !== 0) {
+          console.log(`📊 [${date}] Late deduction found:`, record.lateDeduction, 'ریال');
+        }
+        
         return {
           date,
           dayName: dayInfo.dayNameArabic,
@@ -8594,6 +9065,13 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
       if (r.lateApprovalStatus === 'pardoned') return sum;
       return sum + r.lateDeduction;
     }, 0);
+    
+    // 🔍 Debug: Print summary
+    console.log(`📊 Monthly Summary for ${teacherId}:`);
+    console.log(`   - Total records: ${attendanceRecords.length}`);
+    console.log(`   - Present days: ${attendanceRecords.filter(r => r.status === 'present').length}`);
+    console.log(`   - Late deductions: ${lateDeductions} ریال`);
+    console.log(`   - Records with late penalties:`, attendanceRecords.filter(r => r.lateDeduction > 0).map(r => ({ date: r.date, amount: r.lateDeduction })));
     const earlyLeaveDeductions = attendanceRecords.reduce((sum, r) => {
       if (r.earlyLeaveApprovalStatus === 'pardoned') return sum;
       return sum + r.earlyLeaveDeduction;
@@ -8787,236 +9265,6 @@ window.downloadAttendancePDF = function() {
   alert('⚠️ وظيفة تحميل PDF قيد التطوير');
   // TODO: Implement PDF generation using jsPDF or similar library
 };
-
-// ===== Admin: Edit/Add Attendance Record Modal =====
-window.openEditAttendanceModal = async function(staffId, date, dayName, recordData) {
-  console.log('Opening edit modal:', {staffId, date, dayName, recordData});
-  
-  // Check if admin mode
-  const isAdminMode = sessionStorage.getItem('loggedInAdmin') === 'true';
-  if (!isAdminMode) {
-    alert('⚠️ هذه الخاصية متاحة للإدارة فقط');
-    return;
-  }
-  
-  // Parse recordData if it's a string
-  const record = typeof recordData === 'string' ? JSON.parse(recordData) : recordData;
-  
-  // Get staff info
-  const staffInfo = window.staffMembersCache[staffId];
-  const staffName = staffInfo ? staffInfo.name : staffId;
-  
-  // Get vacation balance
-  const settings = await getStaffSettings(staffId);
-  const vacationDays = settings.vacationDays || { annual: 6, used: 0, remaining: 6 };
-  
-  // Determine if this is an edit (has existing record) or add (no record)
-  const isEdit = record.status !== 'not-registered';
-  const modalTitle = isEdit ? '✏️ تعديل سجل الحضور' : '➕ إضافة تسجيل حضور';
-  
-  // Extract current values (for edit mode)
-  let currentCheckIn = '';
-  let currentCheckOut = '';
-  let currentStatus = 'present';
-  let currentIsAnnualVacation = false;
-  let currentNotes = '';
-  
-  if (isEdit) {
-    if (record.status === 'present') {
-      // Extract time from "HH:MM ص/م" format
-      if (record.actualArrival && record.actualArrival !== '—') {
-        currentCheckIn = convertArabicTimeTo24Hour(record.actualArrival);
-      }
-      if (record.actualLeave && record.actualLeave !== '—') {
-        currentCheckOut = convertArabicTimeTo24Hour(record.actualLeave);
-      }
-      currentStatus = 'present';
-    } else if (record.status === 'absent' || record.status === 'annual-vacation') {
-      currentStatus = 'absent';
-      currentIsAnnualVacation = record.isAnnualVacation || false;
-      currentNotes = record.notes || '';
-    }
-  }
-  
-  // Create modal
-  const modal = document.createElement('div');
-  modal.className = 'attendance-modal edit-attendance-modal';
-  modal.innerHTML = `
-    <div class="modal-overlay" onclick="closeEditAttendanceModal()"></div>
-    <div class="modal-bottom-sheet edit-sheet">
-      <div class="modal-header">
-        <h3>${modalTitle}</h3>
-        <button class="modal-close" onclick="closeEditAttendanceModal()">✕</button>
-      </div>
-      
-      <div class="modal-body">
-        <!-- Day Info Header -->
-        <div class="day-info-header">
-          <div class="day-info-row">
-            <span class="info-icon">👤</span>
-            <span class="info-text"><strong>${staffName}</strong></span>
-          </div>
-          <div class="day-info-row">
-            <span class="info-icon">📅</span>
-            <span class="info-text">${dayName} — ${formatGregorianDate(date)}</span>
-          </div>
-        </div>
-        
-        <!-- Status Selector -->
-        <div class="form-group">
-          <label class="form-label">📊 حالة اليوم</label>
-          <div class="status-radio-group">
-            <label class="radio-label">
-              <input type="radio" name="editStatus" value="present" ${currentStatus === 'present' ? 'checked' : ''} onchange="toggleEditStatusFields()">
-              <span class="radio-custom"></span>
-              <span class="radio-text">✅ حاضر</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" name="editStatus" value="absent" ${currentStatus === 'absent' ? 'checked' : ''} onchange="toggleEditStatusFields()">
-              <span class="radio-custom"></span>
-              <span class="radio-text">❌ غائب</span>
-            </label>
-          </div>
-        </div>
-        
-        <!-- Present Fields (shown when status = present) -->
-        <div id="presentFields" style="display: ${currentStatus === 'present' ? 'block' : 'none'};">
-          <div class="form-group">
-            <label class="form-label">🕐 وقت الحضور ${isEdit ? '' : '<span style="color:#dc3545;">*</span>'}</label>
-            <input type="time" id="editCheckInTime" class="time-input" value="${currentCheckIn}" ${isEdit ? '' : 'required'}>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">🕐 وقت الانصراف ${isEdit ? '' : '<span style="color:#dc3545;">*</span>'}</label>
-            <input type="time" id="editCheckOutTime" class="time-input" value="${currentCheckOut}" ${isEdit ? '' : 'required'}>
-          </div>
-        </div>
-        
-        <!-- Absent Fields (shown when status = absent) -->
-        <div id="absentFields" style="display: ${currentStatus === 'absent' ? 'block' : 'none'};">
-          <!-- Annual Vacation Option -->
-          <div class="vacation-option-box">
-            <label class="form-label">🏖 هل الغياب ضمن الإجازة السنوية؟</label>
-            <div class="vacation-balance ${vacationDays.remaining === 0 ? 'vacation-depleted' : ''}">
-              <span class="vacation-icon">📅</span>
-              <span class="vacation-text">المتبقي: <strong>${vacationDays.remaining}</strong> من ${vacationDays.annual} أيام</span>
-            </div>
-            
-            <div class="vacation-radio-group">
-              <label class="vacation-radio-label">
-                <input type="radio" name="editIsVacation" value="yes" ${currentIsAnnualVacation ? 'checked' : ''} ${vacationDays.remaining === 0 ? 'disabled' : ''} onchange="toggleEditVacationWarning()">
-                <span class="radio-custom"></span>
-                <span class="radio-text">نعم (إجازة سنوية مدفوعة الأجر)</span>
-              </label>
-              <label class="vacation-radio-label">
-                <input type="radio" name="editIsVacation" value="no" ${!currentIsAnnualVacation ? 'checked' : ''} onchange="toggleEditVacationWarning()">
-                <span class="radio-custom"></span>
-                <span class="radio-text">لا (غياب عادي خاضع للخصم)</span>
-              </label>
-            </div>
-            
-            <div id="editVacationDepletedWarning" class="vacation-warning" style="display: ${vacationDays.remaining === 0 ? 'block' : 'none'};">
-              <div class="warning-icon">⚠️</div>
-              <div class="warning-content">
-                <strong>لا يوجد رصيد متبقٍ من الإجازات السنوية</strong>
-                <p>تم استنفاد جميع أيام الإجازة المسموحة لهذا العام. سيتم احتساب هذا اليوم كغياب عادي خاضع للخصم.</p>
-              </div>
-            </div>
-            
-            <div id="editVacationConfirmMsg" class="vacation-confirm-msg" style="display: ${currentIsAnnualVacation ? 'block' : 'none'};">
-              <div class="confirm-icon">✅</div>
-              <div class="confirm-content">
-                <strong>سيتم تسجيل هذا اليوم كإجازة سنوية</strong>
-                <p>• لن يتم خصم أي مبلغ من الراتب</p>
-                <p>• سيتم خصم يوم واحد من رصيد الإجازات السنوية</p>
-                <p>• الرصيد بعد الحفظ: <strong>${vacationDays.remaining - 1}</strong> أيام</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Notes (always shown) -->
-        <div class="form-group">
-          <label class="form-label">📝 ملاحظات</label>
-          <textarea id="editNotes" class="notes-textarea" placeholder="مثال: تعديل إداري، المعلم نسي التسجيل، ظرف طارئ...">${currentNotes}</textarea>
-        </div>
-      </div>
-      
-      <div class="modal-footer">
-        <button class="modal-btn primary" onclick="saveEditedAttendance('${staffId}', '${date}', ${isEdit}, ${JSON.stringify(record).replace(/"/g, '&quot;')})" id="saveEditBtn">
-          <span class="btn-spinner" style="display: none;">⏳</span>
-          <span class="btn-text">💾 حفظ ${isEdit ? 'التعديلات' : 'السجل'}</span>
-        </button>
-        <button class="modal-btn secondary" onclick="closeEditAttendanceModal()">إلغاء</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  setTimeout(() => modal.classList.add('show'), 10);
-  
-  // Store modal reference
-  window._editAttendanceModal = modal;
-};
-
-// Close Edit Attendance Modal
-window.closeEditAttendanceModal = function() {
-  const modal = window._editAttendanceModal;
-  if (modal) {
-    modal.classList.remove('show');
-    setTimeout(() => modal.remove(), 300);
-    window._editAttendanceModal = null;
-  }
-};
-
-// Toggle fields based on status
-window.toggleEditStatusFields = function() {
-  const status = document.querySelector('input[name="editStatus"]:checked').value;
-  const presentFields = document.getElementById('presentFields');
-  const absentFields = document.getElementById('absentFields');
-  
-  if (status === 'present') {
-    presentFields.style.display = 'block';
-    absentFields.style.display = 'none';
-  } else {
-    presentFields.style.display = 'none';
-    absentFields.style.display = 'block';
-  }
-};
-
-// Toggle vacation warning
-window.toggleEditVacationWarning = function() {
-  const selectedValue = document.querySelector('input[name="editIsVacation"]:checked').value;
-  const confirmMsg = document.getElementById('editVacationConfirmMsg');
-  
-  if (selectedValue === 'yes') {
-    confirmMsg.style.display = 'block';
-  } else {
-    confirmMsg.style.display = 'none';
-  }
-};
-
-// Convert Arabic time format (HH:MM ص/م) to 24-hour format (HH:MM)
-function convertArabicTimeTo24Hour(arabicTime) {
-  if (!arabicTime || arabicTime === '—') return '';
-  
-  // Remove Arabic characters and trim
-  let timeStr = arabicTime.replace(/[صم]/g, '').trim();
-  const isPM = arabicTime.includes('م');
-  const isAM = arabicTime.includes('ص');
-  
-  // Extract hours and minutes
-  const [hours, minutes] = timeStr.split(':').map(str => parseInt(str.trim()));
-  
-  let finalHours = hours;
-  if (isPM && hours !== 12) {
-    finalHours = hours + 12;
-  } else if (isAM && hours === 12) {
-    finalHours = 0;
-  }
-  
-  return `${String(finalHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
 
 // Load Reports Section
 function loadTeacherReportsSection(container) {
@@ -9822,6 +10070,8 @@ window.submitCheckIn = async function() {
       
       console.log('⏰ Late penalty settings:', latePenalty);
       console.log('⏰ Late minutes:', lateMinutes);
+      console.log('⏰ Shift start time:', shiftStartTime);
+      console.log('⏰ Check in time:', checkInTime);
       
       // Check if penalty is enabled
       if (latePenalty.enabled) {
@@ -9850,15 +10100,20 @@ window.submitCheckIn = async function() {
     
     // Save to Firestore
     const attendanceRef = doc(db, 'teacherAttendance', `${teacherId}_${dateStr}`);
-    await setDoc(attendanceRef, {
+    const attendanceData = {
       teacherId,
       date: dateStr,
       checkInTime: serverTimestamp(),
       checkInNotes: notes,
       lateDeduction,
+      lateMinutes: lateMinutes || 0,
       status: 'present',
       updatedAt: serverTimestamp()
-    });
+    };
+    
+    console.log('💾 Saving attendance to Firestore:', attendanceData);
+    
+    await setDoc(attendanceRef, attendanceData);
     
     // Show success animation
     showSuccessAnimation('✅ تم تسجيل الحضور بنجاح!');
@@ -10251,12 +10506,15 @@ window.openEditAttendanceModal = async function(staffId, date, dayName, record) 
     return;
   }
   
+  // Parse record if it's a string (from HTML attribute)
+  const parsedRecord = typeof record === 'string' ? JSON.parse(record) : record;
+  
   // Get staff settings for vacation balance
   const settings = await getStaffSettings(staffId);
   const vacationDays = settings.vacationDays || { annual: 6, used: 0, remaining: 6 };
   
   // تحديد نوع النافذة: تعديل أم إضافة
-  const isEdit = record && record.status !== 'not-registered' && record.status !== 'holiday';
+  const isEdit = parsedRecord && parsedRecord.status !== 'not-registered' && parsedRecord.status !== 'holiday';
   const title = isEdit ? 'تعديل سجل الحضور' : 'إضافة تسجيل حضور';
   const icon = isEdit ? '✏️' : '➕';
   
@@ -10267,16 +10525,16 @@ window.openEditAttendanceModal = async function(staffId, date, dayName, record) 
   let defaultIsAnnualVacation = false;
   let defaultNotes = '';
   
-  if (isEdit && record.status === 'present') {
+  if (isEdit && parsedRecord.status === 'present') {
     // تحويل الوقت من النص إلى HH:MM format
-    defaultCheckIn = convertTimeToInput(record.actualArrival);
-    defaultCheckOut = convertTimeToInput(record.actualLeave);
+    defaultCheckIn = convertTimeToInput(parsedRecord.actualArrival);
+    defaultCheckOut = convertTimeToInput(parsedRecord.actualLeave);
     defaultStatus = 'present';
-    defaultNotes = record.notes !== '—' ? record.notes : '';
-  } else if (isEdit && (record.status === 'absent' || record.status === 'annual-vacation')) {
+    defaultNotes = parsedRecord.notes !== '—' ? parsedRecord.notes : '';
+  } else if (isEdit && (parsedRecord.status === 'absent' || parsedRecord.status === 'annual-vacation')) {
     defaultStatus = 'absent';
-    defaultIsAnnualVacation = record.status === 'annual-vacation' || record.isAnnualVacation || false;
-    defaultNotes = record.notes !== '—' ? record.notes : '';
+    defaultIsAnnualVacation = parsedRecord.status === 'annual-vacation' || parsedRecord.isAnnualVacation || false;
+    defaultNotes = parsedRecord.notes !== '—' ? parsedRecord.notes : '';
   }
   
   // إنشاء Modal
@@ -10455,6 +10713,10 @@ window.saveEditedAttendance = async function(staffId, date) {
     
     const docRef = doc(db, 'teacherAttendance', `${staffId}_${date}`);
     
+    // ✅ جلب إعدادات المعلم لحساب الخصميات
+    const settings = await getStaffSettings(staffId);
+    console.log('⚙️ Staff settings for penalties calculation:', settings);
+    
     if (selectedStatus === 'present') {
       // حالة حاضر
       const checkInTime = document.getElementById('editCheckInTime').value;
@@ -10466,12 +10728,103 @@ window.saveEditedAttendance = async function(staffId, date) {
         return;
       }
       
-      // تحويل الأوقات إلى Timestamp
+      // تحويل الأوقات إلى Date objects
       const checkInDate = new Date(date + 'T' + checkInTime + ':00');
       const checkOutDate = new Date(date + 'T' + checkOutTime + ':00');
       
-      // حساب الخصميات (سيتم تنفيذه لاحقاً في الـ backend)
-      // هنا نحفظ البيانات الأساسية فقط
+      // ✅ حساب الخصميات بناءً على الإعدادات
+      let lateDeduction = 0;
+      let earlyLeaveDeduction = 0;
+      let lateMinutes = 0;
+      let earlyMinutes = 0;
+      
+      // جلب مواقيت الصلاة لهذا اليوم
+      const prayerTimes = await getPrayerTimesLocal(date);
+      
+      if (prayerTimes && prayerTimes.asr && prayerTimes.isha) {
+        // ✅ حساب أوقات بداية ونهاية الدوام باستخدام نفس التاريخ المحدد
+        const minutesAfterAsr = settings.workSchedule?.minutesAfterAsr || 35;
+        const minutesAfterIsha = settings.workSchedule?.minutesAfterIsha || 0;
+        
+        // تحويل وقت العصر إلى Date object بنفس التاريخ
+        const [asrHour, asrMin] = prayerTimes.asr.split(':').map(Number);
+        const workStartTime = new Date(date + 'T00:00:00');
+        workStartTime.setHours(asrHour, asrMin + minutesAfterAsr, 0, 0);
+        
+        // تحويل وقت العشاء إلى Date object بنفس التاريخ
+        const [ishaHour, ishaMin] = prayerTimes.isha.split(':').map(Number);
+        const workEndTime = new Date(date + 'T00:00:00');
+        workEndTime.setHours(ishaHour, ishaMin + minutesAfterIsha, 0, 0);
+        
+        console.log('🕰️ Work times for', date);
+        console.log('   Asr:', prayerTimes.asr);
+        console.log('   Work start:', workStartTime);
+        console.log('   Check in:', checkInDate);
+        console.log('   Work end:', workEndTime);
+        console.log('   Check out:', checkOutDate);
+        
+        // حساب خصمية التأخير
+        if (checkInDate > workStartTime) {
+          lateMinutes = Math.floor((checkInDate - workStartTime) / (1000 * 60));
+          
+          const latePenalty = settings.penalties?.latePenalty || {
+            enabled: true,
+            amount: 5,
+            intervalMinutes: 30,
+            graceMinutes: 0,
+            maxDailyPenalty: null
+          };
+          
+          console.log('⚙️ Late penalty settings:', latePenalty);
+          
+          if (latePenalty.enabled) {
+            const effectiveLateMinutes = Math.max(0, lateMinutes - (latePenalty.graceMinutes || 0));
+            if (effectiveLateMinutes > 0) {
+              const intervals = Math.ceil(effectiveLateMinutes / latePenalty.intervalMinutes);
+              lateDeduction = intervals * latePenalty.amount;
+              if (latePenalty.maxDailyPenalty && latePenalty.maxDailyPenalty > 0) {
+                lateDeduction = Math.min(lateDeduction, latePenalty.maxDailyPenalty);
+              }
+            }
+          } else {
+            console.log('⚠️ Late penalty is DISABLED in settings - no deduction');
+          }
+        }
+        
+        console.log('💰 Late penalty:', lateDeduction, 'SAR (', lateMinutes, 'minutes late)');
+        
+        // حساب خصمية الخروج المبكر
+        if (checkOutDate < workEndTime) {
+          earlyMinutes = Math.floor((workEndTime - checkOutDate) / (1000 * 60));
+          
+          const earlyLeavePenalty = settings.penalties?.earlyLeavePenalty || {
+            enabled: true,
+            amount: 5,
+            intervalMinutes: 30,
+            graceMinutes: 5,
+            maxDailyPenalty: 15
+          };
+          
+          console.log('⚙️ Early leave penalty settings:', earlyLeavePenalty);
+          
+          if (earlyLeavePenalty.enabled) {
+            const effectiveEarlyMinutes = Math.max(0, earlyMinutes - (earlyLeavePenalty.graceMinutes || 0));
+            if (effectiveEarlyMinutes > 0) {
+              const intervals = Math.ceil(effectiveEarlyMinutes / earlyLeavePenalty.intervalMinutes);
+              earlyLeaveDeduction = intervals * earlyLeavePenalty.amount;
+              if (earlyLeavePenalty.maxDailyPenalty && earlyLeavePenalty.maxDailyPenalty > 0) {
+                earlyLeaveDeduction = Math.min(earlyLeaveDeduction, earlyLeavePenalty.maxDailyPenalty);
+              }
+            }
+          } else {
+            console.log('⚠️ Early leave penalty is DISABLED in settings - no deduction');
+          }
+        }
+        
+        console.log('💰 Early leave penalty:', earlyLeaveDeduction, 'SAR (', earlyMinutes, 'minutes early)!');
+      } else {
+        console.warn('⚠️ Could not fetch prayer times for', date, '- penalties not calculated');
+      }
       
       const attendanceData = {
         teacherId: staffId,
@@ -10482,13 +10835,17 @@ window.saveEditedAttendance = async function(staffId, date) {
         checkOutTime: Timestamp.fromDate(checkOutDate),
         status: 'present',
         checkInNotes: notes,
-        lateDeduction: 0, // TODO: حساب تلقائي
-        earlyLeaveDeduction: 0, // TODO: حساب تلقائي
+        lateDeduction: lateDeduction, // ✅ محسوبة تلقائياً
+        lateMinutes: lateMinutes,
+        earlyLeaveDeduction: earlyLeaveDeduction, // ✅ محسوبة تلقائياً
+        earlyMinutes: earlyMinutes,
         absenceDeduction: 0,
         updatedAt: serverTimestamp(),
         updatedBy: 'admin',
         editedManually: true
       };
+      
+      console.log('💾 Saving attendance with calculated penalties:', attendanceData);
       
       await setDoc(docRef, attendanceData, { merge: true });
       
@@ -10505,6 +10862,34 @@ window.saveEditedAttendance = async function(staffId, date) {
         }
       }
       
+      // ✅ حساب خصمية الغياب
+      let absenceDeduction = 0;
+      if (!isAnnualVacation) {
+        // التحقق من تفعيل خصمية الغياب
+        const absencePenalty = settings.penalties?.absencePenalty || {
+          enabled: true,
+          calculationMethod: 'fixed',
+          fixedAmount: 100
+        };
+        
+        console.log('⚙️ Absence penalty settings:', absencePenalty);
+        
+        if (absencePenalty.enabled) {
+          // حساب عدد أيام الدراسة في الشهر
+          const monthYear = date.substring(0, 7); // YYYY-MM
+          const [year, month] = monthYear.split('-').map(Number);
+          const monthlyReport = getMonthlyReport(year, month);
+          const studyDaysInMonth = monthlyReport ? monthlyReport.studyDaysCount : 22; // افتراضي 22 يوم
+          
+          absenceDeduction = calculateAbsencePenalty(staffId, false, studyDaysInMonth);
+          console.log('💰 Absence penalty:', absenceDeduction, 'SAR');
+        } else {
+          console.log('⚠️ Absence penalty is DISABLED in settings - no deduction');
+        }
+      } else {
+        console.log('🏖️ Annual vacation - no penalty');
+      }
+      
       const attendanceData = {
         teacherId: staffId,
         staffId: staffId,
@@ -10517,11 +10902,13 @@ window.saveEditedAttendance = async function(staffId, date) {
         checkOutTime: null,
         lateDeduction: 0,
         earlyLeaveDeduction: 0,
-        absenceDeduction: isAnnualVacation ? 0 : 0, // TODO: حساب تلقائي
+        absenceDeduction: absenceDeduction, // ✅ محسوبة تلقائياً
         updatedAt: serverTimestamp(),
         updatedBy: 'admin',
         editedManually: true
       };
+      
+      console.log('💾 Saving absence record with calculated penalty:', attendanceData);
       
       await setDoc(docRef, attendanceData, { merge: true });
       
