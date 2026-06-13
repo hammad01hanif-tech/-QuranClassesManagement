@@ -263,15 +263,20 @@ async function getMonthlyPenalties(teacherId, year, month) {
     const monthStr = `${year}-${String(month).padStart(2, '0')}`;
     console.log('💰 Fetching penalties for teacher:', teacherId, 'Month:', monthStr);
     
-    // Query all attendance records for this month
-    const attendanceQuery = query(
-      collection(db, 'teacherAttendance'),
-      where('teacherId', '==', teacherId),
-      where('date', '>=', `${monthStr}-01`),
-      where('date', '<=', `${monthStr}-31`)
-    );
+    // ✅ جلب السجلات بناءً على document IDs بدلاً من query لتجنب composite index
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const fetchPromises = [];
     
-    const querySnapshot = await getDocs(attendanceQuery);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayStr = String(day).padStart(2, '0');
+      const date = `${monthStr}-${dayStr}`;
+      const docId = `${teacherId}_${date}`;
+      fetchPromises.push(
+        getDoc(doc(db, 'teacherAttendance', docId)).catch(() => null)
+      );
+    }
+    
+    const docSnapshots = await Promise.all(fetchPromises);
     
     let totalPenalties = 0;
     let lateCount = 0;
@@ -283,8 +288,9 @@ async function getMonthlyPenalties(teacherId, year, month) {
     
     const details = [];
     
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
+    docSnapshots.forEach((docSnap) => {
+      if (!docSnap || !docSnap.exists()) return;
+      const data = docSnap.data();
       
       // ✅ Late penalties (exclude pardoned)
       if (data.lateDeduction && data.lateDeduction > 0 && data.lateApprovalStatus !== 'pardoned') {
@@ -355,18 +361,21 @@ async function getMonthlyPenalties(teacherId, year, month) {
 function setupPenaltiesListener(teacherId) {
   console.log('👂 Setting up penalties listener for:', teacherId);
   
-  // Get current month
+  // ✅ استخدام listener على collection مع startAt/endAt بدلاً من where
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
   const monthStr = `${year}-${String(month).padStart(2, '0')}`;
   
-  // Query for current month attendance
+  // استخدام document ID pattern للفلترة
+  const startDocId = `${teacherId}_${monthStr}-01`;
+  const endDocId = `${teacherId}_${monthStr}-31\uf8ff`;
+  
+  // Query باستخدام document ID range
   const attendanceQuery = query(
     collection(db, 'teacherAttendance'),
-    where('teacherId', '==', teacherId),
-    where('date', '>=', `${monthStr}-01`),
-    where('date', '<=', `${monthStr}-31`)
+    where('__name__', '>=', startDocId),
+    where('__name__', '<=', endDocId)
   );
   
   // Real-time listener
@@ -382,8 +391,11 @@ function setupPenaltiesListener(teacherId) {
     let absentCount = 0;
     let absentPenalties = 0;
     
-    snapshot.forEach((doc) => {
-      const data = doc.data();
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      
+      // ✅ تحقق من أن السجل يخص هذا المعلم (لأن __name__ query قد تُرجع سجلات أخرى)
+      if (data.teacherId !== teacherId) return;
       
       // ✅ Late penalties (exclude pardoned)
       if (data.lateDeduction && data.lateDeduction > 0 && data.lateApprovalStatus !== 'pardoned') {
