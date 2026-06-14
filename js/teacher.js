@@ -9388,7 +9388,23 @@ window.downloadAttendancePDF = async function() {
     
     // Get teacher info
     const teacherId = window._currentModalStaffId || sessionStorage.getItem('loggedInTeacher');
-    const teacherName = sessionStorage.getItem('loggedInTeacherName') || 'المعلم';
+    
+    // Get teacher name - fetch from Firestore if modal opened from admin
+    let teacherName = 'المعلم';
+    if (window._currentModalStaffId) {
+      // Modal opened from admin - fetch name from staffSettings
+      try {
+        const staffDoc = await getDoc(doc(db, 'staffSettings', window._currentModalStaffId));
+        if (staffDoc.exists()) {
+          teacherName = staffDoc.data().name || 'المعلم';
+        }
+      } catch (error) {
+        console.error('Error fetching teacher name:', error);
+      }
+    } else {
+      // Modal opened from teacher dashboard - use session storage
+      teacherName = sessionStorage.getItem('loggedInTeacherName') || 'المعلم';
+    }
     
     // Get month/year from selector
     const monthSelector = document.getElementById('attendance-month-selector');
@@ -9539,10 +9555,10 @@ window.downloadAttendancePDF = async function() {
           <thead>
             <tr>
               <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">اليوم</th>
-              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">بداية</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">بداية الدوام</th>
               <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">حضور</th>
               <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">خصم تأخير</th>
-              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">نهاية</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">نهاية الدوام</th>
               <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">انصراف</th>
               <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">خصم خروج</th>
               <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 5px; text-align: center; border: none; font-size: 12px;">ملاحظات</th>
