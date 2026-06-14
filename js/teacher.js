@@ -9388,6 +9388,7 @@ window.downloadAttendancePDF = async function() {
     
     // Get teacher info
     const teacherId = window._currentModalStaffId || sessionStorage.getItem('loggedInTeacher');
+    const teacherName = sessionStorage.getItem('loggedInTeacherName') || 'المعلم';
     
     // Get month/year from selector
     const monthSelector = document.getElementById('attendance-month-selector');
@@ -9527,12 +9528,13 @@ window.downloadAttendancePDF = async function() {
     `;
     
     container.innerHTML = `
-      <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="color: #667eea; margin: 0 0 8px 0; font-size: 28px;">📊 سجل الحضور الشهري</h1>
-        <p style="color: #666; font-size: 16px; margin: 0;">${monthName} ${year}</p>
+      <div style="text-align: center; margin-bottom: 15px;">
+        <h1 style="color: #667eea; margin: 0 0 5px 0; font-size: 28px;">📊 سجل الحضور الشهري</h1>
+        <p style="color: #666; font-size: 16px; margin: 0 0 5px 0;">${monthName} ${year}</p>
+        <p style="color: #667eea; font-size: 18px; margin: 0; font-weight: bold;">المعلم: ${teacherName}</p>
       </div>
       
-      <div style="margin-bottom: 20px; overflow-x: auto;">
+      <div style="margin-bottom: 15px; overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
           <thead>
             <tr>
@@ -9552,41 +9554,41 @@ window.downloadAttendancePDF = async function() {
         </table>
       </div>
       
-      <div style="margin-top: 25px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
-        <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 20px; text-align: center; border-bottom: 2px solid #667eea; padding-bottom: 8px;">📋 الملخص النهائي</h2>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 700px; margin: 0 auto;">
-          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">الراتب الأساسي</div>
-            <div style="font-size: 18px; font-weight: bold; color: #667eea;">${baseSalary}</div>
+      <div style="margin-top: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 8px;">
+        <h2 style="color: white; margin: 0 0 12px 0; font-size: 18px; text-align: center;">📋 الملخص النهائي</h2>
+        <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="background: white; padding: 8px 12px; border-radius: 6px; text-align: center; min-width: 110px;">
+            <div style="color: #666; font-size: 10px; margin-bottom: 3px;">الراتب الأساسي</div>
+            <div style="font-size: 14px; font-weight: bold; color: #667eea;">${baseSalary}</div>
           </div>
-          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">عدد الغيابات</div>
-            <div style="font-size: 18px; font-weight: bold; color: #ef4444;">${absences}</div>
+          <div style="background: white; padding: 8px 12px; border-radius: 6px; text-align: center; min-width: 110px;">
+            <div style="color: #666; font-size: 10px; margin-bottom: 3px;">عدد الغيابات</div>
+            <div style="font-size: 14px; font-weight: bold; color: #ef4444;">${absences}</div>
           </div>
-          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">خصومات الغياب</div>
-            <div style="font-size: 16px; font-weight: bold; color: #dc2626;">${absenceDeductions}</div>
+          <div style="background: white; padding: 8px 12px; border-radius: 6px; text-align: center; min-width: 110px;">
+            <div style="color: #666; font-size: 10px; margin-bottom: 3px;">خصم الغياب</div>
+            <div style="font-size: 14px; font-weight: bold; color: #dc2626;">${absenceDeductions}</div>
           </div>
-          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">خصومات التأخير</div>
-            <div style="font-size: 16px; font-weight: bold; color: #dc2626;">${lateDeductions}</div>
+          <div style="background: white; padding: 8px 12px; border-radius: 6px; text-align: center; min-width: 110px;">
+            <div style="color: #666; font-size: 10px; margin-bottom: 3px;">خصم التأخير</div>
+            <div style="font-size: 14px; font-weight: bold; color: #dc2626;">${lateDeductions}</div>
           </div>
-          <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <div style="color: #666; font-size: 12px; margin-bottom: 4px;">خصومات الخروج المبكر</div>
-            <div style="font-size: 16px; font-weight: bold; color: #dc2626;">${earlyDeductions}</div>
+          <div style="background: white; padding: 8px 12px; border-radius: 6px; text-align: center; min-width: 110px;">
+            <div style="color: #666; font-size: 10px; margin-bottom: 3px;">خصم الخروج</div>
+            <div style="font-size: 14px; font-weight: bold; color: #dc2626;">${earlyDeductions}</div>
           </div>
-          <div style="background: #fee2e2; padding: 12px; border-radius: 6px; border: 2px solid #ef4444;">
-            <div style="color: #7f1d1d; font-size: 12px; margin-bottom: 4px; font-weight: bold;">⚠️ إجمالي الخصومات</div>
-            <div style="font-size: 20px; font-weight: bold; color: #dc2626;">${totalDeductions}</div>
+          <div style="background: #fee2e2; padding: 8px 12px; border-radius: 6px; border: 2px solid #ef4444; text-align: center; min-width: 110px;">
+            <div style="color: #7f1d1d; font-size: 10px; margin-bottom: 3px; font-weight: bold;">⚠️ إجمالي الخصومات</div>
+            <div style="font-size: 15px; font-weight: bold; color: #dc2626;">${totalDeductions}</div>
           </div>
-          <div style="background: #dcfce7; padding: 12px; border-radius: 6px; border: 2px solid #22c55e; grid-column: span 2;">
-            <div style="color: #14532d; font-size: 12px; margin-bottom: 4px; font-weight: bold; text-align: center;">✅ الراتب المتوقع</div>
-            <div style="font-size: 24px; font-weight: bold; color: #16a34a; text-align: center;">${expectedSalary}</div>
+          <div style="background: #dcfce7; padding: 8px 12px; border-radius: 6px; border: 2px solid #22c55e; text-align: center; min-width: 130px;">
+            <div style="color: #14532d; font-size: 10px; margin-bottom: 3px; font-weight: bold;">✅ الراتب المتوقع</div>
+            <div style="font-size: 16px; font-weight: bold; color: #16a34a;">${expectedSalary}</div>
           </div>
         </div>
       </div>
       
-      <div style="text-align: center; margin-top: 25px; padding-top: 15px; border-top: 2px solid #e5e7eb;">
+      <div style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 2px solid #e5e7eb;">
         <p style="margin: 5px 0; color: #999; font-size: 11px;">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</p>
       </div>
     `;
