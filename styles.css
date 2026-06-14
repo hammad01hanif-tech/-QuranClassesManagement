@@ -7299,7 +7299,46 @@ details[open] > summary {
   }
 
   .summary-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .summary-item {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .summary-icon {
+    font-size: 22px;
+  }
+
+  .summary-label {
+    font-size: 9px;
+  }
+
+  .summary-value {
+    font-size: 16px;
+  }
+
+  .summary-item.total .summary-value,
+  .summary-item.expected-salary-item .summary-value {
+    font-size: 18px;
+  }
+
+  .attendance-summary {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .attendance-summary h4 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .attendance-modal-body {
+    padding: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .attendance-modal-footer {
@@ -7326,6 +7365,42 @@ details[open] > summary {
 
   .attendance-record-btn .btn-subtitle {
     font-size: 12px;
+  }
+
+  /* Summary adjustments for very small screens */
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .summary-item {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .summary-icon {
+    font-size: 20px;
+  }
+
+  .summary-label {
+    font-size: 8px;
+  }
+
+  .summary-value {
+    font-size: 14px;
+  }
+
+  .summary-item.total .summary-value,
+  .summary-item.expected-salary-item .summary-value {
+    font-size: 16px;
+  }
+
+  .attendance-summary {
+    padding: 12px;
+  }
+
+  .attendance-summary h4 {
+    font-size: 14px;
   }
 }
 
