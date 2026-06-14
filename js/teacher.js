@@ -10503,7 +10503,7 @@ window.submitCheckIn = async function() {
     closeAttendanceModal();
     
     // Reload section
-    const container = document.getElementById('teacherMainContent').parentElement;
+    const container = document.getElementById('teacherMainContent');
     setTimeout(() => loadTeacherAttendanceSection(container), 1000);
     
   } catch (error) {
@@ -10631,7 +10631,7 @@ window.submitAbsent = async function() {
     closeAttendanceModal();
     
     // Reload section
-    const container = document.getElementById('teacherMainContent').parentElement;
+    const container = document.getElementById('teacherMainContent');
     setTimeout(() => loadTeacherAttendanceSection(container), 1000);
     
   } catch (error) {
@@ -10747,7 +10747,7 @@ window.submitCheckOut = async function() {
     closeAttendanceModal();
     
     // Reload section
-    const container = document.getElementById('teacherMainContent').parentElement;
+    const container = document.getElementById('teacherMainContent');
     setTimeout(() => loadTeacherAttendanceSection(container), 1000);
     
   } catch (error) {
