@@ -10484,7 +10484,7 @@ window.submitCheckIn = async function() {
     const attendanceData = {
       teacherId,
       date: dateStr,
-      checkInTime: serverTimestamp(),
+      checkInTime: Timestamp.fromDate(checkInTime),
       checkInNotes: notes,
       lateDeduction,
       lateMinutes: lateMinutes || 0,
@@ -10734,7 +10734,7 @@ window.submitCheckOut = async function() {
     // Update Firestore
     const attendanceRef = doc(db, 'teacherAttendance', `${teacherId}_${dateStr}`);
     await updateDoc(attendanceRef, {
-      checkOutTime: serverTimestamp(),
+      checkOutTime: Timestamp.fromDate(checkOutTime),
       checkOutNotes: notes,
       earlyLeaveDeduction,
       updatedAt: serverTimestamp()
