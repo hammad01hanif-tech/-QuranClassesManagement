@@ -9319,12 +9319,29 @@ window.loadStaffAttendanceData = async function() {
   document.getElementById('attendanceFilters').style.display = 'block';
   document.getElementById('attendanceEmptyState').style.display = 'none';
   
-  // Get selected staff data
-  const staffSelect = document.getElementById('staffAttendanceSelect');
-  const selectedOption = staffSelect.options[staffSelect.selectedIndex];
-  const staffName = selectedOption.textContent;
-  const roleIcon = selectedOption.dataset.roleIcon || '??�??';
-  const role = selectedOption.dataset.role || 'teacher';
+  // Get selected staff data from staffListData (to get clean name without icon)
+  let staffName = 'موظف';
+  let roleIcon = '👤';
+  let role = 'teacher';
+  
+  // Find staff in staffListData
+  if (window.staffListData) {
+    const staffData = window.staffListData.find(s => s.id === staffId);
+    if (staffData) {
+      staffName = staffData.name;
+      roleIcon = staffData.roleIcon;
+      role = staffData.role;
+    }
+  } else {
+    // Fallback: get from option textContent and remove icon
+    const staffSelect = document.getElementById('staffAttendanceSelect');
+    const selectedOption = staffSelect.options[staffSelect.selectedIndex];
+    const textWithIcon = selectedOption.textContent;
+    // Remove emoji/icon (first 2-3 characters usually)
+    staffName = textWithIcon.replace(/^[^\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\s]+\s*/g, '').trim();
+    roleIcon = selectedOption.dataset.roleIcon || '👤';
+    role = selectedOption.dataset.role || 'teacher';
+  }
   
   let roleText = '';
   if (role === 'teacher') roleText = '����';

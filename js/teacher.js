@@ -8922,8 +8922,9 @@ window.closeAttendanceModal = function() {
     modal.classList.remove('show');
     setTimeout(() => {
       modal.remove();
-      // Clear modal staff ID
+      // Clear modal staff ID and name
       window._currentModalStaffId = null;
+      window.currentStaffName = null;
     }, 300);
   }
 };
@@ -9389,22 +9390,10 @@ window.downloadAttendancePDF = async function() {
     // Get teacher info
     const teacherId = window._currentModalStaffId || sessionStorage.getItem('loggedInTeacher');
     
-    // Get teacher name - fetch from Firestore if modal opened from admin
-    let teacherName = 'المعلم';
-    if (window._currentModalStaffId) {
-      // Modal opened from admin - fetch name from staffSettings
-      try {
-        const staffDoc = await getDoc(doc(db, 'staffSettings', window._currentModalStaffId));
-        if (staffDoc.exists()) {
-          teacherName = staffDoc.data().name || 'المعلم';
-        }
-      } catch (error) {
-        console.error('Error fetching teacher name:', error);
-      }
-    } else {
-      // Modal opened from teacher dashboard - use session storage
-      teacherName = sessionStorage.getItem('loggedInTeacherName') || 'المعلم';
-    }
+    // Get teacher name - use window.currentStaffName if available (from admin section)
+    // otherwise use sessionStorage (from teacher dashboard)
+    const teacherName = window.currentStaffName || sessionStorage.getItem('loggedInTeacherName') || 'المعلم';
+    console.log('📄 PDF Teacher Info:', { teacherId, teacherName });
     
     // Get month/year from selector
     const monthSelector = document.getElementById('attendance-month-selector');
@@ -10767,15 +10756,6 @@ window.submitCheckOut = async function() {
     btn.disabled = false;
     spinner.style.display = 'none';
     text.textContent = 'تأكيد الانصراف';
-  }
-};
-
-// Close attendance modal
-window.closeAttendanceModal = function() {
-  const modal = document.querySelector('.attendance-modal');
-  if (modal) {
-    modal.classList.remove('show');
-    setTimeout(() => modal.remove(), 300);
   }
 };
 
