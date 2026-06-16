@@ -8395,7 +8395,18 @@ async function loadTeacherHomeSection(container) {
               <span class="salary-icon">💰</span>
               <div class="salary-details">
                 <div class="salary-label">الراتب الأساسي</div>
-                <div class="salary-amount">${baseSalary.toLocaleString('ar-SA')} ريال</div>
+                <div class="salary-amount-wrapper">
+                  <div class="salary-amount" id="baseSalaryAmount" data-value="${baseSalary}">
+                    <span class="salary-hidden">●●●●●</span>
+                    <span class="salary-visible" style="display: none;">${baseSalary.toLocaleString('ar-SA')} ريال</span>
+                  </div>
+                  <button class="salary-toggle-btn" onclick="toggleSalaryVisibility('baseSalary')" title="إظهار/إخفاء">
+                    <svg id="baseSalaryEyeIcon" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -8428,7 +8439,18 @@ async function loadTeacherHomeSection(container) {
               <span class="salary-icon">✅</span>
               <div class="salary-details">
                 <div class="salary-label">الراتب المتوقع</div>
-                <div class="salary-amount expected-amount">${expectedSalary.toLocaleString('ar-SA')} ريال</div>
+                <div class="salary-amount-wrapper">
+                  <div class="salary-amount expected-amount" id="expectedSalaryAmount" data-value="${expectedSalary}">
+                    <span class="salary-hidden">●●●●●</span>
+                    <span class="salary-visible" style="display: none;">${expectedSalary.toLocaleString('ar-SA')} ريال</span>
+                  </div>
+                  <button class="salary-toggle-btn" onclick="toggleSalaryVisibility('expectedSalary')" title="إظهار/إخفاء">
+                    <svg id="expectedSalaryEyeIcon" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -8799,6 +8821,49 @@ window.closePenaltiesBottomSheet = function() {
   if (bottomSheet) {
     bottomSheet.classList.remove('active');
     setTimeout(() => bottomSheet.remove(), 300);
+  }
+};
+
+// Toggle Salary Visibility (Hide/Show)
+window.toggleSalaryVisibility = function(salaryType) {
+  const amountElement = document.getElementById(`${salaryType}Amount`);
+  const eyeIcon = document.getElementById(`${salaryType}EyeIcon`);
+  
+  if (!amountElement) return;
+  
+  const hiddenElement = amountElement.querySelector('.salary-hidden');
+  const visibleElement = amountElement.querySelector('.salary-visible');
+  
+  if (!hiddenElement || !visibleElement) return;
+  
+  // Toggle visibility
+  const isCurrentlyHidden = hiddenElement.style.display !== 'none';
+  
+  if (isCurrentlyHidden) {
+    // Show the amount
+    hiddenElement.style.display = 'none';
+    visibleElement.style.display = 'inline';
+    
+    // Change eye icon to "eye-off" (crossed eye)
+    if (eyeIcon) {
+      eyeIcon.innerHTML = `
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+      `;
+    }
+  } else {
+    // Hide the amount
+    hiddenElement.style.display = 'inline';
+    visibleElement.style.display = 'none';
+    
+    // Change eye icon back to normal
+    if (eyeIcon) {
+      eyeIcon.innerHTML = `
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      `;
+    }
   }
 };
 

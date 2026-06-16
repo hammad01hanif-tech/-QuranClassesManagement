@@ -6175,6 +6175,65 @@ details[open] > summary {
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+/* Salary Visibility Toggle (Hide/Show) */
+.salary-amount-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.salary-hidden {
+  font-size: 18px;
+  letter-spacing: 3px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.expected-salary .salary-hidden {
+  color: rgba(255,255,255,0.9);
+  font-size: 20px;
+}
+
+.salary-toggle-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.salary-toggle-btn:hover {
+  opacity: 1;
+  background: rgba(0,0,0,0.05);
+}
+
+.expected-salary .salary-toggle-btn:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+.eye-icon {
+  width: 16px;
+  height: 16px;
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+
+.expected-salary .eye-icon {
+  color: rgba(255,255,255,0.9);
+}
+
+.salary-toggle-btn:active {
+  transform: scale(0.95);
+}
+
 /* Month Details Info */
 .month-details-info {
   display: flex;
@@ -6246,6 +6305,24 @@ details[open] > summary {
 
   .expected-salary .salary-amount {
     font-size: 24px;
+  }
+
+  .salary-hidden {
+    font-size: 16px;
+  }
+
+  .expected-salary .salary-hidden {
+    font-size: 18px;
+  }
+
+  .salary-toggle-btn {
+    width: 22px;
+    height: 22px;
+  }
+
+  .eye-icon {
+    width: 14px;
+    height: 14px;
   }
 
   .info-pill {
