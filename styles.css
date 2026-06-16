@@ -6197,41 +6197,35 @@ details[open] > summary {
 .salary-toggle-btn {
   background: transparent;
   border: none;
-  padding: 4px;
+  padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
   transition: all 0.2s ease;
-  opacity: 0.6;
-  width: 24px;
-  height: 24px;
   flex-shrink: 0;
 }
 
-.salary-toggle-btn:hover {
+.salary-toggle-btn:hover .eye-icon {
   opacity: 1;
-  background: rgba(0,0,0,0.05);
-}
-
-.expected-salary .salary-toggle-btn:hover {
-  background: rgba(255,255,255,0.15);
+  transform: scale(1.15);
 }
 
 .eye-icon {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   color: #64748b;
+  opacity: 0.7;
   transition: all 0.2s ease;
 }
 
 .expected-salary .eye-icon {
-  color: rgba(255,255,255,0.9);
+  color: rgba(255,255,255,0.95);
+  opacity: 0.85;
 }
 
-.salary-toggle-btn:active {
-  transform: scale(0.95);
+.salary-toggle-btn:active .eye-icon {
+  transform: scale(0.9);
 }
 
 /* Month Details Info */
@@ -6315,20 +6309,14 @@ details[open] > summary {
     font-size: 18px;
   }
 
-  .salary-toggle-btn {
-    width: 28px;
-    height: 28px;
-    opacity: 0.8;
-    background: rgba(0,0,0,0.03);
-  }
-
-  .expected-salary .salary-toggle-btn {
-    background: rgba(255,255,255,0.15);
-  }
-
   .eye-icon {
-    width: 16px;
-    height: 16px;
+    width: 22px;
+    height: 22px;
+    opacity: 0.8;
+  }
+
+  .expected-salary .eye-icon {
+    opacity: 0.9;
   }
 
   .salary-amount-wrapper {
