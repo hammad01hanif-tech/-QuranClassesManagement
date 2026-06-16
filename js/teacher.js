@@ -489,13 +489,20 @@ function updatePenaltiesCard(penaltiesData) {
   if (expectedAmountElement) {
     // Get base salary and incentives
     const baseSalaryElement = document.querySelector('.salary-item.base-salary .salary-amount');
-    const baseSalary = baseSalaryElement ? parseFloat(baseSalaryElement.textContent.replace(/[^0-9.-]+/g, '')) : 0;
+    const baseSalary = baseSalaryElement ? parseFloat(baseSalaryElement.getAttribute('data-value') || baseSalaryElement.textContent.replace(/[^0-9.-]+/g, '')) : 0;
     
     const incentivesElement = document.querySelector('.salary-item.incentives .incentives-amount');
     const incentivesAmount = incentivesElement ? parseFloat(incentivesElement.textContent.replace(/[^0-9.-]+/g, '')) : 0;
     
     const expectedSalary = baseSalary - penaltiesData.total + incentivesAmount;
-    expectedAmountElement.textContent = `${expectedSalary.toLocaleString('ar-SA')} ريال`;
+    
+    // Update only the visible span, not the entire element
+    const expectedSalaryVisible = expectedAmountElement.querySelector('.salary-visible');
+    if (expectedSalaryVisible) {
+      expectedSalaryVisible.textContent = `${expectedSalary.toLocaleString('ar-SA')} ريال`;
+    }
+    // Update data-value attribute for reference
+    expectedAmountElement.setAttribute('data-value', expectedSalary);
   }
   
   console.log('✅ Penalties card updated successfully with', penaltiesData.total, 'SAR');
@@ -8575,7 +8582,12 @@ async function loadTeacherHomeSection(container) {
     // Update expected salary
     const expectedSalaryAmount = container.querySelector('.salary-item.expected-salary .expected-amount');
     if (expectedSalaryAmount) {
-      expectedSalaryAmount.textContent = `${updatedExpectedSalary.toLocaleString('ar-SA')} ريال`;
+      const expectedSalaryVisible = expectedSalaryAmount.querySelector('.salary-visible');
+      if (expectedSalaryVisible) {
+        expectedSalaryVisible.textContent = `${updatedExpectedSalary.toLocaleString('ar-SA')} ريال`;
+      }
+      // Update data-value attribute for reference
+      expectedSalaryAmount.setAttribute('data-value', updatedExpectedSalary);
       console.log('✅ Expected salary updated:', updatedExpectedSalary, 'SAR');
     } else {
       console.warn('⚠️ Expected salary element not found in DOM!');
