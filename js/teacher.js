@@ -361,6 +361,13 @@ async function getMonthlyPenalties(teacherId, year, month) {
 function setupPenaltiesListener(teacherId) {
   console.log('👂 Setting up penalties listener for:', teacherId);
   
+  // ✅ إيقاف الـ listener القديم إذا كان موجود قبل إنشاء واحد جديد
+  if (typeof unsubscribePenalties === 'function') {
+    console.log('  ↳ Stopping old penalties listener first');
+    unsubscribePenalties();
+    unsubscribePenalties = null;
+  }
+  
   // ✅ استخدام listener على collection مع startAt/endAt بدلاً من where
   const now = new Date();
   const year = now.getFullYear();
@@ -8874,12 +8881,17 @@ window.toggleSalaryVisibility = function(salaryType) {
 
 // Open Attendance Record Modal
 window.openAttendanceRecordModal = function(monthName, year, month, overrideStaffId = null) {
+  // ✅ إيقاف أي listeners قديمة قبل فتح المودل الجديد
+  cleanupAttendanceModalListeners();
+  
   // Show modal
   const modal = document.createElement('div');
   modal.className = 'attendance-modal';
   
   // Store staffId for this modal session
   window._currentModalStaffId = overrideStaffId;
+  
+  console.log('🔵 Opening attendance modal for staffId:', overrideStaffId);
   
   // Generate month options
   const currentDate = new Date();
@@ -8969,6 +8981,11 @@ window.changeAttendanceMonth = function(value) {
   ];
   const monthName = monthNames[month];
   
+  console.log('📅 Changing month to:', month, year, 'for staffId:', overrideStaffId);
+  
+  // ✅ إيقاف الـ listeners القديمة قبل تحميل الشهر الجديد
+  cleanupAttendanceModalListeners();
+  
   // Show loading state
   const tableContainer = document.querySelector('.attendance-table-container');
   const loadingDiv = document.querySelector('.attendance-loading');
@@ -8987,6 +9004,11 @@ window.changeAttendanceMonth = function(value) {
 
 // Close Attendance Modal
 window.closeAttendanceModal = function() {
+  console.log('🔴 Closing attendance modal and cleaning up listeners...');
+  
+  // ✅ إيقاف جميع الـ listeners قبل إغلاق المودل
+  cleanupAttendanceModalListeners();
+  
   const modal = document.querySelector('.attendance-modal');
   if (modal) {
     modal.classList.remove('show');
@@ -8995,8 +9017,42 @@ window.closeAttendanceModal = function() {
       // Clear modal staff ID and name
       window._currentModalStaffId = null;
       window.currentStaffName = null;
+      
+      console.log('✅ Modal closed and all data cleared');
     }, 300);
   }
+};
+
+// ✅ تنظيف شامل لجميع الـ listeners الخاصة بالمودل
+function cleanupAttendanceModalListeners() {
+  console.log('🧹 Cleaning up attendance modal listeners...');
+  
+  // إيقاف penalties listener إذا كان موجود
+  if (typeof unsubscribePenalties === 'function') {
+    console.log('  ↳ Stopping penalties listener');
+    unsubscribePenalties();
+    unsubscribePenalties = null;
+  }
+  
+  // إيقاف attendance listener إذا كان موجود
+  if (window.teacherAttendanceListener && typeof window.teacherAttendanceListener === 'function') {
+    console.log('  ↳ Stopping attendance listener');
+    window.teacherAttendanceListener();
+    window.teacherAttendanceListener = null;
+  }
+  
+  // مسح أي listeners عامة أخرى مرتبطة بالمودل
+  if (window.attendanceModalListeners && Array.isArray(window.attendanceModalListeners)) {
+    console.log('  ↳ Stopping', window.attendanceModalListeners.length, 'additional listeners');
+    window.attendanceModalListeners.forEach(unsubscribe => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    });
+    window.attendanceModalListeners = [];
+  }
+  
+  console.log('✅ All listeners cleaned up');
 };
 
 // ✅ Refresh Attendance Modal (تحديث البيانات دون إعادة فتح)

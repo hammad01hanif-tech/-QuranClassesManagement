@@ -9667,6 +9667,8 @@ window.viewStaffAttendanceReport = async function() {
   const month = parseInt(document.getElementById('attendanceMonth').value);
   const year = parseInt(document.getElementById('attendanceYear').value);
   
+  console.log('🔵 Admin opening attendance report for:', { staffId, month, year });
+  
   // Show loading
   document.getElementById('attendanceLoadingState').style.display = 'block';
   document.getElementById('staffAttendanceReportContainer').style.display = 'none';
@@ -9682,10 +9684,21 @@ window.viewStaffAttendanceReport = async function() {
     // Enable admin mode for penalty actions
     sessionStorage.setItem('loggedInAdmin', 'true');
     
+    // ✅ تأكد من تنظيف أي modal سابق وlisteners قبل فتح modal جديد
+    // إذا كان هناك modal مفتوح، أغلقه أولاً
+    const existingModal = document.querySelector('.attendance-modal');
+    if (existingModal) {
+      console.log('⚠️ Found existing modal, closing it first...');
+      window.closeAttendanceModal();
+      // انتظر قليلاً للتأكد من إتمام الإغلاق
+      await new Promise(resolve => setTimeout(resolve, 350));
+    }
+    
     // Call the attendance modal function from teacher.js
     // Pass staffId directly instead of using sessionStorage to avoid timing issues
     if (window.openAttendanceRecordModal) {
       window.openAttendanceRecordModal(monthName, year, month, staffId);
+      console.log('✅ Modal opened successfully for staffId:', staffId);
     } else {
       alert('⚠️ وظيفة عرض التقرير غير متاحة حالياً');
     }
