@@ -6135,6 +6135,29 @@ details[open] > summary {
   box-shadow: none !important;
 }
 
+/* Under Development State */
+.incentives.under-development {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px dashed #f59e0b;
+  opacity: 0.85;
+  cursor: default;
+  position: relative;
+}
+
+.incentives.under-development:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.incentives.under-development .salary-icon {
+  opacity: 0.7;
+}
+
+.incentives.under-development .salary-label {
+  color: #92400e;
+  font-weight: 700;
+}
+
 /* Expected Salary Highlight */
 .expected-salary-row {
   margin-top: 8px;

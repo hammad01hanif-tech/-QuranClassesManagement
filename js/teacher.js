@@ -8299,6 +8299,8 @@ async function loadTeacherHomeSection(container) {
   }
   
   // Fetch incentives for current month
+  // ⚠️ TEMPORARILY DISABLED - Under Development
+  // تعطيل مؤقت - قيد التطوير
   let incentivesData = {
     total: 0,
     count: 0,
@@ -8307,12 +8309,15 @@ async function loadTeacherHomeSection(container) {
     manual: { count: 0, total: 0 }
   };
   
-  try {
-    incentivesData = await getTeacherIncentivesForMonth(teacherId, currentYear, currentMonth);
-    console.log('🎁 Incentives data loaded:', incentivesData);
-  } catch (error) {
-    console.error('Error fetching incentives:', error);
-  }
+  // Incentives feature is under development
+  // try {
+  //   incentivesData = await getTeacherIncentivesForMonth(teacherId, currentYear, currentMonth);
+  //   console.log('🎁 Incentives data loaded:', incentivesData);
+  // } catch (error) {
+  //   console.error('Error fetching incentives:', error);
+  // }
+  
+  console.log('⚠️ Incentives feature temporarily disabled - Under development');
   
   // Fetch penalties (deductions) for current month
   let penaltiesData = {
@@ -8340,36 +8345,24 @@ async function loadTeacherHomeSection(container) {
   ];
   const currentMonthName = monthNames[currentMonth - 1];
   
-  // Generate incentives HTML
-  const incentivesHTML = incentivesData.count > 0 
-    ? `
-      <div class="salary-row">
-        <div class="salary-item incentives clickable" onclick="window.openIncentivesBottomSheet(${JSON.stringify(incentivesData).replace(/"/g, '&quot;')}, '${currentMonthName}')">
-          <span class="salary-icon">🎁</span>
-          <div class="salary-details">
-            <div class="salary-label">الحوافز والمكافآت</div>
-            <div class="salary-amount incentives-amount">+${incentivesData.total.toLocaleString('ar-SA')} ريال</div>
-            <div class="salary-meta">
-              ${incentivesData.automatic.count > 0 ? `${incentivesData.automatic.count} حافز تلقائي` : ''}
-              ${incentivesData.automatic.count > 0 && incentivesData.manual.count > 0 ? ' • ' : ''}
-              ${incentivesData.manual.count > 0 ? `${incentivesData.manual.count} حافز خاص` : ''}
-            </div>
+  // Generate incentives HTML - Under Development
+  // عرض بطاقة قيد التطوير
+  const incentivesHTML = `
+    <div class="salary-row">
+      <div class="salary-item incentives under-development">
+        <span class="salary-icon">🎁</span>
+        <div class="salary-details">
+          <div class="salary-label">الحوافز والمكافآت</div>
+          <div class="salary-meta" style="color: #f59e0b; font-weight: 600;">
+            <span style="font-size: 16px;">🔧</span> جاري تطوير هذه الخاصية
           </div>
-          <span class="salary-arrow">◀</span>
-        </div>
-      </div>
-    `
-    : `
-      <div class="salary-row">
-        <div class="salary-item incentives no-incentives">
-          <span class="salary-icon">🎁</span>
-          <div class="salary-details">
-            <div class="salary-label">الحوافز والمكافآت</div>
-            <div class="salary-meta">لا توجد حوافز في الشهر الحالي</div>
+          <div class="salary-meta" style="font-size: 11px; margin-top: 4px; color: #94a3b8;">
+            سيتم تفعيلها قريباً بمنهجية جديدة
           </div>
         </div>
       </div>
-    `;
+    </div>
+  `;
   
   container.innerHTML = `
     <div class="teacher-home-container">
