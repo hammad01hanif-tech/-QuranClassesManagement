@@ -454,6 +454,19 @@
                 </button>
               </div>
               
+              <!-- Teacher Filter Tags -->
+              <div style="margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                  <span style="color: #666; font-size: 13px; font-weight: 600;">👨‍🏫 فلترة حسب الحلقة:</span>
+                </div>
+                <div id="teacherFilterTags" style="display: flex; gap: 8px; overflow-x: auto; padding: 8px 0; scrollbar-width: thin; scrollbar-color: #ccc transparent;">
+                  <button class="teacher-filter-tag active" data-teacher-id="all" onclick="selectTeacherFilter('all')" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 0.3s; flex-shrink: 0; box-shadow: 0 2px 8px rgba(102,126,234,0.3);">
+                    الكل
+                  </button>
+                  <!-- Teacher tags will be populated here dynamically -->
+                </div>
+              </div>
+              
               <div style="position: relative; margin-bottom: 15px;">
                 <input type="text" id="studentSearchInputNew" placeholder="ابحث باسم الطالب..." onkeyup="performStudentSearchNew()"
                   style="width: 100%; padding: 12px 15px 12px 40px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 14px; transition: all 0.3s; font-family: inherit;"

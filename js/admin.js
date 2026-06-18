@@ -6561,6 +6561,7 @@ window.addStudentNew = async function() {
 window.performStudentSearchNew = async function() {
   const searchInput = document.getElementById('studentSearchInputNew').value.trim().toLowerCase();
   const resultsContainer = document.getElementById('searchResultsContainerNew');
+  const selectedTeacher = window.selectedTeacherFilter || 'all';
   
   // If search is empty, show placeholder
   if (searchInput.length === 0) {
@@ -6577,8 +6578,24 @@ window.performStudentSearchNew = async function() {
   try {
     resultsContainer.innerHTML = '<p style="text-align: center; color: #667eea; padding: 30px; font-size: 14px;">🔍 جاري البحث...</p>';
     
-    // Get all students
-    const studentsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
+    // Build query based on teacher filter
+    let studentsQuery;
+    if (selectedTeacher === 'all') {
+      // Get all students
+      studentsQuery = query(
+        collection(db, 'users'),
+        where('role', '==', 'student')
+      );
+    } else {
+      // Get students for specific teacher
+      studentsQuery = query(
+        collection(db, 'users'),
+        where('role', '==', 'student'),
+        where('classId', '==', selectedTeacher)
+      );
+    }
+    
+    const studentsSnapshot = await getDocs(studentsQuery);
     
     // Filter and score students by name
     const matchedStudents = [];
@@ -6601,10 +6618,11 @@ window.performStudentSearchNew = async function() {
     
     // Display results
     if (matchedStudents.length === 0) {
+      const filterText = selectedTeacher === 'all' ? '' : ' في هذه الحلقة';
       resultsContainer.innerHTML = `
         <div style="text-align: center; padding: 30px;">
           <div style="font-size: 48px; margin-bottom: 12px;">🔍</div>
-          <p style="color: #999; font-size: 15px; margin: 0;">لا توجد نتائج للبحث عن: <strong>"${searchInput}"</strong></p>
+          <p style="color: #999; font-size: 15px; margin: 0;">لا توجد نتائج للبحث عن: <strong>"${searchInput}"</strong>${filterText}</p>
         </div>
       `;
       return;
@@ -6864,6 +6882,12 @@ window.toggleStudentSearch = function() {
       searchContainer.style.display = 'block';
       if (formContainer) formContainer.style.display = 'none';
       
+      // Load teachers for filter (only once)
+      if (!window.teachersLoadedForFilter) {
+        loadTeachersForFilter();
+        window.teachersLoadedForFilter = true;
+      }
+      
       // Clear previous search
       document.getElementById('studentSearchInputNew').value = '';
       document.getElementById('searchResultsContainerNew').innerHTML = '<p style="text-align: center; color: #999; padding: 30px; font-size: 14px;">اكتب اسم الطالب للبحث...</p>';
@@ -6882,6 +6906,106 @@ window.toggleStudentSearch = function() {
     if (originalToggleStudentSearch) {
       originalToggleStudentSearch();
     }
+  }
+};
+
+// ========================================
+// TEACHER FILTER FOR STUDENT SEARCH
+// ========================================
+
+// Global variable to store selected teacher filter
+window.selectedTeacherFilter = 'all';
+
+// Load teachers for filter tags
+async function loadTeachersForFilter() {
+  try {
+    console.log('🔍 Loading teachers for filter...');
+    
+    // Get all teachers from classes collection
+    const teachersQuery = query(
+      collection(db, 'classes'),
+      where('role', '==', 'teacher'),
+      where('active', '==', true)
+    );
+    
+    const teachersSnapshot = await getDocs(teachersQuery);
+    
+    if (teachersSnapshot.empty) {
+      console.warn('⚠️ No teachers found for filter');
+      return;
+    }
+    
+    const teachers = [];
+    teachersSnapshot.forEach(doc => {
+      const data = doc.data();
+      teachers.push({
+        id: doc.id,
+        name: data.teacherName || data.name || doc.id
+      });
+    });
+    
+    // Sort teachers by name
+    teachers.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    console.log('✅ Teachers loaded for filter:', teachers.length);
+    
+    // Render teacher tags
+    const tagsContainer = document.getElementById('teacherFilterTags');
+    if (!tagsContainer) return;
+    
+    // Keep "الكل" button and add teacher buttons
+    let html = `
+      <button class="teacher-filter-tag active" data-teacher-id="all" onclick="selectTeacherFilter('all')" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 0.3s; flex-shrink: 0; box-shadow: 0 2px 8px rgba(102,126,234,0.3);">
+        الكل
+      </button>
+    `;
+    
+    teachers.forEach(teacher => {
+      html += `
+        <button class="teacher-filter-tag" data-teacher-id="${teacher.id}" onclick="selectTeacherFilter('${teacher.id}')" style="background: #f0f0f0; color: #666; border: 2px solid transparent; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: all 0.3s; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+          ${teacher.name}
+        </button>
+      `;
+    });
+    
+    tagsContainer.innerHTML = html;
+    
+  } catch (error) {
+    console.error('❌ Error loading teachers for filter:', error);
+  }
+}
+
+// Select teacher filter
+window.selectTeacherFilter = function(teacherId) {
+  console.log('👨‍🏫 Teacher filter selected:', teacherId);
+  
+  // Update global filter
+  window.selectedTeacherFilter = teacherId;
+  
+  // Update UI - remove active class from all tags
+  const allTags = document.querySelectorAll('.teacher-filter-tag');
+  allTags.forEach(tag => {
+    tag.classList.remove('active');
+    // Reset inline styles for inactive tags
+    tag.style.background = '#f0f0f0';
+    tag.style.color = '#666';
+    tag.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)';
+  });
+  
+  // Add active class to selected tag
+  const selectedTag = document.querySelector(`.teacher-filter-tag[data-teacher-id="${teacherId}"]`);
+  if (selectedTag) {
+    selectedTag.classList.add('active');
+    // Apply active styles
+    selectedTag.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    selectedTag.style.color = 'white';
+    selectedTag.style.boxShadow = '0 3px 10px rgba(102,126,234,0.4)';
+  }
+  
+  // Re-run search if there's text in the search box
+  const searchInput = document.getElementById('studentSearchInputNew');
+  if (searchInput && searchInput.value.trim().length >= 2) {
+    performStudentSearchNew();
   }
 };
 

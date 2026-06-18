@@ -3320,6 +3320,61 @@ details[open] > summary {
   transform: scale(0.95);
 }
 
+/* Teacher Filter Tags */
+.teacher-filter-tag {
+  background: #f0f0f0;
+  color: #666;
+  border: 2px solid transparent;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.teacher-filter-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  background: #e0e0e0;
+}
+
+.teacher-filter-tag.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 3px 10px rgba(102,126,234,0.4);
+}
+
+.teacher-filter-tag:active {
+  transform: translateY(0) scale(0.95);
+}
+
+/* Horizontal scroll for teacher tags */
+#teacherFilterTags {
+  -webkit-overflow-scrolling: touch;
+}
+
+#teacherFilterTags::-webkit-scrollbar {
+  height: 6px;
+}
+
+#teacherFilterTags::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#teacherFilterTags::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+#teacherFilterTags::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
 /* Waiting Stats Grid */
 .waiting-stats-grid {
   display: grid;
