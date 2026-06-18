@@ -3375,6 +3375,46 @@ details[open] > summary {
   background: #999;
 }
 
+/* View All Students Button */
+.view-all-students-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  width: 100%;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.view-all-students-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+  background: linear-gradient(135deg, #218838 0%, #1ba37e 100%);
+}
+
+.view-all-students-btn:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3);
+}
+
+/* Mobile responsive for view all button */
+@media (max-width: 768px) {
+  .view-all-students-btn {
+    padding: 14px 18px;
+    font-size: 13px;
+    border-radius: 10px;
+  }
+}
+
 /* Waiting Stats Grid */
 .waiting-stats-grid {
   display: grid;

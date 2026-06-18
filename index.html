@@ -475,6 +475,15 @@
                 <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #999;">🔍</span>
               </div>
               
+              <!-- View All Students Button (shown when teacher is selected) -->
+              <div id="viewAllStudentsBtn" style="display: none; margin-bottom: 15px; text-align: center;">
+                <button onclick="viewAllStudentsInClass()" class="view-all-students-btn">
+                  <span style="font-size: 18px;">👥</span>
+                  <span>استعراض جميع الطلاب في الحلقة</span>
+                  <span id="studentCountBadge" style="background: rgba(255,255,255,0.3); padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold;">0</span>
+                </button>
+              </div>
+              
               <div id="searchResultsContainerNew" style="min-height: 80px;">
                 <p style="text-align: center; color: #999; padding: 30px; font-size: 14px;">
                   اكتب اسم الطالب للبحث...

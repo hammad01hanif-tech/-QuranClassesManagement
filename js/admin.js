@@ -7002,10 +7002,155 @@ window.selectTeacherFilter = function(teacherId) {
     selectedTag.style.boxShadow = '0 3px 10px rgba(102,126,234,0.4)';
   }
   
+  // Show/hide "View All Students" button
+  updateViewAllStudentsButton(teacherId);
+  
   // Re-run search if there's text in the search box
   const searchInput = document.getElementById('studentSearchInputNew');
   if (searchInput && searchInput.value.trim().length >= 2) {
     performStudentSearchNew();
+  }
+};
+
+// Update "View All Students" button visibility and count
+async function updateViewAllStudentsButton(teacherId) {
+  const viewAllBtn = document.getElementById('viewAllStudentsBtn');
+  if (!viewAllBtn) return;
+  
+  if (teacherId === 'all') {
+    // Hide button when "الكل" is selected
+    viewAllBtn.style.display = 'none';
+  } else {
+    // Show button and update student count
+    try {
+      const studentsQuery = query(
+        collection(db, 'users'),
+        where('role', '==', 'student'),
+        where('classId', '==', teacherId)
+      );
+      const studentsSnapshot = await getDocs(studentsQuery);
+      const count = studentsSnapshot.size;
+      
+      document.getElementById('studentCountBadge').textContent = count;
+      viewAllBtn.style.display = 'block';
+    } catch (error) {
+      console.error('Error counting students:', error);
+      viewAllBtn.style.display = 'none';
+    }
+  }
+}
+
+// View all students in selected class
+window.viewAllStudentsInClass = async function() {
+  const selectedTeacher = window.selectedTeacherFilter;
+  if (!selectedTeacher || selectedTeacher === 'all') {
+    alert('❌ الرجاء اختيار معلم أولاً');
+    return;
+  }
+  
+  const resultsContainer = document.getElementById('searchResultsContainerNew');
+  
+  try {
+    resultsContainer.innerHTML = '<p style="text-align: center; color: #667eea; padding: 30px; font-size: 14px;">📋 جاري تحميل جميع الطلاب...</p>';
+    
+    // Get all students for selected teacher
+    const studentsQuery = query(
+      collection(db, 'users'),
+      where('role', '==', 'student'),
+      where('classId', '==', selectedTeacher)
+    );
+    const studentsSnapshot = await getDocs(studentsQuery);
+    
+    if (studentsSnapshot.empty) {
+      resultsContainer.innerHTML = `
+        <div style="text-align: center; padding: 30px;">
+          <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
+          <p style="color: #999; font-size: 15px; margin: 0;">لا يوجد طلاب مسجلين في هذه الحلقة</p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Collect all students
+    const allStudents = [];
+    studentsSnapshot.forEach(doc => {
+      const studentData = doc.data();
+      if (studentData.name) {
+        allStudents.push({
+          id: doc.id,
+          ...studentData
+        });
+      }
+    });
+    
+    // Sort by name
+    allStudents.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    // Store globally for detail view
+    window.searchResultsDataNew = allStudents;
+    
+    // Get class name
+    let className = selectedTeacher;
+    try {
+      const classDoc = await getDoc(firestoreDoc(db, 'classes', selectedTeacher));
+      if (classDoc.exists()) {
+        className = classDoc.data().teacherName || classDoc.data().name || selectedTeacher;
+      }
+    } catch (error) {
+      console.warn('Could not fetch class name:', error);
+    }
+    
+    window.searchClassNamesNew = { [selectedTeacher]: className };
+    
+    // Display all students
+    let html = `
+      <div style="margin-bottom: 12px; padding: 12px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-radius: 8px; text-align: center; color: white;">
+        <div style="font-weight: bold; font-size: 15px; margin-bottom: 4px;">📋 جميع طلاب الحلقة</div>
+        <div style="font-size: 13px; opacity: 0.9;">${className} • ${allStudents.length} طالب</div>
+      </div>
+      <div style="display: grid; gap: 8px;">
+    `;
+    
+    allStudents.forEach((student, index) => {
+      html += `
+        <div id="student-card-new-${index}" onclick="toggleStudentDetailsNew(${index})" 
+          style="background: white; border: 2px solid #e0e0e0; border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.06);"
+          onmouseover="this.style.borderColor='#28a745'; this.style.boxShadow='0 3px 12px rgba(40,167,69,0.2)'; this.style.transform='translateX(-3px)'"
+          onmouseout="this.style.borderColor='#e0e0e0'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.06)'; this.style.transform='translateX(0)'">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+              <span style="font-size: 20px;">👤</span>
+              <div>
+                <div style="font-weight: bold; color: #333; font-size: 14px;">${student.name}</div>
+                <div style="color: #999; font-size: 11px;">${student.id}</div>
+              </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold;">
+                ${className}
+              </span>
+              <span id="toggle-icon-new-${index}" style="color: #28a745; font-size: 16px; transition: transform 0.3s;">▼</span>
+            </div>
+          </div>
+          
+          <div id="student-details-new-${index}" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 2px solid #f0f0f0;"></div>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    resultsContainer.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error loading all students:', error);
+    resultsContainer.innerHTML = `
+      <div style="text-align: center; padding: 30px;">
+        <div style="font-size: 40px; margin-bottom: 12px;">❌</div>
+        <p style="color: #dc3545; font-size: 14px; margin: 0;">حدث خطأ في تحميل الطلاب: ${error.message}</p>
+      </div>
+    `;
   }
 };
 
