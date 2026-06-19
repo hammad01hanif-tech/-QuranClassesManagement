@@ -438,7 +438,33 @@ window.loginTeacher = async function() {
   const staffName = staffInfo.name;
   const staffRole = staffInfo.role;
   
-  if (password !== 't12345') {
+  // ✅ أرقام سرية خاصة لكل معلم
+  const staffPasswords = {
+    'ANS01': 'ans@12',
+    'IBR01': 'ibr@13',
+    'OSM01': 'osm@11',
+    'HRT01': 'hrt@10',
+    'BDR01': 'bdr@33',
+    'JHD01': 'jhd@39',
+    'SLM01': 'slm@99',
+    'SMM01': 'smm@55',
+    'AMR01': 'amr@63',
+    'ABD01': 'abd@45',
+    'OMR01': 'omr@32',
+    'FAD01': 'fad@54',
+    'MZB01': 'mzb@22',
+    'MZN01': 'mzn@87',
+    'MOT': 'mot123',
+    'NBL01': 'nbl@00',
+    // JWD01 (عبدالرحمن جاويد) - منقطع، لا يحتاج رقم سري
+    // باقي الأعضاء - رقم سري افتراضي
+    'default': 't12345'
+  };
+  
+  // التحقق من الرقم السري
+  const correctPassword = staffPasswords[staffId] || staffPasswords['default'];
+  
+  if (password !== correctPassword) {
     errorDiv.textContent = 'الرقم السري غير صحيح';
     errorDiv.classList.add('show');
     return;
