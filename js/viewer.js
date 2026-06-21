@@ -8683,3 +8683,462 @@ window.updateDaysForDatePicker = updateDaysForDatePicker;
 // ==========================================
 
 
+// ==========================================
+// DAILY PASSAGE REPORT MODAL (الاجتياز اليومي)
+// ==========================================
+
+/**
+ * Show Daily Passage Report Modal with date range selection
+ * Uses accurate Hijri calendar system from accurate-hijri-dates.js
+ */
+window.showDailyPassageReport = function() {
+  console.log('📅 Opening Daily Passage Report Modal...');
+  
+  // Get available Hijri dates from accurate calendar
+  const availableDates = accurateHijriDates.map(d => ({
+    hijri: d.hijri,
+    hijriDay: d.hijriDay,
+    hijriMonth: d.hijriMonth,
+    hijriYear: d.hijriYear,
+    gregorian: d.gregorian,
+    dayName: d.dayName
+  }));
+  
+  // Get unique years and months
+  const years = [...new Set(availableDates.map(d => d.hijriYear))].sort((a, b) => a - b);
+  const months = [
+    { value: 1, name: 'المحرم' },
+    { value: 2, name: 'صفر' },
+    { value: 3, name: 'ربيع الأول' },
+    { value: 4, name: 'ربيع الآخر' },
+    { value: 5, name: 'جمادى الأولى' },
+    { value: 6, name: 'جمادى الآخرة' },
+    { value: 7, name: 'رجب' },
+    { value: 8, name: 'شعبان' },
+    { value: 9, name: 'رمضان' },
+    { value: 10, name: 'شوال' },
+    { value: 11, name: 'ذو القعدة' },
+    { value: 12, name: 'ذو الحجة' }
+  ];
+  
+  // Get today's Hijri date
+  const todayHijri = gregorianToAccurateHijri(new Date());
+  
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'dailyPassageReportOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.3s ease;
+    padding: 20px;
+    box-sizing: border-box;
+  `;
+  
+  overlay.innerHTML = `
+    <style>
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      @keyframes slideUp {
+        from { 
+          transform: translateY(30px); 
+          opacity: 0; 
+        }
+        to { 
+          transform: translateY(0); 
+          opacity: 1; 
+        }
+      }
+      
+      .daily-passage-modal {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 20px;
+        padding: 30px;
+        width: 100%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        direction: rtl;
+        position: relative;
+      }
+      
+      .modal-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 3px solid #667eea;
+      }
+      
+      .modal-title {
+        font-size: 28px;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0 0 8px 0;
+      }
+      
+      .modal-subtitle {
+        color: #6c757d;
+        font-size: 14px;
+        margin: 0;
+      }
+      
+      .date-range-section {
+        margin-bottom: 25px;
+      }
+      
+      .section-label {
+        display: flex;
+        align-items: center;
+        font-size: 16px;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 15px;
+        padding: 10px 15px;
+        background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+        border-radius: 10px;
+        border-right: 4px solid #667eea;
+      }
+      
+      .date-inputs-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      
+      .date-input-group {
+        position: relative;
+      }
+      
+      .date-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 6px;
+        text-align: center;
+      }
+      
+      .date-select {
+        width: 100%;
+        padding: 12px 10px;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: bold;
+        text-align: center;
+        background: white;
+        color: #2d3748;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: left 10px center;
+        padding-left: 30px;
+      }
+      
+      .date-select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        transform: translateY(-2px);
+      }
+      
+      .date-select:hover {
+        border-color: #667eea;
+      }
+      
+      .action-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+      }
+      
+      .btn {
+        flex: 1;
+        padding: 14px 20px;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      
+      .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      }
+      
+      .btn:active {
+        transform: translateY(-1px);
+      }
+      
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+      
+      .btn-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        color: white;
+      }
+      
+      .divider {
+        text-align: center;
+        margin: 20px 0;
+        position: relative;
+      }
+      
+      .divider::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #dee2e6, transparent);
+      }
+      
+      .divider-text {
+        background: white;
+        padding: 0 15px;
+        position: relative;
+        color: #6c757d;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      
+      @media (max-width: 768px) {
+        .daily-passage-modal {
+          padding: 20px;
+          max-width: 100%;
+          border-radius: 15px;
+        }
+        
+        .modal-title {
+          font-size: 22px;
+        }
+        
+        .date-inputs-container {
+          gap: 8px;
+        }
+        
+        .date-select {
+          padding: 10px 8px;
+          font-size: 14px;
+          padding-left: 25px;
+        }
+        
+        .action-buttons {
+          flex-direction: column;
+        }
+        
+        .btn {
+          width: 100%;
+        }
+      }
+    </style>
+    
+    <div class="daily-passage-modal">
+      <div class="modal-header">
+        <h2 class="modal-title">📅 الاجتياز اليومي</h2>
+        <p class="modal-subtitle">اختر الفترة الزمنية بالتاريخ الهجري الدقيق</p>
+      </div>
+      
+      <!-- From Date -->
+      <div class="date-range-section">
+        <div class="section-label">
+          📍 من تاريخ
+        </div>
+        <div class="date-inputs-container">
+          <div class="date-input-group">
+            <label class="date-label">اليوم</label>
+            <select id="dailyPassageFromDay" class="date-select">
+              ${generateDayOptions(1)}
+            </select>
+          </div>
+          <div class="date-input-group">
+            <label class="date-label">الشهر</label>
+            <select id="dailyPassageFromMonth" class="date-select" onchange="window.updateDaysForDailyPassage('From')">
+              ${months.map(m => `<option value="${m.value}" ${m.value === todayHijri.hijriMonth ? 'selected' : ''}>${m.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="date-input-group">
+            <label class="date-label">السنة</label>
+            <select id="dailyPassageFromYear" class="date-select" onchange="window.updateDaysForDailyPassage('From')">
+              ${years.map(y => `<option value="${y}" ${y === todayHijri.hijriYear ? 'selected' : ''}>${y}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <div class="divider">
+        <span class="divider-text">إلى</span>
+      </div>
+      
+      <!-- To Date -->
+      <div class="date-range-section">
+        <div class="section-label">
+          🏁 إلى تاريخ
+        </div>
+        <div class="date-inputs-container">
+          <div class="date-input-group">
+            <label class="date-label">اليوم</label>
+            <select id="dailyPassageToDay" class="date-select">
+              ${generateDayOptions(todayHijri.hijriDay)}
+            </select>
+          </div>
+          <div class="date-input-group">
+            <label class="date-label">الشهر</label>
+            <select id="dailyPassageToMonth" class="date-select" onchange="window.updateDaysForDailyPassage('To')">
+              ${months.map(m => `<option value="${m.value}" ${m.value === todayHijri.hijriMonth ? 'selected' : ''}>${m.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="date-input-group">
+            <label class="date-label">السنة</label>
+            <select id="dailyPassageToYear" class="date-select" onchange="window.updateDaysForDailyPassage('To')">
+              ${years.map(y => `<option value="${y}" ${y === todayHijri.hijriYear ? 'selected' : ''}>${y}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="btn btn-primary" onclick="window.generateDailyPassageReport()">
+          <span>📊</span>
+          <span>عرض التقرير</span>
+        </button>
+        <button class="btn btn-secondary" onclick="window.closeDailyPassageModal()">
+          <span>❌</span>
+          <span>إلغاء</span>
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  
+  // Close on overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      window.closeDailyPassageModal();
+    }
+  });
+  
+  // Helper function to generate day options
+  function generateDayOptions(selectedDay) {
+    let options = '';
+    for (let i = 1; i <= 30; i++) {
+      options += `<option value="${String(i).padStart(2, '0')}" ${i === selectedDay ? 'selected' : ''}>${i}</option>`;
+    }
+    return options;
+  }
+  
+  console.log('✅ Daily Passage Report Modal opened with accurate Hijri dates');
+};
+
+/**
+ * Update days dropdown based on selected month/year
+ * Uses accurate Hijri calendar to get actual days in month
+ */
+window.updateDaysForDailyPassage = function(prefix) {
+  const monthSelect = document.getElementById(`dailyPassage${prefix}Month`);
+  const yearSelect = document.getElementById(`dailyPassage${prefix}Year`);
+  const daySelect = document.getElementById(`dailyPassage${prefix}Day`);
+  
+  if (!monthSelect || !yearSelect || !daySelect) return;
+  
+  const selectedMonth = parseInt(monthSelect.value);
+  const selectedYear = parseInt(yearSelect.value);
+  const currentDay = parseInt(daySelect.value);
+  
+  // Get days in this month from accurate calendar
+  const daysInMonth = accurateHijriDates.filter(d => 
+    d.hijriMonth === selectedMonth && d.hijriYear === selectedYear
+  );
+  
+  const maxDay = daysInMonth.length > 0 ? Math.max(...daysInMonth.map(d => d.hijriDay)) : 30;
+  
+  // Rebuild day options
+  let options = '';
+  for (let i = 1; i <= maxDay; i++) {
+    const selected = i === (currentDay <= maxDay ? currentDay : maxDay) ? 'selected' : '';
+    options += `<option value="${String(i).padStart(2, '0')}" ${selected}>${i}</option>`;
+  }
+  
+  daySelect.innerHTML = options;
+  
+  console.log(`✅ Updated days for ${prefix}: Month ${selectedMonth}, Year ${selectedYear}, Max days: ${maxDay}`);
+};
+
+/**
+ * Close Daily Passage Report Modal
+ */
+window.closeDailyPassageModal = function() {
+  const overlay = document.getElementById('dailyPassageReportOverlay');
+  if (overlay) {
+    overlay.style.animation = 'fadeOut 0.2s ease';
+    setTimeout(() => overlay.remove(), 200);
+  }
+};
+
+/**
+ * Generate Daily Passage Report (placeholder - will be implemented later)
+ */
+window.generateDailyPassageReport = function() {
+  const fromDay = document.getElementById('dailyPassageFromDay').value;
+  const fromMonth = document.getElementById('dailyPassageFromMonth').value;
+  const fromYear = document.getElementById('dailyPassageFromYear').value;
+  const toDay = document.getElementById('dailyPassageToDay').value;
+  const toMonth = document.getElementById('dailyPassageToMonth').value;
+  const toYear = document.getElementById('dailyPassageToYear').value;
+  
+  const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+  const toDate = `${toYear}-${toMonth}-${toDay}`;
+  
+  console.log('📊 Generating Daily Passage Report:', {
+    from: fromDate,
+    to: toDate
+  });
+  
+  // TODO: Implement report generation logic
+  alert(`📅 سيتم تنفيذ التقرير من ${fromDate} إلى ${toDate}\n\n⏳ الوظيفة قيد التطوير...`);
+  
+  window.closeDailyPassageModal();
+};
+
+// Add fadeOut animation to styles
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+`;
+document.head.appendChild(style);
+
+
