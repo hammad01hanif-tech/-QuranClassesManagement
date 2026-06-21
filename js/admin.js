@@ -9236,6 +9236,28 @@ let currentVisitFormData = {};
 let currentVisitId = null;
 
 /**
+ * Format date from YYYY-MM-DD to DD-MM-YYYY for display
+ */
+function formatDateForDisplay(dateStr) {
+  if (!dateStr) return '';
+  
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  
+  // Check if already in DD-MM-YYYY format
+  if (parseInt(parts[0]) < 32 && parseInt(parts[2]) > 1000) {
+    return dateStr; // Already in DD-MM-YYYY
+  }
+  
+  // Convert YYYY-MM-DD to DD-MM-YYYY
+  if (parseInt(parts[0]) > 1000) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  
+  return dateStr;
+}
+
+/**
  * Open Supervision Section
  */
 window.openSupervisionSection = function() {
