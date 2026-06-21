@@ -8983,7 +8983,7 @@ window.showDailyPassageReport = function() {
           <div class="date-input-group">
             <label class="date-label">الشهر</label>
             <select id="dailyPassageFromMonth" class="date-select" onchange="window.updateDaysForDailyPassage('From')">
-              ${months.map(m => `<option value="${m.value}" ${m.value === todayHijri.hijriMonth ? 'selected' : ''}>${m.name}</option>`).join('')}
+              ${months.map(m => `<option value="${String(m.value).padStart(2, '0')}" ${m.value === todayHijri.hijriMonth ? 'selected' : ''}>${m.name}</option>`).join('')}
             </select>
           </div>
           <div class="date-input-group">
@@ -9014,7 +9014,7 @@ window.showDailyPassageReport = function() {
           <div class="date-input-group">
             <label class="date-label">الشهر</label>
             <select id="dailyPassageToMonth" class="date-select" onchange="window.updateDaysForDailyPassage('To')">
-              ${months.map(m => `<option value="${m.value}" ${m.value === todayHijri.hijriMonth ? 'selected' : ''}>${m.name}</option>`).join('')}
+              ${months.map(m => `<option value="${String(m.value).padStart(2, '0')}" ${m.value === todayHijri.hijriMonth ? 'selected' : ''}>${m.name}</option>`).join('')}
             </select>
           </div>
           <div class="date-input-group">
@@ -9118,8 +9118,9 @@ window.generateDailyPassageReport = async function() {
     const toMonth = document.getElementById('dailyPassageToMonth').value;
     const toYear = document.getElementById('dailyPassageToYear').value;
     
-    const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
-    const toDate = `${toYear}-${toMonth}-${toDay}`;
+    // Add padding to month values to ensure proper date comparison
+    const fromDate = `${fromYear}-${String(fromMonth).padStart(2, '0')}-${fromDay}`;
+    const toDate = `${toYear}-${String(toMonth).padStart(2, '0')}-${toDay}`;
     
     console.log('📊 Generating Daily Passage Report:', { from: fromDate, to: toDate });
     
@@ -9160,6 +9161,9 @@ window.generateDailyPassageReport = async function() {
     
     const passageRecords = [];
     
+    console.log('🔍 Date range for filtering:', { fromDate, toDate });
+    console.log(`📚 Processing ${juzSnapshot.size} Juz reports and ${hizbSnapshot.size} Hizb reports...`);
+    
     // Process Juz reports
     juzSnapshot.forEach(doc => {
       const data = doc.data();
@@ -9173,15 +9177,19 @@ window.generateDailyPassageReport = async function() {
           const parts = data.displayDate.split('-');
           if (parts[0].length === 2) {
             // DD-MM-YYYY format
-            normalizedDisplayDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
           } else {
-            // Already YYYY-MM-DD
-            normalizedDisplayDate = data.displayDate;
+            // Already YYYY-MM-DD - ensure padding
+            normalizedDisplayDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
           }
         }
         
+        // Debug log for each report
+        const isInRange = normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate;
+        console.log(`${isInRange ? '✅' : '❌'} Juz Report - ${data.studentName}: displayDate=${data.displayDate} → normalized=${normalizedDisplayDate}, inRange=${isInRange}`);
+        
         // Filter by date range
-        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+        if (isInRange) {
           const teacherName = teacherNamesMap[data.teacherId] || data.teacherName || 'غير محدد';
           
           // Calculate duration
@@ -9218,14 +9226,18 @@ window.generateDailyPassageReport = async function() {
         if (data.displayDate.includes('-')) {
           const parts = data.displayDate.split('-');
           if (parts[0].length === 2) {
-            normalizedDisplayDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
           } else {
-            normalizedDisplayDate = data.displayDate;
+            normalizedDisplayDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
           }
         }
         
+        // Debug log for each report
+        const isInRange = normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate;
+        console.log(`${isInRange ? '✅' : '❌'} Hizb Report - ${data.studentName}: displayDate=${data.displayDate} → normalized=${normalizedDisplayDate}, inRange=${isInRange}`);
+        
         // Filter by date range
-        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+        if (isInRange) {
           const teacherName = teacherNamesMap[data.teacherId] || data.teacherName || 'غير محدد';
           
           // Calculate duration
@@ -9250,6 +9262,8 @@ window.generateDailyPassageReport = async function() {
       }
     });
     
+    console.log(`📊 Found ${passageRecords.length} records in date range ${fromDate} to ${toDate}`);
+    
     // Sort by display date (most recent first)
     passageRecords.sort((a, b) => {
       const dateA = a.displayDate.split('-').reverse().join('-');
@@ -9260,6 +9274,10 @@ window.generateDailyPassageReport = async function() {
     console.log(`✅ Found ${passageRecords.length} passage records in date range`);
     
     if (passageRecords.length === 0) {
+      console.warn('⚠️ No records found! Check if:');
+      console.warn('  1. displayDate format matches YYYY-MM-DD');
+      console.warn('  2. Selected date range contains actual records');
+      console.warn('  3. Records have status="completed"');
       loadingMsg.remove();
       alert('⚠️ لا توجد سجلات اجتياز في الفترة المحددة');
       return;
