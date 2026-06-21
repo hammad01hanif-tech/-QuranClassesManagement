@@ -10891,3 +10891,648 @@ details[open] > summary {
     font-size: 16px;
   }
 }
+
+
+/* ==========================================
+   SUPERVISION AND VISITS SYSTEM - MODERN UI
+   ========================================== */
+
+/* Classes Grid */
+.supervision-classes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Class Card */
+.supervision-class-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.supervision-class-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.supervision-class-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.supervision-class-card:hover::before {
+  transform: scaleX(1);
+}
+
+.supervision-class-card:active {
+  transform: translateY(-2px);
+}
+
+/* Card Header */
+.supervision-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.supervision-class-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.supervision-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.supervision-status-badge.excellent {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.supervision-status-badge.needs-attention {
+  background: rgba(251, 191, 36, 0.1);
+  color: #f59e0b;
+}
+
+.supervision-status-badge.weak {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Card Body */
+.supervision-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.supervision-card-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.supervision-card-info-icon {
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+.supervision-card-info-text {
+  flex: 1;
+  color: #475569;
+}
+
+/* Card Footer */
+.supervision-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.supervision-last-visit {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.supervision-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+/* Modal Styles */
+.supervision-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+@media (min-width: 768px) {
+  .supervision-modal {
+    align-items: center;
+    padding: 20px;
+  }
+}
+
+.supervision-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+.supervision-modal-content {
+  position: relative;
+  background: white;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  border-radius: 24px 24px 0 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+}
+
+@media (min-width: 768px) {
+  .supervision-modal-content {
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.supervision-form-content {
+  max-width: 700px;
+}
+
+/* Modal Header */
+.supervision-modal-header {
+  padding: 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+}
+
+.supervision-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  color: #64748b;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.supervision-close-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #1a202c;
+}
+
+.supervision-modal-title {
+  flex: 1;
+  margin: 0;
+}
+
+.supervision-modal-title h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 4px 0;
+}
+
+.supervision-modal-title p {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Add Visit Section */
+.supervision-add-visit-section {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(102, 126, 234, 0.02);
+}
+
+.supervision-primary-btn {
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.supervision-primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.supervision-primary-btn:active {
+  transform: translateY(0);
+}
+
+/* Visits List */
+.supervision-visits-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px 24px 24px;
+}
+
+.supervision-visit-card {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.supervision-visit-card:hover {
+  background: rgba(102, 126, 234, 0.05);
+  border-color: rgba(102, 126, 234, 0.2);
+  transform: translateX(-4px);
+}
+
+.supervision-visit-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.supervision-visit-date {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.supervision-visit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.supervision-visit-info {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.supervision-visit-notes-preview {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-top: 8px;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Visit Details */
+.supervision-visit-details {
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(90vh - 100px);
+}
+
+.supervision-detail-section {
+  margin-bottom: 24px;
+}
+
+.supervision-detail-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.supervision-detail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.supervision-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+
+.supervision-detail-item-name {
+  font-size: 14px;
+  color: #475569;
+}
+
+.supervision-detail-item-rating {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+
+.supervision-detail-item-rating.excellent {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.supervision-detail-item-rating.good {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.supervision-detail-item-rating.needs-improvement {
+  background: rgba(251, 191, 36, 0.1);
+  color: #f59e0b;
+}
+
+.supervision-detail-item-rating.weak {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.supervision-detail-notes {
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.supervision-detail-notes-text {
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Visit Form */
+.supervision-visit-form {
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(90vh - 100px);
+}
+
+.supervision-form-section {
+  margin-bottom: 32px;
+}
+
+.supervision-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.supervision-form-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.supervision-form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.supervision-item-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.supervision-rating-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 480px) {
+  .supervision-rating-options {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.supervision-rating-chip {
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.supervision-rating-chip:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.supervision-rating-chip.selected {
+  transform: scale(1.02);
+}
+
+.supervision-rating-chip.excellent {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.supervision-rating-chip.good {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.supervision-rating-chip.needs-improvement {
+  border-color: #f59e0b;
+  background: rgba(251, 191, 36, 0.1);
+  color: #f59e0b;
+}
+
+.supervision-rating-chip.weak {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.supervision-notes-textarea {
+  width: 100%;
+  padding: 16px;
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.supervision-notes-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.supervision-form-actions {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  padding: 16px 0 0 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 24px;
+}
+
+.supervision-save-btn {
+  width: 100%;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.supervision-save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.supervision-save-btn:active {
+  transform: translateY(0);
+}
+
+/* Empty State */
+.supervision-empty-state {
+  text-align: center;
+  padding: 60px 24px;
+}
+
+.supervision-empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.supervision-empty-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0 0 8px 0;
+}
+
+.supervision-empty-desc {
+  font-size: 14px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 480px) {
+  .supervision-classes-grid {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 12px;
+  }
+  
+  .supervision-class-card {
+    padding: 16px;
+  }
+  
+  .supervision-modal-header {
+    padding: 20px 16px;
+  }
+  
+  .supervision-visits-list,
+  .supervision-visit-details,
+  .supervision-visit-form {
+    padding: 16px;
+  }
+}

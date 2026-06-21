@@ -1266,8 +1266,122 @@
             <div class="header-spacer"></div>
           </div>
 
-          <!-- Content will be added here later -->
+          <!-- Classes Grid -->
+          <div class="supervision-classes-grid" id="supervisionClassesGrid">
+            <!-- Classes will be loaded here -->
+          </div>
 
+        </div>
+
+        <!-- Class Visits History Modal -->
+        <div id="classVisitsModal" class="supervision-modal" style="display: none;">
+          <div class="supervision-modal-overlay" onclick="window.closeClassVisitsModal()"></div>
+          <div class="supervision-modal-content">
+            
+            <!-- Modal Header -->
+            <div class="supervision-modal-header">
+              <button class="supervision-close-btn" onclick="window.closeClassVisitsModal()">×</button>
+              <div class="supervision-modal-title">
+                <h3 id="classVisitsModalTitle">سجل الزيارات</h3>
+                <p id="classVisitsModalSubtitle">معلومات الحلقة</p>
+              </div>
+            </div>
+
+            <!-- Add New Visit Button -->
+            <div class="supervision-add-visit-section">
+              <button class="supervision-primary-btn" onclick="window.openNewVisitForm()">
+                <span class="btn-icon">➕</span>
+                <span class="btn-text">تنفيذ زيارة جديدة</span>
+              </button>
+            </div>
+
+            <!-- Visits List -->
+            <div class="supervision-visits-list" id="classVisitsList">
+              <!-- Visits will be loaded here -->
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Visit Details Modal -->
+        <div id="visitDetailsModal" class="supervision-modal" style="display: none;">
+          <div class="supervision-modal-overlay" onclick="window.closeVisitDetailsModal()"></div>
+          <div class="supervision-modal-content">
+            
+            <!-- Modal Header -->
+            <div class="supervision-modal-header">
+              <button class="supervision-close-btn" onclick="window.closeVisitDetailsModal()">×</button>
+              <h3 class="supervision-modal-title">تفاصيل الزيارة</h3>
+            </div>
+
+            <!-- Visit Details Content -->
+            <div class="supervision-visit-details" id="visitDetailsContent">
+              <!-- Details will be loaded here -->
+            </div>
+
+          </div>
+        </div>
+
+        <!-- New Visit Form Modal -->
+        <div id="newVisitFormModal" class="supervision-modal" style="display: none;">
+          <div class="supervision-modal-overlay" onclick="window.closeNewVisitForm()"></div>
+          <div class="supervision-modal-content supervision-form-content">
+            
+            <!-- Modal Header -->
+            <div class="supervision-modal-header">
+              <button class="supervision-close-btn" onclick="window.closeNewVisitForm()">×</button>
+              <h3 class="supervision-modal-title">تنفيذ زيارة جديدة</h3>
+            </div>
+
+            <!-- Visit Form -->
+            <div class="supervision-visit-form">
+              
+              <!-- Educational Aspect Section -->
+              <div class="supervision-form-section">
+                <h4 class="supervision-section-title">📚 الجانب التعليمي</h4>
+                <div class="supervision-form-items" id="educationalAspectItems">
+                  <!-- Items will be added here -->
+                </div>
+              </div>
+
+              <!-- Teacher Performance Section -->
+              <div class="supervision-form-section">
+                <h4 class="supervision-section-title">👨‍🏫 أداء المعلم</h4>
+                <div class="supervision-form-items" id="teacherPerformanceItems">
+                  <!-- Items will be added here -->
+                </div>
+              </div>
+
+              <!-- General Environment Section -->
+              <div class="supervision-form-section">
+                <h4 class="supervision-section-title">🏫 البيئة العامة</h4>
+                <div class="supervision-form-items" id="generalEnvironmentItems">
+                  <!-- Items will be added here -->
+                </div>
+              </div>
+
+              <!-- Notes Section -->
+              <div class="supervision-form-section">
+                <h4 class="supervision-section-title">📝 الملاحظات</h4>
+                <textarea 
+                  class="supervision-notes-textarea" 
+                  id="visitNotes" 
+                  placeholder="اكتب ملاحظاتك هنا..."
+                  rows="4"
+                ></textarea>
+              </div>
+
+              <!-- Save Button -->
+              <div class="supervision-form-actions">
+                <button class="supervision-save-btn" onclick="window.saveVisit()">
+                  <span class="btn-icon">✅</span>
+                  <span class="btn-text">حفظ الزيارة</span>
+                </button>
+              </div>
+
+            </div>
+
+          </div>
         </div>
 
         <!-- Staff Attendance Section (Full Page) -->

@@ -9201,8 +9201,37 @@ window.closeWaitingStudentModal = function() {
 
 
 // ========================================
-// SUPERVISION AND VISITS SECTION
+// SUPERVISION AND VISITS SYSTEM
 // ========================================
+
+// Sample evaluation items (will be used in form)
+const supervisionEvaluationItems = {
+  educational: [
+    'جودة التحضير والتخطيط',
+    'وضوح الأهداف التعليمية',
+    'فاعلية أساليب التدريس',
+    'استخدام الوسائل التعليمية',
+    'تفاعل الطلاب ومشاركتهم'
+  ],
+  teacher: [
+    'التزام المعلم بالمواعيد',
+    'قدرة المعلم على إدارة الحلقة',
+    'أسلوب المعلم في التعامل',
+    'متابعة المعلم للطلاب',
+    'تطوير المعلم لمهاراته'
+  ],
+  environment: [
+    'نظافة وترتيب المكان',
+    'جودة التهوية والإضاءة',
+    'توفر المقاعد المريحة',
+    'الهدوء والانضباط العام',
+    'الأجواء التحفيزية'
+  ]
+};
+
+// Store current class and visit data
+let currentClassData = null;
+let currentVisitFormData = {};
 
 /**
  * Open Supervision Section
@@ -9212,6 +9241,7 @@ window.openSupervisionSection = function() {
   const supervisionSection = document.getElementById('supervisionSection');
   if (supervisionSection) {
     supervisionSection.style.display = 'block';
+    loadSupervisionClasses();
   }
 };
 
@@ -9224,6 +9254,541 @@ window.closeSupervisionSection = function() {
   if (supervisionSection) {
     supervisionSection.style.display = 'none';
   }
+};
+
+/**
+ * Load all classes with supervision info
+ */
+async function loadSupervisionClasses() {
+  console.log('🔍 [SUPERVISION] Loading classes...');
+  
+  try {
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const classesGrid = document.getElementById('supervisionClassesGrid');
+    
+    if (classesSnapshot.empty) {
+      classesGrid.innerHTML = `
+        <div class="supervision-empty-state">
+          <div class="supervision-empty-icon">📚</div>
+          <h3 class="supervision-empty-title">لا توجد حلقات</h3>
+          <p class="supervision-empty-desc">لا توجد حلقات مسجلة في النظام</p>
+        </div>
+      `;
+      return;
+    }
+    
+    let classesHTML = '';
+    
+    for (const classDoc of classesSnapshot.docs) {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      const className = classData.className || classData.teacherName || 'حلقة غير محددة';
+      const teacherName = classData.teacherName || 'معلم غير محدد';
+      
+      // Get last visit info
+      const visitsSnapshot = await getDocs(
+        query(
+          collection(db, 'supervisionVisits'),
+          where('classId', '==', classId),
+          orderBy('visitDate', 'desc'),
+          limit(1)
+        )
+      );
+      
+      let lastVisitText = 'لم تتم زيارة بعد';
+      let overallRating = '-';
+      let status = 'needs-attention';
+      let statusText = 'تحتاج متابعة';
+      
+      if (!visitsSnapshot.empty) {
+        const lastVisit = visitsSnapshot.docs[0].data();
+        lastVisitText = formatDateForDisplay(lastVisit.visitDate);
+        overallRating = calculateOverallRating(lastVisit);
+        
+        if (overallRating >= 4) {
+          status = 'excellent';
+          statusText = 'ممتازة';
+        } else if (overallRating >= 3) {
+          status = 'needs-attention';
+          statusText = 'تحتاج متابعة';
+        } else {
+          status = 'weak';
+          statusText = 'ضعيفة';
+        }
+      }
+      
+      classesHTML += `
+        <div class="supervision-class-card" onclick="window.openClassVisits('${classId}', '${className}', '${teacherName}')">
+          <div class="supervision-card-header">
+            <h3 class="supervision-class-name">${className}</h3>
+            <span class="supervision-status-badge ${status}">${statusText}</span>
+          </div>
+          <div class="supervision-card-body">
+            <div class="supervision-card-info">
+              <span class="supervision-card-info-icon">👨‍🏫</span>
+              <span class="supervision-card-info-text">${teacherName}</span>
+            </div>
+          </div>
+          <div class="supervision-card-footer">
+            <span class="supervision-last-visit">آخر زيارة: ${lastVisitText}</span>
+            ${overallRating !== '-' ? `
+              <div class="supervision-rating">
+                <span>⭐</span>
+                <span>${overallRating.toFixed(1)}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+    
+    classesGrid.innerHTML = classesHTML;
+    console.log('✅ [SUPERVISION] Classes loaded successfully');
+    
+  } catch (error) {
+    console.error('❌ [SUPERVISION] Error loading classes:', error);
+    document.getElementById('supervisionClassesGrid').innerHTML = `
+      <div class="supervision-empty-state">
+        <div class="supervision-empty-icon">⚠️</div>
+        <h3 class="supervision-empty-title">حدث خطأ</h3>
+        <p class="supervision-empty-desc">حدث خطأ في تحميل الحلقات</p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Calculate overall rating from visit data
+ */
+function calculateOverallRating(visitData) {
+  const ratingMap = { 'excellent': 5, 'good': 4, 'needs-improvement': 3, 'weak': 2 };
+  let totalScore = 0;
+  let count = 0;
+  
+  if (visitData.educational) {
+    Object.values(visitData.educational).forEach(rating => {
+      if (ratingMap[rating]) {
+        totalScore += ratingMap[rating];
+        count++;
+      }
+    });
+  }
+  
+  if (visitData.teacher) {
+    Object.values(visitData.teacher).forEach(rating => {
+      if (ratingMap[rating]) {
+        totalScore += ratingMap[rating];
+        count++;
+      }
+    });
+  }
+  
+  if (visitData.environment) {
+    Object.values(visitData.environment).forEach(rating => {
+      if (ratingMap[rating]) {
+        totalScore += ratingMap[rating];
+        count++;
+      }
+    });
+  }
+  
+  return count > 0 ? totalScore / count : 0;
+}
+
+/**
+ * Open class visits history modal
+ */
+window.openClassVisits = async function(classId, className, teacherName) {
+  console.log('🔍 [SUPERVISION] Opening visits for class:', classId);
+  
+  currentClassData = { classId, className, teacherName };
+  
+  // Update modal title
+  document.getElementById('classVisitsModalTitle').textContent = className;
+  document.getElementById('classVisitsModalSubtitle').textContent = `المعلم: ${teacherName}`;
+  
+  // Show modal
+  document.getElementById('classVisitsModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  
+  // Load visits
+  await loadClassVisits(classId);
+};
+
+/**
+ * Load visits for a specific class
+ */
+async function loadClassVisits(classId) {
+  const visitsList = document.getElementById('classVisitsList');
+  
+  try {
+    const visitsSnapshot = await getDocs(
+      query(
+        collection(db, 'supervisionVisits'),
+        where('classId', '==', classId),
+        orderBy('visitDate', 'desc')
+      )
+    );
+    
+    if (visitsSnapshot.empty) {
+      visitsList.innerHTML = `
+        <div class="supervision-empty-state">
+          <div class="supervision-empty-icon">📋</div>
+          <h3 class="supervision-empty-title">لا توجد زيارات</h3>
+          <p class="supervision-empty-desc">لم يتم تنفيذ أي زيارة لهذه الحلقة بعد</p>
+        </div>
+      `;
+      return;
+    }
+    
+    let visitsHTML = '';
+    
+    visitsSnapshot.forEach(visitDoc => {
+      const visit = visitDoc.data();
+      const visitId = visitDoc.id;
+      const visitDate = formatDateForDisplay(visit.visitDate);
+      const supervisorName = visit.supervisorName || 'مشرف غير محدد';
+      const overallRating = calculateOverallRating(visit);
+      const notesPreview = visit.notes ? visit.notes.substring(0, 80) + (visit.notes.length > 80 ? '...' : '') : 'لا توجد ملاحظات';
+      
+      let statusText = 'جيدة';
+      if (overallRating >= 4) statusText = 'ممتازة';
+      else if (overallRating < 3) statusText = 'تحتاج تحسين';
+      
+      visitsHTML += `
+        <div class="supervision-visit-card" onclick="window.openVisitDetails('${visitId}')">
+          <div class="supervision-visit-card-header">
+            <span class="supervision-visit-date">📅 ${visitDate}</span>
+            <span class="supervision-rating">
+              <span>⭐</span>
+              <span>${overallRating.toFixed(1)}</span>
+            </span>
+          </div>
+          <div class="supervision-visit-body">
+            <div class="supervision-visit-info">👤 المشرف: ${supervisorName}</div>
+            <div class="supervision-visit-info">📊 الحالة: ${statusText}</div>
+            <div class="supervision-visit-notes-preview">${notesPreview}</div>
+          </div>
+        </div>
+      `;
+    });
+    
+    visitsList.innerHTML = visitsHTML;
+    
+  } catch (error) {
+    console.error('❌ [SUPERVISION] Error loading visits:', error);
+    visitsList.innerHTML = `
+      <div class="supervision-empty-state">
+        <div class="supervision-empty-icon">⚠️</div>
+        <h3 class="supervision-empty-title">حدث خطأ</h3>
+        <p class="supervision-empty-desc">حدث خطأ في تحميل الزيارات</p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Close class visits modal
+ */
+window.closeClassVisitsModal = function() {
+  document.getElementById('classVisitsModal').style.display = 'none';
+  document.body.style.overflow = '';
+  currentClassData = null;
+};
+
+/**
+ * Open visit details modal
+ */
+window.openVisitDetails = async function(visitId) {
+  console.log('🔍 [SUPERVISION] Opening visit details:', visitId);
+  
+  try {
+    const visitDoc = await getDoc(doc(db, 'supervisionVisits', visitId));
+    
+    if (!visitDoc.exists()) {
+      alert('❌ الزيارة غير موجودة');
+      return;
+    }
+    
+    const visit = visitDoc.data();
+    const visitDate = formatDateForDisplay(visit.visitDate);
+    const supervisorName = visit.supervisorName || 'مشرف غير محدد';
+    
+    const ratingTextMap = {
+      'excellent': 'ممتاز',
+      'good': 'جيد',
+      'needs-improvement': 'يحتاج تحسين',
+      'weak': 'ضعيف'
+    };
+    
+    let detailsHTML = `
+      <div class="supervision-detail-section">
+        <div class="supervision-detail-section-title">
+          <span>📅</span>
+          <span>معلومات الزيارة</span>
+        </div>
+        <div class="supervision-detail-items">
+          <div class="supervision-detail-item">
+            <span class="supervision-detail-item-name">تاريخ الزيارة</span>
+            <span class="supervision-detail-item-rating">${visitDate}</span>
+          </div>
+          <div class="supervision-detail-item">
+            <span class="supervision-detail-item-name">المشرف</span>
+            <span class="supervision-detail-item-rating">${supervisorName}</span>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Educational aspect
+    if (visit.educational) {
+      detailsHTML += `
+        <div class="supervision-detail-section">
+          <div class="supervision-detail-section-title">
+            <span>📚</span>
+            <span>الجانب التعليمي</span>
+          </div>
+          <div class="supervision-detail-items">
+            ${Object.entries(visit.educational).map(([key, rating]) => `
+              <div class="supervision-detail-item">
+                <span class="supervision-detail-item-name">${key}</span>
+                <span class="supervision-detail-item-rating ${rating}">${ratingTextMap[rating] || rating}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Teacher performance
+    if (visit.teacher) {
+      detailsHTML += `
+        <div class="supervision-detail-section">
+          <div class="supervision-detail-section-title">
+            <span>👨‍🏫</span>
+            <span>أداء المعلم</span>
+          </div>
+          <div class="supervision-detail-items">
+            ${Object.entries(visit.teacher).map(([key, rating]) => `
+              <div class="supervision-detail-item">
+                <span class="supervision-detail-item-name">${key}</span>
+                <span class="supervision-detail-item-rating ${rating}">${ratingTextMap[rating] || rating}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    // General environment
+    if (visit.environment) {
+      detailsHTML += `
+        <div class="supervision-detail-section">
+          <div class="supervision-detail-section-title">
+            <span>🏫</span>
+            <span>البيئة العامة</span>
+          </div>
+          <div class="supervision-detail-items">
+            ${Object.entries(visit.environment).map(([key, rating]) => `
+              <div class="supervision-detail-item">
+                <span class="supervision-detail-item-name">${key}</span>
+                <span class="supervision-detail-item-rating ${rating}">${ratingTextMap[rating] || rating}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Notes
+    if (visit.notes) {
+      detailsHTML += `
+        <div class="supervision-detail-section">
+          <div class="supervision-detail-section-title">
+            <span>📝</span>
+            <span>الملاحظات</span>
+          </div>
+          <div class="supervision-detail-notes">
+            <p class="supervision-detail-notes-text">${visit.notes}</p>
+          </div>
+        </div>
+      `;
+    }
+    
+    document.getElementById('visitDetailsContent').innerHTML = detailsHTML;
+    document.getElementById('visitDetailsModal').style.display = 'flex';
+    
+  } catch (error) {
+    console.error('❌ [SUPERVISION] Error loading visit details:', error);
+    alert('❌ حدث خطأ في تحميل تفاصيل الزيارة');
+  }
+};
+
+/**
+ * Close visit details modal
+ */
+window.closeVisitDetailsModal = function() {
+  document.getElementById('visitDetailsModal').style.display = 'none';
+};
+
+/**
+ * Open new visit form
+ */
+window.openNewVisitForm = function() {
+  console.log('🔍 [SUPERVISION] Opening new visit form...');
+  
+  if (!currentClassData) {
+    alert('⚠️ خطأ: لم يتم تحديد الحلقة');
+    return;
+  }
+  
+  // Reset form data
+  currentVisitFormData = {
+    educational: {},
+    teacher: {},
+    environment: {}
+  };
+  
+  // Build form
+  buildVisitForm();
+  
+  // Show modal
+  document.getElementById('newVisitFormModal').style.display = 'flex';
+};
+
+/**
+ * Build visit form with evaluation items
+ */
+function buildVisitForm() {
+  // Educational aspect
+  const educationalHTML = supervisionEvaluationItems.educational.map((item, index) => `
+    <div class="supervision-form-item">
+      <div class="supervision-item-label">${item}</div>
+      <div class="supervision-rating-options">
+        <div class="supervision-rating-chip excellent" onclick="selectRating('educational', '${item}', 'excellent', this)">ممتاز</div>
+        <div class="supervision-rating-chip good" onclick="selectRating('educational', '${item}', 'good', this)">جيد</div>
+        <div class="supervision-rating-chip needs-improvement" onclick="selectRating('educational', '${item}', 'needs-improvement', this)">يحتاج تحسين</div>
+        <div class="supervision-rating-chip weak" onclick="selectRating('educational', '${item}', 'weak', this)">ضعيف</div>
+      </div>
+    </div>
+  `).join('');
+  
+  // Teacher performance
+  const teacherHTML = supervisionEvaluationItems.teacher.map((item, index) => `
+    <div class="supervision-form-item">
+      <div class="supervision-item-label">${item}</div>
+      <div class="supervision-rating-options">
+        <div class="supervision-rating-chip excellent" onclick="selectRating('teacher', '${item}', 'excellent', this)">ممتاز</div>
+        <div class="supervision-rating-chip good" onclick="selectRating('teacher', '${item}', 'good', this)">جيد</div>
+        <div class="supervision-rating-chip needs-improvement" onclick="selectRating('teacher', '${item}', 'needs-improvement', this)">يحتاج تحسين</div>
+        <div class="supervision-rating-chip weak" onclick="selectRating('teacher', '${item}', 'weak', this)">ضعيف</div>
+      </div>
+    </div>
+  `).join('');
+  
+  // General environment
+  const environmentHTML = supervisionEvaluationItems.environment.map((item, index) => `
+    <div class="supervision-form-item">
+      <div class="supervision-item-label">${item}</div>
+      <div class="supervision-rating-options">
+        <div class="supervision-rating-chip excellent" onclick="selectRating('environment', '${item}', 'excellent', this)">ممتاز</div>
+        <div class="supervision-rating-chip good" onclick="selectRating('environment', '${item}', 'good', this)">جيد</div>
+        <div class="supervision-rating-chip needs-improvement" onclick="selectRating('environment', '${item}', 'needs-improvement', this)">يحتاج تحسين</div>
+        <div class="supervision-rating-chip weak" onclick="selectRating('environment', '${item}', 'weak', this)">ضعيف</div>
+      </div>
+    </div>
+  `).join('');
+  
+  document.getElementById('educationalAspectItems').innerHTML = educationalHTML;
+  document.getElementById('teacherPerformanceItems').innerHTML = teacherHTML;
+  document.getElementById('generalEnvironmentItems').innerHTML = environmentHTML;
+  document.getElementById('visitNotes').value = '';
+}
+
+/**
+ * Select rating for an item
+ */
+window.selectRating = function(section, item, rating, element) {
+  // Remove selected class from siblings
+  const siblings = element.parentElement.querySelectorAll('.supervision-rating-chip');
+  siblings.forEach(chip => chip.classList.remove('selected'));
+  
+  // Add selected class
+  element.classList.add('selected');
+  
+  // Save rating
+  currentVisitFormData[section][item] = rating;
+  
+  console.log('Rating selected:', { section, item, rating });
+};
+
+/**
+ * Save visit
+ */
+window.saveVisit = async function() {
+  console.log('🔍 [SUPERVISION] Saving visit...');
+  
+  if (!currentClassData) {
+    alert('⚠️ خطأ: لم يتم تحديد الحلقة');
+    return;
+  }
+  
+  // Get notes
+  const notes = document.getElementById('visitNotes').value.trim();
+  
+  // Validate at least some ratings
+  const totalRatings = 
+    Object.keys(currentVisitFormData.educational).length +
+    Object.keys(currentVisitFormData.teacher).length +
+    Object.keys(currentVisitFormData.environment).length;
+  
+  if (totalRatings === 0) {
+    alert('⚠️ يرجى تقييم عنصر واحد على الأقل');
+    return;
+  }
+  
+  try {
+    // Get current Hijri date
+    const todayHijri = getCurrentHijriDate();
+    const visitDate = `${todayHijri.year}-${String(todayHijri.month).padStart(2, '0')}-${String(todayHijri.day).padStart(2, '0')}`;
+    
+    // Prepare visit data
+    const visitData = {
+      classId: currentClassData.classId,
+      className: currentClassData.className,
+      teacherName: currentClassData.teacherName,
+      visitDate: visitDate,
+      supervisorName: 'المشرف', // TODO: Get from current user
+      educational: currentVisitFormData.educational,
+      teacher: currentVisitFormData.teacher,
+      environment: currentVisitFormData.environment,
+      notes: notes,
+      createdAt: serverTimestamp()
+    };
+    
+    // Save to Firestore
+    await addDoc(collection(db, 'supervisionVisits'), visitData);
+    
+    console.log('✅ [SUPERVISION] Visit saved successfully');
+    alert('✅ تم حفظ الزيارة بنجاح!');
+    
+    // Close form and refresh
+    window.closeNewVisitForm();
+    await loadClassVisits(currentClassData.classId);
+    await loadSupervisionClasses(); // Refresh main grid
+    
+  } catch (error) {
+    console.error('❌ [SUPERVISION] Error saving visit:', error);
+    alert('❌ حدث خطأ في حفظ الزيارة');
+  }
+};
+
+/**
+ * Close new visit form
+ */
+window.closeNewVisitForm = function() {
+  document.getElementById('newVisitFormModal').style.display = 'none';
+  currentVisitFormData = {};
 };
 
 
