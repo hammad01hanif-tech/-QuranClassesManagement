@@ -9030,7 +9030,7 @@ window.showDailyPassageReport = function() {
       <div class="action-buttons">
         <button class="btn btn-primary" onclick="window.generateDailyPassageReport()">
           <span>📊</span>
-          <span>عرض التقرير</span>
+          <span>عرض التقرير PDF</span>
         </button>
         <button class="btn btn-secondary" onclick="window.closeDailyPassageModal()">
           <span>❌</span>
@@ -9107,28 +9107,300 @@ window.closeDailyPassageModal = function() {
 };
 
 /**
- * Generate Daily Passage Report (placeholder - will be implemented later)
+ * Generate Daily Passage Report with PDF export
  */
-window.generateDailyPassageReport = function() {
-  const fromDay = document.getElementById('dailyPassageFromDay').value;
-  const fromMonth = document.getElementById('dailyPassageFromMonth').value;
-  const fromYear = document.getElementById('dailyPassageFromYear').value;
-  const toDay = document.getElementById('dailyPassageToDay').value;
-  const toMonth = document.getElementById('dailyPassageToMonth').value;
-  const toYear = document.getElementById('dailyPassageToYear').value;
-  
-  const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
-  const toDate = `${toYear}-${toMonth}-${toDay}`;
-  
-  console.log('📊 Generating Daily Passage Report:', {
-    from: fromDate,
-    to: toDate
-  });
-  
-  // TODO: Implement report generation logic
-  alert(`📅 سيتم تنفيذ التقرير من ${fromDate} إلى ${toDate}\n\n⏳ الوظيفة قيد التطوير...`);
-  
-  window.closeDailyPassageModal();
+window.generateDailyPassageReport = async function() {
+  try {
+    const fromDay = document.getElementById('dailyPassageFromDay').value;
+    const fromMonth = document.getElementById('dailyPassageFromMonth').value;
+    const fromYear = document.getElementById('dailyPassageFromYear').value;
+    const toDay = document.getElementById('dailyPassageToDay').value;
+    const toMonth = document.getElementById('dailyPassageToMonth').value;
+    const toYear = document.getElementById('dailyPassageToYear').value;
+    
+    const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
+    const toDate = `${toYear}-${toMonth}-${toDay}`;
+    
+    console.log('📊 Generating Daily Passage Report:', { from: fromDate, to: toDate });
+    
+    // Show loading
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'pdfLoadingMsg';
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      z-index: 10001;
+      text-align: center;
+    `;
+    loadingMsg.innerHTML = `
+      <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+      <div style="font-size: 18px; color: #667eea; font-weight: bold;">جاري إنشاء تقرير الاجتياز اليومي...</div>
+      <div style="font-size: 14px; color: #666; margin-top: 8px;">يرجى الانتظار</div>
+    `;
+    document.body.appendChild(loadingMsg);
+    
+    // Get teacher names from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teacherNamesMap = {};
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
+    });
+    
+    // Fetch juz reports
+    const juzSnapshot = await getDocs(collection(db, 'juzDisplays'));
+    const hizbSnapshot = await getDocs(collection(db, 'hizbDisplays'));
+    
+    const passageRecords = [];
+    
+    // Process Juz reports
+    juzSnapshot.forEach(doc => {
+      const data = doc.data();
+      
+      // Only include completed reports with displayDate
+      if (data.status === 'completed' && data.displayDate) {
+        let normalizedDisplayDate = data.displayDate;
+        
+        // Normalize date format (handle DD-MM-YYYY or YYYY-MM-DD)
+        if (data.displayDate.includes('-')) {
+          const parts = data.displayDate.split('-');
+          if (parts[0].length === 2) {
+            // DD-MM-YYYY format
+            normalizedDisplayDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          } else {
+            // Already YYYY-MM-DD
+            normalizedDisplayDate = data.displayDate;
+          }
+        }
+        
+        // Filter by date range
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          const teacherName = teacherNamesMap[data.teacherId] || data.teacherName || 'غير محدد';
+          
+          // Calculate duration
+          let duration = '-';
+          if (data.lastLessonDate && data.displayDate) {
+            const durationDays = calculateHijriDaysDifference(data.lastLessonDate, normalizedDisplayDate);
+            duration = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
+          }
+          
+          passageRecords.push({
+            studentName: data.studentName || 'غير محدد',
+            teacherName: teacherName,
+            type: 'جزء',
+            number: data.juzNumber || '-',
+            amount: 'كامل',
+            displayDate: formatDateForDisplay(normalizedDisplayDate),
+            duration: duration,
+            attemptsCount: data.attemptsCount || 1,
+            viewerName: data.viewerName || 'غير محدد'
+          });
+        }
+      }
+    });
+    
+    // Process Hizb reports
+    hizbSnapshot.forEach(doc => {
+      const data = doc.data();
+      
+      // Only include completed reports with displayDate
+      if (data.status === 'completed' && data.displayDate) {
+        let normalizedDisplayDate = data.displayDate;
+        
+        // Normalize date format
+        if (data.displayDate.includes('-')) {
+          const parts = data.displayDate.split('-');
+          if (parts[0].length === 2) {
+            normalizedDisplayDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+          } else {
+            normalizedDisplayDate = data.displayDate;
+          }
+        }
+        
+        // Filter by date range
+        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
+          const teacherName = teacherNamesMap[data.teacherId] || data.teacherName || 'غير محدد';
+          
+          // Calculate duration
+          let duration = '-';
+          if (data.lastLessonDate && data.displayDate) {
+            const durationDays = calculateHijriDaysDifference(data.lastLessonDate, normalizedDisplayDate);
+            duration = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
+          }
+          
+          passageRecords.push({
+            studentName: data.studentName || 'غير محدد',
+            teacherName: teacherName,
+            type: 'حزب',
+            number: data.hizbNumber || '-',
+            amount: 'كامل',
+            displayDate: formatDateForDisplay(normalizedDisplayDate),
+            duration: duration,
+            attemptsCount: data.attemptsCount || 1,
+            viewerName: data.viewerName || 'غير محدد'
+          });
+        }
+      }
+    });
+    
+    // Sort by display date (most recent first)
+    passageRecords.sort((a, b) => {
+      const dateA = a.displayDate.split('-').reverse().join('-');
+      const dateB = b.displayDate.split('-').reverse().join('-');
+      return dateB.localeCompare(dateA);
+    });
+    
+    console.log(`✅ Found ${passageRecords.length} passage records in date range`);
+    
+    if (passageRecords.length === 0) {
+      loadingMsg.remove();
+      alert('⚠️ لا توجد سجلات اجتياز في الفترة المحددة');
+      return;
+    }
+    
+    // Build table rows
+    let tableRowsHTML = '';
+    passageRecords.forEach((record, index) => {
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      const typeColor = record.type === 'جزء' ? '#28a745' : '#667eea';
+      
+      tableRowsHTML += `
+        <tr style="background: ${bgColor}; page-break-inside: avoid;">
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 13px;">${record.studentName}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 13px;">${record.teacherName}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">
+            <span style="background: ${typeColor}; color: white; padding: 4px 8px; border-radius: 5px; font-weight: bold;">
+              ${record.type} ${record.number}
+            </span>
+          </td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${record.amount}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; direction: ltr;">${record.displayDate}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${record.duration}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; font-weight: bold;">${record.attemptsCount}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 13px;">${record.viewerName}</td>
+        </tr>
+      `;
+    });
+    
+    // Format date range for title
+    const fromDateFormatted = formatDateForDisplay(fromDate);
+    const toDateFormatted = formatDateForDisplay(toDate);
+    
+    // Create HTML container for PDF
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 1200px;
+      background: white;
+      padding: 30px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 25px; page-break-inside: avoid;">
+        <h1 style="color: #667eea; margin: 0 0 10px 0; font-size: 28px;">📅 تقرير الاجتياز اليومي للأحزاب والأجزاء</h1>
+        <p style="color: #666; font-size: 16px; margin: 5px 0; font-weight: bold;">
+          الفترة من ${fromDateFormatted} إلى ${toDateFormatted}
+        </p>
+        <p style="color: #999; font-size: 14px; margin: 5px 0;">
+          تاريخ التقرير: ${formatDateForDisplay(getTodayForStorage())}
+        </p>
+      </div>
+      
+      <div style="margin-bottom: 20px; page-break-inside: avoid;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; white-space: nowrap;">اسم الطالب</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; white-space: nowrap;">اسم المعلم</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; white-space: nowrap;">رقم الجزء/الحزب</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; white-space: nowrap;">المقدار</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; white-space: nowrap;">تاريخ العرض</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; white-space: nowrap;">المدة المستغرقة</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; white-space: nowrap;">عدد مرات التسميع</th>
+              <th style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; white-space: nowrap;">اسم المستمع</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHTML}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white; text-align: center; page-break-inside: avoid;">
+        <h3 style="margin: 0 0 10px 0; font-size: 20px;">📊 الإحصائيات</h3>
+        <div style="font-size: 24px; font-weight: bold;">
+          إجمالي الاجتيازات: ${passageRecords.length}
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    // Generate PDF using html2canvas and jsPDF
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      windowWidth: 1200
+    });
+    
+    document.body.removeChild(container);
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    let heightLeft = imgHeight;
+    let position = 10;
+    
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight + 10;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    const fileName = `تقرير_الاجتياز_اليومي_${fromDateFormatted.replace(/\//g, '-')}_الى_${toDateFormatted.replace(/\//g, '-')}.pdf`;
+    pdf.save(fileName);
+    
+    console.log('🎉 Daily Passage Report PDF saved:', fileName);
+    
+    // Remove loading and close modal
+    loadingMsg.remove();
+    window.closeDailyPassageModal();
+    
+    alert('✅ تم تصدير تقرير الاجتياز اليومي بنجاح!');
+    
+  } catch (error) {
+    console.error('Error generating daily passage report:', error);
+    const loadingMsg = document.getElementById('pdfLoadingMsg');
+    if (loadingMsg) loadingMsg.remove();
+    alert('❌ حدث خطأ في إنشاء التقرير');
+  }
 };
 
 // Add fadeOut animation to styles
