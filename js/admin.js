@@ -9212,7 +9212,6 @@ window.openSupervisionSection = function() {
   const supervisionSection = document.getElementById('supervisionSection');
   if (supervisionSection) {
     supervisionSection.style.display = 'block';
-    loadSupervisionVisits();
   }
 };
 
@@ -9225,62 +9224,6 @@ window.closeSupervisionSection = function() {
   if (supervisionSection) {
     supervisionSection.style.display = 'none';
   }
-};
-
-/**
- * Open Add Supervision Visit Page
- */
-window.openAddSupervisionVisit = function() {
-  console.log('🔍 [SUPERVISION] Opening add supervision visit page...');
-  // TODO: Implement add supervision visit page
-  alert('⏳ قريباً: إضافة زيارة إشرافية جديدة');
-};
-
-/**
- * Load Supervision Visits
- */
-async function loadSupervisionVisits() {
-  console.log('🔍 [SUPERVISION] Loading supervision visits...');
-  
-  try {
-    // Update stats
-    document.getElementById('totalVisitsCount').textContent = '0';
-    document.getElementById('completedVisitsCount').textContent = '0';
-    document.getElementById('pendingVisitsCount').textContent = '0';
-    
-    // Show empty state for now
-    const visitsList = document.getElementById('supervisionVisitsList');
-    if (visitsList) {
-      visitsList.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">🔍</div>
-          <h3 class="empty-title">لا توجد زيارات إشرافية</h3>
-          <p class="empty-desc">ابدأ بإضافة زيارة إشرافية جديدة</p>
-        </div>
-      `;
-    }
-    
-    console.log('✅ [SUPERVISION] Supervision visits loaded (empty state)');
-  } catch (error) {
-    console.error('❌ [SUPERVISION] Error loading supervision visits:', error);
-  }
-}
-
-/**
- * Search Supervision Visits
- */
-window.searchSupervisionVisits = function(event) {
-  console.log('🔍 [SUPERVISION] Searching visits:', event.target.value);
-  // TODO: Implement search functionality
-};
-
-/**
- * Filter Supervision Visits
- */
-window.filterSupervisionVisits = function() {
-  console.log('🔍 [SUPERVISION] Opening filter dialog...');
-  // TODO: Implement filter functionality
-  alert('⏳ قريباً: فلترة الزيارات الإشرافية');
 };
 
 
