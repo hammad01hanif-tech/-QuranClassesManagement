@@ -9233,6 +9233,7 @@ const supervisionEvaluationItems = {
 // Store current class and visit data
 let currentClassData = null;
 let currentVisitFormData = {};
+let currentVisitId = null;
 
 /**
  * Open Supervision Section
@@ -9540,6 +9541,9 @@ window.closeClassVisitsModal = function() {
 window.openVisitDetails = async function(visitId) {
   console.log('🔍 [SUPERVISION] Opening visit details:', visitId);
   
+  // Store current visit ID for delete functionality
+  currentVisitId = visitId;
+  
   try {
     const visitDoc = await getDoc(doc(db, 'supervisionVisits', visitId));
     
@@ -9667,7 +9671,52 @@ window.openVisitDetails = async function(visitId) {
  */
 window.closeVisitDetailsModal = function() {
   document.getElementById('visitDetailsModal').style.display = 'none';
+  currentVisitId = null;
 };
+
+/**
+ * Confirm delete visit
+ */
+window.confirmDeleteVisit = function() {
+  if (!currentVisitId) {
+    alert('⚠️ خطأ: لم يتم تحديد الزيارة');
+    return;
+  }
+  
+  const confirmed = confirm('⚠️ هل أنت متأكد من حذف هذه الزيارة؟\n\nلن تتمكن من استرجاعها بعد الحذف.');
+  
+  if (confirmed) {
+    deleteVisit(currentVisitId);
+  }
+};
+
+/**
+ * Delete visit from Firestore
+ */
+async function deleteVisit(visitId) {
+  console.log('🗑️ [SUPERVISION] Deleting visit:', visitId);
+  
+  try {
+    // Delete from Firestore
+    await deleteDoc(doc(db, 'supervisionVisits', visitId));
+    
+    console.log('✅ [SUPERVISION] Visit deleted successfully');
+    alert('✅ تم حذف الزيارة بنجاح!');
+    
+    // Close details modal
+    window.closeVisitDetailsModal();
+    
+    // Refresh visits list if modal is still open
+    if (currentClassData) {
+      await loadClassVisits(currentClassData.classId);
+      await loadSupervisionClasses(); // Refresh main grid
+    }
+    
+  } catch (error) {
+    console.error('❌ [SUPERVISION] Error deleting visit:', error);
+    alert('❌ حدث خطأ في حذف الزيارة');
+  }
+}
 
 /**
  * Open new visit form

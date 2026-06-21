@@ -11145,6 +11145,31 @@ details[open] > summary {
   color: #1a202c;
 }
 
+.supervision-delete-btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.supervision-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  transform: translateY(-1px);
+}
+
+.supervision-delete-btn:active {
+  transform: translateY(0);
+}
+
 .supervision-modal-title {
   flex: 1;
   margin: 0;

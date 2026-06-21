@@ -1311,7 +1311,13 @@
             <!-- Modal Header -->
             <div class="supervision-modal-header">
               <button class="supervision-close-btn" onclick="window.closeVisitDetailsModal()">×</button>
-              <h3 class="supervision-modal-title">تفاصيل الزيارة</h3>
+              <div class="supervision-modal-title">
+                <h3>تفاصيل الزيارة</h3>
+              </div>
+              <button class="supervision-delete-btn" id="deleteVisitBtn" onclick="window.confirmDeleteVisit()">
+                <span>🗑️</span>
+                <span>حذف</span>
+              </button>
             </div>
 
             <!-- Visit Details Content -->
