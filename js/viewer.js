@@ -9208,7 +9208,7 @@ window.generateDailyPassageReport = async function() {
             displayDate: formatDateForDisplay(normalizedDisplayDate),
             duration: duration,
             attemptsCount: data.attemptsCount || 1,
-            viewerName: data.viewerName || 'غير محدد'
+            viewerName: data.viewerName ? `أ/ ${data.viewerName}` : 'غير محدد'
           });
         }
       }
@@ -9247,16 +9247,25 @@ window.generateDailyPassageReport = async function() {
             duration = `${durationDays} ${durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام'}`;
           }
           
+          // Get actual hizb amount from quranHizbData
+          let hizbAmount = 'كامل';
+          if (data.hizbNumber) {
+            const hizbInfo = quranHizbData.find(h => h.number === data.hizbNumber);
+            if (hizbInfo) {
+              hizbAmount = hizbInfo.name || hizbInfo.description || 'كامل';
+            }
+          }
+          
           passageRecords.push({
             studentName: data.studentName || 'غير محدد',
             teacherName: teacherName,
             type: 'حزب',
             number: data.hizbNumber || '-',
-            amount: 'كامل',
+            amount: hizbAmount,
             displayDate: formatDateForDisplay(normalizedDisplayDate),
             duration: duration,
             attemptsCount: data.attemptsCount || 1,
-            viewerName: data.viewerName || 'غير محدد'
+            viewerName: data.viewerName ? `أ/ ${data.viewerName}` : 'غير محدد'
           });
         }
       }
