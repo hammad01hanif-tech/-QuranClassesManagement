@@ -9263,6 +9263,12 @@ window.closeSupervisionSection = function() {
 async function loadSupervisionClasses() {
   console.log('🔍 [SUPERVISION] Loading classes...');
   
+  // قائمة المعلمين المطلوب الإشراف عليهم فقط
+  const supervisionClassIds = [
+    'ANS01', 'IBR01', 'OSM01', 'HRT01', 'JHD01', 
+    'AMR01', 'OMR01', 'MZB01', 'MZN01', 'NBL01', 'ABD01'
+  ];
+  
   try {
     const classesSnapshot = await getDocs(collection(db, 'classes'));
     const classesGrid = document.getElementById('supervisionClassesGrid');
@@ -9279,10 +9285,18 @@ async function loadSupervisionClasses() {
     }
     
     let classesHTML = '';
+    let foundClasses = 0;
     
     for (const classDoc of classesSnapshot.docs) {
       const classData = classDoc.data();
       const classId = classData.classId || classDoc.id;
+      
+      // تخطي الحلقات غير المطلوبة
+      if (!supervisionClassIds.includes(classId)) {
+        continue;
+      }
+      
+      foundClasses++;
       const className = classData.className || classData.teacherName || 'حلقة غير محددة';
       const teacherName = classData.teacherName || 'معلم غير محدد';
       
@@ -9348,8 +9362,20 @@ async function loadSupervisionClasses() {
       `;
     }
     
+    // إذا لم نجد أي حلقات من القائمة المطلوبة
+    if (foundClasses === 0) {
+      classesGrid.innerHTML = `
+        <div class="supervision-empty-state">
+          <div class="supervision-empty-icon">🔍</div>
+          <h3 class="supervision-empty-title">لا توجد حلقات للإشراف</h3>
+          <p class="supervision-empty-desc">لم يتم العثور على الحلقات المحددة للإشراف</p>
+        </div>
+      `;
+      return;
+    }
+    
     classesGrid.innerHTML = classesHTML;
-    console.log('✅ [SUPERVISION] Classes loaded successfully');
+    console.log(`✅ [SUPERVISION] ${foundClasses} classes loaded successfully`);
     
   } catch (error) {
     console.error('❌ [SUPERVISION] Error loading classes:', error);
