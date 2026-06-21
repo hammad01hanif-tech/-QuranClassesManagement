@@ -979,6 +979,16 @@
               <div class="more-card-arrow">←</div>
             </div>
 
+            <!-- Supervision and Visits Card -->
+            <div class="more-menu-card" onclick="window.openSupervisionSection()">
+              <div class="more-card-icon">🔍</div>
+              <div class="more-card-content">
+                <h4 class="more-card-title">الإشراف والزيارات</h4>
+                <p class="more-card-desc">متابعة وتقييم الأداء التعليمي</p>
+              </div>
+              <div class="more-card-arrow">←</div>
+            </div>
+
             <!-- Settings Card (Coming Soon) -->
             <div class="more-menu-card disabled">
               <div class="more-card-icon">⚙️</div>
@@ -1242,6 +1252,69 @@
             </div>
             
           </div>
+        </div>
+
+        <!-- Supervision and Visits Section (Full Page) -->
+        <div id="supervisionSection" class="admin-full-page-section" style="display: none;">
+          
+          <!-- Header with Back Button -->
+          <div class="full-page-header">
+            <button class="back-btn" onclick="window.closeSupervisionSection()">
+              <span class="back-arrow">→</span>
+            </button>
+            <h2 class="full-page-title">🔍 الإشراف والزيارات</h2>
+            <div class="header-spacer"></div>
+          </div>
+
+          <!-- Add Button -->
+          <div class="action-section">
+            <button class="primary-action-btn" onclick="window.openAddSupervisionVisit()">
+              <span class="btn-icon">➕</span>
+              <span class="btn-text">إضافة زيارة إشرافية</span>
+            </button>
+          </div>
+
+          <!-- Search and Filter -->
+          <div class="search-filter-bar">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" class="search-input" placeholder="ابحث عن زيارة..." id="searchSupervisionVisits" oninput="window.searchSupervisionVisits(event)">
+            </div>
+            <button class="filter-btn" onclick="window.filterSupervisionVisits()">
+              <span>فلترة</span>
+              <span style="font-size: 18px;">⚙️</span>
+            </button>
+          </div>
+
+          <!-- Stats Cards -->
+          <div class="waiting-stats-grid">
+            <div class="waiting-stat-card">
+              <div class="stat-icon">🔍</div>
+              <div class="stat-number" id="totalVisitsCount">0</div>
+              <div class="stat-label">إجمالي الزيارات</div>
+            </div>
+            <div class="waiting-stat-card priority">
+              <div class="stat-icon">✅</div>
+              <div class="stat-number" id="completedVisitsCount">0</div>
+              <div class="stat-label">مكتملة</div>
+            </div>
+            <div class="waiting-stat-card recent">
+              <div class="stat-icon">📅</div>
+              <div class="stat-number" id="pendingVisitsCount">0</div>
+              <div class="stat-label">قادمة</div>
+            </div>
+          </div>
+
+          <!-- Visits List -->
+          <div class="waiting-students-list" id="supervisionVisitsList">
+            <!-- Visits will be loaded here -->
+            <div class="empty-state">
+              <div class="empty-icon">🔍</div>
+              <h3 class="empty-title">لا توجد زيارات إشرافية</h3>
+              <p class="empty-desc">ابدأ بإضافة زيارة إشرافية جديدة</p>
+            </div>
+          </div>
+
         </div>
 
         <!-- Staff Attendance Section (Full Page) -->
