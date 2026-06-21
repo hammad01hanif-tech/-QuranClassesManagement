@@ -9290,19 +9290,24 @@ async function loadSupervisionClasses() {
       const visitsSnapshot = await getDocs(
         query(
           collection(db, 'supervisionVisits'),
-          where('classId', '==', classId),
-          orderBy('visitDate', 'desc'),
-          limit(1)
+          where('classId', '==', classId)
         )
       );
+      
+      // Sort manually to avoid Firebase index requirement
+      const sortedVisits = visitsSnapshot.docs.sort((a, b) => {
+        const dateA = a.data().visitDate || '';
+        const dateB = b.data().visitDate || '';
+        return dateB.localeCompare(dateA);
+      });
       
       let lastVisitText = 'لم تتم زيارة بعد';
       let overallRating = '-';
       let status = 'needs-attention';
       let statusText = 'تحتاج متابعة';
       
-      if (!visitsSnapshot.empty) {
-        const lastVisit = visitsSnapshot.docs[0].data();
+      if (!visitsSnapshot.empty && sortedVisits.length > 0) {
+        const lastVisit = sortedVisits[0].data();
         lastVisitText = formatDateForDisplay(lastVisit.visitDate);
         overallRating = calculateOverallRating(lastVisit);
         
@@ -9426,8 +9431,7 @@ async function loadClassVisits(classId) {
     const visitsSnapshot = await getDocs(
       query(
         collection(db, 'supervisionVisits'),
-        where('classId', '==', classId),
-        orderBy('visitDate', 'desc')
+        where('classId', '==', classId)
       )
     );
     
@@ -9442,9 +9446,16 @@ async function loadClassVisits(classId) {
       return;
     }
     
+    // Sort visits by date (descending)
+    const sortedVisits = visitsSnapshot.docs.sort((a, b) => {
+      const dateA = a.data().visitDate || '';
+      const dateB = b.data().visitDate || '';
+      return dateB.localeCompare(dateA);
+    });
+    
     let visitsHTML = '';
     
-    visitsSnapshot.forEach(visitDoc => {
+    sortedVisits.forEach(visitDoc => {
       const visit = visitDoc.data();
       const visitId = visitDoc.id;
       const visitDate = formatDateForDisplay(visit.visitDate);
