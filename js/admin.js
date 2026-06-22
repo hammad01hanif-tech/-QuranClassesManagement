@@ -9208,41 +9208,46 @@ window.closeWaitingStudentModal = function() {
 // Sample evaluation items (will be used in form)
 const supervisionEvaluationItems = {
   educational: [
-    'جودة التحضير والتخطيط',
-    'وضوح الأهداف التعليمية',
-    'فاعلية أساليب التدريس',
-    'استخدام الوسائل التعليمية',
-    'تفاعل الطلاب ومشاركتهم'
+    { id: 'studentPerformance', label: 'تقييم أداء الطلاب في الحفظ والتجويد', hasNotes: true, notesPlaceholder: 'اكتب ملاحظاتك حول مستوى الحفظ والتجويد والأخطاء الملحوظة...' },
+    { id: 'strugglingStudents', label: 'متابعة الطلاب المتعثرين', hasNotes: true, notesPlaceholder: 'اذكر حالة الطلاب المتعثرين ومدى المتابعة...' },
+    { id: 'studentRevision', label: 'متابعة مراجعة الطلاب', hasNotes: true, notesPlaceholder: 'وضح مستوى المراجعة وانتظام الطلاب...' },
+    { id: 'maherApp', label: 'التسجيل في تطبيق ماهر', hasNotes: false }
   ],
   teacher: [
-    'التزام المعلم بالمواعيد',
-    'قدرة المعلم على إدارة الحلقة',
-    'أسلوب المعلم في التعامل',
-    'متابعة المعلم للطلاب',
-    'تطوير المعلم لمهاراته'
+    { id: 'attendance', label: 'حضور المعلم وانضباطه', hasNotes: false },
+    { id: 'uniform', label: 'الزي الرسمي', hasNotes: false },
+    { id: 'classManagement', label: 'قيادة وإدارة الحلقة', hasNotes: false },
+    { id: 'parentCommunication', label: 'التواصل والمتابعة مع ولي أمر الطالب', hasNotes: false }
   ],
   environment: [
-    'نظافة وترتيب المكان',
-    'جودة التهوية والإضاءة',
-    'توفر المقاعد المريحة',
-    'الهدوء والانضباط العام',
-    'الأجواء التحفيزية'
+    // سيتم إضافة العناصر لاحقًا
   ]
 };
 
 // Store current class and visit data
 let currentClassData = null;
-let currentVisitFormData = {};
+let currentVisitFormData = {
+  educational: {},
+  educationalNotes: {},
+  teacher: {},
+  environment: {}
+};
 let currentVisitId = null;
 
 /**
  * Format date from YYYY-MM-DD to DD-MM-YYYY for display
  */
 function formatDateForDisplay(dateStr) {
-  if (!dateStr) return '';
+  if (!dateStr || typeof dateStr !== 'string') {
+    console.warn('⚠️ [DATE] Invalid date string:', dateStr);
+    return 'تاريخ غير محدد';
+  }
   
   const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
+  if (parts.length !== 3) {
+    console.warn('⚠️ [DATE] Invalid date format:', dateStr);
+    return dateStr;
+  }
   
   // Check if already in DD-MM-YYYY format
   if (parseInt(parts[0]) < 32 && parseInt(parts[2]) > 1000) {
@@ -9265,6 +9270,7 @@ window.openSupervisionSection = function() {
   const supervisionSection = document.getElementById('supervisionSection');
   if (supervisionSection) {
     supervisionSection.style.display = 'block';
+    showSupervisionLoader();
     loadSupervisionClasses();
   }
 };
@@ -9279,6 +9285,32 @@ window.closeSupervisionSection = function() {
     supervisionSection.style.display = 'none';
   }
 };
+
+/**
+ * Show supervision loading overlay
+ */
+function showSupervisionLoader() {
+  const loader = document.getElementById('supervisionLoadingOverlay');
+  if (loader) {
+    loader.style.display = 'flex';
+  }
+}
+
+/**
+ * Hide supervision loading overlay
+ */
+function hideSupervisionLoader() {
+  const loader = document.getElementById('supervisionLoadingOverlay');
+  if (loader) {
+    // Add hiding class for fade-out effect
+    loader.classList.add('hiding');
+    // Remove from DOM after animation
+    setTimeout(() => {
+      loader.style.display = 'none';
+      loader.classList.remove('hiding');
+    }, 300);
+  }
+}
 
 /**
  * Load all classes with supervision info
@@ -9345,7 +9377,14 @@ async function loadSupervisionClasses() {
       
       if (!visitsSnapshot.empty && sortedVisits.length > 0) {
         const lastVisit = sortedVisits[0].data();
-        lastVisitText = formatDateForDisplay(lastVisit.visitDate);
+        // Display visit date - ensure it's formatted properly
+        if (lastVisit.visitDate) {
+          lastVisitText = formatDateForDisplay(lastVisit.visitDate);
+          console.log(`📅 [SUPERVISION] Class ${classId} - Last visit date:`, lastVisit.visitDate, '→', lastVisitText);
+        } else {
+          lastVisitText = 'تاريخ غير محدد';
+          console.warn(`⚠️ [SUPERVISION] Class ${classId} - No visitDate found in last visit`);
+        }
         overallRating = calculateOverallRating(lastVisit);
         
         if (overallRating >= 4) {
@@ -9394,11 +9433,13 @@ async function loadSupervisionClasses() {
           <p class="supervision-empty-desc">لم يتم العثور على الحلقات المحددة للإشراف</p>
         </div>
       `;
+      hideSupervisionLoader();
       return;
     }
     
     classesGrid.innerHTML = classesHTML;
     console.log(`✅ [SUPERVISION] ${foundClasses} classes loaded successfully`);
+    hideSupervisionLoader();
     
   } catch (error) {
     console.error('❌ [SUPERVISION] Error loading classes:', error);
@@ -9409,6 +9450,7 @@ async function loadSupervisionClasses() {
         <p class="supervision-empty-desc">حدث خطأ في تحميل الحلقات</p>
       </div>
     `;
+    hideSupervisionLoader();
   }
 }
 
@@ -9507,7 +9549,7 @@ async function loadClassVisits(classId) {
     sortedVisits.forEach(visitDoc => {
       const visit = visitDoc.data();
       const visitId = visitDoc.id;
-      const visitDate = formatDateForDisplay(visit.visitDate);
+      const visitDate = visit.visitDate ? formatDateForDisplay(visit.visitDate) : 'تاريخ غير محدد';
       const supervisorName = visit.supervisorName || 'مشرف غير محدد';
       const overallRating = calculateOverallRating(visit);
       const notesPreview = visit.notes ? visit.notes.substring(0, 80) + (visit.notes.length > 80 ? '...' : '') : 'لا توجد ملاحظات';
@@ -9575,7 +9617,7 @@ window.openVisitDetails = async function(visitId) {
     }
     
     const visit = visitDoc.data();
-    const visitDate = formatDateForDisplay(visit.visitDate);
+    const visitDate = visit.visitDate ? formatDateForDisplay(visit.visitDate) : 'تاريخ غير محدد';
     const supervisorName = visit.supervisorName || 'مشرف غير محدد';
     
     const ratingTextMap = {
@@ -9606,6 +9648,12 @@ window.openVisitDetails = async function(visitId) {
     
     // Educational aspect
     if (visit.educational) {
+      // Get item labels from supervisionEvaluationItems
+      const getItemLabel = (itemId) => {
+        const item = supervisionEvaluationItems.educational.find(i => i.id === itemId);
+        return item ? item.label : itemId;
+      };
+      
       detailsHTML += `
         <div class="supervision-detail-section">
           <div class="supervision-detail-section-title">
@@ -9613,12 +9661,24 @@ window.openVisitDetails = async function(visitId) {
             <span>الجانب التعليمي</span>
           </div>
           <div class="supervision-detail-items">
-            ${Object.entries(visit.educational).map(([key, rating]) => `
-              <div class="supervision-detail-item">
-                <span class="supervision-detail-item-name">${key}</span>
-                <span class="supervision-detail-item-rating ${rating}">${ratingTextMap[rating] || rating}</span>
-              </div>
-            `).join('')}
+            ${Object.entries(visit.educational).map(([key, rating]) => {
+              const itemLabel = getItemLabel(key);
+              const itemNotes = visit.educationalNotes && visit.educationalNotes[key] ? visit.educationalNotes[key] : '';
+              return `
+                <div class="supervision-detail-item-wrapper">
+                  <div class="supervision-detail-item">
+                    <span class="supervision-detail-item-name">${itemLabel}</span>
+                    <span class="supervision-detail-item-rating ${rating}">${ratingTextMap[rating] || rating}</span>
+                  </div>
+                  ${itemNotes ? `
+                    <div class="supervision-detail-item-notes">
+                      <span class="notes-icon">📝</span>
+                      <span class="notes-text">${itemNotes}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
           </div>
         </div>
       `;
@@ -9626,6 +9686,11 @@ window.openVisitDetails = async function(visitId) {
     
     // Teacher performance
     if (visit.teacher) {
+      const getTeacherItemLabel = (itemId) => {
+        const item = supervisionEvaluationItems.teacher.find(i => i.id === itemId);
+        return item ? item.label : itemId;
+      };
+      
       detailsHTML += `
         <div class="supervision-detail-section">
           <div class="supervision-detail-section-title">
@@ -9635,7 +9700,7 @@ window.openVisitDetails = async function(visitId) {
           <div class="supervision-detail-items">
             ${Object.entries(visit.teacher).map(([key, rating]) => `
               <div class="supervision-detail-item">
-                <span class="supervision-detail-item-name">${key}</span>
+                <span class="supervision-detail-item-name">${getTeacherItemLabel(key)}</span>
                 <span class="supervision-detail-item-rating ${rating}">${ratingTextMap[rating] || rating}</span>
               </div>
             `).join('')}
@@ -9645,7 +9710,12 @@ window.openVisitDetails = async function(visitId) {
     }
     
     // General environment
-    if (visit.environment) {
+    if (visit.environment && Object.keys(visit.environment).length > 0) {
+      const getEnvironmentItemLabel = (itemId) => {
+        const item = supervisionEvaluationItems.environment.find(i => i.id === itemId);
+        return item ? item.label : itemId;
+      };
+      
       detailsHTML += `
         <div class="supervision-detail-section">
           <div class="supervision-detail-section-title">
@@ -9655,7 +9725,7 @@ window.openVisitDetails = async function(visitId) {
           <div class="supervision-detail-items">
             ${Object.entries(visit.environment).map(([key, rating]) => `
               <div class="supervision-detail-item">
-                <span class="supervision-detail-item-name">${key}</span>
+                <span class="supervision-detail-item-name">${getEnvironmentItemLabel(key)}</span>
                 <span class="supervision-detail-item-rating ${rating}">${ratingTextMap[rating] || rating}</span>
               </div>
             `).join('')}
@@ -9754,6 +9824,7 @@ window.openNewVisitForm = function() {
   // Reset form data
   currentVisitFormData = {
     educational: {},
+    educationalNotes: {},
     teacher: {},
     environment: {}
   };
@@ -9763,50 +9834,98 @@ window.openNewVisitForm = function() {
   
   // Show modal
   document.getElementById('newVisitFormModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
 };
 
 /**
  * Build visit form with evaluation items
  */
 function buildVisitForm() {
-  // Educational aspect
-  const educationalHTML = supervisionEvaluationItems.educational.map((item, index) => `
-    <div class="supervision-form-item">
-      <div class="supervision-item-label">${item}</div>
+  // Educational aspect with notes
+  const educationalHTML = supervisionEvaluationItems.educational.map((item) => `
+    <div class="supervision-eval-card">
+      <div class="supervision-eval-label">${item.label}</div>
       <div class="supervision-rating-options">
-        <div class="supervision-rating-chip excellent" onclick="selectRating('educational', '${item}', 'excellent', this)">ممتاز</div>
-        <div class="supervision-rating-chip good" onclick="selectRating('educational', '${item}', 'good', this)">جيد</div>
-        <div class="supervision-rating-chip needs-improvement" onclick="selectRating('educational', '${item}', 'needs-improvement', this)">يحتاج تحسين</div>
-        <div class="supervision-rating-chip weak" onclick="selectRating('educational', '${item}', 'weak', this)">ضعيف</div>
+        <div class="supervision-rating-chip excellent" onclick="selectRating('educational', '${item.id}', 'excellent', this)">
+          <span class="chip-icon">⭐</span>
+          <span class="chip-text">ممتاز</span>
+        </div>
+        <div class="supervision-rating-chip good" onclick="selectRating('educational', '${item.id}', 'good', this)">
+          <span class="chip-icon">✓</span>
+          <span class="chip-text">جيد</span>
+        </div>
+        <div class="supervision-rating-chip needs-improvement" onclick="selectRating('educational', '${item.id}', 'needs-improvement', this)">
+          <span class="chip-icon">⚠</span>
+          <span class="chip-text">يحتاج تحسين</span>
+        </div>
+        <div class="supervision-rating-chip weak" onclick="selectRating('educational', '${item.id}', 'weak', this)">
+          <span class="chip-icon">✗</span>
+          <span class="chip-text">ضعيف</span>
+        </div>
       </div>
+      ${item.hasNotes ? `
+        <textarea 
+          class="supervision-item-notes" 
+          id="notes_educational_${item.id}"
+          placeholder="${item.notesPlaceholder}"
+          rows="2"
+          oninput="updateItemNotes('educational', '${item.id}', this.value)"
+        ></textarea>
+      ` : ''}
     </div>
   `).join('');
   
   // Teacher performance
-  const teacherHTML = supervisionEvaluationItems.teacher.map((item, index) => `
-    <div class="supervision-form-item">
-      <div class="supervision-item-label">${item}</div>
+  const teacherHTML = supervisionEvaluationItems.teacher.map((item) => `
+    <div class="supervision-eval-card">
+      <div class="supervision-eval-label">${item.label}</div>
       <div class="supervision-rating-options">
-        <div class="supervision-rating-chip excellent" onclick="selectRating('teacher', '${item}', 'excellent', this)">ممتاز</div>
-        <div class="supervision-rating-chip good" onclick="selectRating('teacher', '${item}', 'good', this)">جيد</div>
-        <div class="supervision-rating-chip needs-improvement" onclick="selectRating('teacher', '${item}', 'needs-improvement', this)">يحتاج تحسين</div>
-        <div class="supervision-rating-chip weak" onclick="selectRating('teacher', '${item}', 'weak', this)">ضعيف</div>
+        <div class="supervision-rating-chip excellent" onclick="selectRating('teacher', '${item.id}', 'excellent', this)">
+          <span class="chip-icon">⭐</span>
+          <span class="chip-text">ممتاز</span>
+        </div>
+        <div class="supervision-rating-chip good" onclick="selectRating('teacher', '${item.id}', 'good', this)">
+          <span class="chip-icon">✓</span>
+          <span class="chip-text">جيد</span>
+        </div>
+        <div class="supervision-rating-chip needs-improvement" onclick="selectRating('teacher', '${item.id}', 'needs-improvement', this)">
+          <span class="chip-icon">⚠</span>
+          <span class="chip-text">يحتاج تحسين</span>
+        </div>
+        <div class="supervision-rating-chip weak" onclick="selectRating('teacher', '${item.id}', 'weak', this)">
+          <span class="chip-icon">✗</span>
+          <span class="chip-text">ضعيف</span>
+        </div>
       </div>
     </div>
   `).join('');
   
-  // General environment
-  const environmentHTML = supervisionEvaluationItems.environment.map((item, index) => `
-    <div class="supervision-form-item">
-      <div class="supervision-item-label">${item}</div>
-      <div class="supervision-rating-options">
-        <div class="supervision-rating-chip excellent" onclick="selectRating('environment', '${item}', 'excellent', this)">ممتاز</div>
-        <div class="supervision-rating-chip good" onclick="selectRating('environment', '${item}', 'good', this)">جيد</div>
-        <div class="supervision-rating-chip needs-improvement" onclick="selectRating('environment', '${item}', 'needs-improvement', this)">يحتاج تحسين</div>
-        <div class="supervision-rating-chip weak" onclick="selectRating('environment', '${item}', 'weak', this)">ضعيف</div>
+  // General environment (empty for now)
+  const environmentHTML = supervisionEvaluationItems.environment.length > 0 
+    ? supervisionEvaluationItems.environment.map((item) => `
+      <div class="supervision-eval-card">
+        <div class="supervision-eval-label">${item.label}</div>
+        <div class="supervision-rating-options">
+          <div class="supervision-rating-chip excellent" onclick="selectRating('environment', '${item.id}', 'excellent', this)">
+            <span class="chip-icon">⭐</span>
+            <span class="chip-text">ممتاز</span>
+          </div>
+          <div class="supervision-rating-chip good" onclick="selectRating('environment', '${item.id}', 'good', this)">
+            <span class="chip-icon">✓</span>
+            <span class="chip-text">جيد</span>
+          </div>
+          <div class="supervision-rating-chip needs-improvement" onclick="selectRating('environment', '${item.id}', 'needs-improvement', this)">
+            <span class="chip-icon">⚠</span>
+            <span class="chip-text">يحتاج تحسين</span>
+          </div>
+          <div class="supervision-rating-chip weak" onclick="selectRating('environment', '${item.id}', 'weak', this)">
+            <span class="chip-icon">✗</span>
+            <span class="chip-text">ضعيف</span>
+          </div>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('')
+    : '<div class="supervision-empty-section"><p>سيتم إضافة عناصر التقييم لاحقًا</p></div>';
   
   document.getElementById('educationalAspectItems').innerHTML = educationalHTML;
   document.getElementById('teacherPerformanceItems').innerHTML = teacherHTML;
@@ -9819,7 +9938,8 @@ function buildVisitForm() {
  */
 window.selectRating = function(section, item, rating, element) {
   // Remove selected class from siblings
-  const siblings = element.parentElement.querySelectorAll('.supervision-rating-chip');
+  const card = element.closest('.supervision-eval-card');
+  const siblings = card.querySelectorAll('.supervision-rating-chip');
   siblings.forEach(chip => chip.classList.remove('selected'));
   
   // Add selected class
@@ -9829,6 +9949,16 @@ window.selectRating = function(section, item, rating, element) {
   currentVisitFormData[section][item] = rating;
   
   console.log('Rating selected:', { section, item, rating });
+};
+
+/**
+ * Update item notes
+ */
+window.updateItemNotes = function(section, item, notes) {
+  if (section === 'educational') {
+    currentVisitFormData.educationalNotes[item] = notes;
+  }
+  console.log('Notes updated:', { section, item, notes: notes.substring(0, 30) + '...' });
 };
 
 /**
@@ -9859,7 +9989,9 @@ window.saveVisit = async function() {
   try {
     // Get current Hijri date
     const todayHijri = getCurrentHijriDate();
-    const visitDate = `${todayHijri.year}-${String(todayHijri.month).padStart(2, '0')}-${String(todayHijri.day).padStart(2, '0')}`;
+    const visitDate = `${todayHijri.hijriYear}-${String(todayHijri.hijriMonth).padStart(2, '0')}-${String(todayHijri.hijriDay).padStart(2, '0')}`;
+    
+    console.log('📅 [SUPERVISION] Visit date (Hijri):', visitDate, todayHijri);
     
     // Prepare visit data
     const visitData = {
@@ -9869,6 +10001,7 @@ window.saveVisit = async function() {
       visitDate: visitDate,
       supervisorName: 'المشرف', // TODO: Get from current user
       educational: currentVisitFormData.educational,
+      educationalNotes: currentVisitFormData.educationalNotes,
       teacher: currentVisitFormData.teacher,
       environment: currentVisitFormData.environment,
       notes: notes,
@@ -9876,10 +10009,11 @@ window.saveVisit = async function() {
     };
     
     // Save to Firestore
-    await addDoc(collection(db, 'supervisionVisits'), visitData);
+    const docRef = await addDoc(collection(db, 'supervisionVisits'), visitData);
     
-    console.log('✅ [SUPERVISION] Visit saved successfully');
-    alert('✅ تم حفظ الزيارة بنجاح!');
+    console.log('✅ [SUPERVISION] Visit saved successfully with date:', visitDate);
+    console.log('✅ [SUPERVISION] Document ID:', docRef.id);
+    alert('✅ تم حفظ الزيارة بنجاح!\nالتاريخ الهجري: ' + formatDateForDisplay(visitDate));
     
     // Close form and refresh
     window.closeNewVisitForm();
@@ -9897,7 +10031,13 @@ window.saveVisit = async function() {
  */
 window.closeNewVisitForm = function() {
   document.getElementById('newVisitFormModal').style.display = 'none';
-  currentVisitFormData = {};
+  document.body.style.overflow = '';
+  currentVisitFormData = {
+    educational: {},
+    educationalNotes: {},
+    teacher: {},
+    environment: {}
+  };
 };
 
 
