@@ -398,6 +398,7 @@ const teacherNames = {
   'AMR01': 'الأستاذ عامر هوساوي',
   'ANS01': 'الأستاذ أنس',
   'HRT01': 'الأستاذ حارث',
+  'IBR01': 'الأستاذ إبراهيم',
   'JHD01': 'الأستاذ جهاد',
   'JWD01': 'الأستاذ عبدالرحمن جاويد',
   'MZB01': 'الأستاذ مازن البلوشي',
@@ -407,6 +408,21 @@ const teacherNames = {
   'OSM01': 'الأستاذ أسامة حبيب',
   'SLM01': 'الأستاذ سلمان رفيق'
 };
+
+// Allowed teacher IDs for daily preparation, ready messages, and absence reports
+const allowedTeacherIds = [
+  'ANS01',  // الأستاذ أنس
+  'IBR01',  // الأستاذ إبراهيم
+  'OSM01',  // الأستاذ أسامة حبيب
+  'HRT01',  // الأستاذ حارث
+  'JHD01',  // الأستاذ جهاد
+  'AMR01',  // الأستاذ عامر هوساوي
+  'OMR01',  // الأستاذ عمر
+  'MZB01',  // الأستاذ مازن البلوشي
+  'MZN01',  // الأستاذ مازن
+  'NBL01',  // الأستاذ نبيل
+  'ABD01'   // الأستاذ عبدالرحمن السيسي
+];
 
 // DOM Elements - will be initialized in initAdmin()
 let classSelectAdd;
@@ -463,6 +479,12 @@ async function loadClasses() {
   snap.forEach(d => {
     const data = d.data();
     const cid = data.classId || d.id;
+    
+    // Filter: only show allowed teachers
+    if (!allowedTeacherIds.includes(cid)) {
+      return; // Skip this class
+    }
+    
     // Use teacher name from teacherNames map, fallback to className or cid
     const label = teacherNames[cid] || data.teacherName || data.className || cid;
     classesData.push({ cid, label });
@@ -4346,47 +4368,6 @@ window.loadAbsenceReportForClass = async function() {
     
     // Build date options from accurate Hijri dates
     const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
-    const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-    
-    // Build month options dynamically from available dates
-    let monthOptions = '<option value="">-- اختر الشهر --</option>';
-    
-    // Extract unique year-month combinations
-    const availableMonths = new Map();
-    accurateHijriDates.forEach(entry => {
-      const monthKey = `${entry.hijriYear}-${String(entry.hijriMonth).padStart(2, '0')}`;
-      if (!availableMonths.has(monthKey)) {
-        availableMonths.set(monthKey, {
-          year: entry.hijriYear,
-          month: entry.hijriMonth,
-          name: hijriMonths[entry.hijriMonth - 1]
-        });
-      }
-    });
-    
-    // Convert to sorted array
-    const sortedMonths = Array.from(availableMonths.values()).sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return a.month - b.month;
-    });
-    
-    // Build month options with year separators
-    let lastYear = null;
-    sortedMonths.forEach(m => {
-      // Add year separator when year changes
-      if (lastYear !== m.year) {
-        if (lastYear !== null) {
-          // Add separator before new year except for first year
-          monthOptions += `<option disabled style="text-align: center; font-size: 11px; color: #999;">────── ${m.year} هـ ──────</option>`;
-        }
-        lastYear = m.year;
-      }
-      
-      const monthKey = `${m.year}-${String(m.month).padStart(2, '0')}`;
-      const isSelected = (m.year === currentYear && m.month === currentMonth) ? 'selected' : '';
-      monthOptions += `<option value="${monthKey}" ${isSelected}>${m.name} ${m.year}</option>`;
-    });
     
     // Build students options
     let studentOptions = '<option value="all">جميع الطلاب</option>';
@@ -4394,50 +4375,99 @@ window.loadAbsenceReportForClass = async function() {
       studentOptions += `<option value="${student.id}">${student.name}</option>`;
     });
     
+    // Build unique years from accurateHijriDates
+    const availableYears = [...new Set(accurateHijriDates.map(d => d.hijriYear))].sort((a, b) => a - b);
+    
+    // Build months list (1-12)
+    const monthsList = [
+      { value: 1, name: 'المحرم' },
+      { value: 2, name: 'صفر' },
+      { value: 3, name: 'ربيع الأول' },
+      { value: 4, name: 'ربيع الآخر' },
+      { value: 5, name: 'جمادى الأولى' },
+      { value: 6, name: 'جمادى الآخرة' },
+      { value: 7, name: 'رجب' },
+      { value: 8, name: 'شعبان' },
+      { value: 9, name: 'رمضان' },
+      { value: 10, name: 'شوال' },
+      { value: 11, name: 'ذو القعدة' },
+      { value: 12, name: 'ذو الحجة' }
+    ];
+    
+    // Build year options
+    let yearOptions = availableYears.map(year => 
+      `<option value="${year}" ${year === currentYear ? 'selected' : ''}>${year}</option>`
+    ).join('');
+    
+    // Build month options
+    let monthOptions = monthsList.map(month => 
+      `<option value="${month.value}" ${month.value === currentMonth ? 'selected' : ''}>${month.name}</option>`
+    ).join('');
+    
     // Close previous modal
     const overlay = document.getElementById('absenceReportsOverlay');
     if (overlay) overlay.remove();
     
     const html = `
       <div id="absenceReportConfigOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99999; display: flex; justify-content: center; align-items: center;" onclick="this.remove()">
-        <div style="background: white; border-radius: 15px; width: 90%; max-width: 500px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
+        <div style="background: white; border-radius: 15px; width: 90%; max-width: 550px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; color: white; border-radius: 15px 15px 0 0; flex-shrink: 0;">
             <h3 style="margin: 0; text-align: center; font-size: 18px;">📊 تقرير غياب الطلاب</h3>
             <p style="margin: 5px 0 0 0; text-align: center; font-size: 13px; opacity: 0.9;">المعلم: ${teacherName}</p>
           </div>
           
           <div style="padding: 20px; overflow-y: auto; flex: 1;">
-            <div style="background: rgba(102,126,234,0.1); padding: 12px; border-radius: 8px; margin-bottom: 15px;">
-              <label style="display: block; margin-bottom: 6px; color: #333; font-weight: bold; font-size: 13px;">📅 اختر الفترة الزمنية:</label>
+            <div style="background: rgba(102,126,234,0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 10px; color: #333; font-weight: bold; font-size: 14px;">📅 الفترة الزمنية:</label>
               
-              <!-- Month Selector -->
-              <div style="margin-bottom: 12px;">
-                <label style="display: block; margin-bottom: 4px; color: #666; font-size: 12px;">اختر الشهر الهجري:</label>
-                <select id="absenceMonthSelect" onchange="window.updateAbsenceDatesForMonth()" style="width: 100%; padding: 10px; border: 2px solid #667eea; border-radius: 8px; font-size: 13px; font-weight: bold; background: white;">
-                  ${monthOptions}
-                </select>
+              <!-- FROM Date -->
+              <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 2px solid #e9ecef;">
+                <label style="display: block; margin-bottom: 8px; color: #667eea; font-weight: bold; font-size: 13px;">📌 من تاريخ:</label>
+                <div style="display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 8px;">
+                  <div>
+                    <label style="display: block; margin-bottom: 4px; color: #999; font-size: 11px;">السنة الهجرية</label>
+                    <select id="fromYear" onchange="window.updateAbsenceDaysDropdown('from')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-weight: bold;">
+                      ${yearOptions}
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; margin-bottom: 4px; color: #999; font-size: 11px;">الشهر</label>
+                    <select id="fromMonth" onchange="window.updateAbsenceDaysDropdown('from')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-weight: bold;">
+                      ${monthOptions}
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; margin-bottom: 4px; color: #999; font-size: 11px;">اليوم</label>
+                    <select id="fromDay" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-weight: bold;">
+                      <option value="">--</option>
+                    </select>
+                  </div>
+                </div>
               </div>
               
-              <!-- Date Range Selectors -->
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div>
-                  <label style="display: block; margin-bottom: 4px; color: #666; font-size: 12px;">من تاريخ:</label>
-                  <select id="absenceFromDate" style="width: 100%; padding: 8px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 12px;">
-                    <option value="">-- اختر التاريخ --</option>
-                  </select>
+              <!-- TO Date -->
+              <div style="background: white; padding: 12px; border-radius: 8px; border: 2px solid #e9ecef;">
+                <label style="display: block; margin-bottom: 8px; color: #667eea; font-weight: bold; font-size: 13px;">📌 إلى تاريخ:</label>
+                <div style="display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 8px;">
+                  <div>
+                    <label style="display: block; margin-bottom: 4px; color: #999; font-size: 11px;">السنة الهجرية</label>
+                    <select id="toYear" onchange="window.updateAbsenceDaysDropdown('to')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-weight: bold;">
+                      ${yearOptions}
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; margin-bottom: 4px; color: #999; font-size: 11px;">الشهر</label>
+                    <select id="toMonth" onchange="window.updateAbsenceDaysDropdown('to')" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-weight: bold;">
+                      ${monthOptions}
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; margin-bottom: 4px; color: #999; font-size: 11px;">اليوم</label>
+                    <select id="toDay" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-weight: bold;">
+                      <option value="">--</option>
+                    </select>
+                  </div>
                 </div>
-                
-                <div>
-                  <label style="display: block; margin-bottom: 4px; color: #666; font-size: 12px;">إلى تاريخ:</label>
-                  <select id="absenceToDate" style="width: 100%; padding: 8px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 12px;">
-                    <option value="">-- اختر التاريخ --</option>
-                  </select>
-                </div>
-              </div>
-              
-              <!-- Message for unavailable months -->
-              <div id="absenceDateMessage" style="display: none; margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; color: #856404; font-size: 12px; text-align: center;">
-                ⚠️ التواريخ لهذا الشهر غير مضافة بعد
               </div>
             </div>
             
@@ -4479,9 +4509,10 @@ window.loadAbsenceReportForClass = async function() {
     
     document.body.insertAdjacentHTML('beforeend', html);
     
-    // Trigger month change to populate dates for current month
+    // Initialize days dropdowns for current month
     setTimeout(() => {
-      window.updateAbsenceDatesForMonth();
+      window.updateAbsenceDaysDropdown('from');
+      window.updateAbsenceDaysDropdown('to');
     }, 100);
     
   } catch (error) {
@@ -4490,84 +4521,83 @@ window.loadAbsenceReportForClass = async function() {
   }
 };
 
-// Update dates dropdown based on selected month
-window.updateAbsenceDatesForMonth = async function() {
-  const monthSelect = document.getElementById('absenceMonthSelect');
-  const fromDateSelect = document.getElementById('absenceFromDate');
-  const toDateSelect = document.getElementById('absenceToDate');
-  const messageDiv = document.getElementById('absenceDateMessage');
+// Update days dropdown based on selected year and month
+window.updateAbsenceDaysDropdown = async function(type) {
+  // type is either 'from' or 'to'
+  const yearSelect = document.getElementById(`${type}Year`);
+  const monthSelect = document.getElementById(`${type}Month`);
+  const daySelect = document.getElementById(`${type}Day`);
   
-  if (!monthSelect || !fromDateSelect || !toDateSelect) return;
+  if (!yearSelect || !monthSelect || !daySelect) return;
   
-  const selectedValue = monthSelect.value;
+  const selectedYear = parseInt(yearSelect.value);
+  const selectedMonth = parseInt(monthSelect.value);
   
-  if (!selectedValue) {
-    fromDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
-    toDateSelect.innerHTML = '<option value="">-- اختر الشهر أولاً --</option>';
-    messageDiv.style.display = 'none';
+  if (!selectedYear || !selectedMonth) {
+    daySelect.innerHTML = '<option value="">--</option>';
     return;
   }
   
-  // Parse year-month from value (e.g., "1447-11" or "1448-1")
-  const [selectedYear, selectedMonth] = selectedValue.split('-').map(Number);
-  
   try {
     const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
-    const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     
     // Filter dates for selected year and month
     const filteredDates = accurateHijriDates.filter(dateEntry => {
-      const [year, month] = dateEntry.hijri.split('-').map(Number);
-      return year === selectedYear && month === selectedMonth;
+      return dateEntry.hijriYear === selectedYear && dateEntry.hijriMonth === selectedMonth;
     });
     
-    // Check if dates exist for this month
     if (filteredDates.length === 0) {
-      fromDateSelect.innerHTML = '<option value="">-- غير متوفر --</option>';
-      toDateSelect.innerHTML = '<option value="">-- غير متوفر --</option>';
-      messageDiv.style.display = 'block';
+      daySelect.innerHTML = '<option value="">لا توجد تواريخ</option>';
       return;
     }
     
-    // Hide message if dates found
-    messageDiv.style.display = 'none';
+    // Sort by day
+    filteredDates.sort((a, b) => a.hijriDay - b.hijriDay);
     
-    // Build date options
-    let dateOptions = '<option value="">-- اختر التاريخ --</option>';
+    // Build day options
+    let dayOptions = '';
     filteredDates.forEach(dateEntry => {
-      const [year, month, day] = dateEntry.hijri.split('-').map(Number);
-      const monthName = hijriMonths[month - 1];
-      
-      // Get day of week
-      const gregorianDate = new Date(dateEntry.gregorian + 'T12:00:00');
-      const dayOfWeek = gregorianDate.getDay();
-      const dayName = dayNames[dayOfWeek];
-      
-      const displayText = `${dayName} ${day} ${monthName} ${year} هـ`;
-      dateOptions += `<option value="${dateEntry.hijri}">${displayText}</option>`;
+      const day = String(dateEntry.hijriDay).padStart(2, '0');
+      dayOptions += `<option value="${day}">${dateEntry.hijriDay}</option>`;
     });
     
-    // Update both selects
-    fromDateSelect.innerHTML = dateOptions;
-    toDateSelect.innerHTML = dateOptions;
+    daySelect.innerHTML = dayOptions;
     
-    // Set default values - first date and last date of month
-    if (filteredDates.length > 0) {
-      fromDateSelect.value = filteredDates[0].hijri;
-      toDateSelect.value = filteredDates[filteredDates.length - 1].hijri;
+    // Set default selection
+    if (type === 'from') {
+      // Select first day
+      daySelect.value = String(filteredDates[0].hijriDay).padStart(2, '0');
+    } else {
+      // Select last day
+      daySelect.value = String(filteredDates[filteredDates.length - 1].hijriDay).padStart(2, '0');
     }
     
   } catch (error) {
-    console.error('Error updating dates:', error);
-    messageDiv.style.display = 'block';
+    console.error('Error updating days dropdown:', error);
+    daySelect.innerHTML = '<option value="">خطأ</option>';
   }
 };
 
 // Generate absence report
 window.generateAbsenceReport = async function(classId, teacherName) {
-  const fromDate = document.getElementById('absenceFromDate').value.trim();
-  const toDate = document.getElementById('absenceToDate').value.trim();
+  // Build dates from dropdowns
+  const fromYear = document.getElementById('fromYear').value;
+  const fromMonth = document.getElementById('fromMonth').value;
+  const fromDay = document.getElementById('fromDay').value;
+  
+  const toYear = document.getElementById('toYear').value;
+  const toMonth = document.getElementById('toMonth').value;
+  const toDay = document.getElementById('toDay').value;
+  
+  if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
+    alert('⚠️ يرجى اختيار الفترة الزمنية كاملة (السنة والشهر واليوم)');
+    return;
+  }
+  
+  // Build YYYY-MM-DD format
+  const fromDate = `${fromYear}-${String(fromMonth).padStart(2, '0')}-${String(fromDay).padStart(2, '0')}`;
+  const toDate = `${toYear}-${String(toMonth).padStart(2, '0')}-${String(toDay).padStart(2, '0')}`;
+  
   const studentSelection = document.getElementById('absenceStudentSelect').value;
   
   // Check report type selection
@@ -4580,18 +4610,6 @@ window.generateAbsenceReport = async function(classId, teacherName) {
   }
   
   const reportType = reportTypeTardiness.checked ? 'tardiness' : 'absences';
-  
-  if (!fromDate || !toDate) {
-    alert('⚠️ يرجى إدخال الفترة الزمنية كاملة');
-    return;
-  }
-  
-  // Validate date format
-  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-  if (!datePattern.test(fromDate) || !datePattern.test(toDate)) {
-    alert('⚠️ صيغة التاريخ غير صحيحة. استخدم: YYYY-MM-DD');
-    return;
-  }
   
   if (fromDate > toDate) {
     alert('⚠️ تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
@@ -5537,11 +5555,19 @@ async function loadAbsentReportForDate(hijriDate) {
       return;
     }
     
-    // Create classes map for quick lookup
+    // Create classes map for quick lookup (only allowed teachers)
     const classesMap = {};
     classesSnap.forEach(classDoc => {
+      const classId = classDoc.id;
       const classData = classDoc.data();
-      classesMap[classDoc.id] = {
+      const cid = classData.classId || classId;
+      
+      // Filter: only include allowed teachers
+      if (!allowedTeacherIds.includes(cid)) {
+        return; // Skip this class
+      }
+      
+      classesMap[classId] = {
         teacherName: classData.teacherName || classData.className || 'غير محدد',
         absentStudents: []
       };
