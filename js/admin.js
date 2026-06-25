@@ -392,6 +392,200 @@ window.determineActionForLateCount = determineActionForLateCount;
 window.getStudentLateStatus = getStudentLateStatus;
 window.countStudentLateInCurrentMonth = countStudentLateInCurrentMonth;
 
+// ==========================================
+// ABSENCE REGULATIONS SYSTEM (للغياب بدون عذر)
+// ==========================================
+
+/**
+ * Get student's absence tracking data for current month
+ * @param {string} studentId - Student ID
+ * @returns {Promise<Object|null>} Absence tracking data or null
+ */
+async function getStudentMonthlyAbsenceData(studentId) {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    const docRef = doc(db, 'monthlyAbsenceTracking', `${studentId}_${currentMonth}`);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return docSnap.data();
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching student absence data:', error);
+    return null;
+  }
+}
+
+/**
+ * Increment student's absence count for current month
+ * @param {string} studentId - Student ID
+ * @param {string} studentName - Student name
+ * @returns {Promise<Object>} Updated absence data with count and action
+ */
+async function incrementStudentAbsenceCount(studentId, studentName) {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    const todayAccurate = getTodayAccurateHijri();
+    const today = todayAccurate && todayAccurate.hijri ? todayAccurate.hijri : getTodayForStorage();
+    const docRef = doc(db, 'monthlyAbsenceTracking', `${studentId}_${currentMonth}`);
+    
+    // Get existing data
+    const existingData = await getStudentMonthlyAbsenceData(studentId);
+    
+    if (existingData) {
+      // Increment existing count
+      const newCount = existingData.absenceCount + 1;
+      const action = determineActionForAbsenceCount(newCount);
+      
+      await updateDoc(docRef, {
+        absenceCount: newCount,
+        absenceRecords: arrayUnion(today),
+        currentAction: action,
+        lastUpdated: serverTimestamp()
+      });
+      
+      return { absenceCount: newCount, currentAction: action };
+    } else {
+      // Create new record
+      const action = determineActionForAbsenceCount(1);
+      
+      await setDoc(docRef, {
+        studentId,
+        studentName,
+        month: currentMonth,
+        absenceCount: 1,
+        absenceRecords: [today],
+        currentAction: action,
+        createdAt: serverTimestamp(),
+        lastUpdated: serverTimestamp()
+      });
+      
+      return { absenceCount: 1, currentAction: action };
+    }
+  } catch (error) {
+    console.error('Error incrementing absence count:', error);
+    throw error;
+  }
+}
+
+/**
+ * Determine action based on absence count
+ * @param {number} absenceCount - Number of absence occurrences without excuse
+ * @returns {Object} Action details {level, title, description, color, emoji}
+ */
+function determineActionForAbsenceCount(absenceCount) {
+  const actions = {
+    1: {
+      level: 1,
+      title: 'الوقوف خارج الحلقة',
+      description: 'الغياب الأول بدون عذر: الوقوف خارج الحلقة إلى صلاة العشاء',
+      color: '#ff9800',
+      emoji: '🚫'
+    },
+    2: {
+      level: 2,
+      title: 'حرمان واستدعاء ولي الأمر',
+      description: 'الغياب الثاني بدون عذر: حرمان من دخول الحلقة واستدعاء ولي الأمر',
+      color: '#dc3545',
+      emoji: '📋'
+    },
+    3: {
+      level: 3,
+      title: 'استبعاد كامل من الحلقة',
+      description: 'الغياب الثالث بدون عذر في الشهر: استبعاد كامل من الحلقات (فصل)',
+      color: '#721c24',
+      emoji: '❌'
+    }
+  };
+  
+  // For counts >= 3, return level 3 action (expulsion)
+  if (absenceCount >= 3) {
+    return actions[3];
+  }
+  
+  return actions[absenceCount] || actions[1];
+}
+
+/**
+ * Get student's current absence status for modal display
+ * @param {string} studentId - Student ID
+ * @param {string} studentName - Student name
+ * @returns {Promise<Object>} Absence status with count, action, and month
+ */
+async function getStudentAbsenceStatus(studentId, studentName) {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    const absenceData = await getStudentMonthlyAbsenceData(studentId);
+    
+    if (absenceData) {
+      return {
+        month: currentMonth,
+        absenceCount: absenceData.absenceCount,
+        currentAction: absenceData.currentAction,
+        absenceRecords: absenceData.absenceRecords || []
+      };
+    } else {
+      // No absence records for this month
+      return {
+        month: currentMonth,
+        absenceCount: 0,
+        currentAction: null,
+        absenceRecords: []
+      };
+    }
+  } catch (error) {
+    console.error('Error getting student absence status:', error);
+    return {
+      month: getCurrentHijriMonth(),
+      absenceCount: 0,
+      currentAction: null,
+      absenceRecords: []
+    };
+  }
+}
+
+/**
+ * Count student's absence occurrences (without excuse) in current month from daily attendance records
+ * @param {string} studentId - Student ID
+ * @returns {Promise<number>} Number of absence occurrences without excuse this month
+ */
+async function countStudentAbsenceInCurrentMonth(studentId) {
+  try {
+    const currentMonth = getCurrentHijriMonth(); // e.g., "1446-05"
+    
+    // Get all daily reports for this student
+    const reportsRef = collection(db, 'studentProgress', studentId, 'dailyReports');
+    const reportsSnapshot = await getDocs(reportsRef);
+    
+    let absenceCount = 0;
+    
+    reportsSnapshot.forEach(doc => {
+      const data = doc.data();
+      const reportDate = doc.id; // date is the document ID (format: "YYYY-MM-DD")
+      
+      // Check if this report is from current month and status is absent without excuse
+      if (reportDate.startsWith(currentMonth) && 
+          data.status === 'absent' && 
+          data.excuseType === 'withoutExcuse') {
+        absenceCount++;
+      }
+    });
+    
+    return absenceCount;
+  } catch (error) {
+    console.error('Error counting absence occurrences:', error);
+    return 0;
+  }
+}
+
+// Make absence functions globally available
+window.getStudentMonthlyAbsenceData = getStudentMonthlyAbsenceData;
+window.incrementStudentAbsenceCount = incrementStudentAbsenceCount;
+window.determineActionForAbsenceCount = determineActionForAbsenceCount;
+window.getStudentAbsenceStatus = getStudentAbsenceStatus;
+window.countStudentAbsenceInCurrentMonth = countStudentAbsenceInCurrentMonth;
+
 // Teacher names mapping for display in UI
 const teacherNames = {
   'ABD01': 'الأستاذ عبدالرحمن السيسي',
