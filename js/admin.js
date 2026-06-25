@@ -648,6 +648,7 @@ export function initAdmin() {
   
   loadClasses();
   loadAdminNotifications(); // Load notifications on init
+  checkAndNotifyAbsenceViolations(); // Check for absence violations and create notifications
   loadClassesManagement(); // Load classes management section
   if (!listenersInitialized) {
     setupEventListeners();
@@ -3328,6 +3329,8 @@ window.saveDailyAttendance = async function() {
     });
     
     // Save to Firebase
+    const studentsData = JSON.parse(modal.dataset.studentsData || '[]');
+    
     for (const record of attendanceData) {
       const reportRef = firestoreDoc(db, 'studentProgress', record.studentId, 'dailyReports', currentDate);
       
@@ -3341,11 +3344,24 @@ window.saveDailyAttendance = async function() {
       };
       
       await setDoc(reportRef, reportData, { merge: true });
+      
+      // If this is an absence without excuse, increment the absence count
+      if (record.status === 'absent' && record.excuseType === 'withoutExcuse') {
+        // Get student name from studentsData
+        const studentInfo = studentsData.find(s => s.id === record.studentId);
+        const studentName = studentInfo ? studentInfo.name : 'اسم غير معروف';
+        
+        // Increment absence count in monthlyAbsenceTracking
+        await incrementStudentAbsenceCount(record.studentId, studentName);
+      }
     }
     
     // Success
     saveBtn.textContent = '✅ تم الحفظ بنجاح';
     saveBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+    
+    // Check and notify absence violations after saving attendance
+    checkAndNotifyAbsenceViolations();
     
     // Reload attendance indicators for the class dropdown
     const classSelect = document.getElementById('classSelectAttendance');
@@ -3464,20 +3480,58 @@ async function loadAdminNotifications() {
     // Display notifications
     let html = '';
     notifications.forEach(notification => {
-      const bgColor = notification.type === 'not-assessed' ? '#fff3cd' : '#f8d7da';
-      const borderColor = notification.type === 'not-assessed' ? '#ffc107' : '#dc3545';
-      const icon = notification.type === 'not-assessed' ? '⚠️' : '❌';
+      let bgColor, borderColor, icon;
       
-      html += `
-        <div style="background: ${bgColor}; border-right: 4px solid ${borderColor}; padding: 15px; margin-bottom: 10px; border-radius: 8px;">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-            <strong style="font-size: 14px;">${icon} ${notification.title}</strong>
-            <button onclick="window.deleteAdminNotification('${notification.id}')" style="background: transparent; border: none; color: #999; cursor: pointer; font-size: 18px;">×</button>
+      // Determine styling based on notification type
+      if (notification.type === 'absence-violation') {
+        // Absence violation notifications
+        bgColor = notification.penaltyColor ? `${notification.penaltyColor}15` : '#fff3cd';
+        borderColor = notification.penaltyColor || '#dc3545';
+        icon = notification.penaltyEmoji || '🚫';
+        
+        html += `
+          <div style="background: ${bgColor}; border-right: 4px solid ${borderColor}; padding: 15px; margin-bottom: 12px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+              <strong style="font-size: 15px; color: ${borderColor};">${icon} ${notification.title}</strong>
+              <button onclick="window.deleteAdminNotification('${notification.id}')" style="background: transparent; border: none; color: #999; cursor: pointer; font-size: 20px; transition: color 0.2s;" onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'">×</button>
+            </div>
+            <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #333; font-weight: 600;">
+                <span style="color: ${borderColor};">👤</span> ${notification.studentName}
+              </p>
+              <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">
+                <span style="color: #667eea;">👨‍🏫</span> المعلم: ${notification.teacherName}
+              </p>
+              <p style="margin: 0; font-size: 13px; color: #666;">
+                <span style="color: ${borderColor};">📊</span> الغياب: ${notification.absenceCount === 2 ? 'الثاني' : 'الثالث'} بدون عذر
+              </p>
+            </div>
+            <div style="background: ${borderColor}; color: white; padding: 10px; border-radius: 8px; font-size: 13px; line-height: 1.5;">
+              <strong>${icon} ${notification.penalty}</strong>
+              <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.95;">${notification.penaltyDescription}</p>
+            </div>
+            <p style="margin: 10px 0 0 0; font-size: 11px; color: #999; text-align: left;">
+              📅 ${notification.date || ''} - ${notification.dayName || ''}
+            </p>
           </div>
-          <p style="margin: 5px 0; font-size: 13px; color: #333;">${notification.message}</p>
-          <p style="margin: 5px 0 0 0; font-size: 11px; color: #666;">📅 ${notification.date || ''} - ${notification.dayName || ''}</p>
-        </div>
-      `;
+        `;
+      } else {
+        // Other notification types (existing)
+        bgColor = notification.type === 'not-assessed' ? '#fff3cd' : '#f8d7da';
+        borderColor = notification.type === 'not-assessed' ? '#ffc107' : '#dc3545';
+        icon = notification.type === 'not-assessed' ? '⚠️' : '❌';
+        
+        html += `
+          <div style="background: ${bgColor}; border-right: 4px solid ${borderColor}; padding: 15px; margin-bottom: 10px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+              <strong style="font-size: 14px;">${icon} ${notification.title}</strong>
+              <button onclick="window.deleteAdminNotification('${notification.id}')" style="background: transparent; border: none; color: #999; cursor: pointer; font-size: 18px;">×</button>
+            </div>
+            <p style="margin: 5px 0; font-size: 13px; color: #333;">${notification.message}</p>
+            <p style="margin: 5px 0 0 0; font-size: 11px; color: #666;">📅 ${notification.date || ''} - ${notification.dayName || ''}</p>
+          </div>
+        `;
+      }
     });
     
     notificationsList.innerHTML = html;
@@ -3516,6 +3570,96 @@ window.deleteAdminNotification = async function(notificationId) {
     console.error('Error deleting notification:', error);
   }
 };
+
+/**
+ * Check and create notifications for students with 2nd or 3rd absence without excuse
+ * This function scans all students in the current month and creates notifications
+ * for those who have 2 or 3 absences without excuse
+ */
+async function checkAndNotifyAbsenceViolations() {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    
+    // Get all absence tracking records for current month
+    const absenceTrackingSnap = await getDocs(query(
+      collection(db, 'monthlyAbsenceTracking'),
+      where('month', '==', currentMonth)
+    ));
+    
+    if (absenceTrackingSnap.empty) {
+      return; // No absence records this month
+    }
+    
+    // Get all users to map student IDs to teacher names
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const usersMap = {};
+    usersSnap.forEach(doc => {
+      usersMap[doc.id] = doc.data();
+    });
+    
+    // Process each absence record
+    for (const absenceDoc of absenceTrackingSnap.docs) {
+      const absenceData = absenceDoc.data();
+      const absenceCount = absenceData.absenceCount;
+      
+      // Only notify for 2nd or 3rd absence (critical levels)
+      if (absenceCount === 2 || absenceCount === 3) {
+        const studentId = absenceData.studentId;
+        const studentName = absenceData.studentName;
+        const studentData = usersMap[studentId];
+        
+        if (!studentData) continue;
+        
+        // Get teacher name
+        const teacherId = studentData.classId;
+        const teacherName = teacherNames[teacherId] || 'غير محدد';
+        
+        // Get the current action (penalty)
+        const action = absenceData.currentAction;
+        
+        // Create unique notification ID to avoid duplicates
+        const notificationId = `absence_${studentId}_${currentMonth}_${absenceCount}`;
+        
+        // Check if notification already exists
+        const existingNotification = await getDoc(firestoreDoc(db, 'adminNotifications', notificationId));
+        
+        if (!existingNotification.exists()) {
+          // Create new notification
+          await setDoc(firestoreDoc(db, 'adminNotifications', notificationId), {
+            type: 'absence-violation',
+            title: `⚠️ غياب ${absenceCount === 2 ? 'ثاني' : 'ثالث'} بدون عذر`,
+            message: `الطالب: ${studentName} | المعلم: ${teacherName}`,
+            studentId: studentId,
+            studentName: studentName,
+            teacherName: teacherName,
+            absenceCount: absenceCount,
+            penalty: action.title,
+            penaltyDescription: action.description,
+            penaltyEmoji: action.emoji,
+            penaltyColor: action.color,
+            month: currentMonth,
+            read: false,
+            timestamp: serverTimestamp(),
+            date: getTodayForStorage(),
+            dayName: getCurrentDayName()
+          });
+        }
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error checking absence violations:', error);
+  }
+}
+
+/**
+ * Get current day name in Arabic
+ */
+function getCurrentDayName() {
+  const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const today = new Date();
+  return days[today.getDay()];
+}
 
 // Delete struggling report
 window.deleteStrugglingReport = async function(reportId) {
