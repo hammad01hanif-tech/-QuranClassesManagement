@@ -3420,6 +3420,24 @@ window.toggleAdminNotifications = function() {
   if (modal.style.display === 'none' || modal.style.display === '') {
     console.log('✅ Opening notifications modal...');
     modal.style.display = 'block';
+    
+    // Debug: Print computed styles
+    const computedStyle = window.getComputedStyle(modal);
+    console.log('🔍 Modal Debug Info:');
+    console.log('  - display (inline):', modal.style.display);
+    console.log('  - display (computed):', computedStyle.display);
+    console.log('  - position:', computedStyle.position);
+    console.log('  - z-index:', computedStyle.zIndex);
+    console.log('  - visibility:', computedStyle.visibility);
+    console.log('  - opacity:', computedStyle.opacity);
+    console.log('  - top:', computedStyle.top);
+    console.log('  - left:', computedStyle.left);
+    console.log('  - width:', computedStyle.width);
+    console.log('  - height:', computedStyle.height);
+    console.log('  - Modal element:', modal);
+    console.log('  - Parent element:', modal.parentElement);
+    console.log('  - Parent display:', modal.parentElement ? window.getComputedStyle(modal.parentElement).display : 'N/A');
+    
     loadAdminNotifications();
   } else {
     console.log('✅ Closing notifications modal...');
