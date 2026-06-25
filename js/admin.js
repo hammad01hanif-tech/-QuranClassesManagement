@@ -3695,6 +3695,13 @@ async function checkAndNotifyAbsenceViolations() {
     
     console.log(`🎯 Total notifications created: ${notificationsCreated}`);
     
+    // Update notification badges immediately if any new notifications were created
+    if (notificationsCreated > 0) {
+      console.log('🔔 Updating notification badges...');
+      // Reload notifications to update badge count
+      await loadAdminNotifications();
+    }
+    
   } catch (error) {
     console.error('❌ Error checking absence violations:', error);
   }
