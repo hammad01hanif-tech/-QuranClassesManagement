@@ -3524,17 +3524,14 @@ async function loadAdminNotifications() {
       newBadge.style.display = 'block';
     }
     
-    // Display notifications
+    // Display notifications - Only absence violations
     let html = '';
     notifications.forEach(notification => {
-      let bgColor, borderColor, icon;
-      
-      // Determine styling based on notification type
+      // Only show absence-violation notifications
       if (notification.type === 'absence-violation') {
-        // Absence violation notifications
-        bgColor = notification.penaltyColor ? `${notification.penaltyColor}15` : '#fff3cd';
-        borderColor = notification.penaltyColor || '#dc3545';
-        icon = notification.penaltyEmoji || '🚫';
+        const bgColor = notification.penaltyColor ? `${notification.penaltyColor}15` : '#fff3cd';
+        const borderColor = notification.penaltyColor || '#dc3545';
+        const icon = notification.penaltyEmoji || '🚫';
         
         html += `
           <div style="background: ${bgColor}; border-right: 4px solid ${borderColor}; padding: 15px; margin-bottom: 12px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -3560,22 +3557,6 @@ async function loadAdminNotifications() {
             <p style="margin: 10px 0 0 0; font-size: 11px; color: #999; text-align: left;">
               📅 ${notification.date || ''} - ${notification.dayName || ''}
             </p>
-          </div>
-        `;
-      } else {
-        // Other notification types (existing)
-        bgColor = notification.type === 'not-assessed' ? '#fff3cd' : '#f8d7da';
-        borderColor = notification.type === 'not-assessed' ? '#ffc107' : '#dc3545';
-        icon = notification.type === 'not-assessed' ? '⚠️' : '❌';
-        
-        html += `
-          <div style="background: ${bgColor}; border-right: 4px solid ${borderColor}; padding: 15px; margin-bottom: 10px; border-radius: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-              <strong style="font-size: 14px;">${icon} ${notification.title}</strong>
-              <button onclick="window.deleteAdminNotification('${notification.id}')" style="background: transparent; border: none; color: #999; cursor: pointer; font-size: 18px;">×</button>
-            </div>
-            <p style="margin: 5px 0; font-size: 13px; color: #333;">${notification.message}</p>
-            <p style="margin: 5px 0 0 0; font-size: 11px; color: #666;">📅 ${notification.date || ''} - ${notification.dayName || ''}</p>
           </div>
         `;
       }
