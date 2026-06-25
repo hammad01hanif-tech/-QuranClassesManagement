@@ -3409,11 +3409,20 @@ window.closeDailyAttendanceModal = function() {
 
 // Toggle admin notifications panel
 window.toggleAdminNotifications = function() {
+  console.log('🔔 Toggle admin notifications clicked');
   const modal = document.getElementById('adminNotificationsModal');
+  
+  if (!modal) {
+    console.error('❌ adminNotificationsModal not found in DOM!');
+    return;
+  }
+  
   if (modal.style.display === 'none' || modal.style.display === '') {
+    console.log('✅ Opening notifications modal...');
     modal.style.display = 'block';
     loadAdminNotifications();
   } else {
+    console.log('✅ Closing notifications modal...');
     modal.style.display = 'none';
   }
 };
@@ -3448,15 +3457,27 @@ window.logoutFromAdmin = function() {
 
 // Load admin notifications
 async function loadAdminNotifications() {
+  console.log('📥 Loading admin notifications...');
   const notificationsList = document.getElementById('adminNotificationsList');
   const badge = document.getElementById('adminNotificationBadge');
+  const newBadge = document.getElementById('newAdminNotificationBadge'); // التصميم الجديد
+  
+  if (!notificationsList) {
+    console.error('❌ adminNotificationsList element not found!');
+    return;
+  }
   
   try {
     const notificationsSnap = await getDocs(query(collection(db, 'adminNotifications'), where('read', '==', false)));
     
+    console.log(`📊 Found ${notificationsSnap.size} unread notification(s)`);
+    
     if (notificationsSnap.empty) {
       notificationsList.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">لا توجد إشعارات</p>';
-      badge.style.display = 'none';
+      // إخفاء كلا الـ badges
+      if (badge) badge.style.display = 'none';
+      if (newBadge) newBadge.style.display = 'none';
+      console.log('ℹ️ No unread notifications to display');
       return;
     }
     
@@ -3473,9 +3494,17 @@ async function loadAdminNotifications() {
       return 0;
     });
     
-    // Update badge
-    badge.textContent = notifications.length;
-    badge.style.display = 'flex';
+    // Update both badges (old and new design)
+    const count = notifications.length;
+    console.log(`🔔 Updating badges with count: ${count}`);
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = 'flex';
+    }
+    if (newBadge) {
+      newBadge.textContent = count;
+      newBadge.style.display = 'block';
+    }
     
     // Display notifications
     let html = '';
@@ -3535,9 +3564,10 @@ async function loadAdminNotifications() {
     });
     
     notificationsList.innerHTML = html;
+    console.log('✅ Notifications displayed successfully');
     
   } catch (error) {
-    console.error('Error loading admin notifications:', error);
+    console.error('❌ Error loading admin notifications:', error);
     notificationsList.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">حدث خطأ في تحميل الإشعارات</p>';
   }
 }
@@ -3577,8 +3607,10 @@ window.deleteAdminNotification = async function(notificationId) {
  * for those who have 2 or 3 absences without excuse
  */
 async function checkAndNotifyAbsenceViolations() {
+  console.log('🔍 Checking for absence violations...');
   try {
     const currentMonth = getCurrentHijriMonth();
+    console.log('📅 Current month:', currentMonth);
     
     // Get all absence tracking records for current month
     const absenceTrackingSnap = await getDocs(query(
@@ -3587,8 +3619,11 @@ async function checkAndNotifyAbsenceViolations() {
     ));
     
     if (absenceTrackingSnap.empty) {
+      console.log('ℹ️ No absence records found for current month');
       return; // No absence records this month
     }
+    
+    console.log(`✅ Found ${absenceTrackingSnap.size} absence record(s) for current month`);
     
     // Get all users to map student IDs to teacher names
     const usersSnap = await getDocs(collection(db, 'users'));
@@ -3597,10 +3632,14 @@ async function checkAndNotifyAbsenceViolations() {
       usersMap[doc.id] = doc.data();
     });
     
+    let notificationsCreated = 0;
+    
     // Process each absence record
     for (const absenceDoc of absenceTrackingSnap.docs) {
       const absenceData = absenceDoc.data();
       const absenceCount = absenceData.absenceCount;
+      
+      console.log(`📊 Student: ${absenceData.studentName}, Count: ${absenceCount}`);
       
       // Only notify for 2nd or 3rd absence (critical levels)
       if (absenceCount === 2 || absenceCount === 3) {
@@ -3608,7 +3647,10 @@ async function checkAndNotifyAbsenceViolations() {
         const studentName = absenceData.studentName;
         const studentData = usersMap[studentId];
         
-        if (!studentData) continue;
+        if (!studentData) {
+          console.warn(`⚠️ Student data not found for: ${studentId}`);
+          continue;
+        }
         
         // Get teacher name
         const teacherId = studentData.classId;
@@ -3624,6 +3666,7 @@ async function checkAndNotifyAbsenceViolations() {
         const existingNotification = await getDoc(firestoreDoc(db, 'adminNotifications', notificationId));
         
         if (!existingNotification.exists()) {
+          console.log(`🆕 Creating notification for ${studentName} (absence #${absenceCount})`);
           // Create new notification
           await setDoc(firestoreDoc(db, 'adminNotifications', notificationId), {
             type: 'absence-violation',
@@ -3643,12 +3686,18 @@ async function checkAndNotifyAbsenceViolations() {
             date: getTodayForStorage(),
             dayName: getCurrentDayName()
           });
+          notificationsCreated++;
+          console.log(`✅ Notification created successfully for ${studentName}`);
+        } else {
+          console.log(`ℹ️ Notification already exists for ${studentName} (absence #${absenceCount})`);
         }
       }
     }
     
+    console.log(`🎯 Total notifications created: ${notificationsCreated}`);
+    
   } catch (error) {
-    console.error('Error checking absence violations:', error);
+    console.error('❌ Error checking absence violations:', error);
   }
 }
 
