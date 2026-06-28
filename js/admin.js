@@ -493,13 +493,14 @@ function determineActionForAbsenceCount(absenceCount) {
     3: {
       level: 3,
       title: 'استبعاد كامل من الحلقة',
-      description: 'الغياب الثالث بدون عذر في الشهر: استبعاد كامل من الحلقات (فصل)',
+      description: 'الغياب الثالث وما بعده بدون عذر: استبعاد كامل من الحلقات (فصل)',
       color: '#721c24',
       emoji: '❌'
     }
   };
   
   // For counts >= 3, return level 3 action (expulsion)
+  // الغياب الثالث والرابع والخامس والسادس... كلهم نفس العقوبة (فصل)
   if (absenceCount >= 3) {
     return actions[3];
   }
@@ -3547,7 +3548,7 @@ async function loadAdminNotifications() {
                 <span style="color: #667eea;">👨‍🏫</span> المعلم: ${notification.teacherName}
               </p>
               <p style="margin: 0; font-size: 13px; color: #666;">
-                <span style="color: ${borderColor};">📊</span> الغياب: ${notification.absenceCount === 2 ? 'الثاني' : 'الثالث'} بدون عذر
+                <span style="color: ${borderColor};">📊</span> عدد الغيابات: ${notification.absenceCount} بدون عذر
               </p>
             </div>
             <div style="background: ${borderColor}; color: white; padding: 10px; border-radius: 8px; font-size: 13px; line-height: 1.5;">
@@ -3640,8 +3641,8 @@ async function checkAndNotifyAbsenceViolations() {
       
       console.log(`📊 Student: ${absenceData.studentName}, Count: ${absenceCount}`);
       
-      // Only notify for 2nd or 3rd absence (critical levels)
-      if (absenceCount === 2 || absenceCount === 3) {
+      // Notify for 2nd absence and onwards (critical levels)
+      if (absenceCount >= 2) {
         const studentId = absenceData.studentId;
         const studentName = absenceData.studentName;
         const studentData = usersMap[studentId];
@@ -3666,10 +3667,15 @@ async function checkAndNotifyAbsenceViolations() {
         
         if (!existingNotification.exists()) {
           console.log(`🆕 Creating notification for ${studentName} (absence #${absenceCount})`);
+          
+          // Generate ordinal number text
+          const ordinals = {2: 'ثاني', 3: 'ثالث', 4: 'رابع', 5: 'خامس', 6: 'سادس', 7: 'سابع', 8: 'ثامن', 9: 'تاسع', 10: 'عاشر'};
+          const ordinalText = ordinals[absenceCount] || `الـ ${absenceCount}`;
+          
           // Create new notification
           await setDoc(firestoreDoc(db, 'adminNotifications', notificationId), {
             type: 'absence-violation',
-            title: `⚠️ غياب ${absenceCount === 2 ? 'ثاني' : 'ثالث'} بدون عذر`,
+            title: `⚠️ غياب ${ordinalText} بدون عذر`,
             message: `الطالب: ${studentName} | المعلم: ${teacherName}`,
             studentId: studentId,
             studentName: studentName,
@@ -5134,106 +5140,164 @@ async function generateTardinessReport(classId, teacherName, fromDate, toDate, s
   }
 }
 
-// Print tardiness report function
-window.printTardinessReport = function(reportData, fromDate, toDate, teacherName, totalDays) {
-  const fromParts = fromDate.split('-');
-  const toParts = toDate.split('-');
-  const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-  
-  const fromDateDisplay = `${fromParts[2]} ${hijriMonths[parseInt(fromParts[1]) - 1]} ${fromParts[0]} هـ`;
-  const toDateDisplay = `${toParts[2]} ${hijriMonths[parseInt(toParts[1]) - 1]} ${toParts[0]} هـ`;
-  
-  // Build table rows
-  let tableRows = '';
-  reportData.forEach((student, index) => {
-    tableRows += `
-      <tr>
-        <td style="padding: 10px 12px; text-align: right; border: 1px solid #ddd;">${student.name}</td>
-        <td style="padding: 10px 12px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${student.tardinessCount}</td>
-      </tr>
+// Download tardiness report as PDF using html2canvas
+window.downloadTardinessPDF = async function(reportData, fromDate, toDate, teacherName, totalDays) {
+  let loadingMsg = null;
+  try {
+    console.log('📄 Starting PDF generation with html2canvas...');
+    
+    // Check if html2canvas is available
+    if (typeof html2canvas === 'undefined') {
+      console.error('❌ html2canvas library not loaded!');
+      alert('⚠️ مكتبة html2canvas غير محملة. يرجى إعادة تحميل الصفحة.');
+      return;
+    }
+    
+    const fromParts = fromDate.split('-');
+    const toParts = toDate.split('-');
+    const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    
+    const fromDateDisplay = `${fromParts[2]} ${hijriMonths[parseInt(fromParts[1]) - 1]} ${fromParts[0]} هـ`;
+    const toDateDisplay = `${toParts[2]} ${hijriMonths[parseInt(toParts[1]) - 1]} ${toParts[0]} هـ`;
+    
+    // Show loading message
+    loadingMsg = document.createElement('div');
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px 50px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      z-index: 100001;
+      text-align: center;
+      font-size: 18px;
+      color: #ff9800;
     `;
-  });
-  
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html dir="rtl">
-    <head>
-      <meta charset="UTF-8">
-      <title>تقرير تأخيرات الطلاب</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          padding: 20px;
-          direction: rtl;
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-          border-bottom: 3px solid #ff9800;
-          padding-bottom: 15px;
-        }
-        .header h1 {
-          color: #ff9800;
-          margin: 0 0 10px 0;
-          font-size: 24px;
-        }
-        .header p {
-          margin: 5px 0;
-          color: #666;
-          font-size: 14px;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 20px;
-        }
-        th {
-          background: #ff9800;
-          color: white;
-          padding: 12px;
-          text-align: center;
-          border: 1px solid #ddd;
-        }
-        td {
-          padding: 10px 12px;
-          border: 1px solid #ddd;
-        }
-        tr:nth-child(even) {
-          background: #f8f9fa;
-        }
-        @media print {
-          body { padding: 10px; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>⏰ تقرير تأخيرات الطلاب</h1>
-        <p><strong>المعلم:</strong> ${teacherName}</p>
-        <p><strong>الفترة:</strong> من ${fromDateDisplay} إلى ${toDateDisplay}</p>
-        <p><strong>إجمالي الأيام الدراسية:</strong> ${totalDays} يوم</p>
+    loadingMsg.innerHTML = '⏳ جاري إنشاء التقرير...';
+    document.body.appendChild(loadingMsg);
+    
+    // Build table rows HTML
+    let tableRowsHTML = '';
+    reportData.forEach((student, index) => {
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      tableRowsHTML += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 12px; border: 1px solid #dee2e6; font-size: 14px; text-align: right;">${student.name}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; font-size: 14px; text-align: center; font-weight: bold; color: #ff9800;">${student.tardinessCount}</td>
+        </tr>
+      `;
+    });
+    
+    // Create temporary container with HTML content
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 800px;
+      background: white;
+      padding: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #ff9800;">
+        <h1 style="color: #ff9800; margin: 0 0 8px 0; font-size: 32px;">⏰ تقرير تأخيرات الطلاب</h1>
+        <p style="color: #666; font-size: 16px; margin: 5px 0;"><strong>المعلم:</strong> ${teacherName}</p>
+        <p style="color: #666; font-size: 14px; margin: 5px 0;"><strong>الفترة:</strong> من ${fromDateDisplay} إلى ${toDateDisplay}</p>
+        <p style="color: #666; font-size: 14px; margin: 5px 0;"><strong>إجمالي الأيام الدراسية:</strong> ${totalDays} يوم</p>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>اسم الطالب</th>
-            <th>مجموع التأخيرات</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-    </body>
-    </html>
-  `);
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
-  }, 250);
+      
+      <div style="margin-top: 20px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); color: white;">
+              <th style="padding: 14px 12px; text-align: center; font-size: 16px; border: 1px solid #ff9800;">اسم الطالب</th>
+              <th style="padding: 14px 12px; text-align: center; font-size: 16px; border: 1px solid #ff9800; width: 150px;">مجموع التأخيرات</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHTML}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb;">
+        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    console.log('📸 Converting HTML to canvas...');
+    
+    // Convert HTML to canvas using html2canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    console.log('✅ Canvas created successfully');
+    
+    // Remove temporary container
+    document.body.removeChild(container);
+    
+    // Create PDF from canvas
+    console.log('📄 Creating PDF from canvas...');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    // Handle multi-page PDFs
+    const pageHeight = 297; // A4 height in mm
+    let heightLeft = imgHeight;
+    let position = 0;
+    
+    // Add first page
+    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    // Add additional pages if needed
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      doc.addPage();
+      doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    console.log('✅ PDF generated successfully');
+    
+    // Save PDF
+    const fileName = `تقرير_التأخيرات_${teacherName}_${fromParts[0]}-${fromParts[1]}.pdf`;
+    doc.save(fileName);
+    
+    console.log('🎉 PDF saved successfully:', fileName);
+    
+    alert('✅ تم تصدير التقرير بنجاح!');
+    
+  } catch (error) {
+    console.error('❌ Error generating PDF:', error);
+    console.error('Error details:', error.message, error.stack);
+    alert('حدث خطأ في إنشاء ملف PDF: ' + error.message);
+  } finally {
+    // Always remove loading message
+    if (loadingMsg && loadingMsg.parentNode) {
+      loadingMsg.remove();
+    }
+  }
 }
 
 // Display tardiness report table
@@ -5271,7 +5335,7 @@ function displayTardinessReportTable(reportData, fromDate, toDate, teacherName, 
       <div style="background: white; border-radius: 15px; width: 90%; max-width: 550px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
         <div style="background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0; position: relative;">
           <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="position: absolute; top: 12px; left: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 22px; line-height: 1; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="إغلاق">×</button>
-          <button onclick="printTardinessReport(window.currentTardinessReportData.reportData, window.currentTardinessReportData.fromDate, window.currentTardinessReportData.toDate, window.currentTardinessReportData.teacherName, window.currentTardinessReportData.totalDays)" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
+          <button onclick="downloadTardinessPDF(window.currentTardinessReportData.reportData, window.currentTardinessReportData.fromDate, window.currentTardinessReportData.toDate, window.currentTardinessReportData.teacherName, window.currentTardinessReportData.totalDays)" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="تحميل PDF">📥</button>
           <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px; padding: 0 50px;">⏰ تقرير تأخيرات الطلاب</h3>
           <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
@@ -5428,110 +5492,168 @@ async function generateAbsencesReport(classId, teacherName, fromDate, toDate, st
   }
 }
 
-// Print absence report function
-window.printAbsenceReport = function(reportData, fromDate, toDate, teacherName, totalDays) {
-  const fromParts = fromDate.split('-');
-  const toParts = toDate.split('-');
-  const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-  
-  const fromDateDisplay = `${fromParts[2]} ${hijriMonths[parseInt(fromParts[1]) - 1]} ${fromParts[0]} هـ`;
-  const toDateDisplay = `${toParts[2]} ${hijriMonths[parseInt(toParts[1]) - 1]} ${toParts[0]} هـ`;
-  
-  // Build table rows
-  let tableRows = '';
-  reportData.forEach((student, index) => {
-    tableRows += `
-      <tr>
-        <td style="padding: 10px 12px; text-align: right; border: 1px solid #ddd;">${student.name}</td>
-        <td style="padding: 10px 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: #28a745;">${student.excusedAbsences}</td>
-        <td style="padding: 10px 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: #dc3545;">${student.unexcusedAbsences}</td>
-        <td style="padding: 10px 12px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${student.totalAbsences}</td>
-      </tr>
+// Download absence report as PDF using html2canvas
+window.downloadAbsencePDF = async function(reportData, fromDate, toDate, teacherName, totalDays) {
+  let loadingMsg = null;
+  try {
+    console.log('📄 Starting PDF generation with html2canvas...');
+    
+    // Check if html2canvas is available
+    if (typeof html2canvas === 'undefined') {
+      console.error('❌ html2canvas library not loaded!');
+      alert('⚠️ مكتبة html2canvas غير محملة. يرجى إعادة تحميل الصفحة.');
+      return;
+    }
+    
+    const fromParts = fromDate.split('-');
+    const toParts = toDate.split('-');
+    const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    
+    const fromDateDisplay = `${fromParts[2]} ${hijriMonths[parseInt(fromParts[1]) - 1]} ${fromParts[0]} هـ`;
+    const toDateDisplay = `${toParts[2]} ${hijriMonths[parseInt(toParts[1]) - 1]} ${toParts[0]} هـ`;
+    
+    // Show loading message
+    loadingMsg = document.createElement('div');
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px 50px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      z-index: 100001;
+      text-align: center;
+      font-size: 18px;
+      color: #667eea;
     `;
-  });
-  
-  const printWindow = window.open('', '_blank');
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html dir="rtl">
-    <head>
-      <meta charset="UTF-8">
-      <title>تقرير غياب الطلاب</title>
-      <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          padding: 20px;
-          direction: rtl;
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 30px;
-          border-bottom: 3px solid #667eea;
-          padding-bottom: 15px;
-        }
-        .header h1 {
-          color: #667eea;
-          margin: 0 0 10px 0;
-          font-size: 24px;
-        }
-        .header p {
-          margin: 5px 0;
-          color: #666;
-          font-size: 14px;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 20px;
-        }
-        th {
-          background: #667eea;
-          color: white;
-          padding: 12px;
-          text-align: center;
-          border: 1px solid #ddd;
-        }
-        td {
-          padding: 10px 12px;
-          border: 1px solid #ddd;
-        }
-        tr:nth-child(even) {
-          background: #f8f9fa;
-        }
-        @media print {
-          body { padding: 10px; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>📊 تقرير غياب الطلاب</h1>
-        <p><strong>المعلم:</strong> ${teacherName}</p>
-        <p><strong>الفترة:</strong> من ${fromDateDisplay} إلى ${toDateDisplay}</p>
-        <p><strong>إجمالي الأيام الدراسية:</strong> ${totalDays} يوم</p>
+    loadingMsg.innerHTML = '⏳ جاري إنشاء التقرير...';
+    document.body.appendChild(loadingMsg);
+    
+    // Build table rows HTML
+    let tableRowsHTML = '';
+    reportData.forEach((student, index) => {
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      tableRowsHTML += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 12px; border: 1px solid #dee2e6; font-size: 14px; text-align: right;">${student.name}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; font-size: 14px; text-align: center; font-weight: bold; color: #28a745;">${student.excusedAbsences}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; font-size: 14px; text-align: center; font-weight: bold; color: #dc3545;">${student.unexcusedAbsences}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; font-size: 14px; text-align: center; font-weight: bold;">${student.totalAbsences}</td>
+        </tr>
+      `;
+    });
+    
+    // Create temporary container with HTML content
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 900px;
+      background: white;
+      padding: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #667eea;">
+        <h1 style="color: #667eea; margin: 0 0 8px 0; font-size: 32px;">📊 تقرير غياب الطلاب</h1>
+        <p style="color: #666; font-size: 16px; margin: 5px 0;"><strong>المعلم:</strong> ${teacherName}</p>
+        <p style="color: #666; font-size: 14px; margin: 5px 0;"><strong>الفترة:</strong> من ${fromDateDisplay} إلى ${toDateDisplay}</p>
+        <p style="color: #666; font-size: 14px; margin: 5px 0;"><strong>إجمالي الأيام الدراسية:</strong> ${totalDays} يوم</p>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>اسم الطالب</th>
-            <th>غياب بعذر</th>
-            <th>غياب بدون عذر</th>
-            <th>المجموع</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
-      </table>
-    </body>
-    </html>
-  `);
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
-  }, 250);
+      
+      <div style="margin-top: 20px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+              <th style="padding: 14px 12px; text-align: center; font-size: 16px; border: 1px solid #667eea;">اسم الطالب</th>
+              <th style="padding: 14px 12px; text-align: center; font-size: 16px; border: 1px solid #667eea; width: 130px;">غياب بعذر</th>
+              <th style="padding: 14px 12px; text-align: center; font-size: 16px; border: 1px solid #667eea; width: 150px;">غياب بدون عذر</th>
+              <th style="padding: 14px 12px; text-align: center; font-size: 16px; border: 1px solid #667eea; width: 120px;">المجموع</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHTML}
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb;">
+        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    console.log('📸 Converting HTML to canvas...');
+    
+    // Convert HTML to canvas using html2canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    console.log('✅ Canvas created successfully');
+    
+    // Remove temporary container
+    document.body.removeChild(container);
+    
+    // Create PDF from canvas
+    console.log('📄 Creating PDF from canvas...');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    // Handle multi-page PDFs
+    const pageHeight = 297; // A4 height in mm
+    let heightLeft = imgHeight;
+    let position = 0;
+    
+    // Add first page
+    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    // Add additional pages if needed
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      doc.addPage();
+      doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    console.log('✅ PDF generated successfully');
+    
+    // Save PDF
+    const fileName = `تقرير_الغيابات_${teacherName}_${fromParts[0]}-${fromParts[1]}.pdf`;
+    doc.save(fileName);
+    
+    console.log('🎉 PDF saved successfully:', fileName);
+    
+    alert('✅ تم تصدير التقرير بنجاح!');
+    
+  } catch (error) {
+    console.error('❌ Error generating PDF:', error);
+    console.error('Error details:', error.message, error.stack);
+    alert('حدث خطأ في إنشاء ملف PDF: ' + error.message);
+  } finally {
+    // Always remove loading message
+    if (loadingMsg && loadingMsg.parentNode) {
+      loadingMsg.remove();
+    }
+  }
 }
 
 // Display absence report table
@@ -5572,7 +5694,7 @@ function displayAbsenceReportTable(reportData, fromDate, toDate, teacherName, to
       <div style="background: white; border-radius: 15px; width: 90%; max-width: 650px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: auto;" onclick="event.stopPropagation()">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 18px 20px; color: white; border-radius: 15px 15px 0 0; position: relative;">
           <button onclick="document.getElementById('absenceReportResultOverlay').remove()" style="position: absolute; top: 12px; left: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 22px; line-height: 1; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="إغلاق">×</button>
-          <button onclick="printAbsenceReport(window.currentAbsenceReportData.reportData, window.currentAbsenceReportData.fromDate, window.currentAbsenceReportData.toDate, window.currentAbsenceReportData.teacherName, window.currentAbsenceReportData.totalDays)" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="طباعة">🖨️</button>
+          <button onclick="downloadAbsencePDF(window.currentAbsenceReportData.reportData, window.currentAbsenceReportData.fromDate, window.currentAbsenceReportData.toDate, window.currentAbsenceReportData.teacherName, window.currentAbsenceReportData.totalDays)" style="position: absolute; top: 12px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'" title="تحميل PDF">📥</button>
           <h3 style="margin: 0 0 6px 0; text-align: center; font-size: 18px; padding: 0 50px;">📊 تقرير غياب الطلاب</h3>
           <p style="margin: 0; text-align: center; font-size: 13px; opacity: 0.95;">المعلم: ${teacherName}</p>
           <p style="margin: 5px 0 0 0; text-align: center; font-size: 12px; opacity: 0.9;">من ${fromDateDisplay} إلى ${toDateDisplay}</p>
