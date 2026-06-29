@@ -11355,6 +11355,29 @@ details[open] > summary {
   flex: 1;
 }
 
+/* Attached Images in Details View */
+.supervision-detail-item-image,
+.supervision-detail-attached-image {
+  margin-top: 10px;
+  padding: 6px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.supervision-detail-item-image img,
+.supervision-detail-attached-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.supervision-detail-notes-section {
+  margin-top: 8px;
+}
+
 .supervision-detail-item-name {
   font-size: 14px;
   color: #475569;
@@ -11702,29 +11725,6 @@ details[open] > summary {
   margin: 16px 0;
 }
 
-.student-test-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border: 1.5px solid #e9ecef;
-  border-radius: 12px;
-  padding: 16px;
-  transition: all 0.2s ease;
-}
-
-.student-test-card:hover {
-  border-color: #cbd5e0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.student-test-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #667eea;
-}
-
 .student-test-fields {
   display: grid;
   gap: 10px;
@@ -11764,74 +11764,195 @@ details[open] > summary {
   color: #cbd5e0;
 }
 
-/* Image Attachment Section */
-.image-attachment-section {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e9ecef;
+/* Student Test Accordion */
+.student-test-accordion {
+  background: rgba(102, 126, 234, 0.04);
+  border: 1.5px solid rgba(102, 126, 234, 0.15);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.image-attach-btn {
-  display: inline-flex;
+.student-test-accordion:hover {
+  border-color: rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.08);
+}
+
+.student-test-accordion-header {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
+  justify-content: space-between;
+  padding: 14px 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  user-select: none;
+  transition: background 0.2s ease;
 }
 
-.image-attach-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+.student-test-accordion-header:hover {
+  background: rgba(102, 126, 234, 0.08);
 }
 
-.image-attach-btn:active {
-  transform: translateY(0);
+.student-test-accordion-header:active {
+  background: rgba(102, 126, 234, 0.12);
 }
 
-.image-preview-container {
-  margin-top: 10px;
-  position: relative;
+.accordion-header-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.accordion-icon {
+  font-size: 18px;
+}
+
+.accordion-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.accordion-chevron {
+  font-size: 12px;
+  color: #667eea;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-block;
 }
 
-.image-preview {
+.student-test-accordion-body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0 16px;
+}
+
+.student-test-accordion-body[style*="display: block"] {
+  padding: 16px;
+}
+
+/* Notes with Inline Attachment - Chat Style */
+.notes-with-attachment {
+  margin-top: 14px;
+}
+
+.notes-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: white;
+  border: 1.5px solid #e9ecef;
+  border-radius: 12px;
+  padding: 4px;
+  transition: all 0.2s ease;
+}
+
+.notes-input-wrapper:focus-within {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.08);
+}
+
+.notes-input-wrapper textarea {
+  flex: 1;
+  border: none;
+  padding: 10px 12px;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 44px;
+  background: transparent;
+  color: #1a202c;
+}
+
+.notes-input-wrapper textarea:focus {
+  outline: none;
+}
+
+.notes-input-wrapper textarea::placeholder {
+  color: #94a3b8;
+}
+
+.attach-icon-btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-end;
+}
+
+.attach-icon-btn:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.attach-icon-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Image Preview - Chat Bubble Style */
+.image-preview-container {
+  margin-top: 10px;
+  padding: 0;
+}
+
+.image-preview-bubble {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.image-preview-bubble img {
+  display: block;
   max-width: 100%;
   max-height: 200px;
   border-radius: 8px;
-  border: 2px solid #e9ecef;
-  display: block;
+  object-fit: cover;
 }
 
-.image-remove-btn {
+.image-preview-bubble .image-remove-btn {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 28px;
-  height: 28px;
+  top: -6px;
+  right: -6px;
+  width: 26px;
+  height: 26px;
   background: #ef4444;
   color: white;
   border: 2px solid white;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: bold;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
   transition: all 0.2s ease;
+  line-height: 1;
 }
 
-.image-remove-btn:hover {
+.image-preview-bubble .image-remove-btn:hover {
   background: #dc2626;
-  transform: scale(1.1);
+  transform: scale(1.15);
+  box-shadow: 0 3px 12px rgba(239, 68, 68, 0.5);
+}
+
+.image-preview-bubble .image-remove-btn:active {
+  transform: scale(1.05);
 }
 
 /* Supervisor Name Field */
@@ -11889,7 +12010,6 @@ details[open] > summary {
 
 .class-info-badge-text {
   font-weight: 600;
-}
 }
 
 .supervision-item-notes::placeholder {

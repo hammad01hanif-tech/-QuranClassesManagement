@@ -9756,7 +9756,7 @@ const supervisionEvaluationItems = {
       hasNotes: true, 
       notesPlaceholder: 'الملاحظات العامة حول مستوى الحفظ والتجويد...' 
     },
-    { id: 'progressTracking', label: 'متابعة مدى التقدم في الدروس', hasNotes: false },
+    { id: 'progressTracking', label: 'متابعة مدى التقدم في الدروس', hasNotes: true, notesPlaceholder: 'اذكر مدى تقدم الطلاب في حفظ المقرر ومتابعة الجدول الزمني...' },
     { id: 'strugglingStudents', label: 'متابعة الطلاب المتعثرين', hasNotes: true, notesPlaceholder: 'اذكر حالة الطلاب المتعثرين ومدى المتابعة...' },
     { id: 'studentRevision', label: 'متابعة مراجعة الطلاب', hasNotes: true, notesPlaceholder: 'وضح مستوى المراجعة وانتظام الطلاب...' },
     { id: 'maherApp', label: 'التسجيل في تطبيق ماهر', hasNotes: false }
@@ -10527,56 +10527,66 @@ function buildVisitForm() {
         <div class="supervision-eval-card">
           <div class="supervision-eval-label">${item.label}</div>
           
-          <!-- Student Tests -->
+          <!-- Student Tests Accordion -->
           <div class="student-test-container">
-            <!-- Test 1 -->
-            <div class="student-test-card">
-              <div class="student-test-header">
-                <span>🧑‍🎓</span>
-                <span>اختبار طالب 1</span>
+            <!-- Test 1 Accordion -->
+            <div class="student-test-accordion">
+              <div class="student-test-accordion-header" onclick="toggleTestAccordion('test1')">
+                <div class="accordion-header-content">
+                  <span class="accordion-icon">🧑‍🎓</span>
+                  <span class="accordion-title">اختبار طالب 1</span>
+                </div>
+                <span class="accordion-chevron" id="chevron_test1">▼</span>
               </div>
-              <div class="student-test-fields">
-                <div class="test-field">
-                  <label class="test-field-label">اسم الطالب</label>
-                  <input type="text" class="test-field-input" id="test1_studentName" placeholder="اسم الطالب الأول">
-                </div>
-                <div class="test-field">
-                  <label class="test-field-label">الدرس</label>
-                  <input type="text" class="test-field-input" id="test1_lesson" placeholder="مثال: سورة البقرة 1-5">
-                </div>
-                <div class="test-field">
-                  <label class="test-field-label">الدرجة من 10</label>
-                  <input type="number" class="test-field-input" id="test1_grade" placeholder="0-10" min="0" max="10" step="0.5">
-                </div>
-                <div class="test-field">
-                  <label class="test-field-label">ملاحظات</label>
-                  <textarea class="test-field-input" id="test1_notes" placeholder="ملاحظات على أداء الطالب..." rows="2"></textarea>
+              <div class="student-test-accordion-body" id="body_test1" style="display: none;">
+                <div class="student-test-fields">
+                  <div class="test-field">
+                    <label class="test-field-label">اسم الطالب</label>
+                    <input type="text" class="test-field-input" id="test1_studentName" placeholder="اسم الطالب الأول">
+                  </div>
+                  <div class="test-field">
+                    <label class="test-field-label">الدرس</label>
+                    <input type="text" class="test-field-input" id="test1_lesson" placeholder="مثال: سورة البقرة 1-5">
+                  </div>
+                  <div class="test-field">
+                    <label class="test-field-label">الدرجة من 10</label>
+                    <input type="number" class="test-field-input" id="test1_grade" placeholder="0-10" min="0" max="10" step="0.5">
+                  </div>
+                  <div class="test-field">
+                    <label class="test-field-label">ملاحظات</label>
+                    <textarea class="test-field-input" id="test1_notes" placeholder="ملاحظات على أداء الطالب..." rows="2"></textarea>
+                  </div>
                 </div>
               </div>
             </div>
             
-            <!-- Test 2 -->
-            <div class="student-test-card">
-              <div class="student-test-header">
-                <span>🧑‍🎓</span>
-                <span>اختبار طالب 2</span>
+            <!-- Test 2 Accordion -->
+            <div class="student-test-accordion">
+              <div class="student-test-accordion-header" onclick="toggleTestAccordion('test2')">
+                <div class="accordion-header-content">
+                  <span class="accordion-icon">🧑‍🎓</span>
+                  <span class="accordion-title">اختبار طالب 2</span>
+                </div>
+                <span class="accordion-chevron" id="chevron_test2">▼</span>
               </div>
-              <div class="student-test-fields">
-                <div class="test-field">
-                  <label class="test-field-label">اسم الطالب</label>
-                  <input type="text" class="test-field-input" id="test2_studentName" placeholder="اسم الطالب الثاني">
-                </div>
-                <div class="test-field">
-                  <label class="test-field-label">الدرس</label>
-                  <input type="text" class="test-field-input" id="test2_lesson" placeholder="مثال: سورة آل عمران 10-15">
-                </div>
-                <div class="test-field">
-                  <label class="test-field-label">الدرجة من 10</label>
-                  <input type="number" class="test-field-input" id="test2_grade" placeholder="0-10" min="0" max="10" step="0.5">
-                </div>
-                <div class="test-field">
-                  <label class="test-field-label">ملاحظات</label>
-                  <textarea class="test-field-input" id="test2_notes" placeholder="ملاحظات على أداء الطالب..." rows="2"></textarea>
+              <div class="student-test-accordion-body" id="body_test2" style="display: none;">
+                <div class="student-test-fields">
+                  <div class="test-field">
+                    <label class="test-field-label">اسم الطالب</label>
+                    <input type="text" class="test-field-input" id="test2_studentName" placeholder="اسم الطالب الثاني">
+                  </div>
+                  <div class="test-field">
+                    <label class="test-field-label">الدرس</label>
+                    <input type="text" class="test-field-input" id="test2_lesson" placeholder="مثال: سورة آل عمران 10-15">
+                  </div>
+                  <div class="test-field">
+                    <label class="test-field-label">الدرجة من 10</label>
+                    <input type="number" class="test-field-input" id="test2_grade" placeholder="0-10" min="0" max="10" step="0.5">
+                  </div>
+                  <div class="test-field">
+                    <label class="test-field-label">ملاحظات</label>
+                    <textarea class="test-field-input" id="test2_notes" placeholder="ملاحظات على أداء الطالب..." rows="2"></textarea>
+                  </div>
                 </div>
               </div>
             </div>
@@ -10610,20 +10620,21 @@ function buildVisitForm() {
           </div>
           
           ${item.hasNotes ? `
-            <textarea 
-              class="supervision-item-notes" 
-              id="notes_educational_${item.id}"
-              placeholder="${item.notesPlaceholder}"
-              rows="2"
-              oninput="updateItemNotes('educational', '${item.id}', this.value)"
-            ></textarea>
-            <div class="image-attachment-section">
-              <input type="file" id="image_educational_${item.id}" accept="image/*" style="display: none;" onchange="handleImageSelect('educational', '${item.id}', this)">
-              <button type="button" class="image-attach-btn" onclick="document.getElementById('image_educational_${item.id}').click()">
-                <span>📷</span>
-                <span>إرفاق صورة</span>
-              </button>
-              <div id="preview_educational_${item.id}"></div>
+            <div class="notes-with-attachment">
+              <div class="notes-input-wrapper">
+                <textarea 
+                  class="supervision-item-notes" 
+                  id="notes_educational_${item.id}"
+                  placeholder="${item.notesPlaceholder}"
+                  rows="2"
+                  oninput="updateItemNotes('educational', '${item.id}', this.value)"
+                ></textarea>
+                <input type="file" id="image_educational_${item.id}" accept="image/png,image/jpeg,image/jpg" style="display: none;" onchange="handleImageSelect('educational', '${item.id}', this)">
+                <button type="button" class="attach-icon-btn" onclick="document.getElementById('image_educational_${item.id}').click()" title="إرفاق صورة">
+                  📷
+                </button>
+              </div>
+              <div id="preview_educational_${item.id}" class="image-preview-container"></div>
             </div>
           ` : ''}
         </div>
@@ -10657,20 +10668,21 @@ function buildVisitForm() {
           </div>
         </div>
         ${item.hasNotes ? `
-          <textarea 
-            class="supervision-item-notes" 
-            id="notes_educational_${item.id}"
-            placeholder="${item.notesPlaceholder}"
-            rows="2"
-            oninput="updateItemNotes('educational', '${item.id}', this.value)"
-          ></textarea>
-          <div class="image-attachment-section">
-            <input type="file" id="image_educational_${item.id}" accept="image/*" style="display: none;" onchange="handleImageSelect('educational', '${item.id}', this)">
-            <button type="button" class="image-attach-btn" onclick="document.getElementById('image_educational_${item.id}').click()">
-              <span>📷</span>
-              <span>إرفاق صورة</span>
-            </button>
-            <div id="preview_educational_${item.id}"></div>
+          <div class="notes-with-attachment">
+            <div class="notes-input-wrapper">
+              <textarea 
+                class="supervision-item-notes" 
+                id="notes_educational_${item.id}"
+                placeholder="${item.notesPlaceholder}"
+                rows="2"
+                oninput="updateItemNotes('educational', '${item.id}', this.value)"
+              ></textarea>
+              <input type="file" id="image_educational_${item.id}" accept="image/png,image/jpeg,image/jpg" style="display: none;" onchange="handleImageSelect('educational', '${item.id}', this)">
+              <button type="button" class="attach-icon-btn" onclick="document.getElementById('image_educational_${item.id}').click()" title="إرفاق صورة">
+                📷
+              </button>
+            </div>
+            <div id="preview_educational_${item.id}" class="image-preview-container"></div>
           </div>
         ` : ''}
       </div>
@@ -10772,6 +10784,34 @@ window.updateItemNotes = function(section, item, notes) {
 };
 
 /**
+ * Toggle student test accordion
+ */
+window.toggleTestAccordion = function(testId) {
+  const body = document.getElementById(`body_${testId}`);
+  const chevron = document.getElementById(`chevron_${testId}`);
+  
+  if (body.style.display === 'none') {
+    // Open with smooth animation
+    body.style.display = 'block';
+    setTimeout(() => {
+      body.style.maxHeight = body.scrollHeight + 'px';
+      body.style.opacity = '1';
+    }, 10);
+    chevron.style.transform = 'rotate(180deg)';
+    chevron.textContent = '▲';
+  } else {
+    // Close with smooth animation
+    body.style.maxHeight = '0';
+    body.style.opacity = '0';
+    setTimeout(() => {
+      body.style.display = 'none';
+    }, 300);
+    chevron.style.transform = 'rotate(0deg)';
+    chevron.textContent = '▼';
+  }
+};
+
+/**
  * Handle image selection
  */
 window.handleImageSelect = function(section, item, input) {
@@ -10779,8 +10819,8 @@ window.handleImageSelect = function(section, item, input) {
   if (!file) return;
   
   // Validate file type
-  if (!file.type.startsWith('image/')) {
-    alert('⚠️ يرجى اختيار ملف صورة فقط');
+  if (!file.type.match(/^image\/(png|jpeg|jpg)$/)) {
+    alert('⚠️ يرجى اختيار صورة PNG أو JPEG فقط');
     input.value = '';
     return;
   }
@@ -10801,12 +10841,14 @@ window.handleImageSelect = function(section, item, input) {
     const imageKey = `${section}_${item}`;
     currentVisitFormData.imagesData[imageKey] = imageData;
     
-    // Show preview
+    // Show preview - modern chat-style
     const previewContainer = document.getElementById(`preview_${section}_${item}`);
     previewContainer.innerHTML = `
-      <div class="image-preview-container">
-        <img src="${imageData}" class="image-preview" alt="معاينة الصورة">
-        <button type="button" class="image-remove-btn" onclick="removeImage('${section}', '${item}')">×</button>
+      <div class="image-preview-bubble">
+        <img src="${imageData}" alt="معاينة الصورة">
+        <button type="button" class="image-remove-btn" onclick="removeImage('${section}', '${item}')" title="حذف الصورة">
+          <span>×</span>
+        </button>
       </div>
     `;
     
