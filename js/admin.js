@@ -10837,22 +10837,42 @@ window.handleImageSelect = function(section, item, input) {
   reader.onload = function(e) {
     const imageData = e.target.result;
     
+    // Validate base64 data
+    if (!imageData || typeof imageData !== 'string' || !imageData.startsWith('data:image/')) {
+      alert('⚠️ حدث خطأ في قراءة الصورة');
+      input.value = '';
+      return;
+    }
+    
+    // Initialize imagesData if needed
+    if (!currentVisitFormData.imagesData) {
+      currentVisitFormData.imagesData = {};
+    }
+    
     // Store in currentVisitFormData
     const imageKey = `${section}_${item}`;
     currentVisitFormData.imagesData[imageKey] = imageData;
     
     // Show preview - modern chat-style
     const previewContainer = document.getElementById(`preview_${section}_${item}`);
-    previewContainer.innerHTML = `
-      <div class="image-preview-bubble">
-        <img src="${imageData}" alt="معاينة الصورة">
-        <button type="button" class="image-remove-btn" onclick="removeImage('${section}', '${item}')" title="حذف الصورة">
-          <span>×</span>
-        </button>
-      </div>
-    `;
+    if (previewContainer) {
+      previewContainer.innerHTML = `
+        <div class="image-preview-bubble">
+          <img src="${imageData}" alt="معاينة الصورة">
+          <button type="button" class="image-remove-btn" onclick="removeImage('${section}', '${item}')" title="حذف الصورة">
+            <span>×</span>
+          </button>
+        </div>
+      `;
+    }
     
-    console.log('✅ Image attached:', imageKey);
+    console.log('✅ Image attached:', imageKey, 'Size:', Math.round(imageData.length / 1024), 'KB');
+  };
+  
+  reader.onerror = function(error) {
+    console.error('❌ Error reading file:', error);
+    alert('⚠️ حدث خطأ في قراءة الصورة');
+    input.value = '';
   };
   
   reader.readAsDataURL(file);
@@ -10863,17 +10883,24 @@ window.handleImageSelect = function(section, item, input) {
  */
 window.removeImage = function(section, item) {
   const imageKey = `${section}_${item}`;
-  delete currentVisitFormData.imagesData[imageKey];
+  
+  // Remove from currentVisitFormData
+  if (currentVisitFormData.imagesData && currentVisitFormData.imagesData[imageKey]) {
+    delete currentVisitFormData.imagesData[imageKey];
+    console.log('🗑️ Image removed:', imageKey);
+  }
   
   // Clear preview
   const previewContainer = document.getElementById(`preview_${section}_${item}`);
-  previewContainer.innerHTML = '';
+  if (previewContainer) {
+    previewContainer.innerHTML = '';
+  }
   
   // Clear file input
   const fileInput = document.getElementById(`image_${section}_${item}`);
-  if (fileInput) fileInput.value = '';
-  
-  console.log('🗑️ Image removed:', imageKey);
+  if (fileInput) {
+    fileInput.value = '';
+  }
 };
 
 /**
@@ -10939,6 +10966,19 @@ window.saveVisit = async function() {
     
     console.log('📅 [SUPERVISION] Visit date (Hijri):', visitDate, todayHijri);
     
+    // Convert imagesData to a plain object (flatten nested structures)
+    const flatImagesData = {};
+    if (currentVisitFormData.imagesData && Object.keys(currentVisitFormData.imagesData).length > 0) {
+      for (const [key, value] of Object.entries(currentVisitFormData.imagesData)) {
+        // Ensure the value is a valid string
+        if (value && typeof value === 'string') {
+          flatImagesData[key] = value;
+        }
+      }
+    }
+    
+    console.log('📸 [SUPERVISION] Images to save:', Object.keys(flatImagesData).length);
+    
     // Prepare visit data
     const visitData = {
       classId: currentClassData.classId,
@@ -10952,9 +10992,15 @@ window.saveVisit = async function() {
       teacher: currentVisitFormData.teacher,
       environment: currentVisitFormData.environment,
       notes: notes,
-      imagesData: currentVisitFormData.imagesData || {},
       createdAt: serverTimestamp()
     };
+    
+    // Add images only if they exist
+    if (Object.keys(flatImagesData).length > 0) {
+      visitData.imagesData = flatImagesData;
+    }
+    
+    console.log('💾 [SUPERVISION] Preparing to save visit data...');
     
     // Save to Firestore
     const docRef = await addDoc(collection(db, 'supervisionVisits'), visitData);
@@ -10965,7 +11011,7 @@ window.saveVisit = async function() {
       ratings: totalRatings,
       notes: notes ? 'Yes' : 'No',
       studentTests: currentVisitFormData.studentTests ? 'Yes' : 'No',
-      images: Object.keys(currentVisitFormData.imagesData).length
+      images: Object.keys(flatImagesData).length
     });
     
     alert('✅ تم حفظ الزيارة بنجاح!\nالتاريخ الهجري: ' + formatDateForDisplay(visitDate));
@@ -10977,7 +11023,18 @@ window.saveVisit = async function() {
     
   } catch (error) {
     console.error('❌ [SUPERVISION] Error saving visit:', error);
-    alert('❌ حدث خطأ في حفظ الزيارة: ' + error.message);
+    console.error('❌ [SUPERVISION] Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
+    });
+    
+    let errorMessage = 'حدث خطأ في حفظ الزيارة';
+    if (error.message) {
+      errorMessage += ':\n' + error.message;
+    }
+    
+    alert('❌ ' + errorMessage);
   }
 };
 
