@@ -425,6 +425,7 @@ async function loadViewerTeachers(selectElementId = null) {
     'AMR01': 'عامر هوساوي',
     'ANS01': 'الأستاذ أنس',
     'HRT01': 'حارث',
+    'IBR01': 'إبراهيم الطارقي',
     'JHD01': 'الأستاذ جهاد',
     'JWD01': 'عبدالرحمن جاويد',
     'MZB01': 'مازن البلوشي',
