@@ -10202,6 +10202,13 @@ window.openVisitDetails = async function(visitId) {
     const visitDate = visit.visitDate ? formatDateForDisplay(visit.visitDate) : 'تاريخ غير محدد';
     const supervisorName = visit.supervisorName || 'مشرف غير محدد';
     
+    // Debug: Log images data
+    console.log('📸 [SUPERVISION] Visit images data:', {
+      hasImagesData: !!visit.imagesData,
+      imagesCount: visit.imagesData ? Object.keys(visit.imagesData).length : 0,
+      imageKeys: visit.imagesData ? Object.keys(visit.imagesData) : []
+    });
+    
     const ratingTextMap = {
       'excellent': 'ممتاز',
       'good': 'جيد',
@@ -10254,6 +10261,13 @@ window.openVisitDetails = async function(visitId) {
               const imageKey = `educational_${key}`;
               const hasImage = visit.imagesData && visit.imagesData[imageKey];
               
+              // Debug logging
+              console.log('🔍 Checking image for:', imageKey, {
+                hasImagesData: !!visit.imagesData,
+                hasThisImage: hasImage,
+                imageSize: hasImage ? Math.round(visit.imagesData[imageKey].length / 1024) + ' KB' : 'N/A'
+              });
+              
               return `
                 <div class="supervision-detail-item-wrapper">
                   <div class="supervision-detail-item">
@@ -10268,7 +10282,7 @@ window.openVisitDetails = async function(visitId) {
                   ` : ''}
                   ${hasImage ? `
                     <div class="supervision-detail-item-image">
-                      <img src="${visit.imagesData[imageKey]}" alt="صورة مرفقة" style="max-width: 100%; border-radius: 8px; margin-top: 8px;">
+                      <img src="${visit.imagesData[imageKey]}" alt="صورة مرفقة" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
                     </div>
                   ` : ''}
                 </div>
@@ -10812,9 +10826,68 @@ window.toggleTestAccordion = function(testId) {
 };
 
 /**
+ * Compress image to reduce size for Firestore (max 1MB document size)
+ */
+function compressImage(file, maxSizeKB = 400) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Calculate new dimensions (maintain aspect ratio)
+        const maxDimension = 1200;
+        if (width > height) {
+          if (width > maxDimension) {
+            height *= maxDimension / width;
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width *= maxDimension / height;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Try different quality levels to achieve target size
+        let quality = 0.9;
+        let compressedData = canvas.toDataURL('image/jpeg', quality);
+        
+        // Reduce quality until size is acceptable
+        while (compressedData.length > maxSizeKB * 1024 && quality > 0.1) {
+          quality -= 0.1;
+          compressedData = canvas.toDataURL('image/jpeg', quality);
+        }
+        
+        console.log('📸 Image compressed:', {
+          original: Math.round(e.target.result.length / 1024) + ' KB',
+          compressed: Math.round(compressedData.length / 1024) + ' KB',
+          quality: Math.round(quality * 100) + '%'
+        });
+        
+        resolve(compressedData);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
  * Handle image selection
  */
-window.handleImageSelect = function(section, item, input) {
+window.handleImageSelect = async function(section, item, input) {
   const file = input.files[0];
   if (!file) return;
   
@@ -10825,22 +10898,37 @@ window.handleImageSelect = function(section, item, input) {
     return;
   }
   
-  // Validate file size (max 5MB)
-  if (file.size > 5 * 1024 * 1024) {
-    alert('⚠️ حجم الصورة يجب أن يكون أقل من 5 ميجابايت');
+  // Validate file size (max 10MB before compression)
+  if (file.size > 10 * 1024 * 1024) {
+    alert('⚠️ حجم الصورة يجب أن يكون أقل من 10 ميجابايت');
     input.value = '';
     return;
   }
   
-  // Read file as base64
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const imageData = e.target.result;
+  try {
+    // Show loading message
+    const previewContainer = document.getElementById(`preview_${section}_${item}`);
+    if (previewContainer) {
+      previewContainer.innerHTML = '<div style="padding: 8px; color: #667eea;">⏳ جاري ضغط الصورة...</div>';
+    }
     
-    // Validate base64 data
-    if (!imageData || typeof imageData !== 'string' || !imageData.startsWith('data:image/')) {
-      alert('⚠️ حدث خطأ في قراءة الصورة');
+    // Compress image (target size: 400KB for base64)
+    const compressedImageData = await compressImage(file, 400);
+    
+    // Validate compressed data
+    if (!compressedImageData || typeof compressedImageData !== 'string' || !compressedImageData.startsWith('data:image/')) {
+      alert('⚠️ حدث خطأ في معالجة الصورة');
       input.value = '';
+      if (previewContainer) previewContainer.innerHTML = '';
+      return;
+    }
+    
+    // Check final size (Firestore limit: 1MB per document)
+    const finalSizeKB = Math.round(compressedImageData.length / 1024);
+    if (finalSizeKB > 500) {
+      alert('⚠️ الصورة كبيرة جداً حتى بعد الضغط (' + finalSizeKB + ' KB). يرجى اختيار صورة أصغر.');
+      input.value = '';
+      if (previewContainer) previewContainer.innerHTML = '';
       return;
     }
     
@@ -10851,14 +10939,13 @@ window.handleImageSelect = function(section, item, input) {
     
     // Store in currentVisitFormData
     const imageKey = `${section}_${item}`;
-    currentVisitFormData.imagesData[imageKey] = imageData;
+    currentVisitFormData.imagesData[imageKey] = compressedImageData;
     
     // Show preview - modern chat-style
-    const previewContainer = document.getElementById(`preview_${section}_${item}`);
     if (previewContainer) {
       previewContainer.innerHTML = `
         <div class="image-preview-bubble">
-          <img src="${imageData}" alt="معاينة الصورة">
+          <img src="${compressedImageData}" alt="معاينة الصورة">
           <button type="button" class="image-remove-btn" onclick="removeImage('${section}', '${item}')" title="حذف الصورة">
             <span>×</span>
           </button>
@@ -10866,16 +10953,15 @@ window.handleImageSelect = function(section, item, input) {
       `;
     }
     
-    console.log('✅ Image attached:', imageKey, 'Size:', Math.round(imageData.length / 1024), 'KB');
-  };
-  
-  reader.onerror = function(error) {
-    console.error('❌ Error reading file:', error);
-    alert('⚠️ حدث خطأ في قراءة الصورة');
+    console.log('✅ Image attached and compressed:', imageKey, 'Final size:', finalSizeKB, 'KB');
+    
+  } catch (error) {
+    console.error('❌ Error processing image:', error);
+    alert('⚠️ حدث خطأ في معالجة الصورة');
     input.value = '';
-  };
-  
-  reader.readAsDataURL(file);
+    const previewContainer = document.getElementById(`preview_${section}_${item}`);
+    if (previewContainer) previewContainer.innerHTML = '';
+  }
 };
 
 /**
@@ -10979,6 +11065,34 @@ window.saveVisit = async function() {
     
     console.log('📸 [SUPERVISION] Images to save:', Object.keys(flatImagesData).length);
     
+    // Calculate total data size (for debugging)
+    let totalSize = JSON.stringify({
+      educational: currentVisitFormData.educational,
+      educationalNotes: currentVisitFormData.educationalNotes,
+      studentTests: currentVisitFormData.studentTests || {},
+      teacher: currentVisitFormData.teacher,
+      environment: currentVisitFormData.environment
+    }).length;
+    
+    let imagesSize = 0;
+    for (const [key, value] of Object.entries(flatImagesData)) {
+      imagesSize += value.length;
+    }
+    
+    const totalSizeKB = Math.round((totalSize + imagesSize) / 1024);
+    console.log('📊 [SUPERVISION] Data size:', {
+      metadata: Math.round(totalSize / 1024) + ' KB',
+      images: Math.round(imagesSize / 1024) + ' KB',
+      total: totalSizeKB + ' KB',
+      firestoreLimit: '1024 KB'
+    });
+    
+    // Check if total size exceeds Firestore limit
+    if (totalSizeKB > 900) {
+      alert('⚠️ حجم البيانات كبير جداً (' + totalSizeKB + ' KB). يرجى تقليل عدد الصور أو حجمها.');
+      return;
+    }
+    
     // Prepare visit data
     const visitData = {
       classId: currentClassData.classId,
@@ -11000,7 +11114,15 @@ window.saveVisit = async function() {
       visitData.imagesData = flatImagesData;
     }
     
-    console.log('💾 [SUPERVISION] Preparing to save visit data...');
+    console.log('💾 [SUPERVISION] Preparing to save visit data with', Object.keys(flatImagesData).length, 'images...');
+    
+    // Debug: Log what will be saved
+    if (Object.keys(flatImagesData).length > 0) {
+      console.log('📸 [SUPERVISION] Image keys being saved:', Object.keys(flatImagesData));
+      for (const [key, value] of Object.entries(flatImagesData)) {
+        console.log(`  - ${key}: ${Math.round(value.length / 1024)} KB`);
+      }
+    }
     
     // Save to Firestore
     const docRef = await addDoc(collection(db, 'supervisionVisits'), visitData);
