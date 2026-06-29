@@ -10281,8 +10281,9 @@ window.openVisitDetails = async function(visitId) {
                     </div>
                   ` : ''}
                   ${hasImage ? `
-                    <div class="supervision-detail-item-image">
-                      <img src="${visit.imagesData[imageKey]}" alt="صورة مرفقة" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div class="supervision-detail-item-image" style="cursor: pointer;" onclick="window.openImageViewer('${visit.imagesData[imageKey]}', '${itemLabel}')" title="انقر لعرض الصورة بحجم أكبر">
+                      <img src="${visit.imagesData[imageKey]}" alt="صورة مرفقة" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s;" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'">
+                      <div style="text-align: center; color: #667eea; font-size: 12px; margin-top: 5px; font-weight: 500;">🔍 انقر للتكبير</div>
                     </div>
                   ` : ''}
                 </div>
@@ -10367,8 +10368,9 @@ window.openVisitDetails = async function(visitId) {
                     </div>
                   ` : ''}
                   ${hasImage ? `
-                    <div class="supervision-detail-item-image">
-                      <img src="${visit.imagesData[imageKey]}" alt="صورة مرفقة" style="max-width: 100%; border-radius: 8px; margin-top: 8px;">
+                    <div class="supervision-detail-item-image" style="cursor: pointer;" onclick="window.openImageViewer('${visit.imagesData[imageKey]}', '${itemLabel}')" title="انقر لعرض الصورة بحجم أكبر">
+                      <img src="${visit.imagesData[imageKey]}" alt="صورة مرفقة" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s;" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'">
+                      <div style="text-align: center; color: #667eea; font-size: 12px; margin-top: 5px; font-weight: 500;">🔍 انقر للتكبير</div>
                     </div>
                   ` : ''}
                 </div>
@@ -10412,8 +10414,9 @@ window.openVisitDetails = async function(visitId) {
                     </div>
                   ` : ''}
                   ${hasImage ? `
-                    <div class="supervision-detail-item-image">
-                      <img src="${visit.imagesData[imageKey]}" alt="صورة مرفقة" style="max-width: 100%; border-radius: 8px; margin-top: 8px;">
+                    <div class="supervision-detail-item-image" style="cursor: pointer;" onclick="window.openImageViewer('${visit.imagesData[imageKey]}', '${itemLabel}')" title="انقر لعرض الصورة بحجم أكبر">
+                      <img src="${visit.imagesData[imageKey]}" alt="صورة مرفقة" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s;" onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'">
+                      <div style="text-align: center; color: #667eea; font-size: 12px; margin-top: 5px; font-weight: 500;">🔍 انقر للتكبير</div>
                     </div>
                   ` : ''}
                 </div>
@@ -10454,6 +10457,39 @@ window.openVisitDetails = async function(visitId) {
 window.closeVisitDetailsModal = function() {
   document.getElementById('visitDetailsModal').style.display = 'none';
   currentVisitId = null;
+};
+
+/**
+ * Open image viewer modal
+ */
+window.openImageViewer = function(imageSrc, caption = '') {
+  const modal = document.getElementById('imageViewerModal');
+  const img = document.getElementById('imageViewerImg');
+  const captionElement = document.getElementById('imageViewerCaption');
+  
+  if (modal && img) {
+    img.src = imageSrc;
+    if (captionElement) {
+      captionElement.textContent = caption;
+    }
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    
+    console.log('🖼️ [IMAGE] Opening image viewer');
+  }
+};
+
+/**
+ * Close image viewer modal
+ */
+window.closeImageViewer = function() {
+  const modal = document.getElementById('imageViewerModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    
+    console.log('🖼️ [IMAGE] Closing image viewer');
+  }
 };
 
 /**
