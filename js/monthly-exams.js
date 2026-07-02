@@ -44,8 +44,8 @@ async function initExamsDateDropdowns() {
   });
   
   // Fill years (current and previous 2 years)
-  const currentHijriDate = getCurrentHijriDate();
-  const currentYear = parseInt(currentHijriDate.split('-')[0]);
+  const currentHijriData = getCurrentHijriDate();
+  const currentYear = currentHijriData.hijriYear;
   
   for (let i = 0; i < 3; i++) {
     const year = currentYear - i;
@@ -64,8 +64,10 @@ async function initExamsDateDropdowns() {
  */
 window.setExamDateToday = async function() {
   try {
-    const currentHijriDate = getCurrentHijriDate();
-    const [year, month, day] = currentHijriDate.split('-');
+    const currentHijriData = getCurrentHijriDate();
+    const day = String(currentHijriData.hijriDay).padStart(2, '0');
+    const month = String(currentHijriData.hijriMonth).padStart(2, '0');
+    const year = String(currentHijriData.hijriYear);
     
     const daySelect = document.getElementById('examDay');
     const monthSelect = document.getElementById('examMonth');
@@ -323,8 +325,9 @@ async function initializeFilters() {
     });
     
     // Set current month as default
-    const currentHijriDate = getCurrentHijriDate();
-    const [currentYear, currentMonth] = currentHijriDate.split('-');
+    const currentHijriData = getCurrentHijriDate();
+    const currentYear = String(currentHijriData.hijriYear);
+    const currentMonth = String(currentHijriData.hijriMonth).padStart(2, '0');
     const currentMonthKey = `${currentYear}-${currentMonth}`;
     if (monthsArray.includes(currentMonthKey)) {
       monthFilter.value = currentMonthKey;
@@ -422,12 +425,12 @@ function displayExams() {
     
     tableHTML += `
       <tr>
-        <td>${dateStr}</td>
-        <td><strong>${exam.studentName}</strong></td>
-        <td>${exam.teacherName}</td>
-        <td>${exam.examScope}</td>
-        <td><span class="exam-score-badge ${scoreClass}">${exam.score}/100</span></td>
-        <td>${exam.notes || '-'}</td>
+        <td data-label="التاريخ">${dateStr}</td>
+        <td data-label="الطالب"><strong>${exam.studentName}</strong></td>
+        <td data-label="المعلم">${exam.teacherName}</td>
+        <td data-label="المقدار">${exam.examScope}</td>
+        <td data-label="الدرجة"><span class="exam-score-badge ${scoreClass}">${exam.score}/100</span></td>
+        <td data-label="الملاحظات">${exam.notes || '-'}</td>
       </tr>
     `;
   });
@@ -441,12 +444,49 @@ function displayExams() {
 }
 
 /**
+ * Switch between tabs
+ */
+window.switchExamTab = function(tabName) {
+  // Hide all tab contents
+  const tabContents = document.querySelectorAll('.exam-tab-content');
+  tabContents.forEach(content => content.classList.remove('active'));
+  
+  // Remove active class from all tabs
+  const tabs = document.querySelectorAll('.exam-tab');
+  tabs.forEach(tab => tab.classList.remove('active'));
+  
+  // Show selected tab content
+  const selectedContent = document.getElementById(`${tabName}Tab`);
+  if (selectedContent) {
+    selectedContent.classList.add('active');
+  }
+  
+  // Add active class to selected tab button
+  const selectedTab = document.querySelector(`.exam-tab[data-tab="${tabName}"]`);
+  if (selectedTab) {
+    selectedTab.classList.add('active');
+  }
+  
+  // Load data if needed
+  if (tabName === 'history') {
+    loadMonthlyExams();
+  }
+};
+
+/**
  * Initialize Exams Section
  */
 export async function initExamsSection() {
   await initExamsDateDropdowns();
   await loadExamTeachers();
-  await loadMonthlyExams();
+  
+  // Load history tab data in background
+  setTimeout(() => {
+    loadMonthlyExams();
+  }, 100);
+  
+  // Set default tab to 'new'
+  window.switchExamTab('new');
 }
 
 // Make function available globally
