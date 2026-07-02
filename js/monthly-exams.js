@@ -1,5 +1,5 @@
 // Monthly Exams System JavaScript
-import { db, collection, getDocs, addDoc, query, where, orderBy, serverTimestamp } from '../firebase-config.js';
+import { db, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp } from '../firebase-config.js';
 import { getCurrentHijriDate } from './hijri-date.js';
 
 // Global variables
@@ -511,41 +511,28 @@ window.filterExams = function() {
 /**
  * Display Exams
  */
+/**
+ * Display Exams as Minimal Cards
+ */
 function displayExams() {
   const container = document.getElementById('examsTableContainer');
   if (!container) return;
   
   if (filteredExams.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div><p class="empty-state-text">لا توجد اختبارات مسجلة</p></div>';
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📝</div>
+        <p class="empty-state-text">لا توجد اختبارات مسجلة</p>
+        <p class="empty-state-hint">جرب تغيير الفلاتر أو أضف اختبار جديد</p>
+      </div>
+    `;
     return;
   }
   
-  // Create table
-  let tableHTML = `
-    <table class="exams-table">
-      <thead>
-        <tr>
-          <th>التاريخ</th>
-          <th>الطالب</th>
-          <th>المعلم</th>
-          <th>مقدار الاختبار</th>
-          <th>الدرجة</th>
-          <th>الملاحظات</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
+  // Create cards grid
+  let cardsHTML = '<div class="exams-cards-grid">';
   
   filteredExams.forEach(exam => {
-    const [year, month, day] = exam.hijriDate.split('-');
-    const hijriMonths = [
-      'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
-      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
-      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
-    ];
-    const monthName = hijriMonths[parseInt(month) - 1];
-    const dateStr = `${day} ${monthName} ${year}`;
-    
     // Determine score class
     let scoreClass = '';
     if (exam.score >= 90) scoreClass = 'score-excellent';
@@ -553,24 +540,380 @@ function displayExams() {
     else if (exam.score >= 60) scoreClass = 'score-average';
     else scoreClass = 'score-poor';
     
-    tableHTML += `
-      <tr>
-        <td data-label="التاريخ">${dateStr}</td>
-        <td data-label="الطالب"><strong>${exam.studentName}</strong></td>
-        <td data-label="المعلم">${exam.teacherName}</td>
-        <td data-label="المقدار">${exam.examScope}</td>
-        <td data-label="الدرجة"><span class="exam-score-badge ${scoreClass}">${exam.score}/100</span></td>
-        <td data-label="الملاحظات">${exam.notes || '-'}</td>
-      </tr>
+    cardsHTML += `
+      <div class="exam-mini-card" onclick="window.openExamDetails('${exam.id}')">
+        <div class="mini-card-header">
+          <div class="mini-card-student">
+            <span class="mini-card-icon">🧑‍🎓</span>
+            <span class="mini-card-name">${exam.studentName}</span>
+          </div>
+        </div>
+        <div class="mini-card-score ${scoreClass}">
+          <span class="score-icon">🎯</span>
+          <span class="score-value">${exam.score}</span>
+          <span class="score-total">/100</span>
+        </div>
+      </div>
     `;
   });
   
-  tableHTML += `
-      </tbody>
-    </table>
+  cardsHTML += '</div>';
+  container.innerHTML = cardsHTML;
+}
+
+/**
+ * Open Exam Details Modal
+ */
+window.openExamDetails = function(examId) {
+  const exam = filteredExams.find(e => e.id === examId);
+  if (!exam) return;
+  
+  // Format Hijri Date
+  const [year, month, day] = exam.hijriDate.split('-');
+  const hijriMonths = [
+    'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+    'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+    'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+  ];
+  const monthName = hijriMonths[parseInt(month) - 1];
+  const dateStr = `${day} ${monthName} ${year}`;
+  
+  // Determine score class
+  let scoreClass = '';
+  if (exam.score >= 90) scoreClass = 'score-excellent';
+  else if (exam.score >= 75) scoreClass = 'score-good';
+  else if (exam.score >= 60) scoreClass = 'score-average';
+  else scoreClass = 'score-poor';
+  
+  // Create modal HTML
+  const modalHTML = `
+    <div class="exam-details-overlay" onclick="window.closeExamDetails()">
+      <div class="exam-details-modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title">📋 تفاصيل الاختبار</h3>
+          <button class="modal-close-btn" onclick="window.closeExamDetails()">
+            <span>✕</span>
+          </button>
+        </div>
+        
+        <div class="modal-content">
+          <div class="exam-detail-row">
+            <span class="detail-label">🧑‍🎓 الطالب</span>
+            <span class="detail-value">${exam.studentName}</span>
+          </div>
+          
+          <div class="exam-detail-row">
+            <span class="detail-label">👨‍🏫 المعلم</span>
+            <span class="detail-value">${exam.teacherName}</span>
+          </div>
+          
+          <div class="exam-detail-row">
+            <span class="detail-label">📅 التاريخ</span>
+            <span class="detail-value">${dateStr}</span>
+          </div>
+          
+          <div class="exam-detail-row">
+            <span class="detail-label">📖 مقدار الاختبار</span>
+            <span class="detail-value">${exam.examScope}</span>
+          </div>
+          
+          <div class="exam-detail-row highlight">
+            <span class="detail-label">🎯 الدرجة</span>
+            <span class="detail-value ${scoreClass}">${exam.score} / 100</span>
+          </div>
+          
+          <div class="exam-detail-row full-width">
+            <span class="detail-label">📝 الملاحظات</span>
+            <p class="detail-notes">${exam.notes || 'لا توجد ملاحظات'}</p>
+          </div>
+        </div>
+        
+        <div class="modal-actions">
+          <button class="modal-action-btn edit-btn" onclick="window.openEditExam('${exam.id}')">
+            <span class="btn-icon">✏️</span>
+            <span>تعديل</span>
+          </button>
+          <button class="modal-action-btn delete-btn" onclick="window.confirmDeleteExam('${exam.id}')">
+            <span class="btn-icon">🗑️</span>
+            <span>حذف</span>
+          </button>
+        </div>
+      </div>
+    </div>
   `;
   
-  container.innerHTML = tableHTML;
+  // Add modal to body
+  const modalContainer = document.createElement('div');
+  modalContainer.id = 'examDetailsModal';
+  modalContainer.innerHTML = modalHTML;
+  document.body.appendChild(modalContainer);
+  
+  // Trigger animation
+  setTimeout(() => {
+    const overlay = modalContainer.querySelector('.exam-details-overlay');
+    const modal = modalContainer.querySelector('.exam-details-modal');
+    if (overlay) overlay.classList.add('active');
+    if (modal) modal.classList.add('active');
+  }, 10);
+};
+
+/**
+ * Close Exam Details Modal
+ */
+window.closeExamDetails = function() {
+  const modalContainer = document.getElementById('examDetailsModal');
+  if (!modalContainer) return;
+  
+  const overlay = modalContainer.querySelector('.exam-details-overlay');
+  const modal = modalContainer.querySelector('.exam-details-modal');
+  
+  if (overlay) overlay.classList.remove('active');
+  if (modal) modal.classList.remove('active');
+  
+  setTimeout(() => {
+    modalContainer.remove();
+  }, 300);
+};
+
+/**
+ * Open Edit Exam Form
+ */
+window.openEditExam = function(examId) {
+  const exam = filteredExams.find(e => e.id === examId);
+  if (!exam) return;
+  
+  // Close details modal
+  window.closeExamDetails();
+  
+  // Create edit form modal
+  const editModalHTML = `
+    <div class="exam-details-overlay active" onclick="window.closeEditExam()">
+      <div class="exam-details-modal active" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title">✏️ تعديل الاختبار</h3>
+          <button class="modal-close-btn" onclick="window.closeEditExam()">
+            <span>✕</span>
+          </button>
+        </div>
+        
+        <div class="modal-content">
+          <form id="editExamForm" class="edit-exam-form">
+            <div class="form-field">
+              <label class="form-label">🧑‍🎓 الطالب</label>
+              <input type="text" value="${exam.studentName}" disabled class="form-input disabled">
+            </div>
+            
+            <div class="form-field">
+              <label class="form-label">📖 مقدار الاختبار</label>
+              <input type="text" id="editExamScope" value="${exam.examScope}" class="form-input" required>
+            </div>
+            
+            <div class="form-field">
+              <label class="form-label">🎯 الدرجة (من 100)</label>
+              <input type="number" id="editExamScore" value="${exam.score}" min="0" max="100" class="form-input" required>
+            </div>
+            
+            <div class="form-field">
+              <label class="form-label">📝 الملاحظات</label>
+              <textarea id="editExamNotes" class="form-textarea" rows="3">${exam.notes || ''}</textarea>
+            </div>
+            
+            <div id="editFormMessage" class="form-message" style="display: none;"></div>
+          </form>
+        </div>
+        
+        <div class="modal-actions">
+          <button class="modal-action-btn cancel-btn" onclick="window.closeEditExam()">
+            <span>إلغاء</span>
+          </button>
+          <button class="modal-action-btn save-btn" onclick="window.saveEditExam('${exam.id}')">
+            <span class="btn-icon">💾</span>
+            <span>حفظ التعديلات</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const editModalContainer = document.createElement('div');
+  editModalContainer.id = 'editExamModal';
+  editModalContainer.innerHTML = editModalHTML;
+  document.body.appendChild(editModalContainer);
+};
+
+/**
+ * Close Edit Exam Modal
+ */
+window.closeEditExam = function() {
+  const modalContainer = document.getElementById('editExamModal');
+  if (!modalContainer) return;
+  
+  const overlay = modalContainer.querySelector('.exam-details-overlay');
+  const modal = modalContainer.querySelector('.exam-details-modal');
+  
+  if (overlay) overlay.classList.remove('active');
+  if (modal) modal.classList.remove('active');
+  
+  setTimeout(() => {
+    modalContainer.remove();
+  }, 300);
+};
+
+/**
+ * Save Edit Exam
+ */
+window.saveEditExam = async function(examId) {
+  const scope = document.getElementById('editExamScope')?.value.trim();
+  const score = parseInt(document.getElementById('editExamScore')?.value);
+  const notes = document.getElementById('editExamNotes')?.value.trim();
+  const messageDiv = document.getElementById('editFormMessage');
+  
+  if (!scope || isNaN(score) || score < 0 || score > 100) {
+    messageDiv.textContent = '⚠️ يرجى ملء جميع الحقول بشكل صحيح';
+    messageDiv.className = 'form-message error';
+    messageDiv.style.display = 'block';
+    return;
+  }
+  
+  try {
+    const examRef = doc(db, 'monthlyExams', examId);
+    await updateDoc(examRef, {
+      examScope: scope,
+      score: score,
+      notes: notes,
+      updatedAt: new Date()
+    });
+    
+    // Update local data
+    const examIndex = allExams.findIndex(e => e.id === examId);
+    if (examIndex !== -1) {
+      allExams[examIndex].examScope = scope;
+      allExams[examIndex].score = score;
+      allExams[examIndex].notes = notes;
+    }
+    
+    // Re-filter and display
+    filterExams();
+    
+    messageDiv.textContent = '✅ تم حفظ التعديلات بنجاح';
+    messageDiv.className = 'form-message success';
+    messageDiv.style.display = 'block';
+    
+    setTimeout(() => {
+      window.closeEditExam();
+    }, 1500);
+    
+  } catch (error) {
+    console.error('Error updating exam:', error);
+    messageDiv.textContent = '❌ حدث خطأ أثناء الحفظ';
+    messageDiv.className = 'form-message error';
+    messageDiv.style.display = 'block';
+  }
+};
+
+/**
+ * Confirm Delete Exam
+ */
+window.confirmDeleteExam = function(examId) {
+  const exam = filteredExams.find(e => e.id === examId);
+  if (!exam) return;
+  
+  // Close details modal
+  window.closeExamDetails();
+  
+  // Create confirmation dialog
+  const confirmHTML = `
+    <div class="exam-details-overlay active" onclick="window.closeDeleteConfirm()">
+      <div class="exam-details-modal confirm-modal active" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title">⚠️ تأكيد الحذف</h3>
+        </div>
+        
+        <div class="modal-content">
+          <p class="confirm-message">هل أنت متأكد من حذف اختبار:</p>
+          <p class="confirm-student-name">🧑‍🎓 ${exam.studentName}</p>
+          <p class="confirm-warning">⚠️ لا يمكن التراجع عن هذا الإجراء</p>
+        </div>
+        
+        <div class="modal-actions">
+          <button class="modal-action-btn cancel-btn" onclick="window.closeDeleteConfirm()">
+            <span>إلغاء</span>
+          </button>
+          <button class="modal-action-btn delete-confirm-btn" onclick="window.deleteExam('${exam.id}')">
+            <span class="btn-icon">🗑️</span>
+            <span>تأكيد الحذف</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const confirmContainer = document.createElement('div');
+  confirmContainer.id = 'deleteConfirmModal';
+  confirmContainer.innerHTML = confirmHTML;
+  document.body.appendChild(confirmContainer);
+};
+
+/**
+ * Close Delete Confirmation
+ */
+window.closeDeleteConfirm = function() {
+  const modalContainer = document.getElementById('deleteConfirmModal');
+  if (!modalContainer) return;
+  
+  const overlay = modalContainer.querySelector('.exam-details-overlay');
+  const modal = modalContainer.querySelector('.exam-details-modal');
+  
+  if (overlay) overlay.classList.remove('active');
+  if (modal) modal.classList.remove('active');
+  
+  setTimeout(() => {
+    modalContainer.remove();
+  }, 300);
+};
+
+/**
+ * Delete Exam
+ */
+window.deleteExam = async function(examId) {
+  try {
+    // Delete from Firestore
+    await deleteDoc(doc(db, 'monthlyExams', examId));
+    
+    // Remove from local arrays
+    allExams = allExams.filter(e => e.id !== examId);
+    filteredExams = filteredExams.filter(e => e.id !== examId);
+    
+    // Close confirmation modal
+    window.closeDeleteConfirm();
+    
+    // Re-display exams with animation
+    displayExams();
+    
+    // Show success notification
+    showNotification('✅ تم حذف الاختبار بنجاح', 'success');
+    
+  } catch (error) {
+    console.error('Error deleting exam:', error);
+    showNotification('❌ حدث خطأ أثناء الحذف', 'error');
+  }
+};
+
+/**
+ * Show Notification Toast
+ */
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.className = `notification-toast ${type}`;
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => notification.classList.add('active'), 10);
+  
+  setTimeout(() => {
+    notification.classList.remove('active');
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
 }
 
 /**
