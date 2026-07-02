@@ -3711,25 +3711,36 @@
                 </button>
               </div>
 
-              <!-- Filters -->
+              <!-- Smart Filters -->
               <div class="exams-filters">
                 <div class="filter-group">
-                  <label class="filter-label">🗓️ الشهر الهجري</label>
-                  <select id="filterExamMonth" class="filter-select" onchange="window.filterExams()">
+                  <label class="filter-label">
+                    <span class="filter-icon">🗓️</span>
+                    <span>الشهر الهجري</span>
+                  </label>
+                  <select id="filterExamMonth" class="filter-select smart-select" onchange="window.filterExams()">
                     <option value="">جميع الأشهر</option>
                   </select>
                 </div>
 
                 <div class="filter-group">
-                  <label class="filter-label">👨‍🏫 المعلم</label>
-                  <select id="filterExamTeacher" class="filter-select" onchange="window.filterExams()">
+                  <label class="filter-label">
+                    <span class="filter-icon">👨‍🏫</span>
+                    <span>المعلم</span>
+                  </label>
+                  <select id="filterExamTeacher" class="filter-select smart-select" onchange="window.onTeacherFilterChange()">
                     <option value="">جميع المعلمين</option>
                   </select>
                 </div>
 
                 <div class="filter-group">
-                  <label class="filter-label">🔍 الطالب</label>
-                  <input type="text" id="filterExamStudent" class="filter-input" placeholder="ابحث عن طالب..." oninput="window.filterExams()">
+                  <label class="filter-label">
+                    <span class="filter-icon">👤</span>
+                    <span>الطالب</span>
+                  </label>
+                  <select id="filterExamStudent" class="filter-select smart-select" onchange="window.filterExams()">
+                    <option value="">جميع الطلاب</option>
+                  </select>
                 </div>
             </div>
 

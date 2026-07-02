@@ -5,6 +5,8 @@ import { getCurrentHijriDate } from './hijri-date.js';
 // Global variables
 let allExams = [];
 let filteredExams = [];
+let allTeachers = {};
+let currentFilteredStudents = [];
 
 /**
  * Initialize Exams Date Dropdowns
@@ -294,73 +296,201 @@ window.loadMonthlyExams = async function() {
 };
 
 /**
- * Initialize Filters
+ * Load Teachers from Classes Collection
  */
-async function initializeFilters() {
-  // Fill month filter
-  const monthFilter = document.getElementById('filterExamMonth');
-  const teacherFilter = document.getElementById('filterExamTeacher');
-  
-  if (monthFilter) {
-    const months = new Set();
-    allExams.forEach(exam => {
-      if (exam.hijriMonth) months.add(exam.hijriMonth);
-    });
+async function loadTeachersForFilter() {
+  try {
+    // Get all classes
+    const classesSnap = await getDocs(collection(db, 'classes'));
     
-    const monthsArray = Array.from(months).sort().reverse();
-    const hijriMonths = [
-      'المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
-      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
-      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
-    ];
+    allTeachers = {
+      'ABD01': 'عبدالرحمن السيسي',
+      'AMR01': 'عامر هوساوي',
+      'ANS01': 'الأستاذ أنس',
+      'HRT01': 'حارث',
+      'IBR01': 'إبراهيم الطارقي',
+      'JHD01': 'الأستاذ جهاد',
+      'JWD01': 'عبدالرحمن جاويد',
+      'MZB01': 'مازن البلوشي',
+      'MZN01': 'الأستاذ مازن',
+      'NBL01': 'الأستاذ نبيل',
+      'OMR01': 'الأستاذ عمر',
+      'OSM01': 'أسامة حبيب',
+      'SLM01': 'سلمان رفيق'
+    };
     
-    monthFilter.innerHTML = '<option value="">جميع الأشهر</option>';
-    monthsArray.forEach(monthKey => {
-      const [year, month] = monthKey.split('-');
-      const monthName = hijriMonths[parseInt(month) - 1];
-      const option = document.createElement('option');
-      option.value = monthKey;
-      option.textContent = `${monthName} ${year} هـ`;
-      monthFilter.appendChild(option);
-    });
-    
-    // Set current month as default
-    const currentHijriData = getCurrentHijriDate();
-    const currentYear = String(currentHijriData.hijriYear);
-    const currentMonth = String(currentHijriData.hijriMonth).padStart(2, '0');
-    const currentMonthKey = `${currentYear}-${currentMonth}`;
-    if (monthsArray.includes(currentMonthKey)) {
-      monthFilter.value = currentMonthKey;
-    }
-  }
-  
-  // Fill teacher filter
-  if (teacherFilter) {
-    const teachers = new Set();
-    allExams.forEach(exam => {
-      if (exam.teacherId && exam.teacherName) {
-        teachers.add(JSON.stringify({ id: exam.teacherId, name: exam.teacherName }));
-      }
-    });
-    
-    teacherFilter.innerHTML = '<option value="">جميع المعلمين</option>';
-    Array.from(teachers).forEach(teacherStr => {
-      const teacher = JSON.parse(teacherStr);
-      const option = document.createElement('option');
-      option.value = teacher.id;
-      option.textContent = teacher.name;
-      teacherFilter.appendChild(option);
-    });
+  } catch (error) {
+    console.error('Error loading teachers:', error);
   }
 }
 
 /**
- * Filter Exams
+ * Initialize Month Filter with Smart Defaults
+ */
+function initializeMonthFilter() {
+  const monthFilter = document.getElementById('filterExamMonth');
+  if (!monthFilter) return;
+  
+  // Get unique months from exams
+  const months = new Set();
+  allExams.forEach(exam => {
+    if (exam.hijriMonth) months.add(exam.hijriMonth);
+  });
+  
+  const monthsArray = Array.from(months).sort().reverse();
+  const hijriMonths = [
+    'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+    'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+    'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+  ];
+  
+  monthFilter.innerHTML = '<option value="">جميع الأشهر</option>';
+  monthsArray.forEach(monthKey => {
+    const [year, month] = monthKey.split('-');
+    const monthName = hijriMonths[parseInt(month) - 1];
+    const option = document.createElement('option');
+    option.value = monthKey;
+    option.textContent = `${monthName} ${year} هـ`;
+    monthFilter.appendChild(option);
+  });
+  
+  // Set current month as default
+  const currentHijriData = getCurrentHijriDate();
+  const currentYear = String(currentHijriData.hijriYear);
+  const currentMonth = String(currentHijriData.hijriMonth).padStart(2, '0');
+  const currentMonthKey = `${currentYear}-${currentMonth}`;
+  if (monthsArray.includes(currentMonthKey)) {
+    monthFilter.value = currentMonthKey;
+  }
+}
+
+/**
+ * Initialize Teacher Filter with All Teachers
+ */
+function initializeTeacherFilter() {
+  const teacherFilter = document.getElementById('filterExamTeacher');
+  if (!teacherFilter) return;
+  
+  teacherFilter.innerHTML = '<option value="">جميع المعلمين</option>';
+  
+  // Sort teachers by name
+  const sortedTeachers = Object.entries(allTeachers).sort((a, b) => 
+    a[1].localeCompare(b[1], 'ar')
+  );
+  
+  sortedTeachers.forEach(([id, name]) => {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = name;
+    teacherFilter.appendChild(option);
+  });
+}
+
+/**
+ * Initialize Student Filter (Dynamic based on teacher)
+ */
+async function initializeStudentFilter(teacherId = '') {
+  const studentFilter = document.getElementById('filterExamStudent');
+  if (!studentFilter) return;
+  
+  studentFilter.innerHTML = '<option value="">⏳ جاري التحميل...</option>';
+  studentFilter.disabled = true;
+  
+  try {
+    if (!teacherId) {
+      // No teacher selected - show all students from exams
+      const students = new Set();
+      allExams.forEach(exam => {
+        if (exam.studentId && exam.studentName) {
+          students.add(JSON.stringify({ id: exam.studentId, name: exam.studentName }));
+        }
+      });
+      
+      currentFilteredStudents = Array.from(students).map(s => JSON.parse(s));
+      
+      studentFilter.innerHTML = '<option value="">جميع الطلاب</option>';
+      currentFilteredStudents
+        .sort((a, b) => a.name.localeCompare(b.name, 'ar'))
+        .forEach(student => {
+          const option = document.createElement('option');
+          option.value = student.id;
+          option.textContent = student.name;
+          studentFilter.appendChild(option);
+        });
+    } else {
+      // Teacher selected - load students from Firestore
+      const studentsSnap = await getDocs(query(
+        collection(db, 'users'),
+        where('role', '==', 'student'),
+        where('classId', '==', teacherId)
+      ));
+      
+      currentFilteredStudents = [];
+      studentsSnap.forEach(doc => {
+        currentFilteredStudents.push({
+          id: doc.id,
+          name: doc.data().name
+        });
+      });
+      
+      studentFilter.innerHTML = '<option value="">جميع الطلاب</option>';
+      
+      if (currentFilteredStudents.length === 0) {
+        studentFilter.innerHTML = '<option value="">لا يوجد طلاب</option>';
+      } else {
+        currentFilteredStudents
+          .sort((a, b) => a.name.localeCompare(b.name, 'ar'))
+          .forEach(student => {
+            const option = document.createElement('option');
+            option.value = student.id;
+            option.textContent = student.name;
+            studentFilter.appendChild(option);
+          });
+      }
+    }
+    
+    studentFilter.disabled = false;
+    
+  } catch (error) {
+    console.error('Error loading students:', error);
+    studentFilter.innerHTML = '<option value="">خطأ في التحميل</option>';
+    studentFilter.disabled = false;
+  }
+}
+
+/**
+ * Initialize All Filters
+ */
+async function initializeFilters() {
+  await loadTeachersForFilter();
+  initializeMonthFilter();
+  initializeTeacherFilter();
+  await initializeStudentFilter();
+}
+
+/**
+ * Handle Teacher Filter Change
+ */
+window.onTeacherFilterChange = async function() {
+  const teacherId = document.getElementById('filterExamTeacher')?.value;
+  
+  // Reset student filter
+  document.getElementById('filterExamStudent').value = '';
+  
+  // Reload student filter based on selected teacher
+  await initializeStudentFilter(teacherId);
+  
+  // Apply filters
+  window.filterExams();
+};
+
+/**
+ * Smart Filter Exams with Live Updates
  */
 window.filterExams = function() {
   const monthFilter = document.getElementById('filterExamMonth')?.value;
   const teacherFilter = document.getElementById('filterExamTeacher')?.value;
-  const studentFilter = document.getElementById('filterExamStudent')?.value.trim().toLowerCase();
+  const studentFilter = document.getElementById('filterExamStudent')?.value;
   
   filteredExams = allExams.filter(exam => {
     // Filter by month
@@ -369,8 +499,8 @@ window.filterExams = function() {
     // Filter by teacher
     if (teacherFilter && exam.teacherId !== teacherFilter) return false;
     
-    // Filter by student
-    if (studentFilter && !exam.studentName.toLowerCase().includes(studentFilter)) return false;
+    // Filter by student (exact match on ID)
+    if (studentFilter && exam.studentId !== studentFilter) return false;
     
     return true;
   });
