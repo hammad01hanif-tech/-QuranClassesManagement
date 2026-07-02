@@ -3570,6 +3570,15 @@
                 <span class="more-arrow">◀</span>
               </button>
               
+              <button class="more-menu-item" onclick="window.switchViewerSection('exams')">
+                <span class="more-icon">📝</span>
+                <div class="more-text">
+                  <div class="more-title">الاختبارات الشهرية</div>
+                  <div class="more-desc">إدارة درجات الاختبارات الشهرية</div>
+                </div>
+                <span class="more-arrow">◀</span>
+              </button>
+              
               <button class="more-menu-item" onclick="window.showClassReportOptions()">
                 <span class="more-icon">👥</span>
                 <div class="more-text">
@@ -3596,6 +3605,124 @@
                 </div>
                 <span class="more-arrow">◀</span>
               </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Monthly Exams Section -->
+        <div id="viewerExamsSection" class="viewer-main-section">
+          
+          <!-- Header -->
+          <div class="welcome-card">
+            <h2 style="margin: 0 0 10px 0; font-size: 22px;">📝 الاختبارات الشهرية</h2>
+            <p style="margin: 0; opacity: 0.9;">إدارة درجات الاختبارات الشهرية للطلاب</p>
+          </div>
+
+          <!-- Add New Exam Form -->
+          <div class="content-card" style="margin-bottom: 25px;">
+            <div class="card-header" style="margin-bottom: 20px;">
+              <h3 class="card-title">إضافة اختبار شهري جديد</h3>
+            </div>
+
+            <div class="exam-form">
+              <!-- Hijri Date -->
+              <div class="form-field">
+                <label class="form-label">التاريخ الهجري</label>
+                <div class="date-picker-group">
+                  <select id="examDay" class="date-select">
+                    <option value="">اليوم</option>
+                  </select>
+                  <select id="examMonth" class="date-select">
+                    <option value="">الشهر</option>
+                  </select>
+                  <select id="examYear" class="date-select">
+                    <option value="">السنة</option>
+                  </select>
+                </div>
+                <button class="date-today-btn" onclick="window.setExamDateToday()">
+                  تعيين تاريخ اليوم
+                </button>
+              </div>
+
+              <!-- Teacher Selection -->
+              <div class="form-field">
+                <label class="form-label">المعلم</label>
+                <select id="examTeacherSelect" class="form-select" onchange="window.loadExamStudents()">
+                  <option value="">-- اختر المعلم --</option>
+                </select>
+              </div>
+
+              <!-- Student Selection -->
+              <div class="form-field">
+                <label class="form-label">الطالب</label>
+                <select id="examStudentSelect" class="form-select">
+                  <option value="">-- اختر المعلم أولاً --</option>
+                </select>
+              </div>
+
+              <!-- Exam Scope -->
+              <div class="form-field">
+                <label class="form-label">مقدار الاختبار</label>
+                <input type="text" id="examScope" class="form-input" placeholder="مثال: من سورة الصافات إلى سورة الناس">
+              </div>
+
+              <!-- Exam Score -->
+              <div class="form-field">
+                <label class="form-label">الدرجة (من 100)</label>
+                <input type="number" id="examScore" class="form-input" min="0" max="100" placeholder="أدخل الدرجة">
+              </div>
+
+              <!-- Notes -->
+              <div class="form-field">
+                <label class="form-label">ملاحظات</label>
+                <textarea id="examNotes" class="form-textarea" rows="3" placeholder="أضف ملاحظات إضافية (اختياري)"></textarea>
+              </div>
+
+              <!-- Submit Button -->
+              <button class="exam-submit-btn" onclick="window.saveMonthlyExam()">
+                حفظ الدرجة
+              </button>
+
+              <!-- Message Display -->
+              <div id="examFormMessage" class="form-message" style="display: none;"></div>
+            </div>
+          </div>
+
+          <!-- Exams History Section -->
+          <div class="content-card">
+            <div class="card-header">
+              <h3 class="card-title">سجل الاختبارات الشهرية</h3>
+              <button class="icon-btn" onclick="window.loadMonthlyExams()" title="تحديث">
+                <span>🔄</span>
+              </button>
+            </div>
+
+            <!-- Filters -->
+            <div class="exams-filters">
+              <div class="filter-group">
+                <label class="filter-label">الشهر الهجري</label>
+                <select id="filterExamMonth" class="filter-select" onchange="window.filterExams()">
+                  <option value="">جميع الأشهر</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label class="filter-label">المعلم</label>
+                <select id="filterExamTeacher" class="filter-select" onchange="window.filterExams()">
+                  <option value="">جميع المعلمين</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label class="filter-label">الطالب</label>
+                <input type="text" id="filterExamStudent" class="filter-input" placeholder="ابحث عن طالب..." oninput="window.filterExams()">
+              </div>
+            </div>
+
+            <!-- Exams Table -->
+            <div id="examsTableContainer" class="table-container">
+              <p style="text-align: center; color: #999; padding: 40px;">جاري تحميل السجلات...</p>
             </div>
           </div>
 

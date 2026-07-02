@@ -937,7 +937,8 @@ window.switchViewerSection = function(section) {
     'reports': 'viewerReportsSection',
     'register': 'viewerRegisterSection',
     'tasks': 'viewerTasksSection',
-    'more': 'viewerMoreSection'
+    'more': 'viewerMoreSection',
+    'exams': 'viewerExamsSection'
   };
   
   const targetSection = document.getElementById(sectionMap[section]);
@@ -965,6 +966,11 @@ window.switchViewerSection = function(section) {
     // Load reports if needed
     if (typeof window.loadViewerReports === 'function') {
       window.loadViewerReports();
+    }
+  } else if (section === 'exams') {
+    // Initialize exams section
+    if (typeof window.initExamsSection === 'function') {
+      window.initExamsSection();
     }
   }
 };
