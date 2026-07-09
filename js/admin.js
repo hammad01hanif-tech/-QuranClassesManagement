@@ -7725,15 +7725,209 @@ window.switchTasksPeriod = function(period) {
     activeTab.classList.add('active');
   }
   
-  // Reload tasks based on period
+  // Show/hide quick filter based on period
+  const quickFilterSection = document.getElementById('quickFilterSection');
+  if (quickFilterSection) {
+    if (period === 'completed') {
+      // Hide quick filter for completed tab
+      quickFilterSection.style.display = 'none';
+    } else {
+      // Show quick filter for other tabs
+      quickFilterSection.style.display = 'block';
+    }
+  }
+  
+  // Load tasks based on period
   loadTasksByPeriod(period);
+  
+  // Update stats
+  updateTasksStats();
 };
+
+// Quick Filter by Assignee - نقرة واحدة فقط
+window.quickFilterByAssignee = function(assignee) {
+  // Update filter state
+  window.tasksFilterState.assignee = assignee;
+  
+  // Update active pill
+  const allPills = document.querySelectorAll('.filter-pill');
+  allPills.forEach(pill => pill.classList.remove('active'));
+  
+  const activePill = document.querySelector(`.filter-pill[data-assignee="${assignee}"]`);
+  if (activePill) {
+    activePill.classList.add('active');
+  }
+  
+  // Apply filter instantly
+  filterTasksQuick();
+};
+
+// Quick filter tasks - سريع وسلس
+function filterTasksQuick() {
+  const allCards = document.querySelectorAll('.task-modern-card');
+  let visibleCount = 0;
+  
+  // Get today's date for filtering (local timezone)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  // Calculate week range
+  const weekStart = new Date(today);
+  const dayOfWeek = today.getDay();
+  weekStart.setDate(today.getDate() - dayOfWeek);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+  const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
+  
+  // Calculate month range
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const monthStartStr = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}-${String(monthStart.getDate()).padStart(2, '0')}`;
+  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`;
+  
+  allCards.forEach(card => {
+    let shouldShow = true;
+    
+    // Filter by assignee
+    if (window.tasksFilterState.assignee !== 'all') {
+      const taskAssignee = card.dataset.assignee;
+      if (taskAssignee !== window.tasksFilterState.assignee) {
+        shouldShow = false;
+      }
+    }
+    
+    // Filter by period/status and date
+    const cardStatus = card.getAttribute('data-status');
+    const cardDate = card.getAttribute('data-date');
+    const cardRecurrence = card.getAttribute('data-recurrence');
+    
+    if (window.tasksFilterState.period === 'completed') {
+      shouldShow = shouldShow && (cardStatus === 'completed');
+    } else {
+      // Show only active tasks (not completed)
+      shouldShow = shouldShow && (cardStatus !== 'completed');
+      
+      // Filter by date based on period
+      if (cardDate) {
+        if (window.tasksFilterState.period === 'today') {
+          // Show only today's tasks (regardless of recurrence type)
+          shouldShow = shouldShow && (cardDate === todayStr);
+        } else if (window.tasksFilterState.period === 'week') {
+          // Show this week's tasks
+          shouldShow = shouldShow && (cardDate >= weekStartStr && cardDate <= weekEndStr);
+        } else if (window.tasksFilterState.period === 'month') {
+          // Show this month's tasks
+          shouldShow = shouldShow && (cardDate >= monthStartStr && cardDate <= monthEndStr);
+        }
+      }
+    }
+    
+    // Show/hide card with smooth animation
+    if (shouldShow) {
+      card.style.display = 'block';
+      card.style.animation = 'fadeIn 0.3s ease';
+      visibleCount++;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+  
+  // Update visible count
+  const countBadge = document.getElementById('visibleTasksCount');
+  if (countBadge) {
+    countBadge.textContent = `${visibleCount} مهمة`;
+  }
+}
 
 // Load tasks by period
 function loadTasksByPeriod(period) {
   console.log(`Loading tasks for period: ${period}`);
-  // Here you would fetch tasks from Firebase based on period
-  // For now, we'll just log it
+  
+  const allCards = document.querySelectorAll('.task-modern-card');
+  let visibleCount = 0;
+  
+  // Get today's date (local timezone)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  // Calculate week range (Sunday to Saturday)
+  const weekStart = new Date(today);
+  const dayOfWeek = today.getDay();
+  weekStart.setDate(today.getDate() - dayOfWeek);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+  const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
+  
+  // Calculate month range
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const monthStartStr = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}-${String(monthStart.getDate()).padStart(2, '0')}`;
+  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`;
+  
+  allCards.forEach(card => {
+    const cardStatus = card.getAttribute('data-status');
+    const cardDate = card.getAttribute('data-date');
+    const cardRecurrence = card.getAttribute('data-recurrence');
+    let shouldShow = true;
+    
+    if (period === 'completed') {
+      // Show only completed tasks
+      shouldShow = cardStatus === 'completed';
+    } else {
+      // Show only active tasks (not completed)
+      shouldShow = cardStatus !== 'completed';
+      
+      // Filter by date based on period
+      if (cardDate) {
+        if (period === 'today') {
+          // Show only today's tasks (regardless of recurrence type)
+          shouldShow = shouldShow && (cardDate === todayStr);
+        } else if (period === 'week') {
+          // Show this week's tasks
+          shouldShow = shouldShow && (cardDate >= weekStartStr && cardDate <= weekEndStr);
+        } else if (period === 'month') {
+          // Show this month's tasks
+          shouldShow = shouldShow && (cardDate >= monthStartStr && cardDate <= monthEndStr);
+        }
+      }
+    }
+    
+    if (shouldShow) {
+      card.style.display = 'block';
+      card.style.animation = 'fadeIn 0.3s ease';
+      visibleCount++;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+  
+  // Update count badge
+  const countBadge = document.getElementById('visibleTasksCount');
+  if (countBadge) {
+    countBadge.textContent = `${visibleCount} مهمة`;
+  }
+  
+  // Update section title based on period
+  updateSectionTitle(period);
+}
+
+// Update section title
+function updateSectionTitle(period) {
+  const listTitle = document.querySelector('.tasks-list-title');
+  if (!listTitle) return;
+  
+  const titles = {
+    'today': 'مهام اليوم',
+    'week': 'مهام الأسبوع',
+    'month': 'مهام الشهر',
+    'completed': 'المهام المكتملة'
+  };
+  
+  listTitle.textContent = titles[period] || 'قائمة المهام';
 }
 
 // Open Tasks Filter Modal
@@ -7912,6 +8106,15 @@ window.initTasksPage = async function() {
   try {
     console.log('🔧 Initializing Tasks Page...');
     
+    // Initialize filter state
+    window.tasksFilterState = {
+      period: 'today',
+      assignee: 'all',
+      priority: [],
+      status: [],
+      type: []
+    };
+    
     // Update Hijri date
     updateTasksHijriDate();
     
@@ -7922,17 +8125,37 @@ window.initTasksPage = async function() {
     // Load stats
     loadTasksStats();
     
-    // Set default period to today
+    // Set default period to today and default assignee to all
     switchTasksPeriod('today');
+    
+    // Ensure "الكل" pill is active by default
+    const allPill = document.querySelector('.filter-pill[data-assignee="all"]');
+    if (allPill) {
+      allPill.classList.add('active');
+    }
     
     // Setup real-time listener for automatic sync across devices
     console.log('🔄 Setting up real-time listener...');
     setupTasksRealtimeListener();
     
-    console.log('✅ Tasks page initialized with real-time sync');
+    // Setup periodic check for expired tasks (every 5 minutes)
+    if (window.tasksExpiryCheckInterval) {
+      clearInterval(window.tasksExpiryCheckInterval);
+    }
+    window.tasksExpiryCheckInterval = setInterval(async () => {
+      console.log('🕐 Running periodic check for expired tasks...');
+      await checkAndUpdateExpiredTasks();
+    }, 5 * 60 * 1000); // 5 minutes
+    
+    // Run initial check
+    setTimeout(async () => {
+      await checkAndUpdateExpiredTasks();
+    }, 2000);
+    
+    console.log('✅ Tasks page initialized with real-time sync and expiry checking');
   } catch (error) {
     console.error('❌ Error initializing tasks page:', error);
-    alert('حدث خطأ في تحميل المهام. تأكد من اتصالك بالإنترنت.');
+    showErrorToast('حدث خطأ في تحميل المهام. تأكد من اتصالك بالإنترنت.');
   }
 };
 
@@ -8037,6 +8260,12 @@ function resetTaskForm() {
     }
   });
   
+  // Hide advanced settings panel by default
+  const advancedPanel = document.getElementById('advancedSettingsPanel');
+  const toggleBtn = document.querySelector('.advanced-toggle-btn');
+  if (advancedPanel) advancedPanel.style.display = 'none';
+  if (toggleBtn) toggleBtn.classList.remove('active');
+  
   // Reset form visibility (show all fields by default)
   handleRecurrenceChange();
 }
@@ -8140,44 +8369,39 @@ window.saveNewTask = async function() {
   const assignee = document.getElementById('newTaskAssignee')?.value;
   const date = document.getElementById('newTaskDate')?.value;
   const time = document.getElementById('newTaskTime')?.value;
-  const recurrence = document.getElementById('newTaskRecurrence')?.value;
+  const recurrence = document.getElementById('newTaskRecurrence')?.value || 'none';
   
-  // Validation
+  // Validation - Only required fields: title and assignee
   if (!title) {
-    alert('❌ الرجاء إدخال عنوان المهمة');
+    showErrorToast('الرجاء إدخال عنوان المهمة');
+    document.getElementById('newTaskTitle')?.focus();
     return;
   }
   
   if (!assignee) {
-    alert('❌ الرجاء اختيار المسؤول');
-    return;
-  }
-  
-  // Date validation: only required if recurrence is not daily
-  if (recurrence !== 'daily' && !date) {
-    alert('❌ الرجاء اختيار التاريخ');
-    return;
-  }
-  
-  if (!time) {
-    alert('❌ الرجاء اختيار الوقت');
+    showErrorToast('الرجاء اختيار المسؤول');
+    document.getElementById('newTaskAssignee')?.focus();
     return;
   }
   
   try {
-    // For daily recurring tasks, use today's date automatically
-    const taskDate = recurrence === 'daily' ? new Date().toISOString().split('T')[0] : date;
+    // Use default values if not provided
+    const now = new Date();
+    // Use local date instead of UTC
+    const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const taskDate = date || localDateStr;
+    const taskTime = time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
-    // Prepare task data
+    // Prepare task data with defaults
     const taskData = {
       title: title,
       description: description || '',
       type: window.currentTaskType || 'daily',
       assignee: assignee,
       date: taskDate,
-      time: time,
-      priority: window.currentPriority,
-      recurrence: recurrence || 'none',
+      time: taskTime,
+      priority: window.currentPriority || 'medium',
+      recurrence: recurrence,
       status: 'in-progress', // Default status for new tasks
       createdAt: new Date().toISOString(),
       createdBy: 'admin'
@@ -8205,7 +8429,7 @@ window.saveNewTask = async function() {
     updateTasksStats();
     
     // Show success toast
-    showSuccessToast('✅ تم إضافة المهمة بنجاح');
+    showSuccessToast('تم إضافة المهمة بنجاح');
     
     // Close page and return to appropriate tasks view
     setTimeout(() => {
@@ -8223,7 +8447,7 @@ window.saveNewTask = async function() {
     
   } catch (error) {
     console.error('Error saving task:', error);
-    alert('❌ حدث خطأ في حفظ المهمة: ' + error.message);
+    showErrorToast('حدث خطأ في حفظ المهمة');
   }
 };
 
@@ -8305,6 +8529,9 @@ function addTaskToList(taskData) {
   taskCard.dataset.priority = taskData.priority || 'medium';
   taskCard.dataset.type = taskData.type || 'daily';
   taskCard.dataset.taskId = taskId;
+  taskCard.dataset.assignee = taskData.assignee || ''; // للفلترة السريعة
+  taskCard.dataset.date = taskData.date || ''; // للفلترة حسب التاريخ
+  taskCard.dataset.recurrence = taskData.recurrence || 'none'; // للفلترة حسب التكرار
   
   const statusBadge = statusBadges[taskData.status] || statusBadges['in-progress'];
   
@@ -8320,11 +8547,16 @@ function addTaskToList(taskData) {
         </span>
         <div class="task-dropdown-menu" id="dropdown-${taskData.id || taskId}" style="display: none; position: absolute; top: 100%; left: 0; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); padding: 8px; min-width: 140px; z-index: 1000; margin-top: 5px;">
           <div onclick="markTaskComplete('${taskData.id || taskId}')" style="padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #333;" onmouseover="this.style.background='#e8f5e9'" onmouseout="this.style.background='transparent'">
-            <span style="font-size: 16px;">✅</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #28a745;">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
             <span style="font-weight: 600;">مكتملة</span>
           </div>
           <div onclick="deleteTask('${taskData.id || taskId}')" style="padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #dc3545;" onmouseover="this.style.background='#ffebee'" onmouseout="this.style.background='transparent'">
-            <span style="font-size: 16px;">🗑️</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: #dc3545;">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
             <span style="font-weight: 600;">حذف</span>
           </div>
         </div>
@@ -8333,23 +8565,38 @@ function addTaskToList(taskData) {
     
     <div class="task-card-meta">
       <div class="task-meta-item">
-        <span class="meta-icon">👤</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="meta-icon">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
         <span class="meta-text">${taskData.assignee}</span>
       </div>
       <div class="task-meta-item">
-        <span class="meta-icon">🕘</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="meta-icon">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
         <span class="meta-text">${timeDisplay}</span>
       </div>
       <div class="task-meta-item">
         ${taskData.recurrence === 'daily' 
-          ? `<span class="meta-icon">🔁</span>
+          ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="meta-icon">
+               <polyline points="23 4 23 10 17 10"></polyline>
+               <polyline points="1 20 1 14 7 14"></polyline>
+               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+             </svg>
              <span class="meta-text">يومية</span>`
-          : `<span class="meta-icon">📅</span>
+          : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="meta-icon">
+               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+               <line x1="16" y1="2" x2="16" y2="6"></line>
+               <line x1="8" y1="2" x2="8" y2="6"></line>
+               <line x1="3" y1="10" x2="21" y2="10"></line>
+             </svg>
              <span class="meta-text">${getHijriDateDisplay(taskData.date)}</span>`
         }
       </div>
       <div class="task-meta-item priority">
-        <span class="meta-icon">${priorityIcons[taskData.priority]}</span>
+        <span class="task-priority-dot ${taskData.priority}"></span>
         <span class="meta-text">${priorityLabels[taskData.priority]}</span>
       </div>
     </div>
@@ -8549,26 +8796,37 @@ async function deleteTaskFromStorage(taskId) {
 
 // Calculate next recurrence date based on recurrence type
 function calculateNextRecurrenceDate(currentDate, recurrenceType) {
+  // Always calculate from current date
   const nextDate = new Date(currentDate);
+  
+  // Ensure we're working with start of day (no time component)
+  nextDate.setHours(0, 0, 0, 0);
   
   switch(recurrenceType) {
     case 'daily':
+      // Add 1 day
       nextDate.setDate(nextDate.getDate() + 1);
       break;
     case 'weekly':
+      // Add 7 days
       nextDate.setDate(nextDate.getDate() + 7);
       break;
     case 'monthly':
+      // Add 1 month
       nextDate.setMonth(nextDate.getMonth() + 1);
       break;
     case 'yearly':
+      // Add 1 year
       nextDate.setFullYear(nextDate.getFullYear() + 1);
       break;
     default:
       return null;
   }
   
-  return nextDate.toISOString().split('T')[0];
+  // Use local date format to avoid timezone issues
+  const result = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
+  console.log(`📅 Calculated next date: ${currentDate} + ${recurrenceType} = ${result}`);
+  return result;
 }
 
 // Check if there's an overdue instance of this recurring task
@@ -8652,73 +8910,43 @@ async function createRecurringTaskCopy(originalTask) {
   }
 }
 
-// Check and update expired tasks
-function checkAndUpdateExpiredTasks() {
+// Check and update expired tasks - Firestore Version
+async function checkAndUpdateExpiredTasks() {
   try {
-    console.log('🔍 Checking for expired tasks...');
+    console.log('🔍 Checking for expired tasks in Firestore...');
     
-    const tasks = JSON.parse(localStorage.getItem('adminTasks') || '[]');
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to start of today
+    today.setHours(0, 0, 0, 0);
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
-    let tasksToUpdate = [];
-    let tasksToDelete = [];
-    let recurringTasksToCreate = [];
+    // Get all active tasks from Firestore (not completed)
+    const tasksSnapshot = await getDocs(
+      query(
+        collection(db, 'tasks'),
+        where('status', '!=', 'completed')
+      )
+    );
     
-    tasks.forEach(task => {
+    const batch = []; // For batch updates
+    let overdueCount = 0;
+    
+    tasksSnapshot.forEach(doc => {
+      const task = { id: doc.id, ...doc.data() };
+      
       if (!task.date) return; // Skip tasks without dates
       
-      const taskDate = new Date(task.date);
-      taskDate.setHours(0, 0, 0, 0);
-      
-      // If task date is before today (task is expired)
-      if (taskDate < today) {
-        if (task.status === 'completed') {
-          // For completed recurring tasks, create next instance
-          if (task.recurrence && task.recurrence !== 'none') {
-            const originalTaskId = task.originalTaskId || task.id;
-            // Only create if no overdue instance exists
-            if (!hasOverdueInstance(originalTaskId, tasks)) {
-              recurringTasksToCreate.push(task);
-              console.log(`🔄 Will create next instance of: ${task.title}`);
-            }
+      // Compare dates (task date vs today)
+      if (task.date < todayStr && task.status !== 'overdue') {
+        // Task is expired and not marked as overdue yet
+        batch.push({
+          id: task.id,
+          updates: {
+            status: 'overdue',
+            updatedAt: serverTimestamp()
           }
-          // Completed tasks are removed after their date
-          tasksToDelete.push(task.id);
-          console.log(`🗑️ Auto-deleting completed task: ${task.title}`);
-        } else if (task.status !== 'overdue') {
-          // Incomplete tasks become overdue
-          task.status = 'overdue';
-          tasksToUpdate.push(task);
-          console.log(`⏰ Auto-updating to overdue: ${task.title}`);
-        }
-      }
-    });
-    
-    // Delete completed expired tasks
-    if (tasksToDelete.length > 0) {
-      const updatedTasks = tasks.filter(task => !tasksToDelete.includes(task.id));
-      localStorage.setItem('adminTasks', JSON.stringify(updatedTasks));
-      
-      // Remove from DOM
-      tasksToDelete.forEach(taskId => {
-        const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
-        if (taskCard) {
-          taskCard.style.animation = 'fadeOut 0.3s ease';
-          setTimeout(() => taskCard.remove(), 300);
-        }
-      });
-      
-      console.log(`✅ Deleted ${tasksToDelete.length} completed expired tasks`);
-    }
-    
-    // Update overdue tasks
-    if (tasksToUpdate.length > 0) {
-      // Save updated tasks to localStorage
-      localStorage.setItem('adminTasks', JSON.stringify(tasks));
-      
-      // Update in DOM
-      tasksToUpdate.forEach(task => {
+        });
+        
+        // Update in DOM immediately
         const taskCard = document.querySelector(`[data-task-id="${task.id}"]`);
         if (taskCard) {
           taskCard.dataset.status = 'overdue';
@@ -8726,27 +8954,27 @@ function checkAndUpdateExpiredTasks() {
           if (badge) {
             badge.className = 'task-status-badge overdue';
             badge.textContent = 'متأخرة';
-            taskCard.style.animation = 'pulse 0.4s ease';
           }
         }
-      });
+        
+        overdueCount++;
+        console.log(`⏰ Marking as overdue: ${task.title} (date: ${task.date})`);
+      }
+    });
+    
+    // Apply batch updates to Firestore
+    if (batch.length > 0) {
+      for (const item of batch) {
+        await updateDoc(firestoreDoc(db, 'tasks', item.id), item.updates);
+      }
+      console.log(`✅ Updated ${overdueCount} tasks to overdue status`);
       
-      console.log(`✅ Updated ${tasksToUpdate.length} tasks to overdue`);
-    }
-    
-    // Create recurring task copies
-    if (recurringTasksToCreate.length > 0) {
-      recurringTasksToCreate.forEach(task => {
-        createRecurringTaskCopy(task);
-      });
-      console.log(`✅ Created ${recurringTasksToCreate.length} recurring task instances`);
-    }
-    
-    if (tasksToDelete.length > 0 || tasksToUpdate.length > 0 || recurringTasksToCreate.length > 0) {
-      // Update stats after changes
+      // Update stats
       setTimeout(() => {
         updateTasksStats();
-      }, 350);
+      }, 300);
+    } else {
+      console.log('✓ No expired tasks found');
     }
     
   } catch (error) {
@@ -8818,7 +9046,7 @@ window.markTaskComplete = async function(taskId) {
       }
     }
     
-    // Update in DOM
+    // Update in DOM - لا تحذف المهمة، فقط حدّث الحالة
     const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
     if (taskCard) {
       // Update status badge
@@ -8831,26 +9059,32 @@ window.markTaskComplete = async function(taskId) {
       // Update dataset
       taskCard.dataset.status = 'completed';
       
-      // Animate and move to bottom
-      taskCard.style.animation = 'pulse 0.4s ease';
+      // Add completed animation
+      taskCard.style.animation = 'taskCompleted 0.5s ease';
       
-      setTimeout(() => {
-        const tasksList = document.getElementById('tasksCardsList');
-        if (tasksList) {
-          tasksList.appendChild(taskCard);
-          taskCard.style.animation = 'slideUp 0.4s ease';
-        }
-      }, 400);
+      // If not in completed tab, hide the task smoothly
+      const currentPeriod = window.tasksFilterState?.period || 'today';
+      if (currentPeriod !== 'completed') {
+        setTimeout(() => {
+          taskCard.style.animation = 'fadeOut 0.3s ease';
+          setTimeout(() => {
+            taskCard.style.display = 'none';
+          }, 300);
+        }, 500);
+      }
     }
     
     // Update stats
     updateTasksStats();
     
+    // Show success message
+    showSuccessToast('تم تحديد المهمة كمكتملة');
+    
     console.log('✅ Task marked as complete:', taskId);
     
   } catch (error) {
-    console.error('❌ Error marking task complete:', error);
-    alert('حدث خطأ في تحديث المهمة');
+    console.error('❌ Error marking task as complete:', error);
+    showErrorToast('حدث خطأ في تحديث المهمة');
   }
 };
 
@@ -8988,6 +9222,47 @@ function showSuccessToast(message) {
   setTimeout(() => {
     toast.classList.remove('show');
   }, 3000);
+}
+
+// Show Error Toast (Professional error message)
+function showErrorToast(message) {
+  // Check if toast already exists
+  let toast = document.querySelector('.task-error-toast');
+  
+  if (!toast) {
+    // Create toast element
+    toast = document.createElement('div');
+    toast.className = 'task-error-toast';
+    document.body.appendChild(toast);
+  }
+  
+  toast.textContent = message;
+  
+  // Show toast
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+  
+  // Hide after 3 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3000);
+}
+
+// Toggle Advanced Settings Panel
+window.toggleAdvancedSettings = function() {
+  const panel = document.getElementById('advancedSettingsPanel');
+  const toggleBtn = document.querySelector('.advanced-toggle-btn');
+  
+  if (!panel) return;
+  
+  if (panel.style.display === 'none' || panel.style.display === '') {
+    panel.style.display = 'block';
+    if (toggleBtn) toggleBtn.classList.add('active');
+  } else {
+    panel.style.display = 'none';
+    if (toggleBtn) toggleBtn.classList.remove('active');
+  }
 }
 
 // Update floating action button to open add task page
@@ -9314,7 +9589,7 @@ window.saveWaitingStudent = async function() {
     console.log('✅ [WAITING] Student saved successfully! ID:', docRef.id);
     
     // Show success message
-    showSuccessToast('✅ تمت إضافة الطالب إلى قائمة الانتظار');
+    showSuccessToast('تمت إضافة الطالب إلى قائمة الانتظار بنجاح');
     
     // Close add page
     closeAddWaitingStudent();
@@ -11344,7 +11619,7 @@ window.confirmJoinWaitingStudentToClass = async function(studentId) {
     
     // Close modal and reload
     closeWaitingStudentModal();
-    showSuccessToast('✅ تم إضافة الطالب للحلقة بنجاح');
+    showSuccessToast('تم إضافة الطالب للحلقة بنجاح');
     loadWaitingStudents();
     
   } catch (error) {
@@ -11371,7 +11646,7 @@ window.deleteWaitingStudent = async function(studentId) {
     await deleteDoc(doc(db, 'waitingStudents', studentId));
     console.log('✅ [WAITING] Student deleted successfully');
     
-    showSuccessToast('✅ تم حذف الطالب من قائمة الانتظار');
+    showSuccessToast('تم حذف الطالب من قائمة الانتظار بنجاح');
     
     // Reload list
     loadWaitingStudents();

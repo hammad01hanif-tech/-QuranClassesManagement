@@ -601,11 +601,16 @@
           <div class="tasks-modern-header">
             <div class="tasks-header-top">
               <button class="header-back-btn" onclick="window.switchAdminSection('dashboard')">
-                <span>←</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
               </button>
               <h1 class="tasks-main-title">المهام</h1>
               <button class="header-notification-btn" onclick="alert('الإشعارات')">
-                <span>🔔</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
                 <span class="notification-badge">3</span>
               </button>
             </div>
@@ -617,14 +622,40 @@
               <span class="tab-label">اليوم</span>
               <span class="tab-indicator"></span>
             </button>
+            <button class="period-tab" data-period="week" onclick="switchTasksPeriod('week')">
+              <span class="tab-label">الأسبوع</span>
+              <span class="tab-indicator"></span>
+            </button>
             <button class="period-tab" data-period="month" onclick="switchTasksPeriod('month')">
               <span class="tab-label">الشهر</span>
               <span class="tab-indicator"></span>
             </button>
-            <button class="period-tab" data-period="year" onclick="switchTasksPeriod('year')">
-              <span class="tab-label">السنة</span>
+            <button class="period-tab" data-period="completed" onclick="switchTasksPeriod('completed')">
+              <span class="tab-label">المكتملة</span>
               <span class="tab-indicator"></span>
             </button>
+          </div>
+
+          <!-- Quick Filter Pills - للمسؤولين -->
+          <div class="quick-filter-section" id="quickFilterSection">
+            <div class="quick-filter-label">فلترة سريعة:</div>
+            <div class="quick-filter-pills">
+              <button class="filter-pill active" data-assignee="all" onclick="quickFilterByAssignee('all')">
+                الكل
+              </button>
+              <button class="filter-pill" data-assignee="عبدالمجيد" onclick="quickFilterByAssignee('عبدالمجيد')">
+                عبدالمجيد
+              </button>
+              <button class="filter-pill" data-assignee="إدريس" onclick="quickFilterByAssignee('إدريس')">
+                إدريس
+              </button>
+              <button class="filter-pill" data-assignee="حماد" onclick="quickFilterByAssignee('حماد')">
+                حماد
+              </button>
+              <button class="filter-pill" data-assignee="حمزة" onclick="quickFilterByAssignee('حمزة')">
+                حمزة
+              </button>
+            </div>
           </div>
 
           <!-- Tasks Date Info -->
@@ -636,28 +667,51 @@
           <!-- Tasks Stats Cards -->
           <div class="tasks-stats-grid">
             <div class="task-stat-card total">
-              <div class="stat-icon">📋</div>
+              <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+              </div>
               <div class="stat-content">
                 <div class="stat-number" id="totalTasksCount">0</div>
                 <div class="stat-label">إجمالي المهام</div>
               </div>
             </div>
             <div class="task-stat-card in-progress">
-              <div class="stat-icon">⏳</div>
+              <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
               <div class="stat-content">
                 <div class="stat-number" id="inProgressTasksCount">0</div>
                 <div class="stat-label">جاري التنفيذ</div>
               </div>
             </div>
             <div class="task-stat-card completed">
-              <div class="stat-icon">✅</div>
+              <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
               <div class="stat-content">
                 <div class="stat-number" id="completedTasksCount">0</div>
                 <div class="stat-label">مكتملة</div>
               </div>
             </div>
             <div class="task-stat-card overdue">
-              <div class="stat-icon">⏰</div>
+              <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                  <line x1="12" y1="2" x2="12" y2="6"/>
+                </svg>
+              </div>
               <div class="stat-content">
                 <div class="stat-number" id="overdueTasksCount">0</div>
                 <div class="stat-label">متأخرة</div>
@@ -665,12 +719,16 @@
             </div>
           </div>
 
-          <!-- Filter Button -->
+          <!-- Advanced Filter Button -->
           <div class="tasks-filter-section">
             <button class="tasks-filter-btn" onclick="openTasksFilter()">
-              <span class="filter-icon">🔍</span>
-              <span class="filter-text">فلترة المهام</span>
-              <span class="filter-arrow">←</span>
+              <svg class="filter-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              <span class="filter-text">فلترة متقدمة</span>
+              <svg class="filter-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
             </button>
           </div>
 
@@ -833,7 +891,10 @@
           <!-- Add Task Header -->
           <div class="add-task-header">
             <button class="add-task-back-btn" onclick="closeAddTaskPage()">
-              <span>✕</span>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
             </button>
             <h1 class="add-task-title">إضافة مهمة جديدة</h1>
             <div style="width: 40px;"></div> <!-- Spacer for centering -->
@@ -842,100 +903,123 @@
           <!-- Add Task Form Container -->
           <div class="add-task-form-container">
             
-            <!-- Task Title -->
-            <div class="form-section">
-              <label class="form-label required">عنوان المهمة</label>
-              <input type="text" id="newTaskTitle" class="form-input" placeholder="اكتب عنوان المهمة" required>
-            </div>
+            <!-- Quick Add Section - Essential Fields Only -->
+            <div class="quick-add-section">
+              <div class="section-label">المعلومات الأساسية</div>
+              
+              <!-- Task Title -->
+              <div class="form-section">
+                <label class="form-label required">عنوان المهمة</label>
+                <input type="text" id="newTaskTitle" class="form-input" placeholder="مثال: متابعة حضور الطلاب" required>
+              </div>
 
-            <!-- Task Description -->
-            <div class="form-section">
-              <label class="form-label">الوصف</label>
-              <textarea id="newTaskDescription" class="form-textarea" rows="4" placeholder="اكتب وصف المهمة (اختياري)"></textarea>
-            </div>
-
-            <!-- Recurrence (Moved here - after description) -->
-            <div class="form-section">
-              <label class="form-label required">التكرار</label>
-              <select id="newTaskRecurrence" class="form-select" onchange="handleRecurrenceChange()">
-                <option value="none">بدون تكرار</option>
-                <option value="daily">يومي</option>
-                <option value="weekly">أسبوعي</option>
-                <option value="monthly">شهري</option>
-                <option value="yearly">سنوي</option>
-              </select>
-            </div>
-
-            <!-- Task Type (conditionally shown) -->
-            <div class="form-section" id="taskTypeSection">
-              <label class="form-label required">نوع المهمة</label>
-              <div class="segmented-control">
-                <button class="segment-btn active" data-type="daily" onclick="selectTaskType('daily')">
-                  <span class="segment-icon">🔁</span>
-                  <span>يومية</span>
-                </button>
-                <button class="segment-btn" data-type="monthly" onclick="selectTaskType('monthly')">
-                  <span class="segment-icon">📊</span>
-                  <span>شهرية</span>
-                </button>
-                <button class="segment-btn" data-type="yearly" onclick="selectTaskType('yearly')">
-                  <span class="segment-icon">📆</span>
-                  <span>سنوية</span>
-                </button>
+              <!-- Assignee -->
+              <div class="form-section">
+                <label class="form-label required">المسؤول</label>
+                <select id="newTaskAssignee" class="form-select">
+                  <option value="">اختر المسؤول</option>
+                  <option value="الكل">الكل</option>
+                  <option value="عبدالمجيد">عبدالمجيد</option>
+                  <option value="إدريس">إدريس</option>
+                  <option value="حماد">حماد</option>
+                  <option value="حمزة">حمزة</option>
+                </select>
               </div>
             </div>
 
-            <!-- Assignee -->
-            <div class="form-section">
-              <label class="form-label required">المسؤول</label>
-              <select id="newTaskAssignee" class="form-select">
-                <option value="">-- اختر المسؤول --</option>
-                <option value="الكل">الكل</option>
-                <option value="عبدالمجيد">عبدالمجيد</option>
-                <option value="إدريس">إدريس</option>
-                <option value="حماد">حماد</option>
-                <option value="حمزة">حمزة</option>
-              </select>
+            <!-- Advanced Settings Toggle Button -->
+            <div class="advanced-toggle-section">
+              <button type="button" class="advanced-toggle-btn" onclick="toggleAdvancedSettings()">
+                <svg class="toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 1v6m0 6v6m-5-13l3 5.2m2.5 4.3l3 5.2M1 12h6m6 0h6M4 19l3-5.2m2.5-4.3l3-5.2"/>
+                </svg>
+                <span>إعدادات متقدمة</span>
+                <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
             </div>
 
-            <!-- Date and Time Row -->
-            <div class="form-row">
-              <!-- Date (conditionally shown) -->
-              <div class="form-section half" id="taskDateSection">
-                <label class="form-label required">التاريخ</label>
-                <input type="date" id="newTaskDate" class="form-input">
+            <!-- Advanced Settings Panel (Hidden by default) -->
+            <div class="advanced-settings-panel" id="advancedSettingsPanel" style="display: none;">
+              <div class="section-label">إعدادات إضافية</div>
+              
+              <!-- Task Description -->
+              <div class="form-section">
+                <label class="form-label">الوصف</label>
+                <textarea id="newTaskDescription" class="form-textarea" rows="3" placeholder="وصف تفصيلي للمهمة (اختياري)"></textarea>
               </div>
 
-              <!-- Time -->
-              <div class="form-section half" id="taskTimeSection">
-                <label class="form-label required">الوقت</label>
-                <input type="time" id="newTaskTime" class="form-input">
+              <!-- Priority -->
+              <div class="form-section">
+                <label class="form-label">الأولوية</label>
+                <div class="priority-buttons">
+                  <button type="button" class="priority-btn low" data-priority="low" onclick="selectPriority('low')">
+                    <span class="priority-indicator low"></span>
+                    <span>منخفضة</span>
+                  </button>
+                  <button type="button" class="priority-btn medium active" data-priority="medium" onclick="selectPriority('medium')">
+                    <span class="priority-indicator medium"></span>
+                    <span>متوسطة</span>
+                  </button>
+                  <button type="button" class="priority-btn high" data-priority="high" onclick="selectPriority('high')">
+                    <span class="priority-indicator high"></span>
+                    <span>عالية</span>
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <!-- Priority -->
-            <div class="form-section">
-              <label class="form-label required">الأولوية</label>
-              <div class="priority-buttons">
-                <button class="priority-btn low" data-priority="low" onclick="selectPriority('low')">
-                  <span class="priority-icon">🟢</span>
-                  <span>منخفضة</span>
-                </button>
-                <button class="priority-btn medium active" data-priority="medium" onclick="selectPriority('medium')">
-                  <span class="priority-icon">🟠</span>
-                  <span>متوسطة</span>
-                </button>
-                <button class="priority-btn high" data-priority="high" onclick="selectPriority('high')">
-                  <span class="priority-icon">🔴</span>
-                  <span>عالية</span>
-                </button>
+              <!-- Date and Time Row -->
+              <div class="form-row">
+                <div class="form-section half">
+                  <label class="form-label">التاريخ</label>
+                  <input type="date" id="newTaskDate" class="form-input">
+                  <small class="field-hint">افتراضي: اليوم</small>
+                </div>
+
+                <div class="form-section half">
+                  <label class="form-label">الوقت</label>
+                  <input type="time" id="newTaskTime" class="form-input">
+                  <small class="field-hint">افتراضي: الآن</small>
+                </div>
+              </div>
+
+              <!-- Recurrence -->
+              <div class="form-section">
+                <label class="form-label">التكرار</label>
+                <select id="newTaskRecurrence" class="form-select" onchange="handleRecurrenceChange()">
+                  <option value="none">بدون تكرار</option>
+                  <option value="daily">يومي</option>
+                  <option value="weekly">أسبوعي</option>
+                  <option value="monthly">شهري</option>
+                  <option value="yearly">سنوي</option>
+                </select>
+              </div>
+
+              <!-- Task Type (conditionally shown) -->
+              <div class="form-section" id="taskTypeSection" style="display: none;">
+                <label class="form-label">نوع المهمة</label>
+                <div class="segmented-control">
+                  <button type="button" class="segment-btn active" data-type="daily" onclick="selectTaskType('daily')">
+                    <span>يومية</span>
+                  </button>
+                  <button type="button" class="segment-btn" data-type="monthly" onclick="selectTaskType('monthly')">
+                    <span>شهرية</span>
+                  </button>
+                  <button type="button" class="segment-btn" data-type="yearly" onclick="selectTaskType('yearly')">
+                    <span>سنوية</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             <!-- Save Button -->
             <div class="form-submit-section">
               <button class="save-task-btn" onclick="saveNewTask()">
-                <span class="btn-icon">✅</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
                 <span>حفظ المهمة</span>
               </button>
             </div>
