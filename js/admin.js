@@ -7803,7 +7803,11 @@ function filterTasksQuick() {
     const cardDate = card.getAttribute('data-date');
     const cardRecurrence = card.getAttribute('data-recurrence');
     
-    if (window.tasksFilterState.period === 'completed') {
+    if (window.tasksFilterState.period === 'all') {
+      // Show all tasks (both active and completed)
+      // No filtering by status or date, only by assignee (already done above)
+      shouldShow = shouldShow; // Keep current state from assignee filter
+    } else if (window.tasksFilterState.period === 'completed') {
       shouldShow = shouldShow && (cardStatus === 'completed');
     } else {
       // Show only active tasks (not completed)
@@ -7882,7 +7886,11 @@ function loadTasksByPeriod(period) {
     const cardTitle = card.querySelector('.task-card-title')?.textContent || 'Untitled';
     let shouldShow = true;
     
-    if (period === 'completed') {
+    if (period === 'all') {
+      // Show all tasks (both active and completed)
+      shouldShow = true;
+      console.log(`🔍 [ALL] Task: "${cardTitle}" | Date: ${cardDate || 'empty'} | Status: ${cardStatus}`);
+    } else if (period === 'completed') {
       // Show only completed tasks
       shouldShow = cardStatus === 'completed';
     } else {
@@ -7939,6 +7947,7 @@ function updateSectionTitle(period) {
   if (!listTitle) return;
   
   const titles = {
+    'all': 'جميع المهام',
     'today': 'مهام اليوم',
     'week': 'مهام الأسبوع',
     'month': 'مهام الشهر',
@@ -8126,7 +8135,7 @@ window.initTasksPage = async function() {
     
     // Initialize filter state
     window.tasksFilterState = {
-      period: 'today',
+      period: 'all',
       assignee: 'all',
       priority: [],
       status: [],
@@ -8143,8 +8152,8 @@ window.initTasksPage = async function() {
     // Load stats
     loadTasksStats();
     
-    // Set default period to today and default assignee to all
-    switchTasksPeriod('today');
+    // Set default period to 'all' and default assignee to 'all'
+    switchTasksPeriod('all');
     
     // Ensure "الكل" pill is active by default
     const allPill = document.querySelector('.filter-pill[data-assignee="all"]');
@@ -8451,18 +8460,10 @@ window.saveNewTask = async function() {
     // Show success toast
     showSuccessToast('تم إضافة المهمة بنجاح');
     
-    // Close page and return to appropriate tasks view
+    // Close page and return to 'all' tasks view to show the new task
     setTimeout(() => {
       closeAddTaskPage();
-      
-      // Switch to appropriate period tab based on task type
-      if (window.currentTaskType === 'daily') {
-        switchTasksPeriod('today');
-      } else if (window.currentTaskType === 'monthly') {
-        switchTasksPeriod('month');
-      } else if (window.currentTaskType === 'yearly') {
-        switchTasksPeriod('year');
-      }
+      switchTasksPeriod('all');
     }, 1500);
     
   } catch (error) {

@@ -618,7 +618,11 @@
 
           <!-- Tasks Period Tabs -->
           <div class="tasks-period-tabs">
-            <button class="period-tab active" data-period="today" onclick="switchTasksPeriod('today')">
+            <button class="period-tab active" data-period="all" onclick="switchTasksPeriod('all')">
+              <span class="tab-label">الكل</span>
+              <span class="tab-indicator"></span>
+            </button>
+            <button class="period-tab" data-period="today" onclick="switchTasksPeriod('today')">
               <span class="tab-label">اليوم</span>
               <span class="tab-indicator"></span>
             </button>
