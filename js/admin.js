@@ -7810,16 +7810,22 @@ function filterTasksQuick() {
       shouldShow = shouldShow && (cardStatus !== 'completed');
       
       // Filter by date based on period
-      if (cardDate) {
-        if (window.tasksFilterState.period === 'today') {
-          // Show only today's tasks (regardless of recurrence type)
-          shouldShow = shouldShow && (cardDate === todayStr);
-        } else if (window.tasksFilterState.period === 'week') {
-          // Show this week's tasks
+      if (window.tasksFilterState.period === 'today') {
+        // Show today's tasks OR tasks without date (considered as today's tasks)
+        shouldShow = shouldShow && (!cardDate || cardDate === '' || cardDate === todayStr);
+      } else if (window.tasksFilterState.period === 'week') {
+        // Show this week's tasks (only with valid dates)
+        if (cardDate && cardDate !== '') {
           shouldShow = shouldShow && (cardDate >= weekStartStr && cardDate <= weekEndStr);
-        } else if (window.tasksFilterState.period === 'month') {
-          // Show this month's tasks
+        } else {
+          shouldShow = false; // Don't show tasks without date in week view
+        }
+      } else if (window.tasksFilterState.period === 'month') {
+        // Show this month's tasks (only with valid dates)
+        if (cardDate && cardDate !== '') {
           shouldShow = shouldShow && (cardDate >= monthStartStr && cardDate <= monthEndStr);
+        } else {
+          shouldShow = false; // Don't show tasks without date in month view
         }
       }
     }
@@ -7843,7 +7849,7 @@ function filterTasksQuick() {
 
 // Load tasks by period
 function loadTasksByPeriod(period) {
-  console.log(`Loading tasks for period: ${period}`);
+  console.log(`📋 Loading tasks for period: ${period}`);
   
   const allCards = document.querySelectorAll('.task-modern-card');
   let visibleCount = 0;
@@ -7852,6 +7858,7 @@ function loadTasksByPeriod(period) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  console.log(`📅 Today's date: ${todayStr}`);
   
   // Calculate week range (Sunday to Saturday)
   const weekStart = new Date(today);
@@ -7872,6 +7879,7 @@ function loadTasksByPeriod(period) {
     const cardStatus = card.getAttribute('data-status');
     const cardDate = card.getAttribute('data-date');
     const cardRecurrence = card.getAttribute('data-recurrence');
+    const cardTitle = card.querySelector('.task-card-title')?.textContent || 'Untitled';
     let shouldShow = true;
     
     if (period === 'completed') {
@@ -7882,16 +7890,26 @@ function loadTasksByPeriod(period) {
       shouldShow = cardStatus !== 'completed';
       
       // Filter by date based on period
-      if (cardDate) {
-        if (period === 'today') {
-          // Show only today's tasks (regardless of recurrence type)
-          shouldShow = shouldShow && (cardDate === todayStr);
-        } else if (period === 'week') {
-          // Show this week's tasks
+      if (period === 'today') {
+        // Show today's tasks OR tasks without date (considered as today's tasks)
+        const hasNoDate = !cardDate || cardDate === '';
+        const isTodayDate = cardDate === todayStr;
+        shouldShow = shouldShow && (hasNoDate || isTodayDate);
+        
+        console.log(`🔍 Task: "${cardTitle}" | Date: ${cardDate || 'empty'} | Status: ${cardStatus} | Show: ${shouldShow}`);
+      } else if (period === 'week') {
+        // Show this week's tasks (only with valid dates)
+        if (cardDate && cardDate !== '') {
           shouldShow = shouldShow && (cardDate >= weekStartStr && cardDate <= weekEndStr);
-        } else if (period === 'month') {
-          // Show this month's tasks
+        } else {
+          shouldShow = false; // Don't show tasks without date in week view
+        }
+      } else if (period === 'month') {
+        // Show this month's tasks (only with valid dates)
+        if (cardDate && cardDate !== '') {
           shouldShow = shouldShow && (cardDate >= monthStartStr && cardDate <= monthEndStr);
+        } else {
+          shouldShow = false; // Don't show tasks without date in month view
         }
       }
     }
@@ -8392,6 +8410,8 @@ window.saveNewTask = async function() {
     const taskDate = date || localDateStr;
     const taskTime = time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     
+    console.log('📅 Task date:', date ? `User selected: ${date}` : `Default (today): ${localDateStr}`);
+    
     // Prepare task data with defaults
     const taskData = {
       title: title,
@@ -8832,14 +8852,35 @@ function calculateNextRecurrenceDate(currentDate, recurrenceType) {
 // Check if there's an overdue instance of this recurring task
 async function hasOverdueInstance(originalTaskId) {
   try {
-    const tasksSnapshot = await getDocs(
+    // Check for overdue copies with same originalTaskId
+    const copiesSnapshot = await getDocs(
       query(
         collection(db, 'tasks'),
         where('originalTaskId', '==', originalTaskId),
         where('status', '==', 'overdue')
       )
     );
-    return !tasksSnapshot.empty;
+    
+    if (!copiesSnapshot.empty) {
+      console.log(`⚠️ Found ${copiesSnapshot.size} overdue copies for task ${originalTaskId}`);
+      return true;
+    }
+    
+    // Also check if the original task itself is overdue
+    const originalSnapshot = await getDocs(
+      query(
+        collection(db, 'tasks'),
+        where('id', '==', originalTaskId),
+        where('status', '==', 'overdue')
+      )
+    );
+    
+    if (!originalSnapshot.empty) {
+      console.log(`⚠️ Original task ${originalTaskId} is overdue`);
+      return true;
+    }
+    
+    return false;
   } catch (error) {
     console.error('❌ Error checking overdue tasks:', error);
     return false;
@@ -8849,6 +8890,7 @@ async function hasOverdueInstance(originalTaskId) {
 // Create a new copy of a recurring task
 async function createRecurringTaskCopy(originalTask) {
   if (!originalTask.recurrence || originalTask.recurrence === 'none') {
+    console.log(`⏸️ No recurrence for task: ${originalTask.title}`);
     return null;
   }
   
@@ -8861,22 +8903,27 @@ async function createRecurringTaskCopy(originalTask) {
     return null;
   }
   
-  // If task was overdue, next date should be today or appropriate future date
+  // Calculate next date intelligently
   let nextDate;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
   const taskDate = new Date(originalTask.date);
   taskDate.setHours(0, 0, 0, 0);
+  const taskDateStr = originalTask.date;
   
-  if (originalTask.status === 'completed' && taskDate < today) {
-    // Task was completed after its due date (overdue)
-    // Create next instance for TODAY (not tomorrow) because we missed the days in between
-    nextDate = today.toISOString().split('T')[0];
-    console.log(`📅 Overdue task completed - creating instance for today: ${nextDate}`);
+  if (taskDateStr < todayStr) {
+    // Task was completed late (overdue)
+    // Next instance should be tomorrow (not today, as we already completed today's backlog)
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    nextDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+    console.log(`📅 Late completion (${taskDateStr} completed on ${todayStr}) - next instance: ${nextDate}`);
   } else {
-    // Task completed on time - create next instance from task date
+    // Task completed on time - calculate next date from task date
     nextDate = calculateNextRecurrenceDate(originalTask.date, originalTask.recurrence);
-    console.log(`📅 On-time completion - creating instance for: ${nextDate}`);
+    console.log(`📅 On-time completion (${taskDateStr}) - next instance: ${nextDate}`);
   }
   
   if (!nextDate) return null;
@@ -9039,8 +9086,14 @@ window.markTaskComplete = async function(taskId) {
       
       // If task is recurring, create next instance immediately
       if (completedTask.recurrence && completedTask.recurrence !== 'none') {
+        console.log(`🔄 Task is recurring (${completedTask.recurrence}) - checking for next instance...`);
         setTimeout(async () => {
-          await createRecurringTaskCopy(completedTask);
+          const newTask = await createRecurringTaskCopy(completedTask);
+          if (newTask) {
+            console.log(`✅ Created next recurring instance: ${newTask.id}`);
+          } else {
+            console.log(`⏸️ No new instance created (likely overdue task exists)`);
+          }
           updateTasksStats();
         }, 500);
       }
