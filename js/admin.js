@@ -478,31 +478,38 @@ function determineActionForAbsenceCount(absenceCount) {
   const actions = {
     1: {
       level: 1,
-      title: 'الوقوف خارج الحلقة',
-      description: 'الغياب الأول بدون عذر: الوقوف خارج الحلقة إلى صلاة العشاء',
+      title: 'الوقوف في الحلقة',
+      description: 'الغياب الأول بدون عذر: الوقوف في الحلقة إلى صلاة المغرب',
       color: '#ff9800',
-      emoji: '🚫'
+      emoji: '⏸️'
     },
     2: {
       level: 2,
-      title: 'حرمان واستدعاء ولي الأمر',
-      description: 'الغياب الثاني بدون عذر: حرمان من دخول الحلقة واستدعاء ولي الأمر',
-      color: '#dc3545',
-      emoji: '📋'
+      title: 'الوقوف خارج الحلقة',
+      description: 'الغياب الثاني بدون عذر: الوقوف خارج الحلقة إلى صلاة العشاء',
+      color: '#ff9800',
+      emoji: '🚫'
     },
     3: {
       level: 3,
-      title: 'استبعاد كامل من الحلقة',
-      description: 'الغياب الثالث وما بعده بدون عذر: استبعاد كامل من الحلقات (فصل)',
+      title: 'الحرمان من دخول الحلقة واستدعاء ولي الأمر',
+      description: 'الغياب الثالث بدون عذر: حرمان من دخول الحلقة واستدعاء ولي الأمر',
+      color: '#dc3545',
+      emoji: '📋'
+    },
+    4: {
+      level: 4,
+      title: 'الفصل النهائي',
+      description: 'الغياب الرابع وما بعده بدون عذر: الفصل النهائي من الحلقات',
       color: '#721c24',
       emoji: '❌'
     }
   };
   
-  // For counts >= 3, return level 3 action (expulsion)
-  // الغياب الثالث والرابع والخامس والسادس... كلهم نفس العقوبة (فصل)
-  if (absenceCount >= 3) {
-    return actions[3];
+  // For counts >= 4, return level 4 action (expulsion)
+  // الغياب الرابع والخامس والسادس... كلهم نفس العقوبة (فصل نهائي)
+  if (absenceCount >= 4) {
+    return actions[4];
   }
   
   return actions[absenceCount] || actions[1];
@@ -3474,12 +3481,12 @@ window.logoutFromAdmin = function() {
   }
 };
 
-// Load admin notifications
+// Load admin notifications - MODERN DESIGN
 async function loadAdminNotifications() {
   console.log('📥 Loading admin notifications...');
   const notificationsList = document.getElementById('adminNotificationsList');
   const badge = document.getElementById('adminNotificationBadge');
-  const newBadge = document.getElementById('newAdminNotificationBadge'); // التصميم الجديد
+  const newBadge = document.getElementById('newAdminNotificationBadge');
   
   if (!notificationsList) {
     console.error('❌ adminNotificationsList element not found!');
@@ -3491,11 +3498,30 @@ async function loadAdminNotifications() {
     
     console.log(`📊 Found ${notificationsSnap.size} unread notification(s)`);
     
+    // Update badges
+    const count = notificationsSnap.size;
+    if (badge) {
+      badge.textContent = count;
+      badge.style.display = count > 0 ? 'flex' : 'none';
+    }
+    if (newBadge) {
+      newBadge.textContent = count;
+      newBadge.style.display = count > 0 ? 'block' : 'none';
+    }
+    
+    // Load teacher filter options
+    await loadTeacherFilterOptions(notificationsSnap);
+    
     if (notificationsSnap.empty) {
-      notificationsList.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">لا توجد إشعارات</p>';
-      // إخفاء كلا الـ badges
-      if (badge) badge.style.display = 'none';
-      if (newBadge) newBadge.style.display = 'none';
+      notificationsList.innerHTML = `
+        <div class="notifications-empty-state">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <p>لا توجد إشعارات</p>
+        </div>
+      `;
       console.log('ℹ️ No unread notifications to display');
       return;
     }
@@ -3513,63 +3539,304 @@ async function loadAdminNotifications() {
       return 0;
     });
     
-    // Update both badges (old and new design)
-    const count = notifications.length;
-    console.log(`🔔 Updating badges with count: ${count}`);
-    if (badge) {
-      badge.textContent = count;
-      badge.style.display = 'flex';
-    }
-    if (newBadge) {
-      newBadge.textContent = count;
-      newBadge.style.display = 'block';
-    }
+    // Store notifications for filtering
+    window.allNotifications = notifications;
     
-    // Display notifications - Only absence violations
-    let html = '';
-    notifications.forEach(notification => {
-      // Only show absence-violation notifications
-      if (notification.type === 'absence-violation') {
-        const bgColor = notification.penaltyColor ? `${notification.penaltyColor}15` : '#fff3cd';
-        const borderColor = notification.penaltyColor || '#dc3545';
-        const icon = notification.penaltyEmoji || '🚫';
-        
-        html += `
-          <div style="background: ${bgColor}; border-right: 4px solid ${borderColor}; padding: 15px; margin-bottom: 12px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-              <strong style="font-size: 15px; color: ${borderColor};">${icon} ${notification.title}</strong>
-              <button onclick="window.deleteAdminNotification('${notification.id}')" style="background: transparent; border: none; color: #999; cursor: pointer; font-size: 20px; transition: color 0.2s;" onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'">×</button>
-            </div>
-            <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px;">
-              <p style="margin: 0 0 8px 0; font-size: 14px; color: #333; font-weight: 600;">
-                <span style="color: ${borderColor};">👤</span> ${notification.studentName}
-              </p>
-              <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">
-                <span style="color: #667eea;">👨‍🏫</span> المعلم: ${notification.teacherName}
-              </p>
-              <p style="margin: 0; font-size: 13px; color: #666;">
-                <span style="color: ${borderColor};">📊</span> عدد الغيابات: ${notification.absenceCount} بدون عذر
-              </p>
-            </div>
-            <div style="background: ${borderColor}; color: white; padding: 10px; border-radius: 8px; font-size: 13px; line-height: 1.5;">
-              <strong>${icon} ${notification.penalty}</strong>
-              <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.95;">${notification.penaltyDescription}</p>
-            </div>
-            <p style="margin: 10px 0 0 0; font-size: 11px; color: #999; text-align: left;">
-              📅 ${notification.date || ''} - ${notification.dayName || ''}
-            </p>
-          </div>
-        `;
-      }
-    });
+    // Display notifications
+    displayNotifications(notifications);
     
-    notificationsList.innerHTML = html;
     console.log('✅ Notifications displayed successfully');
     
   } catch (error) {
     console.error('❌ Error loading admin notifications:', error);
-    notificationsList.innerHTML = '<p style="color: red; text-align: center; padding: 20px;">حدث خطأ في تحميل الإشعارات</p>';
+    notificationsList.innerHTML = '<div class="notifications-empty-state"><p style="color: #dc3545;">حدث خطأ في تحميل الإشعارات</p></div>';
   }
+}
+
+// Load teacher filter options
+async function loadTeacherFilterOptions(notificationsSnap) {
+  const teacherFilter = document.getElementById('teacherFilter');
+  if (!teacherFilter) return;
+  
+  // Get unique teacher IDs from notifications
+  const teacherIds = new Set();
+  notificationsSnap.forEach(doc => {
+    const data = doc.data();
+    if (data.teacherId) {
+      teacherIds.add(data.teacherId);
+    }
+  });
+  
+  // Build options HTML
+  let optionsHTML = '<option value="all">جميع المعلمين</option>';
+  
+  teacherIds.forEach(teacherId => {
+    const teacherName = teacherNames[teacherId] || teacherId;
+    optionsHTML += `<option value="${teacherId}">${teacherName}</option>`;
+  });
+  
+  teacherFilter.innerHTML = optionsHTML;
+}
+
+// Display notifications (can be filtered)
+function displayNotifications(notifications) {
+  const notificationsList = document.getElementById('adminNotificationsList');
+  
+  if (notifications.length === 0) {
+    notificationsList.innerHTML = `
+      <div class="notifications-empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <p>لا توجد إشعارات لهذا المعلم</p>
+      </div>
+    `;
+    return;
+  }
+  
+  let html = '';
+  notifications.forEach(notification => {
+    if (notification.type === 'absence-violation') {
+      const cardColor = notification.penaltyColor || '#667eea';
+      
+      html += `
+        <div class="notification-card" style="--card-color: ${cardColor};" onclick="window.showNotificationDetails('${notification.id}')">
+          <div class="notification-card-header">
+            <p class="notification-card-title">${notification.title}</p>
+            <button class="notification-card-delete" onclick="event.stopPropagation(); window.deleteAdminNotification('${notification.id}')">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="notification-card-info">
+            <div class="notification-info-row">
+              <span class="notification-info-label">الطالب:</span>
+              <span>${notification.studentName}</span>
+            </div>
+            <div class="notification-info-row">
+              <span class="notification-info-label">المعلم:</span>
+              <span>${notification.teacherName}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  });
+  
+  notificationsList.innerHTML = html;
+}
+
+// Filter notifications by teacher
+window.filterNotificationsByTeacher = function() {
+  const teacherFilter = document.getElementById('teacherFilter');
+  const selectedTeacherId = teacherFilter.value;
+  
+  if (!window.allNotifications) return;
+  
+  let filteredNotifications;
+  
+  if (selectedTeacherId === 'all') {
+    filteredNotifications = window.allNotifications;
+  } else {
+    filteredNotifications = window.allNotifications.filter(n => n.teacherId === selectedTeacherId);
+  }
+  
+  // Animate transition
+  const list = document.getElementById('adminNotificationsList');
+  list.style.opacity = '0';
+  list.style.transition = 'opacity 0.15s ease';
+  
+  setTimeout(() => {
+    displayNotifications(filteredNotifications);
+    list.style.opacity = '1';
+  }, 150);
+};
+
+// Show notification details in modal
+window.showNotificationDetails = async function(notificationId) {
+  const notification = window.allNotifications.find(n => n.id === notificationId);
+  if (!notification) return;
+  
+  // Get student data for guardian phone
+  let studentData = null;
+  let guardianPhone = null;
+  try {
+    const studentDoc = await getDoc(firestoreDoc(db, 'users', notification.studentId));
+    if (studentDoc.exists()) {
+      studentData = studentDoc.data();
+      guardianPhone = studentData.guardianPhone;
+    }
+  } catch (error) {
+    console.error('Error fetching student data:', error);
+  }
+  
+  // Get teacher phone
+  let teacherPhone = null;
+  try {
+    teacherPhone = await getTeacherPhone(notification.teacherId);
+  } catch (error) {
+    console.error('Error fetching teacher phone:', error);
+  }
+  
+  // Store data for WhatsApp functions
+  window.currentNotificationData = {
+    ...notification,
+    guardianPhone,
+    teacherPhone
+  };
+  
+  // Build details HTML
+  const modal = document.getElementById('notificationDetailsModal');
+  const content = document.getElementById('notificationDetailsContent');
+  const title = document.getElementById('detailsTitle');
+  
+  title.textContent = notification.title;
+  
+  // Calculate penalty color gradient
+  const penaltyColor = notification.penaltyColor || '#dc3545';
+  const penaltyColorDark = darkenColor(penaltyColor, 20);
+  
+  content.innerHTML = `
+    <div class="details-section">
+      <h4 class="details-section-title">معلومات الطالب</h4>
+      <div class="details-info-card">
+        <div class="details-info-row">
+          <span class="details-info-label">الاسم</span>
+          <span class="details-info-value">${notification.studentName}</span>
+        </div>
+        <div class="details-info-row">
+          <span class="details-info-label">المعلم</span>
+          <span class="details-info-value">${notification.teacherName}</span>
+        </div>
+        <div class="details-info-row">
+          <span class="details-info-label">عدد الغيابات هذا الشهر</span>
+          <span class="details-info-value">${notification.absenceCount} مرة</span>
+        </div>
+        <div class="details-info-row">
+          <span class="details-info-label">تاريخ آخر غياب</span>
+          <span class="details-info-value">${notification.lastAbsenceDate || notification.date}</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="details-section">
+      <h4 class="details-section-title">الإجراء المتخذ</h4>
+      <div class="details-penalty-card" style="--penalty-color: ${penaltyColor}; --penalty-color-dark: ${penaltyColorDark};">
+        <div class="details-penalty-title">${notification.penalty}</div>
+        <div class="details-penalty-description">${notification.penaltyDescription}</div>
+      </div>
+    </div>
+  `;
+  
+  // Update WhatsApp buttons state
+  const guardianBtn = document.getElementById('whatsappGuardianBtn');
+  const teacherBtn = document.getElementById('whatsappTeacherBtn');
+  
+  if (guardianBtn) {
+    guardianBtn.disabled = !guardianPhone;
+    guardianBtn.style.opacity = guardianPhone ? '1' : '0.5';
+    guardianBtn.style.cursor = guardianPhone ? 'pointer' : 'not-allowed';
+  }
+  
+  if (teacherBtn) {
+    teacherBtn.disabled = !teacherPhone;
+    teacherBtn.style.opacity = teacherPhone ? '1' : '0.5';
+    teacherBtn.style.cursor = teacherPhone ? 'pointer' : 'not-allowed';
+  }
+  
+  // Show modal
+  modal.style.display = 'block';
+};
+
+// Close notification details
+window.closeNotificationDetails = function() {
+  const modal = document.getElementById('notificationDetailsModal');
+  modal.style.display = 'none';
+  window.currentNotificationData = null;
+};
+
+// Send WhatsApp to guardian
+window.sendWhatsAppToGuardian = function() {
+  if (!window.currentNotificationData || !window.currentNotificationData.guardianPhone) {
+    alert('رقم ولي الأمر غير متوفر');
+    return;
+  }
+  
+  const data = window.currentNotificationData;
+  const ordinals = {1: 'الأول', 2: 'الثاني', 3: 'الثالث', 4: 'الرابع', 5: 'الخامس', 6: 'السادس'};
+  const ordinalText = ordinals[data.absenceCount] || `الـ ${data.absenceCount}`;
+  
+  const message = `السلام عليكم ورحمة الله وبركاته
+
+📋 *إشعار غياب طالب*
+
+*الطالب:* ${data.studentName}
+*المعلم:* ${data.teacherName}
+*الغياب:* ${ordinalText} بدون عذر هذا الشهر
+*تاريخ آخر غياب:* ${data.lastAbsenceDate || data.date}
+
+⚠️ *الإجراء المتخذ:*
+${data.penalty}
+
+${data.penaltyDescription}
+
+يرجى متابعة حضور الطالب والتواصل مع إدارة الحلقات.
+
+جزاكم الله خيراً`;
+  
+  const phone = data.guardianPhone.replace(/^0/, '966'); // Convert to international format
+  const whatsappURL = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  
+  window.open(whatsappURL, '_blank');
+};
+
+// Send WhatsApp to teacher
+window.sendWhatsAppToTeacher = function() {
+  if (!window.currentNotificationData || !window.currentNotificationData.teacherPhone) {
+    alert('رقم المعلم غير متوفر');
+    return;
+  }
+  
+  const data = window.currentNotificationData;
+  const ordinals = {1: 'الأول', 2: 'الثاني', 3: 'الثالث', 4: 'الرابع', 5: 'الخامس', 6: 'السادس'};
+  const ordinalText = ordinals[data.absenceCount] || `الـ ${data.absenceCount}`;
+  
+  const message = `*🎯 بطاقة دخول الحلقة*
+
+*الطالب:* ${data.studentName}
+*الحلقة:* ${data.teacherName}
+*الغياب:* ${ordinalText} بدون عذر هذا الشهر
+*تاريخ آخر غياب:* ${data.lastAbsenceDate || data.date}
+
+⚠️ *الإجراء المطلوب:*
+${data.penalty}
+
+${data.penaltyDescription}
+
+يرجى متابعة حالة الطالب واتخاذ الإجراء المناسب عند دخوله الحلقة.
+
+بارك الله فيكم`;
+  
+  const phone = data.teacherPhone.replace(/^0/, '966'); // Convert to international format
+  const whatsappURL = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  
+  window.open(whatsappURL, '_blank');
+};
+
+// Helper function to darken a color
+function darkenColor(hex, percent) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) - amt;
+  const G = (num >> 8 & 0x00FF) - amt;
+  const B = (num & 0x0000FF) - amt;
+  return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+    (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+    (B < 255 ? B < 1 ? 0 : B : 255))
+    .toString(16).slice(1);
 }
 
 // Mark all admin notifications as read
@@ -3602,9 +3869,10 @@ window.deleteAdminNotification = async function(notificationId) {
 };
 
 /**
- * Check and create notifications for students with 2nd or 3rd absence without excuse
+ * Check and create notifications for students with absence without excuse
+ * NOW INCLUDES FIRST ABSENCE - Updated logic
  * This function scans all students in the current month and creates notifications
- * for those who have 2 or 3 absences without excuse
+ * for those who have ANY absences without excuse (starting from 1st absence)
  */
 async function checkAndNotifyAbsenceViolations() {
   console.log('🔍 Checking for absence violations...');
@@ -3641,8 +3909,8 @@ async function checkAndNotifyAbsenceViolations() {
       
       console.log(`📊 Student: ${absenceData.studentName}, Count: ${absenceCount}`);
       
-      // Notify for 2nd absence and onwards (critical levels)
-      if (absenceCount >= 2) {
+      // NEW: Notify for ALL absences (starting from 1st)
+      if (absenceCount >= 1) {
         const studentId = absenceData.studentId;
         const studentName = absenceData.studentName;
         const studentData = usersMap[studentId];
@@ -3669,16 +3937,22 @@ async function checkAndNotifyAbsenceViolations() {
           console.log(`🆕 Creating notification for ${studentName} (absence #${absenceCount})`);
           
           // Generate ordinal number text
-          const ordinals = {2: 'ثاني', 3: 'ثالث', 4: 'رابع', 5: 'خامس', 6: 'سادس', 7: 'سابع', 8: 'ثامن', 9: 'تاسع', 10: 'عاشر'};
+          const ordinals = {1: 'أول', 2: 'ثاني', 3: 'ثالث', 4: 'رابع', 5: 'خامس', 6: 'سادس', 7: 'سابع', 8: 'ثامن', 9: 'تاسع', 10: 'عاشر'};
           const ordinalText = ordinals[absenceCount] || `الـ ${absenceCount}`;
+          
+          // Get last absence date
+          const lastAbsenceDate = absenceData.absenceRecords && absenceData.absenceRecords.length > 0 
+            ? absenceData.absenceRecords[absenceData.absenceRecords.length - 1]
+            : getTodayForStorage();
           
           // Create new notification
           await setDoc(firestoreDoc(db, 'adminNotifications', notificationId), {
             type: 'absence-violation',
-            title: `⚠️ غياب ${ordinalText} بدون عذر`,
+            title: `الغياب ال${ordinalText} بدون عذر هذا الشهر`,
             message: `الطالب: ${studentName} | المعلم: ${teacherName}`,
             studentId: studentId,
             studentName: studentName,
+            teacherId: teacherId,
             teacherName: teacherName,
             absenceCount: absenceCount,
             penalty: action.title,
@@ -3686,6 +3960,7 @@ async function checkAndNotifyAbsenceViolations() {
             penaltyEmoji: action.emoji,
             penaltyColor: action.color,
             month: currentMonth,
+            lastAbsenceDate: lastAbsenceDate,
             read: false,
             timestamp: serverTimestamp(),
             date: getTodayForStorage(),
