@@ -8124,6 +8124,13 @@ function filterTasksQuick() {
   if (countBadge) {
     countBadge.textContent = `${visibleCount} مهمة`;
   }
+  
+  // Sort tasks if in 'all' period
+  if (window.tasksFilterState.period === 'all') {
+    setTimeout(() => {
+      sortTasksByStatus();
+    }, 50);
+  }
 }
 
 // Load tasks by period
@@ -8214,6 +8221,48 @@ function loadTasksByPeriod(period) {
   
   // Update section title based on period
   updateSectionTitle(period);
+  
+  // Sort tasks by status if in 'all' period
+  if (period === 'all') {
+    sortTasksByStatus();
+  }
+}
+
+// Sort tasks by status (overdue -> in-progress -> pending -> completed)
+function sortTasksByStatus() {
+  const tasksCardsList = document.getElementById('tasksCardsList');
+  if (!tasksCardsList) return;
+  
+  const allCards = Array.from(tasksCardsList.querySelectorAll('.task-modern-card'));
+  
+  // Define status priority (higher number = higher priority)
+  const statusPriority = {
+    'overdue': 4,
+    'in-progress': 3,
+    'pending': 2,
+    'completed': 1
+  };
+  
+  // Sort cards by status priority
+  allCards.sort((a, b) => {
+    const statusA = a.dataset.status || 'pending';
+    const statusB = b.dataset.status || 'pending';
+    
+    const priorityA = statusPriority[statusA] || 0;
+    const priorityB = statusPriority[statusB] || 0;
+    
+    return priorityB - priorityA; // Descending order (highest priority first)
+  });
+  
+  // Re-append cards in sorted order with smooth animation
+  allCards.forEach((card, index) => {
+    if (card.style.display !== 'none') {
+      card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+      tasksCardsList.appendChild(card);
+    }
+  });
+  
+  console.log('📊 Tasks sorted by status priority');
 }
 
 // Update section title
@@ -8429,6 +8478,11 @@ window.initTasksPage = async function() {
     
     // Set default period to 'all' and default assignee to 'all'
     switchTasksPeriod('all');
+    
+    // Sort tasks by status on initial load
+    setTimeout(() => {
+      sortTasksByStatus();
+    }, 500);
     
     // Ensure "الكل" pill is active by default
     const allPill = document.querySelector('.filter-pill[data-assignee="all"]');
@@ -9391,9 +9445,16 @@ window.markTaskComplete = async function(taskId) {
       // Add completed animation
       taskCard.style.animation = 'taskCompleted 0.5s ease';
       
-      // If not in completed tab, hide the task smoothly
+      // Get current period
       const currentPeriod = window.tasksFilterState?.period || 'today';
-      if (currentPeriod !== 'completed') {
+      
+      if (currentPeriod === 'all') {
+        // In 'all' tab: move task to bottom with smooth animation
+        setTimeout(() => {
+          sortTasksByStatus();
+        }, 600);
+      } else if (currentPeriod !== 'completed') {
+        // In other tabs: hide the task smoothly
         setTimeout(() => {
           taskCard.style.animation = 'fadeOut 0.3s ease';
           setTimeout(() => {
