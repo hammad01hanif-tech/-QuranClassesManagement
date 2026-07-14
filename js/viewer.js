@@ -5157,14 +5157,27 @@ window.generateClassReport = async function() {
       const studentName = data.studentName || 'غير محدد';
       const juzNumber = data.juzNumber || '-';
       const status = data.status || 'incomplete';
-      const lastLessonDate = data.lastLessonDate;
+      let lastLessonDate = data.lastLessonDate;
       let displayDate = data.displayDate;
       
-      // Normalize displayDate if needed
+      // 🔧 Normalize lastLessonDate format (add padding if missing)
+      if (lastLessonDate && typeof lastLessonDate === 'string') {
+        const parts = lastLessonDate.split('-');
+        if (parts.length === 3) {
+          lastLessonDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        }
+      }
+      
+      // 🔧 Normalize displayDate format
       if (displayDate && displayDate.includes('/')) {
         const parts = displayDate.split('/');
         if (parts.length === 3) {
           displayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      } else if (displayDate && typeof displayDate === 'string') {
+        const parts = displayDate.split('-');
+        if (parts.length === 3) {
+          displayDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
         }
       }
       
@@ -6855,6 +6868,7 @@ window.exportHizbClassReport = async function() {
     });
     
     console.log(`📚 إجمالي طلاب الحلقة (الأحزاب): ${allStudentsMap.size}`);
+    console.log(`📅 فترة التقرير: من ${fromDate} إلى ${toDate}`);
     
     // 🆕 STEP 2: جلب سجلات الأحزاب
     const snapshot = await getDocs(query(
@@ -6874,13 +6888,27 @@ window.exportHizbClassReport = async function() {
       const studentName = data.studentName || 'غير محدد';
       const hizbNumber = data.hizbNumber || '-';
       const status = data.status || 'incomplete';
-      const lastLessonDate = data.lastLessonDate;
+      let lastLessonDate = data.lastLessonDate;
       let displayDate = data.displayDate;
       
+      // 🔧 Normalize lastLessonDate format (add padding if missing)
+      if (lastLessonDate && typeof lastLessonDate === 'string') {
+        const parts = lastLessonDate.split('-');
+        if (parts.length === 3) {
+          lastLessonDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        }
+      }
+      
+      // 🔧 Normalize displayDate format
       if (displayDate && displayDate.includes('/')) {
         const parts = displayDate.split('/');
         if (parts.length === 3) {
           displayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      } else if (displayDate && typeof displayDate === 'string') {
+        const parts = displayDate.split('-');
+        if (parts.length === 3) {
+          displayDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
         }
       }
       
