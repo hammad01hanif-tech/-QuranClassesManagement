@@ -5116,69 +5116,81 @@ window.generateClassReport = async function() {
     });
     const teacherName = teacherNamesMap[teacherId] || 'المعلم';
     
-    // Fetch all juzDisplays for this teacher
-    const snapshot = await getDocs(query(
+    // 🆕 STEP 1: جلب جميع طلاب الحلقة من users collection
+    const allStudentsQuery = query(
+      collection(db, 'users'),
+      where('role', '==', 'student'),
+      where('classId', '==', teacherId)
+    );
+    const allStudentsSnapshot = await getDocs(allStudentsQuery);
+    
+    // بناء قائمة بجميع الطلاب
+    const allStudentsMap = new Map(); // Key: studentName, Value: student data
+    allStudentsSnapshot.forEach(studentDoc => {
+      const studentData = studentDoc.data();
+      const studentName = studentData.name || 'غير محدد';
+      allStudentsMap.set(studentName, {
+        id: studentDoc.id,
+        name: studentName
+      });
+    });
+    
+    console.log(`📚 إجمالي طلاب الحلقة: ${allStudentsMap.size}`);
+    
+    // 🆕 STEP 2: جلب جميع سجلات العرض للحلقة
+    const juzDisplaysQuery = query(
       collection(db, 'juzDisplays'),
       where('teacherId', '==', teacherId)
-    ));
+    );
+    const juzDisplaysSnapshot = await getDocs(juzDisplaysQuery);
     
     const today = getTodayForStorage();
     const todayEntry = accurateHijriDates.find(e => e.hijri === today);
     const todayGregorian = todayEntry ? new Date(todayEntry.gregorian) : new Date();
     
-    // استخدام Map لمنع التكرار - المفتاح: اسم الطالب + رقم الجزء
-    const studentsMap = new Map();
+    // 🆕 STEP 3: ربط البيانات - بناء قائمة السجلات
+    const allRecords = []; // كل سجل = صف في التقرير
     
-    snapshot.forEach(docSnapshot => {
+    // أولاً: نضيف جميع السجلات من juzDisplays
+    juzDisplaysSnapshot.forEach(docSnapshot => {
       const data = docSnapshot.data();
-      
-      // Apply date filter (same logic as general report)
-      let includeStudent = false;
-      
-      if (periodType === 'all') {
-        includeStudent = true;
-      } else if (data.status === 'completed' && data.displayDate) {
-        // للمجتازين: تحقق من تاريخ الاجتياز
-        let normalizedDisplayDate = data.displayDate;
-        if (data.displayDate.includes('/')) {
-          const parts = data.displayDate.split('/');
-          if (parts.length === 3) {
-            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
-        }
-        
-        // حالة 1: اجتاز في الفترة المحددة
-        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
-          includeStudent = true;
-          console.log('✅ Included (passed in period):', data.studentName);
-        }
-        // حالة 2: اجتاز بعد الفترة لكن آخر درس كان في/قبل الفترة
-        else if (data.lastLessonDate && data.lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
-          includeStudent = true;
-          console.log('✅ Included (pending in period, passed later):', data.studentName);
-        }
-      } else if (data.status === 'incomplete' && data.lastLessonDate) {
-        // للجاهزين: آخر درس قبل أو خلال نهاية الفترة
-        if (data.lastLessonDate <= toDate) {
-          includeStudent = true;
-          console.log('✅ Included (pending):', data.studentName);
-        }
-      }
-      
-      if (!includeStudent) {
-        console.log('❌ Excluded:', data.studentName);
-        return; // Skip this student
-      }
-      
       const studentName = data.studentName || 'غير محدد';
       const juzNumber = data.juzNumber || '-';
       const status = data.status || 'incomplete';
       const lastLessonDate = data.lastLessonDate;
-      const displayDate = data.displayDate;
+      let displayDate = data.displayDate;
       
+      // Normalize displayDate if needed
+      if (displayDate && displayDate.includes('/')) {
+        const parts = displayDate.split('/');
+        if (parts.length === 3) {
+          displayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+      
+      // فلتر حسب الفترة المختارة
+      let includeRecord = false;
+      
+      if (periodType === 'all') {
+        includeRecord = true;
+      } else if (status === 'completed' && displayDate) {
+        // المجتازين: اجتاز في الفترة أو كان في الفترة واجتاز بعدها
+        if (displayDate >= fromDate && displayDate <= toDate) {
+          includeRecord = true;
+        } else if (lastLessonDate && lastLessonDate <= toDate && displayDate > toDate) {
+          includeRecord = true;
+        }
+      } else if (status === 'incomplete' && lastLessonDate) {
+        // الجاهزين: آخر درس في الفترة أو قبلها
+        if (lastLessonDate <= toDate) {
+          includeRecord = true;
+        }
+      }
+      
+      if (!includeRecord) return;
+      
+      // حساب كم مضى على آخر درس (فقط للطلاب الذين لم يجتازوا)
       let daysSinceLastLesson = '-';
-      
-      // حساب كم مضى على آخر درس (للطلاب الذين لم يجتازوا فقط)
       if (status === 'incomplete' && lastLessonDate) {
         const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
         if (lastLessonEntry) {
@@ -5189,79 +5201,107 @@ window.generateClassReport = async function() {
         }
       }
       
-      // مفتاح فريد لكل طالب + جزء
-      const uniqueKey = `${studentName}-${juzNumber}`;
-      
-      // التحقق من التكرار: إذا وُجد سجل سابق لنفس الطالب ونفس الجزء
-      const existingRecord = studentsMap.get(uniqueKey);
-      
-      if (existingRecord) {
-        // أولوية للسجل المكتمل (completed) على غير المكتمل
-        if (status === 'completed' && existingRecord.status === 'incomplete') {
-          studentsMap.set(uniqueKey, {
-            name: studentName,
-            juzNumber: juzNumber,
-            status: status,
-            displayDate: displayDate,
-            daysSinceLastLesson: daysSinceLastLesson
-          });
-          console.log(`⚠️ وُجد تكرار: ${studentName} - جزء ${juzNumber} - تم اختيار السجل المكتمل`);
-        }
-        // إذا كلاهما مكتمل أو كلاهما غير مكتمل، نحتفظ بالأول
-        else {
-          console.log(`⚠️ تجاهل تكرار: ${studentName} - جزء ${juzNumber}`);
-        }
+      // تحديد الحالة النصية
+      let statusText = '';
+      let statusColor = '';
+      if (status === 'completed') {
+        statusText = '🟢 اجتاز';
+        statusColor = '#28a745';
       } else {
-        // سجل جديد - أضفه
-        studentsMap.set(uniqueKey, {
+        statusText = '🟡 سجّل';
+        statusColor = '#ffc107';
+      }
+      
+      allRecords.push({
+        name: studentName,
+        juzNumber: juzNumber,
+        status: status,
+        statusText: statusText,
+        statusColor: statusColor,
+        lastLessonDate: lastLessonDate || '-',
+        displayDate: displayDate || '-',
+        daysSinceLastLesson: daysSinceLastLesson,
+        hasRecord: true
+      });
+      
+      // حذف الطالب من قائمة الطلاب بدون سجلات (لأنه أصبح له سجل)
+      // سنتعامل معها لاحقاً
+    });
+    
+    // 🆕 STEP 4: إضافة الطلاب الذين ليس لهم أي سجل
+    // نجمع أسماء الطلاب الذين لهم سجلات
+    const studentsWithRecords = new Set(allRecords.map(r => r.name));
+    
+    // نضيف الطلاب الذين ليس لهم سجلات
+    allStudentsMap.forEach((student, studentName) => {
+      if (!studentsWithRecords.has(studentName)) {
+        allRecords.push({
           name: studentName,
-          juzNumber: juzNumber,
-          status: status,
-          displayDate: displayDate,
-          daysSinceLastLesson: daysSinceLastLesson
+          juzNumber: '-',
+          status: 'not_registered',
+          statusText: '🔴 لم يسجل',
+          statusColor: '#dc3545',
+          lastLessonDate: '-',
+          displayDate: '-',
+          daysSinceLastLesson: '-',
+          hasRecord: false
         });
       }
     });
     
-    // تحويل Map إلى Array
-    let studentsData = Array.from(studentsMap.values());
-    
-    // Sort by status (completed first) then by name
-    studentsData.sort((a, b) => {
-      if (a.status === 'completed' && b.status !== 'completed') return -1;
-      if (a.status !== 'completed' && b.status === 'completed') return 1;
+    // 🆕 STEP 5: ترتيب السجلات
+    // حسب الحالة: غير المسجلين أولاً، ثم المسجلين، ثم المجتازين
+    allRecords.sort((a, b) => {
+      // ترتيب حسب الحالة
+      const statusOrder = { 'not_registered': 0, 'incomplete': 1, 'completed': 2 };
+      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+      if (statusDiff !== 0) return statusDiff;
+      
+      // ثم حسب الاسم
       return a.name.localeCompare(b.name, 'ar');
     });
     
-    // Calculate statistics
-    const totalStudents = studentsData.length;
-    const passedStudents = studentsData.filter(s => s.status === 'completed').length;
-    const pendingStudents = totalStudents - passedStudents;
+    console.log(`📊 إجمالي السجلات في التقرير: ${allRecords.length}`);
     
-    // Build students table rows
+    // Calculate statistics
+    const totalRecords = allRecords.length;
+    const passedRecords = allRecords.filter(r => r.status === 'completed').length;
+    const registeredRecords = allRecords.filter(r => r.status === 'incomplete').length;
+    const notRegisteredRecords = allRecords.filter(r => r.status === 'not_registered').length;
+    
+    const totalStudents = allStudentsMap.size;
+    const passedStudents = passedRecords;
+    const pendingStudents = registeredRecords + notRegisteredRecords;
+    
+    // 🆕 بناء صفوف الجدول مع الأعمدة الجديدة
     let studentsRowsHTML = '';
-    studentsData.forEach((student, index) => {
+    allRecords.forEach((record, index) => {
       const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-      const passedIcon = student.status === 'completed' ? '✅' : '';
-      const pendingIcon = student.status === 'incomplete' ? '⏳' : '';
-      const daysText = student.status === 'incomplete' ? student.daysSinceLastLesson : '';
+      
+      // تنسيق رقم الجزء
+      const juzText = record.juzNumber !== '-' ? `جزء ${record.juzNumber}` : '-';
+      
+      // تنسيق التواريخ
+      const registrationDateText = record.lastLessonDate !== '-' ? formatDateForDisplay(record.lastLessonDate) : '-';
+      const passDateText = record.displayDate !== '-' ? formatDateForDisplay(record.displayDate) : '-';
       
       studentsRowsHTML += `
         <tr style="background: ${bgColor};">
-          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${student.name}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px;">جزء ${student.juzNumber}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 18px;">${passedIcon}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 18px;">${pendingIcon}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: #dc3545; font-weight: bold;">${daysText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${record.name}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px;">${juzText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; font-weight: bold; color: ${record.statusColor};">${record.statusText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${registrationDateText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${passDateText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: #dc3545; font-weight: bold;">${record.daysSinceLastLesson}</td>
         </tr>
       `;
     });
     
-    if (studentsData.length === 0) {
+    if (allRecords.length === 0) {
       studentsRowsHTML = `
         <tr>
-          <td colspan="5" style="padding: 20px; text-align: center; color: #999; font-size: 14px;">
-            لا يوجد طلاب مسجلين في هذه الحلقة
+          <td colspan="6" style="padding: 20px; text-align: center; color: #999; font-size: 14px;">
+            لا يوجد بيانات للعرض
           </td>
         </tr>
       `;
@@ -5273,7 +5313,7 @@ window.generateClassReport = async function() {
       position: absolute;
       left: -9999px;
       top: 0;
-      width: 900px;
+      width: 1100px;
       background: white;
       padding: 40px;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -5291,16 +5331,17 @@ window.generateClassReport = async function() {
       
       <div style="margin-bottom: 30px;">
         <h3 style="color: #28a745; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #28a745; padding-bottom: 10px;">
-          📋 قائمة الطلاب المسجلين
+          📋 قائمة جميع الطلاب
         </h3>
         <table style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 15px; border-radius: 8px 0 0 0; width: 30%;">اسم الطالب</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 15%;">الجزء</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 12%;">اجتاز</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 13%;">لم يجتاز</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; border-radius: 0 8px 0 0; width: 30%;">كم مضى على آخر درس</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 14px; border-radius: 8px 0 0 0; width: 20%;">اسم الطالب</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 12%;">الجزء</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 13%;">الحالة</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ التسجيل</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ الاجتياز</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; border-radius: 0 8px 0 0; width: 25%;">كم مضى على آخر درس</th>
             </tr>
           </thead>
           <tbody>
@@ -6795,7 +6836,27 @@ window.exportHizbClassReport = async function() {
     });
     const teacherName = teacherNamesMap[teacher] || 'المعلم';
     
-    // Fetch all hizbDisplays for this teacher
+    // 🆕 STEP 1: جلب جميع طلاب الحلقة من users collection
+    const allStudentsQuery = query(
+      collection(db, 'users'),
+      where('role', '==', 'student'),
+      where('classId', '==', teacher)
+    );
+    const allStudentsSnapshot = await getDocs(allStudentsQuery);
+    
+    const allStudentsMap = new Map();
+    allStudentsSnapshot.forEach(studentDoc => {
+      const studentData = studentDoc.data();
+      const studentName = studentData.name || 'غير محدد';
+      allStudentsMap.set(studentName, {
+        id: studentDoc.id,
+        name: studentName
+      });
+    });
+    
+    console.log(`📚 إجمالي طلاب الحلقة (الأحزاب): ${allStudentsMap.size}`);
+    
+    // 🆕 STEP 2: جلب سجلات الأحزاب
     const snapshot = await getDocs(query(
       collection(db, 'hizbDisplays'),
       where('teacherId', '==', teacher)
@@ -6805,49 +6866,40 @@ window.exportHizbClassReport = async function() {
     const todayEntry = accurateHijriDates.find(e => e.hijri === today);
     const todayGregorian = todayEntry ? new Date(todayEntry.gregorian) : new Date();
     
-    // استخدام Map لمنع التكرار - المفتاح: اسم الطالب + رقم الحزب
-    const studentsMap = new Map();
+    // 🆕 STEP 3: بناء قائمة السجلات
+    const allRecords = [];
     
     snapshot.forEach(docSnapshot => {
       const data = docSnapshot.data();
-      
-      // Apply date filter
-      let includeStudent = false;
-      
-      if (data.status === 'completed' && data.displayDate) {
-        let normalizedDisplayDate = data.displayDate;
-        if (data.displayDate.includes('/')) {
-          const parts = data.displayDate.split('/');
-          if (parts.length === 3) {
-            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
-        }
-        
-        // حالة 1: اجتاز في الفترة المحددة
-        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
-          includeStudent = true;
-        }
-        // حالة 2: اجتاز بعد الفترة لكن آخر درس كان في/قبل الفترة
-        else if (data.lastLessonDate && data.lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
-          includeStudent = true;
-        }
-      } else if (data.status === 'incomplete' && data.lastLessonDate) {
-        if (data.lastLessonDate <= toDate) {
-          includeStudent = true;
-        }
-      }
-      
-      if (!includeStudent) return;
-      
       const studentName = data.studentName || 'غير محدد';
       const hizbNumber = data.hizbNumber || '-';
       const status = data.status || 'incomplete';
       const lastLessonDate = data.lastLessonDate;
-      const displayDate = data.displayDate;
+      let displayDate = data.displayDate;
+      
+      if (displayDate && displayDate.includes('/')) {
+        const parts = displayDate.split('/');
+        if (parts.length === 3) {
+          displayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      }
+      
+      let includeRecord = false;
+      if (status === 'completed' && displayDate) {
+        if (displayDate >= fromDate && displayDate <= toDate) {
+          includeRecord = true;
+        } else if (lastLessonDate && lastLessonDate <= toDate && displayDate > toDate) {
+          includeRecord = true;
+        }
+      } else if (status === 'incomplete' && lastLessonDate) {
+        if (lastLessonDate <= toDate) {
+          includeRecord = true;
+        }
+      }
+      
+      if (!includeRecord) return;
       
       let daysSinceLastLesson = '-';
-      
-      // حساب كم مضى على آخر درس (للطلاب الذين لم يجتازوا فقط)
       if (status === 'incomplete' && lastLessonDate) {
         const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
         if (lastLessonEntry) {
@@ -6858,79 +6910,90 @@ window.exportHizbClassReport = async function() {
         }
       }
       
-      // مفتاح فريد لكل طالب + حزب
-      const uniqueKey = `${studentName}-${hizbNumber}`;
-      
-      // التحقق من التكرار: إذا وُجد سجل سابق لنفس الطالب ونفس الحزب
-      const existingRecord = studentsMap.get(uniqueKey);
-      
-      if (existingRecord) {
-        // أولوية للسجل المكتمل (completed) على غير المكتمل
-        if (status === 'completed' && existingRecord.status === 'incomplete') {
-          studentsMap.set(uniqueKey, {
-            name: studentName,
-            hizbNumber: hizbNumber,
-            status: status,
-            displayDate: displayDate,
-            daysSinceLastLesson: daysSinceLastLesson
-          });
-          console.log(`⚠️ وُجد تكرار: ${studentName} - حزب ${hizbNumber} - تم اختيار السجل المكتمل`);
-        }
-        // إذا كلاهما مكتمل أو كلاهما غير مكتمل، نحتفظ بالأول
-        else {
-          console.log(`⚠️ تجاهل تكرار: ${studentName} - حزب ${hizbNumber}`);
-        }
+      let statusText = '', statusColor = '';
+      if (status === 'completed') {
+        statusText = '🟢 اجتاز';
+        statusColor = '#28a745';
       } else {
-        // سجل جديد - أضفه
-        studentsMap.set(uniqueKey, {
+        statusText = '🟡 سجّل';
+        statusColor = '#ffc107';
+      }
+      
+      allRecords.push({
+        name: studentName,
+        hizbNumber: hizbNumber,
+        status: status,
+        statusText: statusText,
+        statusColor: statusColor,
+        lastLessonDate: lastLessonDate || '-',
+        displayDate: displayDate || '-',
+        daysSinceLastLesson: daysSinceLastLesson,
+        hasRecord: true
+      });
+    });
+    
+    // 🆕 إضافة الطلاب غير المسجلين
+    const studentsWithRecords = new Set(allRecords.map(r => r.name));
+    allStudentsMap.forEach((student, studentName) => {
+      if (!studentsWithRecords.has(studentName)) {
+        allRecords.push({
           name: studentName,
-          hizbNumber: hizbNumber,
-          status: status,
-          displayDate: displayDate,
-          daysSinceLastLesson: daysSinceLastLesson
+          hizbNumber: '-',
+          status: 'not_registered',
+          statusText: '🔴 لم يسجل',
+          statusColor: '#dc3545',
+          lastLessonDate: '-',
+          displayDate: '-',
+          daysSinceLastLesson: '-',
+          hasRecord: false
         });
       }
     });
     
-    // تحويل Map إلى Array
-    let studentsData = Array.from(studentsMap.values());
-    
-    // Sort by status (completed first) then by name
-    studentsData.sort((a, b) => {
-      if (a.status === 'completed' && b.status !== 'completed') return -1;
-      if (a.status !== 'completed' && b.status === 'completed') return 1;
+    // ترتيب السجلات
+    allRecords.sort((a, b) => {
+      const statusOrder = { 'not_registered': 0, 'incomplete': 1, 'completed': 2 };
+      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+      if (statusDiff !== 0) return statusDiff;
       return a.name.localeCompare(b.name, 'ar');
     });
     
-    // Calculate statistics
-    const totalStudents = studentsData.length;
-    const passedStudents = studentsData.filter(s => s.status === 'completed').length;
-    const pendingStudents = totalStudents - passedStudents;
+    console.log(`📊 إجمالي السجلات (أحزاب): ${allRecords.length}`);
     
-    // Build students table rows
+    const totalRecords = allRecords.length;
+    const passedRecords = allRecords.filter(r => r.status === 'completed').length;
+    const registeredRecords = allRecords.filter(r => r.status === 'incomplete').length;
+    const notRegisteredRecords = allRecords.filter(r => r.status === 'not_registered').length;
+    
+    const totalStudents = allStudentsMap.size;
+    const passedStudents = passedRecords;
+    const pendingStudents = registeredRecords + notRegisteredRecords;
+    
+    // 🆕 بناء صفوف الجدول مع الأعمدة الجديدة
     let studentsRowsHTML = '';
-    studentsData.forEach((student, index) => {
+    allRecords.forEach((record, index) => {
       const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-      const passedIcon = student.status === 'completed' ? '✅' : '';
-      const pendingIcon = student.status === 'incomplete' ? '⏳' : '';
-      const daysText = student.status === 'incomplete' ? student.daysSinceLastLesson : '';
+      const hizbText = record.hizbNumber !== '-' ? `حزب ${record.hizbNumber}` : '-';
+      const registrationDateText = record.lastLessonDate !== '-' ? formatDateForDisplay(record.lastLessonDate) : '-';
+      const passDateText = record.displayDate !== '-' ? formatDateForDisplay(record.displayDate) : '-';
       
       studentsRowsHTML += `
         <tr style="background: ${bgColor};">
-          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${student.name}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px;">حزب ${student.hizbNumber}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 18px;">${passedIcon}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 18px;">${pendingIcon}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: #dc3545; font-weight: bold;">${daysText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${record.name}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px;">${hizbText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; font-weight: bold; color: ${record.statusColor};">${record.statusText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${registrationDateText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${passDateText}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: #dc3545; font-weight: bold;">${record.daysSinceLastLesson}</td>
         </tr>
       `;
     });
     
-    if (studentsData.length === 0) {
+    if (allRecords.length === 0) {
       studentsRowsHTML = `
         <tr>
-          <td colspan="5" style="padding: 20px; text-align: center; color: #999; font-size: 14px;">
-            لا يوجد طلاب مسجلين في هذه الحلقة
+          <td colspan="6" style="padding: 20px; text-align: center; color: #999; font-size: 14px;">
+            لا يوجد بيانات للعرض
           </td>
         </tr>
       `;
@@ -6942,7 +7005,7 @@ window.exportHizbClassReport = async function() {
       position: absolute;
       left: -9999px;
       top: 0;
-      width: 900px;
+      width: 1100px;
       background: white;
       padding: 40px;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -6960,16 +7023,17 @@ window.exportHizbClassReport = async function() {
       
       <div style="margin-bottom: 30px;">
         <h3 style="color: #28a745; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #28a745; padding-bottom: 10px;">
-          📋 قائمة الطلاب المسجلين
+          📋 قائمة جميع الطلاب
         </h3>
         <table style="width: 100%; border-collapse: collapse;">
           <thead>
             <tr>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 15px; border-radius: 8px 0 0 0; width: 30%;">اسم الطالب</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 15%;">الحزب</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 12%;">اجتاز</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; width: 13%;">لم يجتاز</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 15px; border-radius: 0 8px 0 0; width: 30%;">كم مضى على آخر درس</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 14px; border-radius: 8px 0 0 0; width: 20%;">اسم الطالب</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 12%;">الحزب</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 13%;">الحالة</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ التسجيل</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ الاجتياز</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; border-radius: 0 8px 0 0; width: 25%;">كم مضى على آخر درس</th>
             </tr>
           </thead>
           <tbody>
