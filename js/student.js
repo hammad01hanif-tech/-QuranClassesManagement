@@ -1007,7 +1007,8 @@ window.showJuzDetails = async function(juzNumber) {
     if (juzData.lastLessonDate && juzData.displayDate) {
       const lastLesson = new Date(juzData.lastLessonDate);
       const display = new Date(juzData.displayDate);
-      daysCount = Math.ceil((display - lastLesson) / (1000 * 60 * 60 * 24));
+      // ✅ حساب أيام الدراسة فقط (بدون الجمعة والسبت)
+      daysCount = calculateBusinessDays(lastLesson, display);
       duration = `${daysCount} يوم`;
     }
     
@@ -1083,6 +1084,43 @@ window.closeJuzDetailsModal = function() {
     history.back();
   }
 };
+
+/**
+ * 📊 حساب عدد أيام الدراسة (بدون الجمعة والسبت)
+ * Calculate business days (excluding Friday and Saturday - weekend in Saudi Arabia)
+ * @param {Date} startDate - تاريخ البداية (Gregorian Date object)
+ * @param {Date} endDate - تاريخ النهاية (Gregorian Date object)
+ * @returns {number} عدد أيام الدراسة فقط
+ */
+function calculateBusinessDays(startDate, endDate) {
+  // Ensure we're working with Date objects
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  // Ensure start is before end
+  if (start > end) {
+    return calculateBusinessDays(end, start);
+  }
+  
+  let businessDays = 0;
+  const currentDate = new Date(start);
+  
+  // Loop through each day
+  while (currentDate <= end) {
+    const dayOfWeek = currentDate.getDay();
+    
+    // Friday = 5, Saturday = 6 (weekend in Saudi Arabia)
+    // Sunday = 0, Monday = 1, Tuesday = 2, Wednesday = 3, Thursday = 4 (working days)
+    if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+      businessDays++;
+    }
+    
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return businessDays;
+}
 
 // Format date for display
 function formatDateForDisplay(dateString) {

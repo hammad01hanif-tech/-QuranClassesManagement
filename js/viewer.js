@@ -1019,6 +1019,43 @@ function normalizeDateFormat(dateStr) {
   return normalizedDate;
 }
 
+/**
+ * 📊 حساب عدد أيام الدراسة (بدون الجمعة والسبت)
+ * Calculate business days (excluding Friday and Saturday - weekend in Saudi Arabia)
+ * @param {Date} startDate - تاريخ البداية (Gregorian Date object)
+ * @param {Date} endDate - تاريخ النهاية (Gregorian Date object)
+ * @returns {number} عدد أيام الدراسة فقط
+ */
+function calculateBusinessDays(startDate, endDate) {
+  // Ensure we're working with Date objects
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  // Ensure start is before end
+  if (start > end) {
+    return calculateBusinessDays(end, start);
+  }
+  
+  let businessDays = 0;
+  const currentDate = new Date(start);
+  
+  // Loop through each day
+  while (currentDate <= end) {
+    const dayOfWeek = currentDate.getDay();
+    
+    // Friday = 5, Saturday = 6 (weekend in Saudi Arabia)
+    // Sunday = 0, Monday = 1, Tuesday = 2, Wednesday = 3, Thursday = 4 (working days)
+    if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+      businessDays++;
+    }
+    
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return businessDays;
+}
+
 // Calculate difference in days between two Hijri dates
 // Both dates should be in Hijri YYYY-MM-DD format (e.g., "1447-06-05")
 function calculateHijriDaysDifference(date1Str, date2Str) {
@@ -1054,16 +1091,15 @@ function calculateHijriDaysDifference(date1Str, date2Str) {
     const gregorian1 = new Date(entry1.gregorian + 'T12:00:00');
     const gregorian2 = new Date(entry2.gregorian + 'T12:00:00');
     
-    // Calculate difference in milliseconds, then convert to days
-    const diffInMs = Math.abs(gregorian2 - gregorian1);
-    const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
+    // ✅ Calculate BUSINESS DAYS only (excluding Friday & Saturday)
+    const diffInDays = calculateBusinessDays(gregorian1, gregorian2);
     
-    console.log('⏱️ Accurate duration calculation:', {
+    console.log('⏱️ Accurate duration calculation (Business Days):', {
       hijri1: entry1.hijri,
       gregorian1: entry1.gregorian,
       hijri2: entry2.hijri,
       gregorian2: entry2.gregorian,
-      durationDays: diffInDays
+      businessDays: diffInDays
     });
     
     return diffInDays;
@@ -5202,14 +5238,14 @@ window.generateClassReport = async function() {
       
       if (!includeRecord) return;
       
-      // حساب كم مضى على آخر درس (فقط للطلاب الذين لم يجتازوا)
+      // حساب كم مضى على آخر درس (فقط للطلاب الذين لم يجتازوا) - أيام الدراسة فقط
       let daysSinceLastLesson = '-';
       if (status === 'incomplete' && lastLessonDate) {
         const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
         if (lastLessonEntry) {
           const lastLessonGregorian = new Date(lastLessonEntry.gregorian);
-          const diffTime = Math.abs(todayGregorian - lastLessonGregorian);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          // ✅ حساب أيام الدراسة فقط (بدون الجمعة والسبت)
+          const diffDays = calculateBusinessDays(lastLessonGregorian, todayGregorian);
           daysSinceLastLesson = `${diffDays} يوم`;
         }
       }
@@ -6932,8 +6968,8 @@ window.exportHizbClassReport = async function() {
         const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
         if (lastLessonEntry) {
           const lastLessonGregorian = new Date(lastLessonEntry.gregorian);
-          const diffTime = Math.abs(todayGregorian - lastLessonGregorian);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          // ✅ حساب أيام الدراسة فقط (بدون الجمعة والسبت)
+          const diffDays = calculateBusinessDays(lastLessonGregorian, todayGregorian);
           daysSinceLastLesson = `${diffDays} يوم`;
         }
       }
@@ -7774,8 +7810,8 @@ window.exportHizbStudentReport = async function() {
         if (firstEntry && lastEntry) {
           const firstDate = new Date(firstEntry.gregorian);
           const lastDate = new Date(lastEntry.gregorian);
-          const diffTime = Math.abs(lastDate - firstDate);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          // ✅ حساب أيام الدراسة فقط (بدون الجمعة والسبت)
+          const diffDays = calculateBusinessDays(firstDate, lastDate);
           record.duration = `${diffDays} يوم`;
         }
       }
@@ -8593,8 +8629,8 @@ window.exportJuzStudentReport = async function() {
         if (firstEntry && lastEntry) {
           const firstDate = new Date(firstEntry.gregorian);
           const lastDate = new Date(lastEntry.gregorian);
-          const diffTime = Math.abs(lastDate - firstDate);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          // ✅ حساب أيام الدراسة فقط (بدون الجمعة والسبت)
+          const diffDays = calculateBusinessDays(firstDate, lastDate);
           record.duration = `${diffDays} يوم`;
         }
       }
