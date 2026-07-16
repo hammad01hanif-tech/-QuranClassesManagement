@@ -5238,16 +5238,48 @@ window.generateClassReport = async function() {
       
       if (!includeRecord) return;
       
-      // حساب كم مضى على آخر درس (فقط للطلاب الذين لم يجتازوا) - أيام الدراسة فقط
-      let daysSinceLastLesson = '-';
+      // 📊 العمود الذكي: المدة والتفاصيل (أيام الدراسة فقط)
+      let durationText = '-';
+      let durationColor = '#999';
+      
       if (status === 'incomplete' && lastLessonDate) {
+        // للطلاب المسجلين: عرض كم يوم منذ آخر درس
         const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
         if (lastLessonEntry) {
           const lastLessonGregorian = new Date(lastLessonEntry.gregorian);
-          // ✅ حساب أيام الدراسة فقط (بدون الجمعة والسبت)
           const diffDays = calculateBusinessDays(lastLessonGregorian, todayGregorian);
-          daysSinceLastLesson = `${diffDays} يوم`;
+          
+          // مؤشر بصري حسب المدة
+          let indicator = '●';
+          if (diffDays < 7) {
+            durationColor = '#28a745'; // أخضر
+          } else if (diffDays <= 14) {
+            durationColor = '#ff9800'; // برتقالي
+          } else {
+            durationColor = '#dc3545'; // أحمر
+          }
+          
+          const dayWord = diffDays === 1 ? 'يوم' : diffDays === 2 ? 'يومان' : 'أيام';
+          durationText = `${indicator} منذ ${diffDays} ${dayWord}`;
         }
+      } else if (status === 'completed' && lastLessonDate && displayDate) {
+        // للطلاب المجتازين: عرض المدة المستغرقة
+        const durationDays = calculateHijriDaysDifference(lastLessonDate, displayDate);
+        const dayWord = durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام';
+        
+        // مؤشر بصري حسب الأداء
+        let indicator = '';
+        if (durationDays < 3) {
+          indicator = '⚡'; // ممتاز
+          durationColor = '#28a745';
+        } else if (durationDays <= 7) {
+          indicator = '✓'; // جيد
+          durationColor = '#28a745';
+        } else {
+          durationColor = '#666'; // عادي
+        }
+        
+        durationText = `${indicator} أنجز في ${durationDays} ${dayWord}`;
       }
       
       // تحديد الحالة النصية
@@ -5269,7 +5301,8 @@ window.generateClassReport = async function() {
         statusColor: statusColor,
         lastLessonDate: lastLessonDate || '-',
         displayDate: displayDate || '-',
-        daysSinceLastLesson: daysSinceLastLesson,
+        durationText: durationText,
+        durationColor: durationColor,
         hasRecord: true
       });
       
@@ -5292,7 +5325,8 @@ window.generateClassReport = async function() {
           statusColor: '#dc3545',
           lastLessonDate: '-',
           displayDate: '-',
-          daysSinceLastLesson: '-',
+          durationText: '-',
+          durationColor: '#999',
           hasRecord: false
         });
       }
@@ -5341,7 +5375,7 @@ window.generateClassReport = async function() {
           <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; font-weight: bold; color: ${record.statusColor};">${record.statusText}</td>
           <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${registrationDateText}</td>
           <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${passDateText}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: #dc3545; font-weight: bold;">${record.daysSinceLastLesson}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: ${record.durationColor}; font-weight: bold;">${record.durationText}</td>
         </tr>
       `;
     });
@@ -5390,7 +5424,7 @@ window.generateClassReport = async function() {
               <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 13%;">الحالة</th>
               <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ التسجيل</th>
               <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ الاجتياز</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; border-radius: 0 8px 0 0; width: 25%;">كم مضى على آخر درس</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; border-radius: 0 8px 0 0; width: 25%;">المدة والتفاصيل</th>
             </tr>
           </thead>
           <tbody>
@@ -6963,15 +6997,48 @@ window.exportHizbClassReport = async function() {
       
       if (!includeRecord) return;
       
-      let daysSinceLastLesson = '-';
+      // 📊 العمود الذكي: المدة والتفاصيل (أيام الدراسة فقط)
+      let durationText = '-';
+      let durationColor = '#999';
+      
       if (status === 'incomplete' && lastLessonDate) {
+        // للطلاب المسجلين: عرض كم يوم منذ آخر درس
         const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
         if (lastLessonEntry) {
           const lastLessonGregorian = new Date(lastLessonEntry.gregorian);
-          // ✅ حساب أيام الدراسة فقط (بدون الجمعة والسبت)
           const diffDays = calculateBusinessDays(lastLessonGregorian, todayGregorian);
-          daysSinceLastLesson = `${diffDays} يوم`;
+          
+          // مؤشر بصري حسب المدة
+          let indicator = '●';
+          if (diffDays < 7) {
+            durationColor = '#28a745'; // أخضر
+          } else if (diffDays <= 14) {
+            durationColor = '#ff9800'; // برتقالي
+          } else {
+            durationColor = '#dc3545'; // أحمر
+          }
+          
+          const dayWord = diffDays === 1 ? 'يوم' : diffDays === 2 ? 'يومان' : 'أيام';
+          durationText = `${indicator} منذ ${diffDays} ${dayWord}`;
         }
+      } else if (status === 'completed' && lastLessonDate && displayDate) {
+        // للطلاب المجتازين: عرض المدة المستغرقة
+        const durationDays = calculateHijriDaysDifference(lastLessonDate, displayDate);
+        const dayWord = durationDays === 1 ? 'يوم' : durationDays === 2 ? 'يومان' : 'أيام';
+        
+        // مؤشر بصري حسب الأداء
+        let indicator = '';
+        if (durationDays < 3) {
+          indicator = '⚡'; // ممتاز
+          durationColor = '#28a745';
+        } else if (durationDays <= 7) {
+          indicator = '✓'; // جيد
+          durationColor = '#28a745';
+        } else {
+          durationColor = '#666'; // عادي
+        }
+        
+        durationText = `${indicator} أنجز في ${durationDays} ${dayWord}`;
       }
       
       let statusText = '', statusColor = '';
@@ -6991,7 +7058,8 @@ window.exportHizbClassReport = async function() {
         statusColor: statusColor,
         lastLessonDate: lastLessonDate || '-',
         displayDate: displayDate || '-',
-        daysSinceLastLesson: daysSinceLastLesson,
+        durationText: durationText,
+        durationColor: durationColor,
         hasRecord: true
       });
     });
@@ -7008,7 +7076,8 @@ window.exportHizbClassReport = async function() {
           statusColor: '#dc3545',
           lastLessonDate: '-',
           displayDate: '-',
-          daysSinceLastLesson: '-',
+          durationText: '-',
+          durationColor: '#999',
           hasRecord: false
         });
       }
@@ -7048,7 +7117,7 @@ window.exportHizbClassReport = async function() {
           <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; font-weight: bold; color: ${record.statusColor};">${record.statusText}</td>
           <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${registrationDateText}</td>
           <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${passDateText}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: #dc3545; font-weight: bold;">${record.daysSinceLastLesson}</td>
+          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: ${record.durationColor}; font-weight: bold;">${record.durationText}</td>
         </tr>
       `;
     });
@@ -7097,7 +7166,7 @@ window.exportHizbClassReport = async function() {
               <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 13%;">الحالة</th>
               <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ التسجيل</th>
               <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ الاجتياز</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; border-radius: 0 8px 0 0; width: 25%;">كم مضى على آخر درس</th>
+              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; border-radius: 0 8px 0 0; width: 25%;">المدة والتفاصيل</th>
             </tr>
           </thead>
           <tbody>
