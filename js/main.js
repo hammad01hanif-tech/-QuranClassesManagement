@@ -1487,6 +1487,30 @@ window.saveHizbRegistration = async function() {
       studentId, studentName, teacherId, teacherName, hizbNumber, hijriDate
     });
     
+    // Check for existing registration (prevent duplicates)
+    const existingQuery = query(
+      collection(db, 'hizbDisplays'),
+      where('studentId', '==', studentId),
+      where('hizbNumber', '==', hizbNumber)
+    );
+    
+    const existingSnapshot = await getDocs(existingQuery);
+    
+    if (!existingSnapshot.empty) {
+      // Found existing registration
+      const existingDoc = existingSnapshot.docs[0];
+      const existingData = existingDoc.data();
+      const statusText = existingData.status === 'completed' ? 'وقد اجتازه' : 'ولم يجتازه بعد';
+      const dateText = existingData.status === 'completed' && existingData.displayDate 
+        ? ` في تاريخ ${existingData.displayDate}` 
+        : '';
+      
+      messageBox.textContent = `⚠️ الطالب ${studentName} مسجل بالفعل للحزب ${hizbNumber} ${statusText}${dateText}`;
+      messageBox.className = 'reg-message error';
+      messageBox.style.display = 'block';
+      return;
+    }
+    
     // Create hizbDisplay document for display queue
     const hizbDisplayData = {
       studentId: studentId,
@@ -1571,6 +1595,30 @@ window.saveJuzRegistration = async function() {
     console.log('💾 Saving Juz registration:', {
       studentId, studentName, teacherId, teacherName, juzNumber, hijriDate
     });
+    
+    // Check for existing registration (prevent duplicates)
+    const existingQuery = query(
+      collection(db, 'juzDisplays'),
+      where('studentId', '==', studentId),
+      where('juzNumber', '==', juzNumber)
+    );
+    
+    const existingSnapshot = await getDocs(existingQuery);
+    
+    if (!existingSnapshot.empty) {
+      // Found existing registration
+      const existingDoc = existingSnapshot.docs[0];
+      const existingData = existingDoc.data();
+      const statusText = existingData.status === 'completed' ? 'وقد اجتازه' : 'ولم يجتازه بعد';
+      const dateText = existingData.status === 'completed' && existingData.displayDate 
+        ? ` في تاريخ ${existingData.displayDate}` 
+        : '';
+      
+      messageBox.textContent = `⚠️ الطالب ${studentName} مسجل بالفعل للجزء ${juzNumber} ${statusText}${dateText}`;
+      messageBox.className = 'reg-message error';
+      messageBox.style.display = 'block';
+      return;
+    }
     
     // Create juzDisplay document for display queue
     const juzDisplayData = {
