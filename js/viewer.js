@@ -7553,95 +7553,150 @@ window.viewHizbStudentRecordsModal = async function() {
   const student = studentSelect.value;
   
   if (!teacher || !student) {
-    alert('⚠️ الرجاء اختيار المعلم والطالب');
+    alert('الرجاء اختيار المعلم والطالب');
     return;
   }
   
-  recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #667eea;">⏳ جاري التحميل...</div>';
+  recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">جاري التحميل...</div>';
   recordsContainer.classList.add('show');
   
   try {
+    // Fetch ALL hizb records (completed + incomplete)
     const q = query(
       collection(db, 'hizbDisplays'),
       where('teacherName', '==', teacher),
-      where('studentName', '==', student),
-      where('status', '==', 'completed')
+      where('studentName', '==', student)
     );
     const snapshot = await getDocs(q);
     
-    const completedHizbs = new Set();
+    // Build map: hizbNumber -> {status, data, docId}
+    const hizbDataMap = new Map();
     snapshot.forEach(doc => {
       const data = doc.data();
       if (data.hizbNumber) {
-        completedHizbs.add(data.hizbNumber);
+        const existing = hizbDataMap.get(data.hizbNumber);
+        // Prioritize completed over incomplete
+        if (!existing || (data.status === 'completed' && existing.status !== 'completed')) {
+          hizbDataMap.set(data.hizbNumber, {
+            docId: doc.id,
+            status: data.status || 'incomplete',
+            displayDate: data.displayDate || '',
+            lastLessonDate: data.lastLessonDate || '',
+            firstLessonDate: data.firstLessonDate || data.lastLessonDate || '',
+            viewerName: data.viewerName || '',
+            duration: ''
+          });
+        }
+      }
+    });
+    
+    // Calculate durations for completed records
+    hizbDataMap.forEach((record, hizbNum) => {
+      if (record.status === 'completed' && record.firstLessonDate && record.displayDate) {
+        const firstEntry = accurateHijriDates.find(e => e.hijri === record.firstLessonDate);
+        let displayDateNormalized = record.displayDate;
+        if (record.displayDate.includes('/')) {
+          const parts = record.displayDate.split('/');
+          if (parts.length === 3) {
+            displayDateNormalized = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        const lastEntry = accurateHijriDates.find(e => e.hijri === displayDateNormalized);
+        
+        if (firstEntry && lastEntry) {
+          const firstDate = new Date(firstEntry.gregorian);
+          const lastDate = new Date(lastEntry.gregorian);
+          const diffDays = calculateBusinessDays(firstDate, lastDate);
+          record.duration = `${diffDays} يوم`;
+        }
       }
     });
     
     const totalHizbs = 60;
-    const completedCount = completedHizbs.size;
-    const pendingCount = totalHizbs - completedCount;
+    const completedCount = Array.from(hizbDataMap.values()).filter(r => r.status === 'completed').length;
+    const incompleteCount = Array.from(hizbDataMap.values()).filter(r => r.status === 'incomplete').length;
+    const notStartedCount = totalHizbs - completedCount - incompleteCount;
     const progressPercent = Math.round((completedCount / totalHizbs) * 100);
     
-    // Generate grid
-    let gridHTML = '';
+    // Generate modern list
+    let listHTML = '';
     for (let i = 1; i <= totalHizbs; i++) {
-      const isCompleted = completedHizbs.has(i);
-      const statusClass = isCompleted ? 'completed' : 'pending';
-      const statusIcon = isCompleted ? '✅' : '⏳';
+      const record = hizbDataMap.get(i);
+      let statusIndicator = '';
+      let statusClass = '';
+      let statusText = '';
       
-      gridHTML += `
-        <div class="hizb-cell ${statusClass}" title="${isCompleted ? 'مجتاز' : 'لم يتم'}">
-          <div class="hizb-number">${i}</div>
-          <div class="hizb-icon">${statusIcon}</div>
+      if (record) {
+        if (record.status === 'completed') {
+          statusIndicator = '<div class="status-dot completed"></div>';
+          statusClass = 'completed';
+          statusText = 'مجتاز';
+        } else {
+          statusIndicator = '<div class="status-dot incomplete"></div>';
+          statusClass = 'incomplete';
+          statusText = 'معلق';
+        }
+      } else {
+        statusIndicator = '<div class="status-dot not-started"></div>';
+        statusClass = 'not-started';
+        statusText = 'لم يسجل';
+      }
+      
+      listHTML += `
+        <div class="record-item ${statusClass}" onclick="window.showHizbDetailsBottomSheet(${i}, '${teacher}', '${student}')" style="animation-delay: ${i * 10}ms;">
+          ${statusIndicator}
+          <span class="record-number">حزب ${i}</span>
+          <span class="record-status-text">${statusText}</span>
+          <div class="record-arrow">›</div>
         </div>
       `;
     }
     
     recordsContainer.innerHTML = `
-      <div style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 25px; border-radius: 15px; border: 2px solid #e9ecef;">
-        <h3 style="margin: 0 0 15px 0; text-align: center; color: #2d3748; font-size: 18px;">
-          📊 سجل أحزاب الطالب: <span style="color: #667eea;">${student}</span>
-        </h3>
+      <div class="modern-records-container">
+        <div class="records-header">
+          <h3>سجل أحزاب الطالب</h3>
+          <p class="student-name">${student}</p>
+        </div>
         
-        <!-- Progress Bar -->
-        <div style="margin-bottom: 15px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-weight: 600; color: #2d3748;">نسبة الإنجاز</span>
-            <span style="font-weight: 700; color: #667eea; font-size: 20px;">${progressPercent}%</span>
+        <div class="progress-section">
+          <div class="progress-info">
+            <span>نسبة الإنجاز</span>
+            <span class="progress-percent">${progressPercent}%</span>
           </div>
-          <div class="progress-bar-container">
-            <div class="progress-bar-fill" style="width: ${progressPercent}%"></div>
+          <div class="progress-bar-modern">
+            <div class="progress-fill-modern" style="width: ${progressPercent}%"></div>
           </div>
         </div>
         
-        <!-- Stats -->
-        <div class="stats-row">
-          <div class="stat-badge success">
-            <span>✅</span>
+        <div class="stats-modern">
+          <div class="stat-item">
+            <div class="stat-dot completed"></div>
             <span>${completedCount} مجتاز</span>
           </div>
-          <div class="stat-badge pending">
-            <span>⏳</span>
-            <span>${pendingCount} متبقي</span>
+          <div class="stat-item">
+            <div class="stat-dot incomplete"></div>
+            <span>${incompleteCount} معلق</span>
+          </div>
+          <div class="stat-item">
+            <div class="stat-dot not-started"></div>
+            <span>${notStartedCount} لم يسجل</span>
           </div>
         </div>
         
-        <!-- Hizb Grid -->
-        <div class="hizb-grid">
-          ${gridHTML}
+        <div class="records-list">
+          ${listHTML}
         </div>
         
-        <!-- Export Button -->
-        <button class="export-button" style="margin-top: 25px;" onclick="window.exportHizbStudentReport()">
-          <span style="font-size: 24px;">📥</span>
-          <span>تصدير تقرير الطالب (PDF)</span>
+        <button class="export-btn-modern" onclick="window.exportHizbStudentReport()">
+          تصدير PDF
         </button>
       </div>
     `;
     
   } catch (error) {
     console.error('Error loading student records:', error);
-    recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">❌ حدث خطأ في تحميل السجلات</div>';
+    recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">حدث خطأ في تحميل السجلات</div>';
   }
 };
 
@@ -8212,95 +8267,150 @@ window.viewJuzStudentRecordsModal = async function() {
   const student = studentSelect.value;
   
   if (!teacher || !student) {
-    alert('⚠️ الرجاء اختيار المعلم والطالب');
+    alert('الرجاء اختيار المعلم والطالب');
     return;
   }
   
-  recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #28a745;">⏳ جاري التحميل...</div>';
+  recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">جاري التحميل...</div>';
   recordsContainer.classList.add('show');
   
   try {
+    // Fetch ALL juz records (completed + incomplete)
     const q = query(
       collection(db, 'juzDisplays'),
       where('teacherName', '==', teacher),
-      where('studentName', '==', student),
-      where('status', '==', 'completed')
+      where('studentName', '==', student)
     );
     const snapshot = await getDocs(q);
     
-    const completedJuzs = new Set();
+    // Build map: juzNumber -> {status, data, docId}
+    const juzDataMap = new Map();
     snapshot.forEach(doc => {
       const data = doc.data();
       if (data.juzNumber) {
-        completedJuzs.add(data.juzNumber);
+        const existing = juzDataMap.get(data.juzNumber);
+        // Prioritize completed over incomplete
+        if (!existing || (data.status === 'completed' && existing.status !== 'completed')) {
+          juzDataMap.set(data.juzNumber, {
+            docId: doc.id,
+            status: data.status || 'incomplete',
+            displayDate: data.displayDate || '',
+            lastLessonDate: data.lastLessonDate || '',
+            firstLessonDate: data.firstLessonDate || data.lastLessonDate || '',
+            viewerName: data.viewerName || '',
+            duration: ''
+          });
+        }
+      }
+    });
+    
+    // Calculate durations for completed records
+    juzDataMap.forEach((record, juzNum) => {
+      if (record.status === 'completed' && record.firstLessonDate && record.displayDate) {
+        const firstEntry = accurateHijriDates.find(e => e.hijri === record.firstLessonDate);
+        let displayDateNormalized = record.displayDate;
+        if (record.displayDate.includes('/')) {
+          const parts = record.displayDate.split('/');
+          if (parts.length === 3) {
+            displayDateNormalized = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        const lastEntry = accurateHijriDates.find(e => e.hijri === displayDateNormalized);
+        
+        if (firstEntry && lastEntry) {
+          const firstDate = new Date(firstEntry.gregorian);
+          const lastDate = new Date(lastEntry.gregorian);
+          const diffDays = calculateBusinessDays(firstDate, lastDate);
+          record.duration = `${diffDays} يوم`;
+        }
       }
     });
     
     const totalJuzs = 30;
-    const completedCount = completedJuzs.size;
-    const pendingCount = totalJuzs - completedCount;
+    const completedCount = Array.from(juzDataMap.values()).filter(r => r.status === 'completed').length;
+    const incompleteCount = Array.from(juzDataMap.values()).filter(r => r.status === 'incomplete').length;
+    const notStartedCount = totalJuzs - completedCount - incompleteCount;
     const progressPercent = Math.round((completedCount / totalJuzs) * 100);
     
-    // Generate grid
-    let gridHTML = '';
+    // Generate modern list
+    let listHTML = '';
     for (let i = 1; i <= totalJuzs; i++) {
-      const isCompleted = completedJuzs.has(i);
-      const statusClass = isCompleted ? 'completed' : 'pending';
-      const statusIcon = isCompleted ? '✅' : '⏳';
+      const record = juzDataMap.get(i);
+      let statusIndicator = '';
+      let statusClass = '';
+      let statusText = '';
       
-      gridHTML += `
-        <div class="juz-cell ${statusClass}" title="${isCompleted ? 'مجتاز' : 'لم يتم'}">
-          <div class="juz-number">${i}</div>
-          <div class="juz-icon">${statusIcon}</div>
+      if (record) {
+        if (record.status === 'completed') {
+          statusIndicator = '<div class="status-dot completed"></div>';
+          statusClass = 'completed';
+          statusText = 'مجتاز';
+        } else {
+          statusIndicator = '<div class="status-dot incomplete"></div>';
+          statusClass = 'incomplete';
+          statusText = 'معلق';
+        }
+      } else {
+        statusIndicator = '<div class="status-dot not-started"></div>';
+        statusClass = 'not-started';
+        statusText = 'لم يسجل';
+      }
+      
+      listHTML += `
+        <div class="record-item ${statusClass}" onclick="window.showJuzDetailsBottomSheet(${i}, '${teacher}', '${student}')" style="animation-delay: ${i * 20}ms;">
+          ${statusIndicator}
+          <span class="record-number">جزء ${i}</span>
+          <span class="record-status-text">${statusText}</span>
+          <div class="record-arrow">›</div>
         </div>
       `;
     }
     
     recordsContainer.innerHTML = `
-      <div style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 25px; border-radius: 15px; border: 2px solid #e9ecef;">
-        <h3 style="margin: 0 0 15px 0; text-align: center; color: #2d3748; font-size: 18px;">
-          📊 سجل أجزاء الطالب: <span style="color: #28a745;">${student}</span>
-        </h3>
+      <div class="modern-records-container">
+        <div class="records-header">
+          <h3>سجل أجزاء الطالب</h3>
+          <p class="student-name">${student}</p>
+        </div>
         
-        <!-- Progress Bar -->
-        <div style="margin-bottom: 15px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-weight: 600; color: #2d3748;">نسبة الإنجاز</span>
-            <span style="font-weight: 700; color: #28a745; font-size: 20px;">${progressPercent}%</span>
+        <div class="progress-section">
+          <div class="progress-info">
+            <span>نسبة الإنجاز</span>
+            <span class="progress-percent">${progressPercent}%</span>
           </div>
-          <div class="progress-bar-container">
-            <div class="progress-bar-fill" style="width: ${progressPercent}%"></div>
+          <div class="progress-bar-modern">
+            <div class="progress-fill-modern" style="width: ${progressPercent}%"></div>
           </div>
         </div>
         
-        <!-- Stats -->
-        <div class="stats-row">
-          <div class="stat-badge success">
-            <span>✅</span>
+        <div class="stats-modern">
+          <div class="stat-item">
+            <div class="stat-dot completed"></div>
             <span>${completedCount} مجتاز</span>
           </div>
-          <div class="stat-badge pending">
-            <span>⏳</span>
-            <span>${pendingCount} متبقي</span>
+          <div class="stat-item">
+            <div class="stat-dot incomplete"></div>
+            <span>${incompleteCount} معلق</span>
+          </div>
+          <div class="stat-item">
+            <div class="stat-dot not-started"></div>
+            <span>${notStartedCount} لم يسجل</span>
           </div>
         </div>
         
-        <!-- Juz Grid -->
-        <div class="juz-grid">
-          ${gridHTML}
+        <div class="records-list">
+          ${listHTML}
         </div>
         
-        <!-- Export Button -->
-        <button class="export-button" style="margin-top: 25px;" onclick="window.exportJuzStudentReport()">
-          <span style="font-size: 24px;">📥</span>
-          <span>تصدير تقرير الطالب (PDF)</span>
+        <button class="export-btn-modern" onclick="window.exportJuzStudentReport()">
+          تصدير PDF
         </button>
       </div>
     `;
     
   } catch (error) {
     console.error('Error loading student records:', error);
-    recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">❌ حدث خطأ في تحميل السجلات</div>';
+    recordsContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;">حدث خطأ في تحميل السجلات</div>';
   }
 };
 
@@ -8318,6 +8428,393 @@ window.toggleJuzStudentPeriod = function() {
   } else {
     monthSection?.classList.remove('active');
     customSection?.classList.add('active');
+  }
+};
+
+/**
+ * Show Juz details in bottom sheet
+ */
+window.showJuzDetailsBottomSheet = async function(juzNumber, teacher, student) {
+  try {
+    // Query for this specific juz
+    const q = query(
+      collection(db, 'juzDisplays'),
+      where('teacherName', '==', teacher),
+      where('studentName', '==', student),
+      where('juzNumber', '==', juzNumber)
+    );
+    const snapshot = await getDocs(q);
+    
+    let record = null;
+    let docId = null;
+    
+    // Get the record (prioritize completed)
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (!record || (data.status === 'completed' && record.status !== 'completed')) {
+        record = data;
+        docId = doc.id;
+      }
+    });
+    
+    // Create bottom sheet
+    const sheet = document.createElement('div');
+    sheet.className = 'bottom-sheet-overlay';
+    sheet.onclick = (e) => {
+      if (e.target === sheet) closeBottomSheet();
+    };
+    
+    let contentHTML = '';
+    
+    if (record) {
+      // Calculate duration
+      let durationText = '';
+      if (record.status === 'completed' && record.firstLessonDate && record.displayDate) {
+        const firstEntry = accurateHijriDates.find(e => e.hijri === record.firstLessonDate);
+        let displayDateNormalized = record.displayDate;
+        if (record.displayDate.includes('/')) {
+          const parts = record.displayDate.split('/');
+          if (parts.length === 3) {
+            displayDateNormalized = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        const lastEntry = accurateHijriDates.find(e => e.hijri === displayDateNormalized);
+        
+        if (firstEntry && lastEntry) {
+          const firstDate = new Date(firstEntry.gregorian);
+          const lastDate = new Date(lastEntry.gregorian);
+          const diffDays = calculateBusinessDays(firstDate, lastDate);
+          durationText = `${diffDays} يوم`;
+        }
+      }
+      
+      const statusText = record.status === 'completed' ? 'مجتاز' : 'معلق';
+      const statusClass = record.status === 'completed' ? 'completed' : 'incomplete';
+      
+      contentHTML = `
+        <div class="bottom-sheet" onclick="event.stopPropagation()">
+          <div class="sheet-handle"></div>
+          <div class="sheet-header">
+            <h3>جزء رقم ${juzNumber}</h3>
+            <div class="status-badge-large ${statusClass}">${statusText}</div>
+          </div>
+          
+          <div class="sheet-content">
+            <div class="detail-row">
+              <span class="detail-label">المعلم</span>
+              <span class="detail-value">${teacher}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">الطالب</span>
+              <span class="detail-value">${student}</span>
+            </div>
+            
+            ${record.status === 'completed' ? `
+              <div class="detail-row">
+                <span class="detail-label">تاريخ الإجازة</span>
+                <span class="detail-value">${formatDateForDisplay(record.displayDate)}</span>
+              </div>
+            ` : ''}
+            
+            ${record.lastLessonDate ? `
+              <div class="detail-row">
+                <span class="detail-label">${record.status === 'completed' ? 'آخر درس' : 'تاريخ التسجيل'}</span>
+                <span class="detail-value">${formatDateForDisplay(record.lastLessonDate)}</span>
+              </div>
+            ` : ''}
+            
+            ${durationText ? `
+              <div class="detail-row">
+                <span class="detail-label">المدة</span>
+                <span class="detail-value">${durationText}</span>
+              </div>
+            ` : ''}
+            
+            ${record.viewerName ? `
+              <div class="detail-row">
+                <span class="detail-label">المستمع</span>
+                <span class="detail-value">${record.viewerName}</span>
+              </div>
+            ` : ''}
+          </div>
+          
+          <div class="sheet-actions">
+            <button class="sheet-btn edit" onclick="editJuzRecord('${docId}', ${juzNumber}, '${teacher}', '${student}')">
+              تعديل
+            </button>
+            <button class="sheet-btn delete" onclick="deleteJuzRecord('${docId}', ${juzNumber}, '${teacher}', '${student}')">
+              حذف
+            </button>
+            <button class="sheet-btn cancel" onclick="closeBottomSheet()">
+              إغلاق
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      // No record - not started
+      contentHTML = `
+        <div class="bottom-sheet" onclick="event.stopPropagation()">
+          <div class="sheet-handle"></div>
+          <div class="sheet-header">
+            <h3>جزء رقم ${juzNumber}</h3>
+            <div class="status-badge-large not-started">لم يسجل</div>
+          </div>
+          
+          <div class="sheet-content">
+            <div class="empty-state">
+              <p>لم يتم تسجيل هذا الجزء بعد</p>
+            </div>
+          </div>
+          
+          <div class="sheet-actions">
+            <button class="sheet-btn cancel" onclick="closeBottomSheet()">
+              إغلاق
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    sheet.innerHTML = contentHTML;
+    document.body.appendChild(sheet);
+    
+    // Trigger animation
+    setTimeout(() => {
+      sheet.classList.add('active');
+    }, 10);
+    
+  } catch (error) {
+    console.error('Error showing details:', error);
+    alert('حدث خطأ في عرض التفاصيل');
+  }
+};
+
+/**
+ * Show Hizb details in bottom sheet
+ */
+window.showHizbDetailsBottomSheet = async function(hizbNumber, teacher, student) {
+  try {
+    // Query for this specific hizb
+    const q = query(
+      collection(db, 'hizbDisplays'),
+      where('teacherName', '==', teacher),
+      where('studentName', '==', student),
+      where('hizbNumber', '==', hizbNumber)
+    );
+    const snapshot = await getDocs(q);
+    
+    let record = null;
+    let docId = null;
+    
+    // Get the record (prioritize completed)
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (!record || (data.status === 'completed' && record.status !== 'completed')) {
+        record = data;
+        docId = doc.id;
+      }
+    });
+    
+    // Create bottom sheet
+    const sheet = document.createElement('div');
+    sheet.className = 'bottom-sheet-overlay';
+    sheet.onclick = (e) => {
+      if (e.target === sheet) closeBottomSheet();
+    };
+    
+    let contentHTML = '';
+    
+    if (record) {
+      // Calculate duration
+      let durationText = '';
+      if (record.status === 'completed' && record.firstLessonDate && record.displayDate) {
+        const firstEntry = accurateHijriDates.find(e => e.hijri === record.firstLessonDate);
+        let displayDateNormalized = record.displayDate;
+        if (record.displayDate.includes('/')) {
+          const parts = record.displayDate.split('/');
+          if (parts.length === 3) {
+            displayDateNormalized = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+        }
+        const lastEntry = accurateHijriDates.find(e => e.hijri === displayDateNormalized);
+        
+        if (firstEntry && lastEntry) {
+          const firstDate = new Date(firstEntry.gregorian);
+          const lastDate = new Date(lastEntry.gregorian);
+          const diffDays = calculateBusinessDays(firstDate, lastDate);
+          durationText = `${diffDays} يوم`;
+        }
+      }
+      
+      const statusText = record.status === 'completed' ? 'مجتاز' : 'معلق';
+      const statusClass = record.status === 'completed' ? 'completed' : 'incomplete';
+      
+      contentHTML = `
+        <div class="bottom-sheet" onclick="event.stopPropagation()">
+          <div class="sheet-handle"></div>
+          <div class="sheet-header">
+            <h3>حزب رقم ${hizbNumber}</h3>
+            <div class="status-badge-large ${statusClass}">${statusText}</div>
+          </div>
+          
+          <div class="sheet-content">
+            <div class="detail-row">
+              <span class="detail-label">المعلم</span>
+              <span class="detail-value">${teacher}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">الطالب</span>
+              <span class="detail-value">${student}</span>
+            </div>
+            
+            ${record.status === 'completed' ? `
+              <div class="detail-row">
+                <span class="detail-label">تاريخ الإجازة</span>
+                <span class="detail-value">${formatDateForDisplay(record.displayDate)}</span>
+              </div>
+            ` : ''}
+            
+            ${record.lastLessonDate ? `
+              <div class="detail-row">
+                <span class="detail-label">${record.status === 'completed' ? 'آخر درس' : 'تاريخ التسجيل'}</span>
+                <span class="detail-value">${formatDateForDisplay(record.lastLessonDate)}</span>
+              </div>
+            ` : ''}
+            
+            ${durationText ? `
+              <div class="detail-row">
+                <span class="detail-label">المدة</span>
+                <span class="detail-value">${durationText}</span>
+              </div>
+            ` : ''}
+            
+            ${record.viewerName ? `
+              <div class="detail-row">
+                <span class="detail-label">المستمع</span>
+                <span class="detail-value">${record.viewerName}</span>
+              </div>
+            ` : ''}
+          </div>
+          
+          <div class="sheet-actions">
+            <button class="sheet-btn edit" onclick="editHizbRecord('${docId}', ${hizbNumber}, '${teacher}', '${student}')">
+              تعديل
+            </button>
+            <button class="sheet-btn delete" onclick="deleteHizbRecord('${docId}', ${hizbNumber}, '${teacher}', '${student}')">
+              حذف
+            </button>
+            <button class="sheet-btn cancel" onclick="closeBottomSheet()">
+              إغلاق
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      // No record - not started
+      contentHTML = `
+        <div class="bottom-sheet" onclick="event.stopPropagation()">
+          <div class="sheet-handle"></div>
+          <div class="sheet-header">
+            <h3>حزب رقم ${hizbNumber}</h3>
+            <div class="status-badge-large not-started">لم يسجل</div>
+          </div>
+          
+          <div class="sheet-content">
+            <div class="empty-state">
+              <p>لم يتم تسجيل هذا الحزب بعد</p>
+            </div>
+          </div>
+          
+          <div class="sheet-actions">
+            <button class="sheet-btn cancel" onclick="closeBottomSheet()">
+              إغلاق
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    sheet.innerHTML = contentHTML;
+    document.body.appendChild(sheet);
+    
+    // Trigger animation
+    setTimeout(() => {
+      sheet.classList.add('active');
+    }, 10);
+    
+  } catch (error) {
+    console.error('Error showing details:', error);
+    alert('حدث خطأ في عرض التفاصيل');
+  }
+};
+
+/**
+ * Close bottom sheet
+ */
+window.closeBottomSheet = function() {
+  const sheet = document.querySelector('.bottom-sheet-overlay');
+  if (sheet) {
+    sheet.classList.remove('active');
+    setTimeout(() => {
+      sheet.remove();
+    }, 300);
+  }
+};
+
+/**
+ * Edit Juz record
+ */
+window.editJuzRecord = async function(docId, juzNumber, teacher, student) {
+  // TODO: Implement edit functionality
+  alert('جاري تطوير خاصية التعديل...');
+  console.log('Edit Juz:', { docId, juzNumber, teacher, student });
+};
+
+/**
+ * Delete Juz record
+ */
+window.deleteJuzRecord = async function(docId, juzNumber, teacher, student) {
+  if (!confirm(`هل أنت متأكد من حذف سجل الجزء ${juzNumber}؟`)) return;
+  
+  try {
+    await deleteDoc(doc(db, 'juzDisplays', docId));
+    closeBottomSheet();
+    // Refresh the records view
+    await viewJuzStudentRecordsModal();
+    alert('تم حذف السجل بنجاح');
+  } catch (error) {
+    console.error('Error deleting record:', error);
+    alert('حدث خطأ في حذف السجل');
+  }
+};
+
+/**
+ * Edit Hizb record
+ */
+window.editHizbRecord = async function(docId, hizbNumber, teacher, student) {
+  // TODO: Implement edit functionality
+  alert('جاري تطوير خاصية التعديل...');
+  console.log('Edit Hizb:', { docId, hizbNumber, teacher, student });
+};
+
+/**
+ * Delete Hizb record
+ */
+window.deleteHizbRecord = async function(docId, hizbNumber, teacher, student) {
+  if (!confirm(`هل أنت متأكد من حذف سجل الحزب ${hizbNumber}؟`)) return;
+  
+  try {
+    await deleteDoc(doc(db, 'hizbDisplays', docId));
+    closeBottomSheet();
+    // Refresh the records view
+    await viewHizbStudentRecordsModal();
+    alert('تم حذف السجل بنجاح');
+  } catch (error) {
+    console.error('Error deleting record:', error);
+    alert('حدث خطأ في حذف السجل');
   }
 };
 
