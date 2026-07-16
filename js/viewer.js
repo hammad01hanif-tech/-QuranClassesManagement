@@ -1971,17 +1971,18 @@ window.loadDailyQueue = async function() {
     }
     
     let tableHTML = `
-      <table class="keep-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
-        <thead>
-          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-            <th style="padding: 12px; text-align: right; border-radius: 8px 0 0 0;">#</th>
-            <th style="padding: 12px; text-align: right;">اسم الطالب</th>
-            <th style="padding: 12px; text-align: right;">اسم المعلم</th>
-            <th style="padding: 12px; text-align: center;">الجزء</th>
-            <th style="padding: 12px; text-align: center; border-radius: 0 8px 0 0;">منذ</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -15px; padding: 0 15px;">
+        <table class="keep-table" style="width: 100%; min-width: 600px; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+              <th style="padding: 10px 8px; text-align: right; border-radius: 8px 0 0 0; width: 40px;">#</th>
+              <th style="padding: 10px 8px; text-align: right; min-width: 120px;">اسم الطالب</th>
+              <th style="padding: 10px 8px; text-align: right; min-width: 100px;">اسم المعلم</th>
+              <th style="padding: 10px 8px; text-align: center; width: 80px;">الجزء</th>
+              <th style="padding: 10px 8px; text-align: center; border-radius: 0 8px 0 0; min-width: 100px;">منذ</th>
+            </tr>
+          </thead>
+          <tbody>
     `;
     
     queue.forEach((student, index) => {
@@ -1996,12 +1997,12 @@ window.loadDailyQueue = async function() {
       
       tableHTML += `
         <tr onclick="window.showJuzDisplayOptions('${student.reportId}', '${student.studentName}', ${student.juzNumber})" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
-          <td style="padding: 12px; font-weight: bold; color: #667eea;">${index + 1}</td>
-          <td style="padding: 12px; font-weight: bold;">${displayName}</td>
-          <td style="padding: 12px; color: #666;">${student.teacherName}</td>
-          <td style="padding: 12px; text-align: center; font-weight: bold; color: #764ba2;">الجزء ${student.juzNumber}</td>
-          <td style="padding: 12px; text-align: center;">
-            <span style="padding: 5px 12px; background: ${priorityColor}; color: white; border-radius: 15px; font-weight: bold; font-size: 13px;">
+          <td style="padding: 10px 8px; font-weight: bold; color: #667eea;">${index + 1}</td>
+          <td style="padding: 10px 8px; font-weight: bold;">${displayName}</td>
+          <td style="padding: 10px 8px; color: #666;">${student.teacherName}</td>
+          <td style="padding: 10px 8px; text-align: center; font-weight: bold; color: #764ba2;">الجزء ${student.juzNumber}</td>
+          <td style="padding: 10px 8px; text-align: center;">
+            <span style="padding: 5px 12px; background: ${priorityColor}; color: white; border-radius: 15px; font-weight: bold; font-size: 12px; white-space: nowrap;">
               ${daysText}
             </span>
           </td>
@@ -2009,7 +2010,7 @@ window.loadDailyQueue = async function() {
       `;
     });
     
-    tableHTML += '</tbody></table>';
+    tableHTML += '</tbody></table></div>';
     
     container.innerHTML = tableHTML;
     
@@ -2176,17 +2177,18 @@ window.loadHizbQueue = async function() {
     }
     
     let tableHTML = `
-      <table class="keep-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
-        <thead>
-          <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-            <th style="padding: 12px; text-align: right; border-radius: 8px 0 0 0;">#</th>
-            <th style="padding: 12px; text-align: right;">اسم الطالب</th>
-            <th style="padding: 12px; text-align: right;">اسم المعلم</th>
-            <th style="padding: 12px; text-align: center;">الحزب</th>
-            <th style="padding: 12px; text-align: center; border-radius: 0 8px 0 0;">منذ</th>
-          </tr>
-        </thead>
-        <tbody>
+      <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -15px; padding: 0 15px;">
+        <table class="keep-table" style="width: 100%; min-width: 600px; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+              <th style="padding: 10px 8px; text-align: right; border-radius: 8px 0 0 0; width: 40px;">#</th>
+              <th style="padding: 10px 8px; text-align: right; min-width: 120px;">اسم الطالب</th>
+              <th style="padding: 10px 8px; text-align: right; min-width: 100px;">اسم المعلم</th>
+              <th style="padding: 10px 8px; text-align: center; width: 80px;">الحزب</th>
+              <th style="padding: 10px 8px; text-align: center; border-radius: 0 8px 0 0; min-width: 100px;">منذ</th>
+            </tr>
+          </thead>
+          <tbody>
     `;
     
     queue.forEach((student, index) => {
@@ -2201,12 +2203,12 @@ window.loadHizbQueue = async function() {
       
       tableHTML += `
         <tr onclick="window.showHizbDisplayOptions('${student.reportId}', '${student.studentName}', ${student.hizbNumber})" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
-          <td style="padding: 12px; font-weight: bold; color: #667eea;">${index + 1}</td>
-          <td style="padding: 12px; font-weight: bold;">${displayName}</td>
-          <td style="padding: 12px; color: #666;">${student.teacherName}</td>
-          <td style="padding: 12px; text-align: center; font-weight: bold; color: #764ba2;">الحزب ${student.hizbNumber}</td>
-          <td style="padding: 12px; text-align: center;">
-            <span style="padding: 5px 12px; background: ${priorityColor}; color: white; border-radius: 15px; font-weight: bold; font-size: 13px;">
+          <td style="padding: 10px 8px; font-weight: bold; color: #667eea;">${index + 1}</td>
+          <td style="padding: 10px 8px; font-weight: bold;">${displayName}</td>
+          <td style="padding: 10px 8px; color: #666;">${student.teacherName}</td>
+          <td style="padding: 10px 8px; text-align: center; font-weight: bold; color: #764ba2;">الحزب ${student.hizbNumber}</td>
+          <td style="padding: 10px 8px; text-align: center;">
+            <span style="padding: 5px 12px; background: ${priorityColor}; color: white; border-radius: 15px; font-weight: bold; font-size: 12px; white-space: nowrap;">
               ${daysText}
             </span>
           </td>
@@ -2214,7 +2216,7 @@ window.loadHizbQueue = async function() {
       `;
     });
     
-    tableHTML += '</tbody></table>';
+    tableHTML += '</tbody></table></div>';
     
     container.innerHTML = tableHTML;
     
