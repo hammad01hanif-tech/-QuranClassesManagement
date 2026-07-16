@@ -8768,9 +8768,213 @@ window.closeBottomSheet = function() {
  * Edit Juz record
  */
 window.editJuzRecord = async function(docId, juzNumber, teacher, student) {
-  // TODO: Implement edit functionality
-  alert('جاري تطوير خاصية التعديل...');
-  console.log('Edit Juz:', { docId, juzNumber, teacher, student });
+  try {
+    // Get the current record data
+    const docRef = doc(db, 'juzDisplays', docId);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      alert('السجل غير موجود');
+      return;
+    }
+    
+    const currentData = docSnap.data();
+    
+    // Close current sheet and open edit sheet
+    const currentSheet = document.querySelector('.bottom-sheet-overlay');
+    if (currentSheet) {
+      currentSheet.classList.remove('active');
+      setTimeout(() => {
+        currentSheet.remove();
+        showEditJuzSheet(docId, juzNumber, teacher, student, currentData);
+      }, 300);
+    } else {
+      showEditJuzSheet(docId, juzNumber, teacher, student, currentData);
+    }
+  } catch (error) {
+    console.error('Error loading record:', error);
+    alert('حدث خطأ في تحميل البيانات');
+  }
+};
+
+/**
+ * Show Edit Juz Sheet
+ */
+function showEditJuzSheet(docId, juzNumber, teacher, student, currentData) {
+  const sheet = document.createElement('div');
+  sheet.className = 'bottom-sheet-overlay';
+  sheet.onclick = (e) => {
+    if (e.target === sheet) {
+      if (confirm('هل تريد إلغاء التعديل؟')) {
+        closeBottomSheet();
+      }
+    }
+  };
+  
+  // Normalize display date
+  let displayDateValue = '';
+  if (currentData.displayDate) {
+    if (currentData.displayDate.includes('/')) {
+      const parts = currentData.displayDate.split('/');
+      if (parts.length === 3) {
+        displayDateValue = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    } else {
+      displayDateValue = currentData.displayDate;
+    }
+  }
+  
+  const lastLessonValue = currentData.lastLessonDate || '';
+  const viewerValue = currentData.viewerName || '';
+  const statusValue = currentData.status || 'incomplete';
+  
+  sheet.innerHTML = `
+    <div class="bottom-sheet edit-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3>تعديل جزء رقم ${juzNumber}</h3>
+      </div>
+      
+      <div class="sheet-content">
+        <form id="editJuzForm" class="edit-form">
+          <!-- Status -->
+          <div class="form-group">
+            <label class="form-label">حالة السجل</label>
+            <div class="status-toggle">
+              <label class="status-option ${statusValue === 'completed' ? 'active' : ''}">
+                <input type="radio" name="status" value="completed" ${statusValue === 'completed' ? 'checked' : ''}>
+                <span>مجتاز</span>
+              </label>
+              <label class="status-option ${statusValue === 'incomplete' ? 'active' : ''}">
+                <input type="radio" name="status" value="incomplete" ${statusValue === 'incomplete' ? 'checked' : ''}>
+                <span>معلق</span>
+              </label>
+            </div>
+            <p class="form-hint">عند التغيير إلى "معلق" سيظهر الطالب في قائمة الجاهزين</p>
+          </div>
+          
+          <!-- Display Date (only for completed) -->
+          <div class="form-group" id="displayDateGroup" style="display: ${statusValue === 'completed' ? 'block' : 'none'}">
+            <label class="form-label">تاريخ الإجازة</label>
+            <input type="date" id="editDisplayDate" class="form-input" value="${displayDateValue}">
+          </div>
+          
+          <!-- Last Lesson Date -->
+          <div class="form-group">
+            <label class="form-label">تاريخ آخر درس</label>
+            <input type="date" id="editLastLesson" class="form-input" value="${lastLessonValue}" required>
+          </div>
+          
+          <!-- Viewer Name -->
+          <div class="form-group">
+            <label class="form-label">اسم المستمع</label>
+            <input type="text" id="editViewer" class="form-input" value="${viewerValue}" placeholder="اسم المستمع">
+          </div>
+        </form>
+      </div>
+      
+      <div class="sheet-actions">
+        <button class="sheet-btn save" onclick="saveJuzEdit('${docId}', ${juzNumber}, '${teacher}', '${student}')">
+          حفظ التعديلات
+        </button>
+        <button class="sheet-btn cancel" onclick="cancelEditAndReturn('${docId}', ${juzNumber}, '${teacher}', '${student}')">
+          إلغاء
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(sheet);
+  
+  // Add status toggle listeners
+  setTimeout(() => {
+    const form = document.getElementById('editJuzForm');
+    const statusRadios = form.querySelectorAll('input[name="status"]');
+    const displayDateGroup = document.getElementById('displayDateGroup');
+    
+    statusRadios.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        // Update visual state
+        form.querySelectorAll('.status-option').forEach(opt => opt.classList.remove('active'));
+        e.target.closest('.status-option').classList.add('active');
+        
+        // Show/hide display date
+        if (e.target.value === 'completed') {
+          displayDateGroup.style.display = 'block';
+        } else {
+          displayDateGroup.style.display = 'none';
+        }
+      });
+    });
+    
+    sheet.classList.add('active');
+  }, 10);
+}
+
+/**
+ * Save Juz Edit
+ */
+window.saveJuzEdit = async function(docId, juzNumber, teacher, student) {
+  try {
+    const form = document.getElementById('editJuzForm');
+    const status = form.querySelector('input[name="status"]:checked').value;
+    const lastLesson = document.getElementById('editLastLesson').value;
+    const viewer = document.getElementById('editViewer').value.trim();
+    
+    if (!lastLesson) {
+      alert('الرجاء إدخال تاريخ آخر درس');
+      return;
+    }
+    
+    const updateData = {
+      status: status,
+      lastLessonDate: lastLesson,
+      viewerName: viewer || '',
+      firstLessonDate: lastLesson // Update first lesson date as well
+    };
+    
+    if (status === 'completed') {
+      const displayDate = document.getElementById('editDisplayDate').value;
+      if (!displayDate) {
+        alert('الرجاء إدخال تاريخ الإجازة');
+        return;
+      }
+      updateData.displayDate = displayDate;
+    } else {
+      // If changing to incomplete, remove display date
+      updateData.displayDate = '';
+    }
+    
+    // Update Firestore
+    const docRef = doc(db, 'juzDisplays', docId);
+    await updateDoc(docRef, updateData);
+    
+    // Close sheet and refresh
+    closeBottomSheet();
+    await viewJuzStudentRecordsModal();
+    
+    // Show success message
+    showSuccessToast('تم حفظ التعديلات بنجاح');
+    
+  } catch (error) {
+    console.error('Error saving edit:', error);
+    alert('حدث خطأ في حفظ التعديلات');
+  }
+};
+
+/**
+ * Cancel Edit and Return to Details
+ */
+window.cancelEditAndReturn = function(docId, juzNumber, teacher, student) {
+  const sheet = document.querySelector('.bottom-sheet-overlay');
+  if (sheet) {
+    sheet.classList.remove('active');
+    setTimeout(() => {
+      sheet.remove();
+      // Reopen details sheet
+      showJuzDetailsBottomSheet(juzNumber, teacher, student);
+    }, 300);
+  }
 };
 
 /**
@@ -8795,9 +8999,213 @@ window.deleteJuzRecord = async function(docId, juzNumber, teacher, student) {
  * Edit Hizb record
  */
 window.editHizbRecord = async function(docId, hizbNumber, teacher, student) {
-  // TODO: Implement edit functionality
-  alert('جاري تطوير خاصية التعديل...');
-  console.log('Edit Hizb:', { docId, hizbNumber, teacher, student });
+  try {
+    // Get the current record data
+    const docRef = doc(db, 'hizbDisplays', docId);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      alert('السجل غير موجود');
+      return;
+    }
+    
+    const currentData = docSnap.data();
+    
+    // Close current sheet and open edit sheet
+    const currentSheet = document.querySelector('.bottom-sheet-overlay');
+    if (currentSheet) {
+      currentSheet.classList.remove('active');
+      setTimeout(() => {
+        currentSheet.remove();
+        showEditHizbSheet(docId, hizbNumber, teacher, student, currentData);
+      }, 300);
+    } else {
+      showEditHizbSheet(docId, hizbNumber, teacher, student, currentData);
+    }
+  } catch (error) {
+    console.error('Error loading record:', error);
+    alert('حدث خطأ في تحميل البيانات');
+  }
+};
+
+/**
+ * Show Edit Hizb Sheet
+ */
+function showEditHizbSheet(docId, hizbNumber, teacher, student, currentData) {
+  const sheet = document.createElement('div');
+  sheet.className = 'bottom-sheet-overlay';
+  sheet.onclick = (e) => {
+    if (e.target === sheet) {
+      if (confirm('هل تريد إلغاء التعديل؟')) {
+        closeBottomSheet();
+      }
+    }
+  };
+  
+  // Normalize display date
+  let displayDateValue = '';
+  if (currentData.displayDate) {
+    if (currentData.displayDate.includes('/')) {
+      const parts = currentData.displayDate.split('/');
+      if (parts.length === 3) {
+        displayDateValue = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    } else {
+      displayDateValue = currentData.displayDate;
+    }
+  }
+  
+  const lastLessonValue = currentData.lastLessonDate || '';
+  const viewerValue = currentData.viewerName || '';
+  const statusValue = currentData.status || 'incomplete';
+  
+  sheet.innerHTML = `
+    <div class="bottom-sheet edit-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3>تعديل حزب رقم ${hizbNumber}</h3>
+      </div>
+      
+      <div class="sheet-content">
+        <form id="editHizbForm" class="edit-form">
+          <!-- Status -->
+          <div class="form-group">
+            <label class="form-label">حالة السجل</label>
+            <div class="status-toggle">
+              <label class="status-option ${statusValue === 'completed' ? 'active' : ''}">
+                <input type="radio" name="status" value="completed" ${statusValue === 'completed' ? 'checked' : ''}>
+                <span>مجتاز</span>
+              </label>
+              <label class="status-option ${statusValue === 'incomplete' ? 'active' : ''}">
+                <input type="radio" name="status" value="incomplete" ${statusValue === 'incomplete' ? 'checked' : ''}>
+                <span>معلق</span>
+              </label>
+            </div>
+            <p class="form-hint">عند التغيير إلى "معلق" سيظهر الطالب في قائمة الجاهزين</p>
+          </div>
+          
+          <!-- Display Date (only for completed) -->
+          <div class="form-group" id="displayDateGroupHizb" style="display: ${statusValue === 'completed' ? 'block' : 'none'}">
+            <label class="form-label">تاريخ الإجازة</label>
+            <input type="date" id="editDisplayDateHizb" class="form-input" value="${displayDateValue}">
+          </div>
+          
+          <!-- Last Lesson Date -->
+          <div class="form-group">
+            <label class="form-label">تاريخ آخر درس</label>
+            <input type="date" id="editLastLessonHizb" class="form-input" value="${lastLessonValue}" required>
+          </div>
+          
+          <!-- Viewer Name -->
+          <div class="form-group">
+            <label class="form-label">اسم المستمع</label>
+            <input type="text" id="editViewerHizb" class="form-input" value="${viewerValue}" placeholder="اسم المستمع">
+          </div>
+        </form>
+      </div>
+      
+      <div class="sheet-actions">
+        <button class="sheet-btn save" onclick="saveHizbEdit('${docId}', ${hizbNumber}, '${teacher}', '${student}')">
+          حفظ التعديلات
+        </button>
+        <button class="sheet-btn cancel" onclick="cancelHizbEditAndReturn('${docId}', ${hizbNumber}, '${teacher}', '${student}')">
+          إلغاء
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(sheet);
+  
+  // Add status toggle listeners
+  setTimeout(() => {
+    const form = document.getElementById('editHizbForm');
+    const statusRadios = form.querySelectorAll('input[name="status"]');
+    const displayDateGroup = document.getElementById('displayDateGroupHizb');
+    
+    statusRadios.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        // Update visual state
+        form.querySelectorAll('.status-option').forEach(opt => opt.classList.remove('active'));
+        e.target.closest('.status-option').classList.add('active');
+        
+        // Show/hide display date
+        if (e.target.value === 'completed') {
+          displayDateGroup.style.display = 'block';
+        } else {
+          displayDateGroup.style.display = 'none';
+        }
+      });
+    });
+    
+    sheet.classList.add('active');
+  }, 10);
+}
+
+/**
+ * Save Hizb Edit
+ */
+window.saveHizbEdit = async function(docId, hizbNumber, teacher, student) {
+  try {
+    const form = document.getElementById('editHizbForm');
+    const status = form.querySelector('input[name="status"]:checked').value;
+    const lastLesson = document.getElementById('editLastLessonHizb').value;
+    const viewer = document.getElementById('editViewerHizb').value.trim();
+    
+    if (!lastLesson) {
+      alert('الرجاء إدخال تاريخ آخر درس');
+      return;
+    }
+    
+    const updateData = {
+      status: status,
+      lastLessonDate: lastLesson,
+      viewerName: viewer || '',
+      firstLessonDate: lastLesson // Update first lesson date as well
+    };
+    
+    if (status === 'completed') {
+      const displayDate = document.getElementById('editDisplayDateHizb').value;
+      if (!displayDate) {
+        alert('الرجاء إدخال تاريخ الإجازة');
+        return;
+      }
+      updateData.displayDate = displayDate;
+    } else {
+      // If changing to incomplete, remove display date
+      updateData.displayDate = '';
+    }
+    
+    // Update Firestore
+    const docRef = doc(db, 'hizbDisplays', docId);
+    await updateDoc(docRef, updateData);
+    
+    // Close sheet and refresh
+    closeBottomSheet();
+    await viewHizbStudentRecordsModal();
+    
+    // Show success message
+    showSuccessToast('تم حفظ التعديلات بنجاح');
+    
+  } catch (error) {
+    console.error('Error saving edit:', error);
+    alert('حدث خطأ في حفظ التعديلات');
+  }
+};
+
+/**
+ * Cancel Edit and Return to Details (Hizb)
+ */
+window.cancelHizbEditAndReturn = function(docId, hizbNumber, teacher, student) {
+  const sheet = document.querySelector('.bottom-sheet-overlay');
+  if (sheet) {
+    sheet.classList.remove('active');
+    setTimeout(() => {
+      sheet.remove();
+      // Reopen details sheet
+      showHizbDetailsBottomSheet(hizbNumber, teacher, student);
+    }, 300);
+  }
 };
 
 /**
@@ -8816,6 +9224,36 @@ window.deleteHizbRecord = async function(docId, hizbNumber, teacher, student) {
     console.error('Error deleting record:', error);
     alert('حدث خطأ في حذف السجل');
   }
+};
+
+/**
+ * Show Success Toast
+ */
+window.showSuccessToast = function(message) {
+  // Remove existing toast if any
+  const existingToast = document.querySelector('.success-toast');
+  if (existingToast) {
+    existingToast.remove();
+  }
+  
+  const toast = document.createElement('div');
+  toast.className = 'success-toast';
+  toast.textContent = message;
+  
+  document.body.appendChild(toast);
+  
+  // Trigger animation
+  setTimeout(() => {
+    toast.classList.add('show');
+  }, 10);
+  
+  // Auto hide after 3 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, 3000);
 };
 
 /**

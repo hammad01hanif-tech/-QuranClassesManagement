@@ -12840,6 +12840,160 @@ details[open] > summary {
   }
 }
 
+/* ============================= */
+/* Edit Form Styles */
+/* ============================= */
+
+.edit-sheet {
+  max-height: 85vh;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.form-input {
+  padding: 12px 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #1e293b;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  background: #ffffff;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 4px 0 0 0;
+  font-style: italic;
+}
+
+/* Status Toggle */
+.status-toggle {
+  display: flex;
+  gap: 10px;
+  padding: 4px;
+  background: #f1f5f9;
+  border-radius: 12px;
+}
+
+.status-option {
+  flex: 1;
+  position: relative;
+  cursor: pointer;
+}
+
+.status-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.status-option span {
+  display: block;
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  background: transparent;
+  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-option:hover span {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.status-option.active span,
+.status-option input:checked + span {
+  background: #ffffff;
+  color: #1e293b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Save Button Special Style */
+.sheet-btn.save {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.sheet-btn.save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+/* ============================= */
+/* Success Toast */
+/* ============================= */
+
+.success-toast {
+  position: fixed;
+  bottom: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+  z-index: 10003;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.success-toast.show {
+  bottom: 30px;
+}
+
+/* Mobile Toast */
+@media (max-width: 768px) {
+  .success-toast {
+    left: 20px;
+    right: 20px;
+    transform: none;
+    text-align: center;
+  }
+  
+  .success-toast.show {
+    bottom: 20px;
+  }
+  
+  .edit-form {
+    gap: 16px;
+  }
+  
+  .form-input {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+}
+
 .supervision-rating-chip:active {
   transform: translateY(0);
 }
