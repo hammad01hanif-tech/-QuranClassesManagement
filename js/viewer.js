@@ -7461,68 +7461,6 @@ async function showHizbStudentReportModal() {
           </select>
         </div>
         
-        <!-- Period Type Selection -->
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
-            📅 نوع الفترة
-          </label>
-          <select class="luxury-select" id="hizbStudPeriodType" onchange="window.toggleHizbStudentPeriod()">
-            <option value="month">شهر هجري محدد</option>
-            <option value="custom">فترة مخصصة</option>
-          </select>
-        </div>
-        
-        <!-- Month Selection -->
-        <div id="hizbStudMonthSection" class="period-section active">
-          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
-            🌙 اختر الشهر الهجري
-          </label>
-          <select class="luxury-select" id="hizbStudMonth" style="font-size: 14px;">
-            ${generateHijriMonthsOptions()}
-          </select>
-        </div>
-        
-        <!-- Custom Range Selection -->
-        <div id="hizbStudCustomSection" class="period-section">
-          
-          <!-- From Date -->
-          <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
-              📅 من تاريخ
-            </label>
-            <div class="date-picker-row">
-              <select class="luxury-select date-picker-small" id="hizbStudFromDay">
-                <option value="">اليوم</option>
-              </select>
-              <select class="luxury-select date-picker-small" id="hizbStudFromMonth" onchange="window.updateDaysForDatePicker('hizbStudFromYear', 'hizbStudFromMonth', 'hizbStudFromDay')">
-                ${generateMonthsForYear()}
-              </select>
-              <select class="luxury-select date-picker-small" id="hizbStudFromYear" onchange="window.updateMonthsForYear('hizbStudFromYear', 'hizbStudFromMonth', 'hizbStudFromDay')">
-                ${generateHijriYearsOptions()}
-              </select>
-            </div>
-          </div>
-          
-          <!-- To Date -->
-          <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
-              📅 إلى تاريخ
-            </label>
-            <div class="date-picker-row">
-              <select class="luxury-select date-picker-small" id="hizbStudToDay">
-                <option value="">اليوم</option>
-              </select>
-              <select class="luxury-select date-picker-small" id="hizbStudToMonth" onchange="window.updateDaysForDatePicker('hizbStudToYear', 'hizbStudToMonth', 'hizbStudToDay')">
-                ${generateMonthsForYear()}
-              </select>
-              <select class="luxury-select date-picker-small" id="hizbStudToYear" onchange="window.updateMonthsForYear('hizbStudToYear', 'hizbStudToMonth', 'hizbStudToDay')">
-                ${generateHijriYearsOptions()}
-              </select>
-            </div>
-          </div>
-          
-        </div>
-        
         <!-- View Button -->
         <button class="export-button" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="window.viewHizbStudentRecordsModal()">
           <span style="font-size: 24px;">👁️</span>
@@ -7545,11 +7483,6 @@ async function showHizbStudentReportModal() {
   `;
   
   document.body.appendChild(overlay);
-  
-  // Initialize current date in custom range fields
-  setTimeout(() => {
-    initializeCurrentDateInModal('hizbStud');
-  }, 100);
   
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay) {
@@ -7719,7 +7652,6 @@ window.exportHizbStudentReport = async function() {
   try {
     const teacherSelect = document.getElementById('hizbStudModalTeacher');
     const studentSelect = document.getElementById('hizbStudModalStudent');
-    const periodType = document.getElementById('hizbStudPeriodType')?.value;
     
     if (!teacherSelect || !studentSelect) {
       alert('⚠️ حدث خطأ في تحميل النموذج');
@@ -7734,57 +7666,7 @@ window.exportHizbStudentReport = async function() {
       return;
     }
     
-    let fromDate = null;
-    let toDate = null;
-    let periodLabel = '';
-    
-    // Determine date range
-    if (periodType === 'month') {
-      const monthKey = document.getElementById('hizbStudMonth')?.value;
-      if (!monthKey) {
-        alert('⚠️ الرجاء اختيار الشهر');
-        return;
-      }
-      
-      const monthParts = monthKey.split('-');
-      const selectedYear = parseInt(monthParts[0]);
-      const selectedMonth = parseInt(monthParts[1]);
-      
-      // Find EXACT start and end dates from accurateHijriDates
-      const monthDates = accurateHijriDates.filter(entry => 
-        entry.hijriYear === selectedYear && entry.hijriMonth === selectedMonth
-      );
-      
-      if (monthDates.length > 0) {
-        fromDate = monthDates[0].hijri;
-        toDate = monthDates[monthDates.length - 1].hijri;
-      } else {
-        fromDate = `${monthKey}-01`;
-        toDate = `${monthKey}-30`;
-      }
-      
-      const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-      const monthName = hijriMonths[selectedMonth - 1];
-      periodLabel = `${monthName} ${selectedYear}`;
-    } else {
-      // Custom range
-      const fromYear = document.getElementById('hizbStudFromYear')?.value;
-      const fromMonth = document.getElementById('hizbStudFromMonth')?.value;
-      const fromDay = document.getElementById('hizbStudFromDay')?.value;
-      const toYear = document.getElementById('hizbStudToYear')?.value;
-      const toMonth = document.getElementById('hizbStudToMonth')?.value;
-      const toDay = document.getElementById('hizbStudToDay')?.value;
-      
-      if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
-        alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
-        return;
-      }
-      
-      fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
-      toDate = `${toYear}-${toMonth}-${toDay}`;
-      
-      periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
-    }
+    const periodLabel = 'السجل الكامل';
     
     // Show loading
     const loadingMsg = document.createElement('div');
@@ -7824,31 +7706,6 @@ window.exportHizbStudentReport = async function() {
       const hizbNumber = data.hizbNumber;
       
       if (!hizbNumber) return;
-      
-      // Check if record should be included based on date filter
-      let includeRecord = false;
-      
-      if (data.status === 'completed' && data.displayDate) {
-        let normalizedDisplayDate = data.displayDate;
-        if (data.displayDate.includes('/')) {
-          const parts = data.displayDate.split('/');
-          if (parts.length === 3) {
-            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
-        }
-        
-        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
-          includeRecord = true;
-        } else if (data.lastLessonDate && data.lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
-          includeRecord = true;
-        }
-      } else if (data.status === 'incomplete' && data.lastLessonDate) {
-        if (data.lastLessonDate <= toDate) {
-          includeRecord = true;
-        }
-      }
-      
-      if (!includeRecord) return;
       
       // Store record if not exists or replace with completed status
       const existing = hizbRecordsMap.get(hizbNumber);
@@ -8263,68 +8120,6 @@ async function showJuzStudentReportModal() {
           </select>
         </div>
         
-        <!-- Period Type Selection -->
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
-            📅 نوع الفترة
-          </label>
-          <select class="luxury-select" id="juzStudPeriodType" onchange="window.toggleJuzStudentPeriod()">
-            <option value="month">شهر هجري محدد</option>
-            <option value="custom">فترة مخصصة</option>
-          </select>
-        </div>
-        
-        <!-- Month Selection -->
-        <div id="juzStudMonthSection" class="period-section active">
-          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
-            🌙 اختر الشهر الهجري
-          </label>
-          <select class="luxury-select" id="juzStudMonth" style="font-size: 14px;">
-            ${generateHijriMonthsOptions()}
-          </select>
-        </div>
-        
-        <!-- Custom Range Selection -->
-        <div id="juzStudCustomSection" class="period-section">
-          
-          <!-- From Date -->
-          <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
-              📅 من تاريخ
-            </label>
-            <div class="date-picker-row">
-              <select class="luxury-select date-picker-small" id="juzStudFromDay">
-                <option value="">اليوم</option>
-              </select>
-              <select class="luxury-select date-picker-small" id="juzStudFromMonth" onchange="window.updateDaysForDatePicker('juzStudFromYear', 'juzStudFromMonth', 'juzStudFromDay')">
-                ${generateMonthsForYear()}
-              </select>
-              <select class="luxury-select date-picker-small" id="juzStudFromYear" onchange="window.updateMonthsForYear('juzStudFromYear', 'juzStudFromMonth', 'juzStudFromDay')">
-                ${generateHijriYearsOptions()}
-              </select>
-            </div>
-          </div>
-          
-          <!-- To Date -->
-          <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
-              📅 إلى تاريخ
-            </label>
-            <div class="date-picker-row">
-              <select class="luxury-select date-picker-small" id="juzStudToDay">
-                <option value="">اليوم</option>
-              </select>
-              <select class="luxury-select date-picker-small" id="juzStudToMonth" onchange="window.updateDaysForDatePicker('juzStudToYear', 'juzStudToMonth', 'juzStudToDay')">
-                ${generateMonthsForYear()}
-              </select>
-              <select class="luxury-select date-picker-small" id="juzStudToYear" onchange="window.updateMonthsForYear('juzStudToYear', 'juzStudToMonth', 'juzStudToDay')">
-                ${generateHijriYearsOptions()}
-              </select>
-            </div>
-          </div>
-          
-        </div>
-        
         <!-- View Button -->
         <button class="export-button" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);" onclick="window.viewJuzStudentRecordsModal()">
           <span style="font-size: 24px;">👁️</span>
@@ -8347,11 +8142,6 @@ async function showJuzStudentReportModal() {
   `;
   
   document.body.appendChild(overlay);
-  
-  // Initialize current date in custom range fields
-  setTimeout(() => {
-    initializeCurrentDateInModal('juzStud');
-  }, 100);
   
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay) {
@@ -8538,7 +8328,6 @@ window.exportJuzStudentReport = async function() {
   try {
     const teacherSelect = document.getElementById('juzStudModalTeacher');
     const studentSelect = document.getElementById('juzStudModalStudent');
-    const periodType = document.getElementById('juzStudPeriodType')?.value;
     
     if (!teacherSelect || !studentSelect) {
       alert('⚠️ حدث خطأ في تحميل النموذج');
@@ -8553,57 +8342,7 @@ window.exportJuzStudentReport = async function() {
       return;
     }
     
-    let fromDate = null;
-    let toDate = null;
-    let periodLabel = '';
-    
-    // Determine date range
-    if (periodType === 'month') {
-      const monthKey = document.getElementById('juzStudMonth')?.value;
-      if (!monthKey) {
-        alert('⚠️ الرجاء اختيار الشهر');
-        return;
-      }
-      
-      const monthParts = monthKey.split('-');
-      const selectedYear = parseInt(monthParts[0]);
-      const selectedMonth = parseInt(monthParts[1]);
-      
-      // Find EXACT start and end dates from accurateHijriDates
-      const monthDates = accurateHijriDates.filter(entry => 
-        entry.hijriYear === selectedYear && entry.hijriMonth === selectedMonth
-      );
-      
-      if (monthDates.length > 0) {
-        fromDate = monthDates[0].hijri;
-        toDate = monthDates[monthDates.length - 1].hijri;
-      } else {
-        fromDate = `${monthKey}-01`;
-        toDate = `${monthKey}-30`;
-      }
-      
-      const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
-      const monthName = hijriMonths[selectedMonth - 1];
-      periodLabel = `${monthName} ${selectedYear}`;
-    } else {
-      // Custom range
-      const fromYear = document.getElementById('juzStudFromYear')?.value;
-      const fromMonth = document.getElementById('juzStudFromMonth')?.value;
-      const fromDay = document.getElementById('juzStudFromDay')?.value;
-      const toYear = document.getElementById('juzStudToYear')?.value;
-      const toMonth = document.getElementById('juzStudToMonth')?.value;
-      const toDay = document.getElementById('juzStudToDay')?.value;
-      
-      if (!fromYear || !fromMonth || !fromDay || !toYear || !toMonth || !toDay) {
-        alert('⚠️ الرجاء إكمال جميع حقول التاريخ');
-        return;
-      }
-      
-      fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
-      toDate = `${toYear}-${toMonth}-${toDay}`;
-      
-      periodLabel = `من ${formatDateForDisplay(fromDate)} إلى ${formatDateForDisplay(toDate)}`;
-    }
+    const periodLabel = 'السجل الكامل';
     
     // Show loading
     const loadingMsg = document.createElement('div');
@@ -8643,31 +8382,6 @@ window.exportJuzStudentReport = async function() {
       const juzNumber = data.juzNumber;
       
       if (!juzNumber) return;
-      
-      // Check if record should be included based on date filter
-      let includeRecord = false;
-      
-      if (data.status === 'completed' && data.displayDate) {
-        let normalizedDisplayDate = data.displayDate;
-        if (data.displayDate.includes('/')) {
-          const parts = data.displayDate.split('/');
-          if (parts.length === 3) {
-            normalizedDisplayDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-          }
-        }
-        
-        if (normalizedDisplayDate >= fromDate && normalizedDisplayDate <= toDate) {
-          includeRecord = true;
-        } else if (data.lastLessonDate && data.lastLessonDate <= toDate && normalizedDisplayDate > toDate) {
-          includeRecord = true;
-        }
-      } else if (data.status === 'incomplete' && data.lastLessonDate) {
-        if (data.lastLessonDate <= toDate) {
-          includeRecord = true;
-        }
-      }
-      
-      if (!includeRecord) return;
       
       // Store record if not exists or replace with completed status
       const existing = juzRecordsMap.get(juzNumber);
