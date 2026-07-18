@@ -420,21 +420,28 @@ async function loadViewerTeachers(selectElementId = null) {
     if (reportTeacherSelect) reportTeacherSelect.innerHTML = '<option value="">-- اختر المعلم --</option>';
   }
   
-  const teachers = {
-    'ABD01': 'عبدالرحمن السيسي',
-    'AMR01': 'عامر هوساوي',
-    'ANS01': 'الأستاذ أنس',
-    'HRT01': 'حارث',
-    'IBR01': 'إبراهيم الطارقي',
-    'JHD01': 'الأستاذ جهاد',
-    'JWD01': 'عبدالرحمن جاويد',
-    'MZB01': 'مازن البلوشي',
-    'MZN01': 'الأستاذ مازن',
-    'NBL01': 'الأستاذ نبيل',
-    'OMR01': 'الأستاذ عمر',
-    'OSM01': 'أسامة حبيب',
-    'SLM01': 'سلمان رفيق'
-  };
+  // جلب المعلمين من collection classes
+  let teachers = {};
+  
+  try {
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      const teacherName = classData.teacherName || classData.className || classId;
+      teachers[classId] = teacherName;
+    });
+    
+    // Sort teachers by name
+    teachers = Object.fromEntries(
+      Object.entries(teachers).sort((a, b) => a[1].localeCompare(b[1], 'ar'))
+    );
+    
+  } catch (error) {
+    console.error('Error loading teachers:', error);
+    // Fallback to empty if error
+    teachers = {};
+  }
   
   // Add options to relevant selects
   const selectsToUpdate = selectElementId 
@@ -4427,21 +4434,28 @@ window.showClassReportOptions = async function() {
     // Use the accurate Hijri months generation function
     const monthOptions = generateHijriMonthsOptions();
     
-    // قائمة المعلمين الثابتة (نفس القائمة المستخدمة في النظام)
-    const teachers = {
-      'ABD01': 'عبدالرحمن السيسي',
-      'AMR01': 'عامر هوساوي',
-      'ANS01': 'الأستاذ أنس',
-      'HRT01': 'حارث',
-      'JHD01': 'الأستاذ جهاد',
-      'JWD01': 'عبدالرحمن جاويد',
-      'MZB01': 'مازن البلوشي',
-      'MZN01': 'الأستاذ مازن',
-      'NBL01': 'الأستاذ نبيل',
-      'OMR01': 'الأستاذ عمر',
-      'OSM01': 'أسامة حبيب',
-      'SLM01': 'سلمان رفيق'
-    };
+    // جلب المعلمين من collection classes
+    let teachers = {};
+    
+    try {
+      const classesSnapshot = await getDocs(collection(db, 'classes'));
+      classesSnapshot.forEach(classDoc => {
+        const classData = classDoc.data();
+        const classId = classData.classId || classDoc.id;
+        const teacherName = classData.teacherName || classData.className || classId;
+        teachers[classId] = teacherName;
+      });
+      
+      // Sort teachers by name
+      teachers = Object.fromEntries(
+        Object.entries(teachers).sort((a, b) => a[1].localeCompare(b[1], 'ar'))
+      );
+      
+    } catch (error) {
+      console.error('Error loading teachers:', error);
+      // Fallback to empty if error
+      teachers = {};
+    }
     
     let teacherOptions = '';
     for (const [id, name] of Object.entries(teachers)) {
@@ -6498,21 +6512,28 @@ window.exportHizbGeneralReport = async function() {
  * Show Hizb Class Report Modal
  */
 async function showHizbClassReportModal() {
-  // قائمة المعلمين الثابتة (نفس القائمة المستخدمة في النظام)
-  const teachers = {
-    'ABD01': 'عبدالرحمن السيسي',
-    'AMR01': 'عامر هوساوي',
-    'ANS01': 'الأستاذ أنس',
-    'HRT01': 'حارث',
-    'JHD01': 'الأستاذ جهاد',
-    'JWD01': 'عبدالرحمن جاويد',
-    'MZB01': 'مازن البلوشي',
-    'MZN01': 'الأستاذ مازن',
-    'NBL01': 'الأستاذ نبيل',
-    'OMR01': 'الأستاذ عمر',
-    'OSM01': 'أسامة حبيب',
-    'SLM01': 'سلمان رفيق'
-  };
+  // جلب المعلمين من collection classes
+  let teachers = {};
+  
+  try {
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      const teacherName = classData.teacherName || classData.className || classId;
+      teachers[classId] = teacherName;
+    });
+    
+    // Sort teachers by name
+    teachers = Object.fromEntries(
+      Object.entries(teachers).sort((a, b) => a[1].localeCompare(b[1], 'ar'))
+    );
+    
+  } catch (error) {
+    console.error('Error loading teachers:', error);
+    // Fallback to empty if error
+    teachers = {};
+  }
   
   const overlay = document.createElement('div');
   overlay.id = 'hizbClassModal';
