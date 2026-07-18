@@ -6509,7 +6509,7 @@ window.exportHizbGeneralReport = async function() {
 };
 
 /**
- * Show Hizb Class Report Modal
+ * Show Hizb Class Report Modal - Bottom Sheet with Checkboxes
  */
 async function showHizbClassReportModal() {
   // جلب المعلمين من collection classes
@@ -6531,58 +6531,60 @@ async function showHizbClassReportModal() {
     
   } catch (error) {
     console.error('Error loading teachers:', error);
-    // Fallback to empty if error
     teachers = {};
+  }
+  
+  // Build teachers checkboxes HTML
+  let teachersHTML = '';
+  for (const [id, name] of Object.entries(teachers)) {
+    teachersHTML += `
+      <label class="teacher-checkbox-item">
+        <input type="checkbox" value="${id}" class="teacher-checkbox" onchange="window.updateSelectedTeachersCount()">
+        <span class="teacher-checkbox-label">${name}</span>
+        <span class="teacher-checkbox-check">✓</span>
+      </label>
+    `;
   }
   
   const overlay = document.createElement('div');
   overlay.id = 'hizbClassModal';
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 10001;
-    backdrop-filter: blur(8px);
-    animation: fadeIn 0.3s ease;
-    overflow-y: auto;
-    padding: 20px;
-  `;
-  
-  let teachersOptions = '<option value="">-- اختر المعلم --</option>';
-  for (const [id, name] of Object.entries(teachers)) {
-    teachersOptions += `<option value="${id}">${name}</option>`;
-  }
+  overlay.className = 'bottom-sheet-overlay';
+  overlay.onclick = (e) => {
+    if (e.target === overlay) {
+      overlay.classList.remove('active');
+      setTimeout(() => overlay.remove(), 300);
+    }
+  };
   
   overlay.innerHTML = `
-    <div style="background: white; border-radius: 25px; width: 100%; max-width: 550px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); direction: rtl; overflow: hidden; margin: auto;">
-      <style>
-        ${getModalStyles()}
-      </style>
+    <div class="bottom-sheet hizbclass-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
       
       <!-- Header -->
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">
-        <div style="font-size: 52px; margin-bottom: 12px;">👥</div>
-        <h2 style="margin: 0; font-size: 26px; font-weight: 700;">تقرير حلقة معينة</h2>
-        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 14px;">اختر المعلم والفترة الزمنية</p>
+      <div class="sheet-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 20px 20px 0 0;">
+        <h3 style="margin: 0; font-size: 22px; font-weight: 700;">👥 تقرير حلقة معينة</h3>
+        <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px;">اختر الحلقات والفترة الزمنية</p>
       </div>
       
-      <!-- Body -->
-      <div style="padding: 30px;">
+      <div class="sheet-content" style="max-height: 70vh; overflow-y: auto; padding: 25px;">
         
-        <!-- Teacher Selection -->
+        <!-- Teachers Selection -->
         <div style="margin-bottom: 25px;">
-          <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #2d3748; font-size: 15px;">
-            👨‍🏫 اختر المعلم (الحلقة)
-          </label>
-          <select class="luxury-select" id="hizbClassTeacher">
-            ${teachersOptions}
-          </select>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <label style="font-weight: 700; color: #2d3748; font-size: 15px;">
+              👨‍🏫 اختر الحلقات (المعلمين)
+            </label>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span id="selectedTeachersCount" style="font-size: 13px; color: #667eea; font-weight: 600;">لم يتم الاختيار</span>
+              <button onclick="window.toggleSelectAllTeachers()" class="select-all-btn">
+                ✓ اختيار الكل
+              </button>
+            </div>
+          </div>
+          
+          <div class="teachers-checkboxes-container">
+            ${teachersHTML}
+          </div>
         </div>
         
         <!-- Period Type Selection -->
@@ -6646,36 +6648,82 @@ async function showHizbClassReportModal() {
           </div>
           
         </div>
-        
-        <!-- Export Button -->
-        <button class="export-button" onclick="window.exportHizbClassReport()">
-          <span style="font-size: 24px;">📥</span>
+      </div>
+      
+      <div class="sheet-actions" style="padding: 20px; border-top: 1px solid #e2e8f0;">
+        <button class="sheet-btn save" onclick="window.exportHizbClassReport()" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <span style="font-size: 20px;">📥</span>
           <span>تصدير تقرير الحلقة</span>
         </button>
-        
-        <!-- Cancel Button -->
-        <button onclick="document.getElementById('hizbClassModal').remove();" 
-          style="width: 100%; padding: 12px; margin-top: 12px; background: #f1f3f5; color: #495057; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+        <button onclick="document.getElementById('hizbClassModal').classList.remove('active'); setTimeout(() => document.getElementById('hizbClassModal').remove(), 300);" 
+          style="width: 100%; padding: 12px; margin-top: 10px; background: #f1f3f5; color: #495057; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
           ❌ إلغاء
         </button>
-        
       </div>
     </div>
   `;
   
   document.body.appendChild(overlay);
   
+  // Animate in
+  setTimeout(() => {
+    overlay.classList.add('active');
+  }, 10);
+  
   // Initialize current date in custom range fields
   setTimeout(() => {
     initializeCurrentDateInModal('hizbClass');
   }, 100);
-  
-  overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) {
-      overlay.remove();
-    }
-  });
 }
+
+/**
+ * Toggle Select All Teachers
+ */
+window.toggleSelectAllTeachers = function() {
+  const checkboxes = document.querySelectorAll('.teacher-checkbox');
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  
+  checkboxes.forEach(cb => {
+    cb.checked = !allChecked;
+  });
+  
+  window.updateSelectedTeachersCount();
+};
+
+/**
+ * Update Selected Teachers Count
+ */
+window.updateSelectedTeachersCount = function() {
+  const checkboxes = document.querySelectorAll('.teacher-checkbox:checked');
+  const count = checkboxes.length;
+  const countSpan = document.getElementById('selectedTeachersCount');
+  
+  if (count === 0) {
+    countSpan.textContent = 'لم يتم الاختيار';
+    countSpan.style.color = '#999';
+  } else if (count === 1) {
+    countSpan.textContent = 'حلقة واحدة';
+    countSpan.style.color = '#667eea';
+  } else if (count === 2) {
+    countSpan.textContent = 'حلقتان';
+    countSpan.style.color = '#667eea';
+  } else {
+    countSpan.textContent = `${count} حلقات`;
+    countSpan.style.color = '#667eea';
+  }
+  
+  // Update "Select All" button text
+  const allCheckboxes = document.querySelectorAll('.teacher-checkbox');
+  const allChecked = Array.from(allCheckboxes).every(cb => cb.checked);
+  const selectAllBtn = document.querySelector('.select-all-btn');
+  if (selectAllBtn) {
+    if (allChecked) {
+      selectAllBtn.textContent = '✗ إلغاء الكل';
+    } else {
+      selectAllBtn.textContent = '✓ اختيار الكل';
+    }
+  }
+};
 
 /**
  * Get modal styles (reusable)
@@ -6846,17 +6894,21 @@ window.toggleHizbStudentPeriod = function() {
 };
 
 /**
- * Export Hizb Class Report
+ * Export Hizb Class Report - Multiple Teachers Support
+ * تصدير تقرير حلقة الأحزاب - دعم أكثر من معلم
  */
 window.exportHizbClassReport = async function() {
   try {
-    const teacher = document.getElementById('hizbClassTeacher')?.value;
-    const periodType = document.getElementById('hizbClassPeriodType')?.value;
+    // جمع المعلمين المحددين من checkboxes
+    const selectedCheckboxes = document.querySelectorAll('.teacher-checkbox:checked');
+    const selectedTeachers = Array.from(selectedCheckboxes).map(cb => cb.value);
     
-    if (!teacher) {
-      alert('⚠️ الرجاء اختيار المعلم');
+    if (selectedTeachers.length === 0) {
+      alert('⚠️ الرجاء اختيار معلم واحد على الأقل');
       return;
     }
+    
+    const periodType = document.getElementById('hizbClassPeriodType')?.value;
     
     let fromDate = null;
     let toDate = null;
@@ -6922,17 +6974,17 @@ window.exportHizbClassReport = async function() {
       padding: 30px;
       border-radius: 15px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-      z-index: 10001;
+      z-index: 10002;
       text-align: center;
     `;
     loadingMsg.innerHTML = `
       <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
-      <div style="font-size: 18px; color: #28a745; font-weight: bold;">جاري إنشاء تقرير حلقة الأحزاب...</div>
-      <div style="font-size: 14px; color: #666; margin-top: 8px;">يرجى الانتظار</div>
+      <div style="font-size: 18px; color: #28a745; font-weight: bold;">جاري إنشاء تقرير ${selectedTeachers.length === 1 ? 'الحلقة' : 'الحلقات'}...</div>
+      <div style="font-size: 14px; color: #666; margin-top: 8px;">تم اختيار ${selectedTeachers.length} ${selectedTeachers.length === 1 ? 'حلقة' : selectedTeachers.length === 2 ? 'حلقتان' : 'حلقات'}</div>
     `;
     document.body.appendChild(loadingMsg);
     
-    // Get teacher name from classes collection
+    // Get teacher names from classes collection
     const classesSnapshot = await getDocs(collection(db, 'classes'));
     const teacherNamesMap = {};
     classesSnapshot.forEach(classDoc => {
@@ -6940,41 +6992,43 @@ window.exportHizbClassReport = async function() {
       const classId = classData.classId || classDoc.id;
       teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
     });
-    const teacherName = teacherNamesMap[teacher] || 'المعلم';
-    
-    // 🆕 STEP 1: جلب جميع طلاب الحلقة من users collection
-    const allStudentsQuery = query(
-      collection(db, 'users'),
-      where('role', '==', 'student'),
-      where('classId', '==', teacher)
-    );
-    const allStudentsSnapshot = await getDocs(allStudentsQuery);
-    
-    const allStudentsMap = new Map();
-    allStudentsSnapshot.forEach(studentDoc => {
-      const studentData = studentDoc.data();
-      const studentName = studentData.name || 'غير محدد';
-      allStudentsMap.set(studentName, {
-        id: studentDoc.id,
-        name: studentName
-      });
-    });
-    
-    console.log(`📚 إجمالي طلاب الحلقة (الأحزاب): ${allStudentsMap.size}`);
-    console.log(`📅 فترة التقرير: من ${fromDate} إلى ${toDate}`);
-    
-    // 🆕 STEP 2: جلب سجلات الأحزاب
-    const snapshot = await getDocs(query(
-      collection(db, 'hizbDisplays'),
-      where('teacherId', '==', teacher)
-    ));
     
     const today = getTodayForStorage();
     const todayEntry = accurateHijriDates.find(e => e.hijri === today);
     const todayGregorian = todayEntry ? new Date(todayEntry.gregorian) : new Date();
     
-    // 🆕 STEP 3: بناء قائمة السجلات
-    const allRecords = [];
+    // **مصفوفة لتخزين بيانات كل حلقة**
+    const allClassesData = [];
+    
+    // **معالجة كل معلم**
+    for (const teacherId of selectedTeachers) {
+      const teacherName = teacherNamesMap[teacherId] || teacherId;
+      
+      // جلب طلاب الحلقة
+      const allStudentsQuery = query(
+        collection(db, 'users'),
+        where('role', '==', 'student'),
+        where('classId', '==', teacherId)
+      );
+      const allStudentsSnapshot = await getDocs(allStudentsQuery);
+      
+      const allStudentsMap = new Map();
+      allStudentsSnapshot.forEach(studentDoc => {
+        const studentData = studentDoc.data();
+        const studentName = studentData.name || 'غير محدد';
+        allStudentsMap.set(studentName, {
+          id: studentDoc.id,
+          name: studentName
+        });
+      });
+      
+      // جلب سجلات الأحزاب
+      const snapshot = await getDocs(query(
+        collection(db, 'hizbDisplays'),
+        where('teacherId', '==', teacherId)
+      ));
+      
+      const allRecords = [];
     
     snapshot.forEach(docSnapshot => {
       const data = docSnapshot.data();
@@ -7086,76 +7140,175 @@ window.exportHizbClassReport = async function() {
         hasRecord: true
       });
     });
-    
-    // 🆕 إضافة الطلاب غير المسجلين
-    const studentsWithRecords = new Set(allRecords.map(r => r.name));
-    allStudentsMap.forEach((student, studentName) => {
-      if (!studentsWithRecords.has(studentName)) {
-        allRecords.push({
-          name: studentName,
-          hizbNumber: '-',
-          status: 'not_registered',
-          statusText: '🔴 لم يسجل',
-          statusColor: '#dc3545',
-          lastLessonDate: '-',
-          displayDate: '-',
-          durationText: '-',
-          durationColor: '#999',
-          hasRecord: false
-        });
-      }
-    });
-    
-    // ترتيب السجلات
-    allRecords.sort((a, b) => {
-      const statusOrder = { 'not_registered': 0, 'incomplete': 1, 'completed': 2 };
-      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
-      if (statusDiff !== 0) return statusDiff;
-      return a.name.localeCompare(b.name, 'ar');
-    });
-    
-    console.log(`📊 إجمالي السجلات (أحزاب): ${allRecords.length}`);
-    
-    const totalRecords = allRecords.length;
-    const passedRecords = allRecords.filter(r => r.status === 'completed').length;
-    const registeredRecords = allRecords.filter(r => r.status === 'incomplete').length;
-    const notRegisteredRecords = allRecords.filter(r => r.status === 'not_registered').length;
-    
-    const totalStudents = allStudentsMap.size;
-    const passedStudents = passedRecords;
-    const pendingStudents = registeredRecords + notRegisteredRecords;
-    
-    // 🆕 بناء صفوف الجدول مع الأعمدة الجديدة
-    let studentsRowsHTML = '';
-    allRecords.forEach((record, index) => {
-      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-      const hizbText = record.hizbNumber !== '-' ? `حزب ${record.hizbNumber}` : '-';
-      const registrationDateText = record.lastLessonDate !== '-' ? formatDateForDisplay(record.lastLessonDate) : '-';
-      const passDateText = record.displayDate !== '-' ? formatDateForDisplay(record.displayDate) : '-';
       
-      studentsRowsHTML += `
-        <tr style="background: ${bgColor};">
-          <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${record.name}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px;">${hizbText}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; font-weight: bold; color: ${record.statusColor};">${record.statusText}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${registrationDateText}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${passDateText}</td>
-          <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: ${record.durationColor}; font-weight: bold;">${record.durationText}</td>
-        </tr>
-      `;
-    });
-    
-    if (allRecords.length === 0) {
-      studentsRowsHTML = `
-        <tr>
-          <td colspan="6" style="padding: 20px; text-align: center; color: #999; font-size: 14px;">
-            لا يوجد بيانات للعرض
-          </td>
-        </tr>
-      `;
+      // إضافة الطلاب غير المسجلين
+      const studentsWithRecords = new Set(allRecords.map(r => r.name));
+      allStudentsMap.forEach((student, studentName) => {
+        if (!studentsWithRecords.has(studentName)) {
+          allRecords.push({
+            name: studentName,
+            hizbNumber: '-',
+            status: 'not_registered',
+            statusText: '🔴 لم يسجل',
+            statusColor: '#dc3545',
+            lastLessonDate: '-',
+            displayDate: '-',
+            durationText: '-',
+            durationColor: '#999',
+            hasRecord: false
+          });
+        }
+      });
+      
+      // ترتيب السجلات
+      allRecords.sort((a, b) => {
+        const statusOrder = { 'not_registered': 0, 'incomplete': 1, 'completed': 2 };
+        const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+        if (statusDiff !== 0) return statusDiff;
+        return a.name.localeCompare(b.name, 'ar');
+      });
+      
+      const totalStudents = allStudentsMap.size;
+      const passedStudents = allRecords.filter(r => r.status === 'completed').length;
+      const pendingStudents = totalStudents - passedStudents;
+      
+      // حفظ بيانات هذه الحلقة
+      allClassesData.push({
+        teacherId: teacherId,
+        teacherName: teacherName,
+        records: allRecords,
+        totalStudents: totalStudents,
+        passedStudents: passedStudents,
+        pendingStudents: pendingStudents
+      });
     }
     
-    // Create HTML content
+    // **بناء HTML للتقرير**
+    let reportHTML = '';
+    
+    // **العنوان الرئيسي**
+    const reportTitle = selectedTeachers.length === 1 
+      ? `الأستاذ: ${allClassesData[0].teacherName}` 
+      : `تقرير ${selectedTeachers.length} ${selectedTeachers.length === 2 ? 'حلقتان' : 'حلقات'}`;
+    
+    reportHTML += `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #28a745; margin: 0 0 10px 0; font-size: 32px;">👥 تقرير حلقة الأحزاب</h1>
+        <h2 style="color: #667eea; margin: 0; font-size: 24px;">${reportTitle}</h2>
+        <p style="color: #666; font-size: 16px; margin: 8px 0 0 0; font-weight: bold;">${periodLabel}</p>
+        <p style="color: #999; font-size: 14px; margin: 5px 0 0 0;">تاريخ التقرير: ${formatDateForDisplay(today)}</p>
+      </div>
+    `;
+    
+    // **معالجة كل حلقة**
+    allClassesData.forEach((classData, classIndex) => {
+      // **فاصل بين الحلقات** (إلا الأولى)
+      if (classIndex > 0) {
+        reportHTML += `
+          <div style="margin: 40px 0; border-top: 4px dashed #667eea; padding-top: 40px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2 style="color: #667eea; margin: 0; font-size: 28px;">━━━━━━━━━━</h2>
+            </div>
+          </div>
+        `;
+      }
+      
+      // **عنوان الحلقة** (إذا كان أكثر من معلم)
+      if (selectedTeachers.length > 1) {
+        reportHTML += `
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; text-align: center;">
+            <h2 style="color: white; margin: 0; font-size: 26px;">👨‍🏫 حلقة الأستاذ: ${classData.teacherName}</h2>
+          </div>
+        `;
+      }
+      
+      // **بناء صفوف الجدول**
+      let studentsRowsHTML = '';
+      classData.records.forEach((record, index) => {
+        const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+        const hizbText = record.hizbNumber !== '-' ? `حزب ${record.hizbNumber}` : '-';
+        const registrationDateText = record.lastLessonDate !== '-' ? formatDateForDisplay(record.lastLessonDate) : '-';
+        const passDateText = record.displayDate !== '-' ? formatDateForDisplay(record.displayDate) : '-';
+        
+        studentsRowsHTML += `
+          <tr style="background: ${bgColor};">
+            <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 14px;">${record.name}</td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 14px;">${hizbText}</td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; font-weight: bold; color: ${record.statusColor};">${record.statusText}</td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${registrationDateText}</td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${passDateText}</td>
+            <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px; color: ${record.durationColor}; font-weight: bold;">${record.durationText}</td>
+          </tr>
+        `;
+      });
+      
+      if (classData.records.length === 0) {
+        studentsRowsHTML = `
+          <tr>
+            <td colspan="6" style="padding: 20px; text-align: center; color: #999; font-size: 14px;">
+              لا يوجد بيانات للعرض
+            </td>
+          </tr>
+        `;
+      }
+      
+      // **جدول البيانات**
+      reportHTML += `
+        <div style="margin-bottom: 30px;">
+          <h3 style="color: #28a745; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #28a745; padding-bottom: 10px;">
+            📋 قائمة جميع الطلاب
+          </h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 14px; border-radius: 8px 0 0 0; width: 20%;">اسم الطالب</th>
+                <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 12%;">الحزب</th>
+                <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 13%;">الحالة</th>
+                <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ التسجيل</th>
+                <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ الاجتياز</th>
+                <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; border-radius: 0 8px 0 0; width: 25%;">المدة والتفاصيل</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${studentsRowsHTML}
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      // **إحصائيات الحلقة**
+      reportHTML += `
+        <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 12px; color: white; margin-bottom: 30px;">
+          <h3 style="margin: 0 0 20px 0; font-size: 22px; text-align: center;">📊 إحصائيات الحلقة</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+            <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد المسجلين</div>
+              <div style="font-size: 28px; font-weight: bold;">${classData.totalStudents}</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد المجتازين</div>
+              <div style="font-size: 28px; font-weight: bold; color: #90ee90;">${classData.passedStudents}</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
+              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد الغير مجتازين</div>
+              <div style="font-size: 28px; font-weight: bold; color: #ffb6c1;">${classData.pendingStudents}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    
+    // **الفوتر**
+    reportHTML += `
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #28a745;">
+        <p style="margin: 5px 0; color: #28a745; font-size: 14px; font-style: italic;">📚 نظام إدارة عرض الأحزاب القرآنية</p>
+        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${formatDateForDisplay(today)}</p>
+      </div>
+    `;
+    
+    console.log(`📊 إجمالي السجلات (أحزاب): ${allClassesData.reduce((sum, c) => sum + c.records.length, 0)}`);
+    
+    // إنشاء الحاوية للتقرير HTML
     const container = document.createElement('div');
     container.style.cssText = `
       position: absolute;
@@ -7168,60 +7321,7 @@ window.exportHizbClassReport = async function() {
       direction: rtl;
       text-align: right;
     `;
-    
-    container.innerHTML = `
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #28a745; margin: 0 0 10px 0; font-size: 32px;">👥 تقرير حلقة الأحزاب</h1>
-        <h2 style="color: #667eea; margin: 0; font-size: 24px;">الأستاذ: ${teacherName}</h2>
-        <p style="color: #666; font-size: 16px; margin: 8px 0 0 0; font-weight: bold;">${periodLabel}</p>
-        <p style="color: #999; font-size: 14px; margin: 5px 0 0 0;">تاريخ التقرير: ${formatDateForDisplay(today)}</p>
-      </div>
-      
-      <div style="margin-bottom: 30px;">
-        <h3 style="color: #28a745; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #28a745; padding-bottom: 10px;">
-          📋 قائمة جميع الطلاب
-        </h3>
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: right; border: none; font-size: 14px; border-radius: 8px 0 0 0; width: 20%;">اسم الطالب</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 12%;">الحزب</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 13%;">الحالة</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ التسجيل</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; width: 15%;">تاريخ الاجتياز</th>
-              <th style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px; text-align: center; border: none; font-size: 14px; border-radius: 0 8px 0 0; width: 25%;">المدة والتفاصيل</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${studentsRowsHTML}
-          </tbody>
-        </table>
-      </div>
-      
-      <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 12px; color: white;">
-        <h3 style="margin: 0 0 20px 0; font-size: 22px; text-align: center;">📊 الإحصائيات</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
-          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد المسجلين</div>
-            <div style="font-size: 28px; font-weight: bold;">${totalStudents}</div>
-          </div>
-          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد المجتازين</div>
-            <div style="font-size: 28px; font-weight: bold; color: #90ee90;">${passedStudents}</div>
-          </div>
-          <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">عدد الغير مجتازين</div>
-            <div style="font-size: 28px; font-weight: bold; color: #ffb6c1;">${pendingStudents}</div>
-          </div>
-        </div>
-      </div>
-      
-      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #28a745;">
-        <p style="margin: 5px 0; color: #28a745; font-size: 14px; font-style: italic;">📚 نظام إدارة عرض الأحزاب القرآنية</p>
-        <p style="margin: 5px 0; color: #999; font-size: 12px;">تاريخ التصدير: ${formatDateForDisplay(today)}</p>
-      </div>
-    `;
-    
+    container.innerHTML = reportHTML;
     document.body.appendChild(container);
     
     // Generate PDF using html2canvas and jsPDF
@@ -7260,17 +7360,24 @@ window.exportHizbClassReport = async function() {
     }
     
     // Save PDF
-    const fileName = `تقرير_حلقة_الأحزاب_${teacherName}_${periodLabel.replace(/\s/g, '_')}.pdf`;
+    const fileTitle = selectedTeachers.length === 1 
+      ? `تقرير_حلقة_الأحزاب_${allClassesData[0].teacherName}` 
+      : `تقرير_حلقات_الأحزاب_${selectedTeachers.length}_حلقات`;
+    const fileName = `${fileTitle}_${periodLabel.replace(/\s/g, '_')}.pdf`;
     pdf.save(fileName);
     
     // Remove loading and overlay
     loadingMsg.remove();
-    document.getElementById('hizbClassModal')?.remove();
+    const modal = document.getElementById('hizbClassModal');
+    if (modal) {
+      modal.classList.remove('active');
+      setTimeout(() => modal.remove(), 300);
+    }
     
-    alert('✅ تم تصدير التقرير بنجاح!');
+    alert(`✅ تم تصدير تقرير ${selectedTeachers.length === 1 ? 'الحلقة' : `${selectedTeachers.length} حلقات`} بنجاح!`);
     
   } catch (error) {
-    console.error('Error generating Hizb class report:', error);
+    console.error('Error generating multi-teacher Hizb report:', error);
     const loadingMsg = document.getElementById('pdfLoadingMsg');
     if (loadingMsg) loadingMsg.remove();
     alert('❌ حدث خطأ في إنشاء التقرير');
