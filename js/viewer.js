@@ -8800,7 +8800,7 @@ window.editJuzRecord = async function(docId, juzNumber, teacher, student) {
 /**
  * Show Edit Juz Sheet
  */
-function showEditJuzSheet(docId, juzNumber, teacher, student, currentData) {
+async function showEditJuzSheet(docId, juzNumber, teacher, student, currentData) {
   const sheet = document.createElement('div');
   sheet.className = 'bottom-sheet-overlay';
   sheet.onclick = (e) => {
@@ -8811,20 +8811,28 @@ function showEditJuzSheet(docId, juzNumber, teacher, student, currentData) {
     }
   };
   
-  // Normalize display date
-  let displayDateValue = '';
+  // Parse display date (YYYY-MM-DD format)
+  let displayDay = '', displayMonth = '', displayYear = '';
   if (currentData.displayDate) {
-    if (currentData.displayDate.includes('/')) {
-      const parts = currentData.displayDate.split('/');
-      if (parts.length === 3) {
-        displayDateValue = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-      }
-    } else {
-      displayDateValue = currentData.displayDate;
+    const parts = currentData.displayDate.split('-');
+    if (parts.length === 3) {
+      displayYear = parts[0];
+      displayMonth = parts[1];
+      displayDay = parts[2];
     }
   }
   
-  const lastLessonValue = currentData.lastLessonDate || '';
+  // Parse last lesson date (YYYY-MM-DD format)
+  let lastDay = '', lastMonth = '', lastYear = '';
+  if (currentData.lastLessonDate) {
+    const parts = currentData.lastLessonDate.split('-');
+    if (parts.length === 3) {
+      lastYear = parts[0];
+      lastMonth = parts[1];
+      lastDay = parts[2];
+    }
+  }
+  
   const viewerValue = currentData.viewerName || '';
   const statusValue = currentData.status || 'incomplete';
   
@@ -8855,14 +8863,40 @@ function showEditJuzSheet(docId, juzNumber, teacher, student, currentData) {
           
           <!-- Display Date (only for completed) -->
           <div class="form-group" id="displayDateGroup" style="display: ${statusValue === 'completed' ? 'block' : 'none'}">
-            <label class="form-label">تاريخ الإجازة</label>
-            <input type="date" id="editDisplayDate" class="form-input" value="${displayDateValue}">
+            <label class="form-label">تاريخ الإجازة (هجري)</label>
+            <div class="date-picker-group-edit">
+              <select id="editDisplayDay" class="date-select-edit">
+                <option value="">اليوم</option>
+              </select>
+              <select id="editDisplayMonth" class="date-select-edit">
+                <option value="">الشهر</option>
+              </select>
+              <select id="editDisplayYear" class="date-select-edit">
+                <option value="">السنة</option>
+              </select>
+            </div>
+            <button type="button" class="date-today-btn-edit" onclick="setTodayForEditJuz('display')">
+              تعيين تاريخ اليوم
+            </button>
           </div>
           
           <!-- Last Lesson Date -->
           <div class="form-group">
-            <label class="form-label">تاريخ آخر درس</label>
-            <input type="date" id="editLastLesson" class="form-input" value="${lastLessonValue}" required>
+            <label class="form-label">تاريخ آخر درس (هجري)</label>
+            <div class="date-picker-group-edit">
+              <select id="editLastDay" class="date-select-edit">
+                <option value="">اليوم</option>
+              </select>
+              <select id="editLastMonth" class="date-select-edit">
+                <option value="">الشهر</option>
+              </select>
+              <select id="editLastYear" class="date-select-edit">
+                <option value="">السنة</option>
+              </select>
+            </div>
+            <button type="button" class="date-today-btn-edit" onclick="setTodayForEditJuz('last')">
+              تعيين تاريخ اليوم
+            </button>
           </div>
           
           <!-- Viewer Name -->
@@ -8885,6 +8919,22 @@ function showEditJuzSheet(docId, juzNumber, teacher, student, currentData) {
   `;
   
   document.body.appendChild(sheet);
+  
+  // Load Hijri date dropdowns
+  await loadHijriDateDropdownsEdit();
+  
+  // Set current values
+  if (displayDay && displayMonth && displayYear) {
+    document.getElementById('editDisplayDay').value = parseInt(displayDay);
+    document.getElementById('editDisplayMonth').value = parseInt(displayMonth);
+    document.getElementById('editDisplayYear').value = parseInt(displayYear);
+  }
+  
+  if (lastDay && lastMonth && lastYear) {
+    document.getElementById('editLastDay').value = parseInt(lastDay);
+    document.getElementById('editLastMonth').value = parseInt(lastMonth);
+    document.getElementById('editLastYear').value = parseInt(lastYear);
+  }
   
   // Add status toggle listeners
   setTimeout(() => {
@@ -8918,13 +8968,20 @@ window.saveJuzEdit = async function(docId, juzNumber, teacher, student) {
   try {
     const form = document.getElementById('editJuzForm');
     const status = form.querySelector('input[name="status"]:checked').value;
-    const lastLesson = document.getElementById('editLastLesson').value;
+    
+    // Read Hijri date from dropdowns
+    const lastDay = document.getElementById('editLastDay').value;
+    const lastMonth = document.getElementById('editLastMonth').value;
+    const lastYear = document.getElementById('editLastYear').value;
     const viewer = document.getElementById('editViewer').value.trim();
     
-    if (!lastLesson) {
-      alert('الرجاء إدخال تاريخ آخر درس');
+    if (!lastDay || !lastMonth || !lastYear) {
+      alert('الرجاء اختيار تاريخ آخر درس كاملاً (اليوم، الشهر، السنة)');
       return;
     }
+    
+    // Format date as YYYY-MM-DD
+    const lastLesson = `${lastYear}-${lastMonth.padStart(2, '0')}-${lastDay.padStart(2, '0')}`;
     
     const updateData = {
       status: status,
@@ -8934,12 +8991,17 @@ window.saveJuzEdit = async function(docId, juzNumber, teacher, student) {
     };
     
     if (status === 'completed') {
-      const displayDate = document.getElementById('editDisplayDate').value;
-      if (!displayDate) {
-        alert('الرجاء إدخال تاريخ الإجازة');
+      const displayDay = document.getElementById('editDisplayDay').value;
+      const displayMonth = document.getElementById('editDisplayMonth').value;
+      const displayYear = document.getElementById('editDisplayYear').value;
+      
+      if (!displayDay || !displayMonth || !displayYear) {
+        alert('الرجاء اختيار تاريخ الإجازة كاملاً (اليوم، الشهر، السنة)');
         return;
       }
-      updateData.displayDate = displayDate;
+      
+      // Format date as YYYY-MM-DD
+      updateData.displayDate = `${displayYear}-${displayMonth.padStart(2, '0')}-${displayDay.padStart(2, '0')}`;
     } else {
       // If changing to incomplete, remove display date
       updateData.displayDate = '';
@@ -9031,7 +9093,7 @@ window.editHizbRecord = async function(docId, hizbNumber, teacher, student) {
 /**
  * Show Edit Hizb Sheet
  */
-function showEditHizbSheet(docId, hizbNumber, teacher, student, currentData) {
+async function showEditHizbSheet(docId, hizbNumber, teacher, student, currentData) {
   const sheet = document.createElement('div');
   sheet.className = 'bottom-sheet-overlay';
   sheet.onclick = (e) => {
@@ -9042,20 +9104,28 @@ function showEditHizbSheet(docId, hizbNumber, teacher, student, currentData) {
     }
   };
   
-  // Normalize display date
-  let displayDateValue = '';
+  // Parse display date (YYYY-MM-DD format)
+  let displayDay = '', displayMonth = '', displayYear = '';
   if (currentData.displayDate) {
-    if (currentData.displayDate.includes('/')) {
-      const parts = currentData.displayDate.split('/');
-      if (parts.length === 3) {
-        displayDateValue = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-      }
-    } else {
-      displayDateValue = currentData.displayDate;
+    const parts = currentData.displayDate.split('-');
+    if (parts.length === 3) {
+      displayYear = parts[0];
+      displayMonth = parts[1];
+      displayDay = parts[2];
     }
   }
   
-  const lastLessonValue = currentData.lastLessonDate || '';
+  // Parse last lesson date (YYYY-MM-DD format)
+  let lastDay = '', lastMonth = '', lastYear = '';
+  if (currentData.lastLessonDate) {
+    const parts = currentData.lastLessonDate.split('-');
+    if (parts.length === 3) {
+      lastYear = parts[0];
+      lastMonth = parts[1];
+      lastDay = parts[2];
+    }
+  }
+  
   const viewerValue = currentData.viewerName || '';
   const statusValue = currentData.status || 'incomplete';
   
@@ -9086,14 +9156,40 @@ function showEditHizbSheet(docId, hizbNumber, teacher, student, currentData) {
           
           <!-- Display Date (only for completed) -->
           <div class="form-group" id="displayDateGroupHizb" style="display: ${statusValue === 'completed' ? 'block' : 'none'}">
-            <label class="form-label">تاريخ الإجازة</label>
-            <input type="date" id="editDisplayDateHizb" class="form-input" value="${displayDateValue}">
+            <label class="form-label">تاريخ الإجازة (هجري)</label>
+            <div class="date-picker-group-edit">
+              <select id="editDisplayDayHizb" class="date-select-edit">
+                <option value="">اليوم</option>
+              </select>
+              <select id="editDisplayMonthHizb" class="date-select-edit">
+                <option value="">الشهر</option>
+              </select>
+              <select id="editDisplayYearHizb" class="date-select-edit">
+                <option value="">السنة</option>
+              </select>
+            </div>
+            <button type="button" class="date-today-btn-edit" onclick="setTodayForEditHizb('display')">
+              تعيين تاريخ اليوم
+            </button>
           </div>
           
           <!-- Last Lesson Date -->
           <div class="form-group">
-            <label class="form-label">تاريخ آخر درس</label>
-            <input type="date" id="editLastLessonHizb" class="form-input" value="${lastLessonValue}" required>
+            <label class="form-label">تاريخ آخر درس (هجري)</label>
+            <div class="date-picker-group-edit">
+              <select id="editLastDayHizb" class="date-select-edit">
+                <option value="">اليوم</option>
+              </select>
+              <select id="editLastMonthHizb" class="date-select-edit">
+                <option value="">الشهر</option>
+              </select>
+              <select id="editLastYearHizb" class="date-select-edit">
+                <option value="">السنة</option>
+              </select>
+            </div>
+            <button type="button" class="date-today-btn-edit" onclick="setTodayForEditHizb('last')">
+              تعيين تاريخ اليوم
+            </button>
           </div>
           
           <!-- Viewer Name -->
@@ -9116,6 +9212,22 @@ function showEditHizbSheet(docId, hizbNumber, teacher, student, currentData) {
   `;
   
   document.body.appendChild(sheet);
+  
+  // Load Hijri date dropdowns
+  await loadHijriDateDropdownsEdit('Hizb');
+  
+  // Set current values
+  if (displayDay && displayMonth && displayYear) {
+    document.getElementById('editDisplayDayHizb').value = parseInt(displayDay);
+    document.getElementById('editDisplayMonthHizb').value = parseInt(displayMonth);
+    document.getElementById('editDisplayYearHizb').value = parseInt(displayYear);
+  }
+  
+  if (lastDay && lastMonth && lastYear) {
+    document.getElementById('editLastDayHizb').value = parseInt(lastDay);
+    document.getElementById('editLastMonthHizb').value = parseInt(lastMonth);
+    document.getElementById('editLastYearHizb').value = parseInt(lastYear);
+  }
   
   // Add status toggle listeners
   setTimeout(() => {
@@ -9149,13 +9261,20 @@ window.saveHizbEdit = async function(docId, hizbNumber, teacher, student) {
   try {
     const form = document.getElementById('editHizbForm');
     const status = form.querySelector('input[name="status"]:checked').value;
-    const lastLesson = document.getElementById('editLastLessonHizb').value;
+    
+    // Read Hijri date from dropdowns
+    const lastDay = document.getElementById('editLastDayHizb').value;
+    const lastMonth = document.getElementById('editLastMonthHizb').value;
+    const lastYear = document.getElementById('editLastYearHizb').value;
     const viewer = document.getElementById('editViewerHizb').value.trim();
     
-    if (!lastLesson) {
-      alert('الرجاء إدخال تاريخ آخر درس');
+    if (!lastDay || !lastMonth || !lastYear) {
+      alert('الرجاء اختيار تاريخ آخر درس كاملاً (اليوم، الشهر، السنة)');
       return;
     }
+    
+    // Format date as YYYY-MM-DD
+    const lastLesson = `${lastYear}-${lastMonth.padStart(2, '0')}-${lastDay.padStart(2, '0')}`;
     
     const updateData = {
       status: status,
@@ -9165,12 +9284,17 @@ window.saveHizbEdit = async function(docId, hizbNumber, teacher, student) {
     };
     
     if (status === 'completed') {
-      const displayDate = document.getElementById('editDisplayDateHizb').value;
-      if (!displayDate) {
-        alert('الرجاء إدخال تاريخ الإجازة');
+      const displayDay = document.getElementById('editDisplayDayHizb').value;
+      const displayMonth = document.getElementById('editDisplayMonthHizb').value;
+      const displayYear = document.getElementById('editDisplayYearHizb').value;
+      
+      if (!displayDay || !displayMonth || !displayYear) {
+        alert('الرجاء اختيار تاريخ الإجازة كاملاً (اليوم، الشهر، السنة)');
         return;
       }
-      updateData.displayDate = displayDate;
+      
+      // Format date as YYYY-MM-DD
+      updateData.displayDate = `${displayYear}-${displayMonth.padStart(2, '0')}-${displayDay.padStart(2, '0')}`;
     } else {
       // If changing to incomplete, remove display date
       updateData.displayDate = '';
@@ -9223,6 +9347,141 @@ window.deleteHizbRecord = async function(docId, hizbNumber, teacher, student) {
   } catch (error) {
     console.error('Error deleting record:', error);
     alert('حدث خطأ في حذف السجل');
+  }
+};
+
+/**
+ * Load Hijri date dropdowns for Edit modal
+ */
+async function loadHijriDateDropdownsEdit(type = '') {
+  const suffix = type === 'Hizb' ? 'Hizb' : '';
+  
+  const displayDaySelect = document.getElementById(`editDisplayDay${suffix}`);
+  const displayMonthSelect = document.getElementById(`editDisplayMonth${suffix}`);
+  const displayYearSelect = document.getElementById(`editDisplayYear${suffix}`);
+  const lastDaySelect = document.getElementById(`editLastDay${suffix}`);
+  const lastMonthSelect = document.getElementById(`editLastMonth${suffix}`);
+  const lastYearSelect = document.getElementById(`editLastYear${suffix}`);
+  
+  if (!displayDaySelect || !lastDaySelect) return;
+  
+  try {
+    const { accurateHijriDates } = await import('./accurate-hijri-dates.js');
+    
+    // Extract unique months and years
+    const uniqueMonths = new Set();
+    const uniqueYears = new Set();
+    
+    accurateHijriDates.forEach(entry => {
+      uniqueMonths.add(entry.hijriMonth);
+      uniqueYears.add(entry.hijriYear);
+    });
+    
+    // Month names
+    const monthNames = [
+      'محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني',
+      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+    ];
+    
+    // Load days (1-30) for display date
+    displayDaySelect.innerHTML = '<option value="">اليوم</option>';
+    for (let i = 1; i <= 30; i++) {
+      displayDaySelect.innerHTML += `<option value="${i}">${i}</option>`;
+    }
+    
+    // Load days (1-30) for last lesson date
+    lastDaySelect.innerHTML = '<option value="">اليوم</option>';
+    for (let i = 1; i <= 30; i++) {
+      lastDaySelect.innerHTML += `<option value="${i}">${i}</option>`;
+    }
+    
+    // Load months for display date
+    displayMonthSelect.innerHTML = '<option value="">الشهر</option>';
+    const sortedMonths = Array.from(uniqueMonths).sort((a, b) => a - b);
+    sortedMonths.forEach(monthNum => {
+      displayMonthSelect.innerHTML += `<option value="${monthNum}">${monthNum} - ${monthNames[monthNum - 1]}</option>`;
+    });
+    
+    // Load months for last lesson date
+    lastMonthSelect.innerHTML = '<option value="">الشهر</option>';
+    sortedMonths.forEach(monthNum => {
+      lastMonthSelect.innerHTML += `<option value="${monthNum}">${monthNum} - ${monthNames[monthNum - 1]}</option>`;
+    });
+    
+    // Load years for display date
+    displayYearSelect.innerHTML = '<option value="">السنة</option>';
+    const sortedYears = Array.from(uniqueYears).sort((a, b) => a - b);
+    sortedYears.forEach(year => {
+      displayYearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+    });
+    
+    // Load years for last lesson date
+    lastYearSelect.innerHTML = '<option value="">السنة</option>';
+    sortedYears.forEach(year => {
+      lastYearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+    });
+    
+  } catch (error) {
+    console.error('Error loading Hijri date dropdowns:', error);
+  }
+}
+
+/**
+ * Set today's Hijri date for Edit Juz modal
+ */
+window.setTodayForEditJuz = async function(type) {
+  try {
+    const { getTodayAccurateHijri } = await import('./accurate-hijri-dates.js');
+    const today = getTodayAccurateHijri();
+    
+    if (today) {
+      const day = today.hijriDay;
+      const month = today.hijriMonth;
+      const year = today.hijriYear;
+      
+      if (type === 'display') {
+        document.getElementById('editDisplayDay').value = day;
+        document.getElementById('editDisplayMonth').value = month;
+        document.getElementById('editDisplayYear').value = year;
+      } else if (type === 'last') {
+        document.getElementById('editLastDay').value = day;
+        document.getElementById('editLastMonth').value = month;
+        document.getElementById('editLastYear').value = year;
+      }
+    }
+  } catch (error) {
+    console.error('Error setting today date:', error);
+    alert('خطأ في تعيين تاريخ اليوم');
+  }
+};
+
+/**
+ * Set today's Hijri date for Edit Hizb modal
+ */
+window.setTodayForEditHizb = async function(type) {
+  try {
+    const { getTodayAccurateHijri } = await import('./accurate-hijri-dates.js');
+    const today = getTodayAccurateHijri();
+    
+    if (today) {
+      const day = today.hijriDay;
+      const month = today.hijriMonth;
+      const year = today.hijriYear;
+      
+      if (type === 'display') {
+        document.getElementById('editDisplayDayHizb').value = day;
+        document.getElementById('editDisplayMonthHizb').value = month;
+        document.getElementById('editDisplayYearHizb').value = year;
+      } else if (type === 'last') {
+        document.getElementById('editLastDayHizb').value = day;
+        document.getElementById('editLastMonthHizb').value = month;
+        document.getElementById('editLastYearHizb').value = year;
+      }
+    }
+  } catch (error) {
+    console.error('Error setting today date:', error);
+    alert('خطأ في تعيين تاريخ اليوم');
   }
 };
 

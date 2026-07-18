@@ -12946,6 +12946,65 @@ details[open] > summary {
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
 }
 
+/* Date Picker for Edit Modal */
+.date-picker-group-edit {
+  display: flex;
+  gap: 8px;
+  direction: rtl;
+}
+
+.date-select-edit {
+  flex: 1;
+  padding: 12px 10px;
+  font-size: 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
+  font-family: 'Cairo', sans-serif;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  text-align: center;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.date-select-edit:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background-color: #f8faff;
+}
+
+.date-select-edit option {
+  padding: 8px;
+  font-size: 14px;
+}
+
+.date-today-btn-edit {
+  margin-top: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Cairo', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: block;
+  width: 100%;
+}
+
+.date-today-btn-edit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.date-today-btn-edit:active {
+  transform: translateY(0);
+}
+
 /* ============================= */
 /* Success Toast */
 /* ============================= */
