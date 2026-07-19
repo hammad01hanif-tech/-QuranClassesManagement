@@ -7393,7 +7393,9 @@ window.exportHizbClassReport = async function() {
  * عرض نافذة تقرير الجاهزين ليوم محدد
  */
 window.showReadyByDateModal = async function() {
+  console.log('🔵 START: showReadyByDateModal called');
   try {
+    console.log('🔵 STEP 1: Fetching teachers from classes collection...');
     // Fetch teachers from classes collection
     const classesSnapshot = await getDocs(collection(db, 'classes'));
     const teachers = [];
@@ -7404,8 +7406,11 @@ window.showReadyByDateModal = async function() {
       teachers.push({ id: classId, name: teacherName });
     });
     
+    console.log(`🔵 STEP 2: Found ${teachers.length} teachers`);
+    
     // Sort Arabic alphabetically
     teachers.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    console.log('🔵 STEP 3: Teachers sorted');
     
     // Build teacher checkboxes HTML
     let teachersCheckboxesHTML = '';
@@ -7418,9 +7423,12 @@ window.showReadyByDateModal = async function() {
         </div>
       `;
     });
+    console.log('🔵 STEP 4: Teacher checkboxes HTML built');
     
     // Generate Hijri years (current and previous)
+    console.log('🔵 STEP 5: Generating Hijri dates...');
     const currentYear = getTodayForStorage().split('-')[0];
+    console.log('🔵 STEP 5.1: Current year =', currentYear);
     let yearsOptions = '';
     for (let y = parseInt(currentYear); y >= parseInt(currentYear) - 2; y--) {
       yearsOptions += `<option value="${y}">${y}</option>`;
@@ -7432,8 +7440,10 @@ window.showReadyByDateModal = async function() {
     hijriMonths.forEach((month, index) => {
       monthsOptions += `<option value="${(index + 1).toString().padStart(2, '0')}">${month}</option>`;
     });
+    console.log('🔵 STEP 6: Date options prepared');
     
     // Create modal
+    console.log('🔵 STEP 7: Creating modal element...');
     const modal = document.createElement('div');
     modal.id = 'readyByDateModal';
     modal.className = 'bottom-sheet-overlay';
@@ -7568,18 +7578,45 @@ window.showReadyByDateModal = async function() {
       </div>
     `;
     
+    console.log('🔵 STEP 8: Modal HTML prepared, appending to body...');
     document.body.appendChild(modal);
+    console.log('🔵 STEP 9: Modal appended to body successfully');
     
     // Initialize date dropdowns with today's date
-    const today = getTodayForStorage();
-    const todayParts = today.split('-');
-    document.getElementById('readyDateYear').value = todayParts[0];
-    document.getElementById('readyDateMonth').value = todayParts[1];
-    window.updateReadyDateDays();
-    document.getElementById('readyDateDay').value = todayParts[2];
+    console.log('🔵 STEP 10: Initializing date dropdowns...');
+    try {
+      const today = getTodayForStorage();
+      console.log('🔵 STEP 10.1: Today date =', today);
+      const todayParts = today.split('-');
+      console.log('🔵 STEP 10.2: Today parts =', todayParts);
+      
+      const yearElement = document.getElementById('readyDateYear');
+      const monthElement = document.getElementById('readyDateMonth');
+      const dayElement = document.getElementById('readyDateDay');
+      
+      console.log('🔵 STEP 10.3: Year element found:', !!yearElement);
+      console.log('🔵 STEP 10.4: Month element found:', !!monthElement);
+      console.log('🔵 STEP 10.5: Day element found:', !!dayElement);
+      
+      if (yearElement) yearElement.value = todayParts[0];
+      if (monthElement) monthElement.value = todayParts[1];
+      
+      console.log('🔵 STEP 10.6: Calling updateReadyDateDays...');
+      window.updateReadyDateDays();
+      console.log('🔵 STEP 10.7: updateReadyDateDays completed');
+      
+      if (dayElement) dayElement.value = todayParts[2];
+      console.log('🔵 STEP 10.8: Date initialization complete');
+    } catch (dateError) {
+      console.error('🔴 ERROR in date initialization:', dateError);
+      console.error('🔴 Error stack:', dateError.stack);
+    }
+    
+    console.log('✅ SUCCESS: Modal shown successfully');
     
   } catch (error) {
-    console.error('Error showing ready by date modal:', error);
+    console.error('🔴 FATAL ERROR showing ready by date modal:', error);
+    console.error('🔴 Error stack:', error.stack);
     alert('❌ حدث خطأ في إظهار النافذة');
   }
 };
@@ -7588,23 +7625,40 @@ window.showReadyByDateModal = async function() {
  * Update days dropdown based on selected month/year
  */
 window.updateReadyDateDays = function() {
+  console.log('🔵 updateReadyDateDays: START');
   const yearSelect = document.getElementById('readyDateYear');
   const monthSelect = document.getElementById('readyDateMonth');
   const daySelect = document.getElementById('readyDateDay');
   
-  if (!yearSelect || !monthSelect || !daySelect) return;
+  console.log('🔵 updateReadyDateDays: Elements found:', {
+    year: !!yearSelect,
+    month: !!monthSelect,
+    day: !!daySelect
+  });
+  
+  if (!yearSelect || !monthSelect || !daySelect) {
+    console.log('🔴 updateReadyDateDays: Missing elements, returning early');
+    return;
+  }
   
   const year = yearSelect.value;
   const month = monthSelect.value;
+  console.log('🔵 updateReadyDateDays: Year =', year, 'Month =', month);
   
   daySelect.innerHTML = '<option value="">اليوم</option>';
   
-  if (!year || !month) return;
+  if (!year || !month) {
+    console.log('🔴 updateReadyDateDays: Year or month empty, returning early');
+    return;
+  }
   
   // Get days for this month from accurateHijriDates
+  console.log('🔵 updateReadyDateDays: Filtering dates from accurateHijriDates...');
   const monthDates = accurateHijriDates.filter(entry => 
     entry.hijriYear === parseInt(year) && entry.hijriMonth === parseInt(month)
   );
+  
+  console.log('🔵 updateReadyDateDays: Found', monthDates.length, 'dates for this month');
   
   if (monthDates.length > 0) {
     monthDates.forEach(entry => {
@@ -7612,12 +7666,14 @@ window.updateReadyDateDays = function() {
       daySelect.innerHTML += `<option value="${day}">${day}</option>`;
     });
   } else {
+    console.log('⚠️ updateReadyDateDays: No dates found, using fallback 1-30');
     // Fallback: 1-30
     for (let d = 1; d <= 30; d++) {
       const day = d.toString().padStart(2, '0');
       daySelect.innerHTML += `<option value="${day}">${day}</option>`;
     }
   }
+  console.log('✅ updateReadyDateDays: COMPLETE');
 };
 
 /**
