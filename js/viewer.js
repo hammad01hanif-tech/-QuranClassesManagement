@@ -7446,33 +7446,35 @@ window.showReadyByDateModal = async function() {
     console.log('🔵 STEP 7: Creating modal element...');
     const modal = document.createElement('div');
     modal.id = 'readyByDateModal';
-    modal.className = 'bottom-sheet-overlay';
+    modal.className = 'modal-overlay';
     modal.style.cssText = `
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       display: flex;
       justify-content: center;
-      align-items: flex-end;
+      align-items: center;
       z-index: 10002;
-      backdrop-filter: blur(8px);
-      animation: fadeIn 0.3s ease;
+      backdrop-filter: blur(5px);
+      opacity: 0;
+      animation: fadeIn 0.3s ease forwards;
     `;
     
     modal.innerHTML = `
-      <div class="bottom-sheet" style="
+      <div class="modal-content" style="
         background: white;
-        width: 100%;
-        max-width: 700px;
-        border-radius: 25px 25px 0 0;
-        box-shadow: 0 -10px 40px rgba(0,0,0,0.3);
-        animation: slideUpSheet 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        max-height: 90vh;
+        width: 90%;
+        max-width: 650px;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        max-height: 85vh;
         overflow-y: auto;
         direction: rtl;
+        transform: scale(0.9);
+        animation: scaleIn 0.3s ease forwards;
       ">
         <div style="padding: 25px 20px;">
           
@@ -7586,12 +7588,12 @@ window.showReadyByDateModal = async function() {
       }
     });
     
-    // Prevent clicks inside bottom-sheet from closing modal
-    const bottomSheet = modal.querySelector('.bottom-sheet');
-    if (bottomSheet) {
-      bottomSheet.addEventListener('click', function(e) {
+    // Prevent clicks inside modal-content from closing modal
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.addEventListener('click', function(e) {
         e.stopPropagation();
-        console.log('🔵 Bottom sheet clicked - prevented propagation');
+        console.log('🔵 Modal content clicked - prevented propagation');
       });
     }
     
