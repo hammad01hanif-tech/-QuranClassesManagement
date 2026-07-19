@@ -7462,15 +7462,8 @@ window.showReadyByDateModal = async function() {
       animation: fadeIn 0.3s ease;
     `;
     
-    // Close modal when clicking on overlay (but not on the sheet itself)
-    modal.onclick = function(e) {
-      if (e.target === modal) {
-        modal.remove();
-      }
-    };
-    
     modal.innerHTML = `
-      <div class="bottom-sheet" onclick="event.stopPropagation()" style="
+      <div class="bottom-sheet" style="
         background: white;
         width: 100%;
         max-width: 700px;
@@ -7581,6 +7574,28 @@ window.showReadyByDateModal = async function() {
     console.log('🔵 STEP 8: Modal HTML prepared, appending to body...');
     document.body.appendChild(modal);
     console.log('🔵 STEP 9: Modal appended to body successfully');
+    
+    // Add event handlers AFTER appendChild
+    console.log('🔵 STEP 9.1: Adding event handlers...');
+    
+    // Close modal when clicking on overlay (but not on the sheet itself)
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        console.log('🔵 Overlay clicked - closing modal');
+        modal.remove();
+      }
+    });
+    
+    // Prevent clicks inside bottom-sheet from closing modal
+    const bottomSheet = modal.querySelector('.bottom-sheet');
+    if (bottomSheet) {
+      bottomSheet.addEventListener('click', function(e) {
+        e.stopPropagation();
+        console.log('🔵 Bottom sheet clicked - prevented propagation');
+      });
+    }
+    
+    console.log('🔵 STEP 9.2: Event handlers added');
     
     // Initialize date dropdowns with today's date
     console.log('🔵 STEP 10: Initializing date dropdowns...');
