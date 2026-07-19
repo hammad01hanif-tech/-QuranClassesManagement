@@ -7420,7 +7420,7 @@ window.showReadyByDateModal = async function() {
     });
     
     // Generate Hijri years (current and previous)
-    const currentYear = getCurrentHijriDate().split('-')[0];
+    const currentYear = getTodayForStorage().split('-')[0];
     let yearsOptions = '';
     for (let y = parseInt(currentYear); y >= parseInt(currentYear) - 2; y--) {
       yearsOptions += `<option value="${y}">${y}</option>`;
