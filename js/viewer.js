@@ -7452,8 +7452,15 @@ window.showReadyByDateModal = async function() {
       animation: fadeIn 0.3s ease;
     `;
     
+    // Close modal when clicking on overlay (but not on the sheet itself)
+    modal.onclick = function(e) {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    };
+    
     modal.innerHTML = `
-      <div class="bottom-sheet" style="
+      <div class="bottom-sheet" onclick="event.stopPropagation()" style="
         background: white;
         width: 100%;
         max-width: 700px;
@@ -7472,7 +7479,7 @@ window.showReadyByDateModal = async function() {
               <span style="font-size: 24px;">📋</span>
               <span>كشف الجاهزين ليوم محدد</span>
             </h2>
-            <button onclick="document.getElementById('readyByDateModal').remove()" style="
+            <button type="button" onclick="document.getElementById('readyByDateModal').remove()" style="
               background: #f1f5f9;
               border: none;
               width: 36px;
@@ -7512,7 +7519,7 @@ window.showReadyByDateModal = async function() {
                 اختر الحلقات
               </label>
               <div style="display: flex; align-items: center; gap: 12px;">
-                <button onclick="window.toggleSelectAllReadyTeachers()" id="selectAllReadyBtn" style="
+                <button type="button" onclick="window.toggleSelectAllReadyTeachers()" id="selectAllReadyBtn" style="
                   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                   color: white;
                   border: none;
@@ -7536,7 +7543,7 @@ window.showReadyByDateModal = async function() {
           </div>
           
           <!-- Export Button -->
-          <button onclick="window.exportReadyByDateReport()" style="
+          <button type="button" onclick="window.exportReadyByDateReport()" style="
             width: 100%;
             padding: 16px;
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
