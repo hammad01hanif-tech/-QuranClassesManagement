@@ -3277,6 +3277,28 @@
             <p style="margin: 0; opacity: 0.9;">جميع الطلاب المسجلين والجاهزين لعرض إنجازاتهم القرآنية</p>
           </div>
 
+          <!-- Ready By Date Report Button -->
+          <div style="text-align: center; margin: 20px 0;">
+            <button onclick="window.showReadyByDateModal()" style="
+              background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+              color: white;
+              padding: 14px 32px;
+              border: none;
+              border-radius: 12px;
+              font-size: 16px;
+              font-weight: bold;
+              cursor: pointer;
+              box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+              transition: all 0.3s ease;
+              display: inline-flex;
+              align-items: center;
+              gap: 10px;
+            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(16, 185, 129, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(16, 185, 129, 0.3)'">
+              <span style="font-size: 20px;">📋</span>
+              <span>كشف الجاهزين ليوم محدد</span>
+            </button>
+          </div>
+
           <!-- Queue Type Selector (Tabs) -->
           <div class="queue-type-selector">
             <button class="queue-type-tab active" data-type="hizb" onclick="window.switchQueueType('hizb')">

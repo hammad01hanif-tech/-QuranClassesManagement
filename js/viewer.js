@@ -7384,6 +7384,585 @@ window.exportHizbClassReport = async function() {
   }
 };
 
+// ============================================
+// READY BY DATE REPORT - كشف الجاهزين ليوم محدد
+// ============================================
+
+/**
+ * Show Ready By Date Modal
+ * عرض نافذة تقرير الجاهزين ليوم محدد
+ */
+window.showReadyByDateModal = async function() {
+  try {
+    // Fetch teachers from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teachers = [];
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      const teacherName = classData.teacherName || classData.className || classId;
+      teachers.push({ id: classId, name: teacherName });
+    });
+    
+    // Sort Arabic alphabetically
+    teachers.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    // Build teacher checkboxes HTML
+    let teachersCheckboxesHTML = '';
+    teachers.forEach(teacher => {
+      teachersCheckboxesHTML += `
+        <div class="teacher-checkbox-item">
+          <input type="checkbox" class="teacher-checkbox-ready" id="ready-${teacher.id}" value="${teacher.id}" onchange="window.updateSelectedReadyTeachersCount()">
+          <label for="ready-${teacher.id}" class="teacher-checkbox-label">${teacher.name}</label>
+          <span class="teacher-checkbox-check">✓</span>
+        </div>
+      `;
+    });
+    
+    // Generate Hijri years (current and previous)
+    const currentYear = getCurrentHijriDate().split('-')[0];
+    let yearsOptions = '';
+    for (let y = parseInt(currentYear); y >= parseInt(currentYear) - 2; y--) {
+      yearsOptions += `<option value="${y}">${y}</option>`;
+    }
+    
+    // Generate months
+    const hijriMonths = ['المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+    let monthsOptions = '<option value="">الشهر</option>';
+    hijriMonths.forEach((month, index) => {
+      monthsOptions += `<option value="${(index + 1).toString().padStart(2, '0')}">${month}</option>`;
+    });
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'readyByDateModal';
+    modal.className = 'bottom-sheet-overlay';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      z-index: 10002;
+      backdrop-filter: blur(8px);
+      animation: fadeIn 0.3s ease;
+    `;
+    
+    modal.innerHTML = `
+      <div class="bottom-sheet" style="
+        background: white;
+        width: 100%;
+        max-width: 700px;
+        border-radius: 25px 25px 0 0;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.3);
+        animation: slideUpSheet 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        max-height: 90vh;
+        overflow-y: auto;
+        direction: rtl;
+      ">
+        <div style="padding: 25px 20px;">
+          
+          <!-- Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e2e8f0;">
+            <h2 style="margin: 0; color: #10b981; font-size: 20px; display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 24px;">📋</span>
+              <span>كشف الجاهزين ليوم محدد</span>
+            </h2>
+            <button onclick="document.getElementById('readyByDateModal').remove()" style="
+              background: #f1f5f9;
+              border: none;
+              width: 36px;
+              height: 36px;
+              border-radius: 50%;
+              cursor: pointer;
+              font-size: 20px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              transition: all 0.2s;
+            " onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">✕</button>
+          </div>
+          
+          <!-- Date Selection -->
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #1f2937; font-size: 15px;">
+              التاريخ الهجري
+            </label>
+            <div style="display: flex; gap: 10px;">
+              <select class="luxury-select" id="readyDateDay" style="flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; background: white; transition: all 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e2e8f0'">
+                <option value="">اليوم</option>
+              </select>
+              <select class="luxury-select" id="readyDateMonth" onchange="window.updateReadyDateDays()" style="flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; background: white; transition: all 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e2e8f0'">
+                ${monthsOptions}
+              </select>
+              <select class="luxury-select" id="readyDateYear" onchange="window.updateReadyDateDays()" style="flex: 1; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; background: white; transition: all 0.2s;" onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e2e8f0'">
+                ${yearsOptions}
+              </select>
+            </div>
+          </div>
+          
+          <!-- Teachers Selection -->
+          <div style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <label style="font-weight: 700; color: #1f2937; font-size: 15px;">
+                اختر الحلقات
+              </label>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <button onclick="window.toggleSelectAllReadyTeachers()" id="selectAllReadyBtn" style="
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  color: white;
+                  border: none;
+                  padding: 8px 16px;
+                  border-radius: 8px;
+                  font-size: 13px;
+                  font-weight: 600;
+                  cursor: pointer;
+                  transition: all 0.2s;
+                " onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='translateY(0)'">
+                  ✓ تحديد الكل
+                </button>
+                <span id="readyTeachersCount" style="font-size: 14px; color: #64748b; font-weight: 600;">
+                  لم يتم الاختيار
+                </span>
+              </div>
+            </div>
+            <div class="teachers-checkboxes-container" style="max-height: 300px; overflow-y: auto; border: 2px solid #e2e8f0; border-radius: 12px; padding: 10px;">
+              ${teachersCheckboxesHTML}
+            </div>
+          </div>
+          
+          <!-- Export Button -->
+          <button onclick="window.exportReadyByDateReport()" style="
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+          " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(16, 185, 129, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(16, 185, 129, 0.3)'">
+            <span style="font-size: 20px;">📄</span>
+            <span>تصدير التقرير PDF</span>
+          </button>
+          
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Initialize date dropdowns with today's date
+    const today = getTodayForStorage();
+    const todayParts = today.split('-');
+    document.getElementById('readyDateYear').value = todayParts[0];
+    document.getElementById('readyDateMonth').value = todayParts[1];
+    window.updateReadyDateDays();
+    document.getElementById('readyDateDay').value = todayParts[2];
+    
+  } catch (error) {
+    console.error('Error showing ready by date modal:', error);
+    alert('❌ حدث خطأ في إظهار النافذة');
+  }
+};
+
+/**
+ * Update days dropdown based on selected month/year
+ */
+window.updateReadyDateDays = function() {
+  const yearSelect = document.getElementById('readyDateYear');
+  const monthSelect = document.getElementById('readyDateMonth');
+  const daySelect = document.getElementById('readyDateDay');
+  
+  if (!yearSelect || !monthSelect || !daySelect) return;
+  
+  const year = yearSelect.value;
+  const month = monthSelect.value;
+  
+  daySelect.innerHTML = '<option value="">اليوم</option>';
+  
+  if (!year || !month) return;
+  
+  // Get days for this month from accurateHijriDates
+  const monthDates = accurateHijriDates.filter(entry => 
+    entry.hijriYear === parseInt(year) && entry.hijriMonth === parseInt(month)
+  );
+  
+  if (monthDates.length > 0) {
+    monthDates.forEach(entry => {
+      const day = entry.hijriDay.toString().padStart(2, '0');
+      daySelect.innerHTML += `<option value="${day}">${day}</option>`;
+    });
+  } else {
+    // Fallback: 1-30
+    for (let d = 1; d <= 30; d++) {
+      const day = d.toString().padStart(2, '0');
+      daySelect.innerHTML += `<option value="${day}">${day}</option>`;
+    }
+  }
+};
+
+/**
+ * Update selected teachers count
+ */
+window.updateSelectedReadyTeachersCount = function() {
+  const checkboxes = document.querySelectorAll('.teacher-checkbox-ready');
+  const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+  const countSpan = document.getElementById('readyTeachersCount');
+  const selectAllBtn = document.getElementById('selectAllReadyBtn');
+  
+  if (checkedCount === 0) {
+    countSpan.textContent = 'لم يتم الاختيار';
+  } else if (checkedCount === 1) {
+    countSpan.textContent = 'حلقة واحدة';
+  } else if (checkedCount === 2) {
+    countSpan.textContent = 'حلقتان';
+  } else {
+    countSpan.textContent = `${checkedCount} حلقات`;
+  }
+  
+  // Update "Select All" button text
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  if (allChecked && checkboxes.length > 0) {
+    selectAllBtn.textContent = '✗ إلغاء الكل';
+  } else {
+    selectAllBtn.textContent = '✓ تحديد الكل';
+  }
+};
+
+/**
+ * Toggle select all teachers
+ */
+window.toggleSelectAllReadyTeachers = function() {
+  const checkboxes = document.querySelectorAll('.teacher-checkbox-ready');
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  
+  checkboxes.forEach(cb => {
+    cb.checked = !allChecked;
+  });
+  
+  window.updateSelectedReadyTeachersCount();
+};
+
+/**
+ * Export Ready By Date Report
+ * تصدير تقرير الجاهزين ليوم محدد
+ */
+window.exportReadyByDateReport = async function() {
+  try {
+    // Validate date
+    const year = document.getElementById('readyDateYear')?.value;
+    const month = document.getElementById('readyDateMonth')?.value;
+    const day = document.getElementById('readyDateDay')?.value;
+    
+    if (!year || !month || !day) {
+      alert('⚠️ الرجاء اختيار التاريخ بالكامل');
+      return;
+    }
+    
+    const selectedDate = `${year}-${month}-${day}`;
+    
+    // Validate teachers selection
+    const selectedCheckboxes = document.querySelectorAll('.teacher-checkbox-ready:checked');
+    const selectedTeachers = Array.from(selectedCheckboxes).map(cb => cb.value);
+    
+    if (selectedTeachers.length === 0) {
+      alert('⚠️ الرجاء اختيار معلم واحد على الأقل');
+      return;
+    }
+    
+    // Show loading
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'pdfLoadingMsg';
+    loadingMsg.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      z-index: 10003;
+      text-align: center;
+    `;
+    loadingMsg.innerHTML = `
+      <div style="font-size: 40px; margin-bottom: 15px;">⏳</div>
+      <div style="font-size: 18px; color: #10b981; font-weight: bold;">جاري إنشاء التقرير...</div>
+      <div style="font-size: 14px; color: #666; margin-top: 8px;">اختيار: ${selectedTeachers.length} ${selectedTeachers.length === 1 ? 'حلقة' : selectedTeachers.length === 2 ? 'حلقتان' : 'حلقات'}</div>
+    `;
+    document.body.appendChild(loadingMsg);
+    
+    // Get teacher names
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teacherNamesMap = {};
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
+    });
+    
+    // Get today for calculations
+    const today = getTodayForStorage();
+    const todayEntry = accurateHijriDates.find(e => e.hijri === today);
+    const todayGregorian = todayEntry ? new Date(todayEntry.gregorian) : new Date();
+    
+    // Process each teacher
+    const allTeachersData = [];
+    
+    for (const teacherId of selectedTeachers) {
+      const teacherName = teacherNamesMap[teacherId] || teacherId;
+      
+      // Fetch Hizb records
+      const hizbQuery = query(
+        collection(db, 'hizbDisplays'),
+        where('teacherId', '==', teacherId),
+        where('status', '==', 'incomplete')
+      );
+      const hizbSnapshot = await getDocs(hizbQuery);
+      
+      // Fetch Juz records
+      const juzQuery = query(
+        collection(db, 'juzDisplays'),
+        where('teacherId', '==', teacherId),
+        where('status', '==', 'incomplete')
+      );
+      const juzSnapshot = await getDocs(juzQuery);
+      
+      const students = [];
+      
+      // Process Hizb records
+      hizbSnapshot.forEach(docSnapshot => {
+        const data = docSnapshot.data();
+        let lastLessonDate = data.lastLessonDate;
+        
+        // Normalize date format
+        if (lastLessonDate && typeof lastLessonDate === 'string') {
+          const parts = lastLessonDate.split('-');
+          if (parts.length === 3) {
+            lastLessonDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+          }
+        }
+        
+        if (lastLessonDate && lastLessonDate <= selectedDate) {
+          // Calculate days since last lesson
+          const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
+          let daysSince = '-';
+          if (lastLessonEntry) {
+            const lastLessonGregorian = new Date(lastLessonEntry.gregorian);
+            const diffDays = calculateBusinessDays(lastLessonGregorian, todayGregorian);
+            daysSince = `${diffDays} ${diffDays === 1 ? 'يوم' : diffDays === 2 ? 'يومان' : 'أيام'}`;
+          }
+          
+          students.push({
+            name: data.studentName || 'غير محدد',
+            type: 'حزب',
+            number: data.hizbNumber || '-',
+            registrationDate: formatDateForDisplay(lastLessonDate),
+            daysSince: daysSince
+          });
+        }
+      });
+      
+      // Process Juz records
+      juzSnapshot.forEach(docSnapshot => {
+        const data = docSnapshot.data();
+        let lastLessonDate = data.lastLessonDate;
+        
+        // Normalize date format
+        if (lastLessonDate && typeof lastLessonDate === 'string') {
+          const parts = lastLessonDate.split('-');
+          if (parts.length === 3) {
+            lastLessonDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+          }
+        }
+        
+        if (lastLessonDate && lastLessonDate <= selectedDate) {
+          // Calculate days since last lesson
+          const lastLessonEntry = accurateHijriDates.find(e => e.hijri === lastLessonDate);
+          let daysSince = '-';
+          if (lastLessonEntry) {
+            const lastLessonGregorian = new Date(lastLessonEntry.gregorian);
+            const diffDays = calculateBusinessDays(lastLessonGregorian, todayGregorian);
+            daysSince = `${diffDays} ${diffDays === 1 ? 'يوم' : diffDays === 2 ? 'يومان' : 'أيام'}`;
+          }
+          
+          students.push({
+            name: data.studentName || 'غير محدد',
+            type: 'جزء',
+            number: data.juzNumber || '-',
+            registrationDate: formatDateForDisplay(lastLessonDate),
+            daysSince: daysSince
+          });
+        }
+      });
+      
+      // Sort students by name
+      students.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+      
+      allTeachersData.push({
+        teacherId: teacherId,
+        teacherName: teacherName,
+        students: students
+      });
+    }
+    
+    // Build HTML report
+    let reportHTML = '';
+    
+    // Report title
+    const dateLabel = formatDateForDisplay(selectedDate);
+    reportHTML += `
+      <div style="text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #10b981;">
+        <h1 style="color: #10b981; margin: 0 0 12px 0; font-size: 28px; font-weight: 700;">كشف الطلاب الجاهزين للتسميع</h1>
+        <p style="color: #64748b; margin: 0; font-size: 18px; font-weight: 600;">(${dateLabel})</p>
+      </div>
+    `;
+    
+    // Process each teacher
+    allTeachersData.forEach((teacherData, teacherIndex) => {
+      // Separator between teachers (except first)
+      if (teacherIndex > 0) {
+        reportHTML += `<div style="margin: 40px 0; border-top: 2px dashed #cbd5e1;"></div>`;
+      }
+      
+      // Teacher header
+      reportHTML += `
+        <div style="background: #f8fafc; padding: 16px 20px; border-radius: 10px; margin-bottom: 20px; border-right: 5px solid #10b981;">
+          <h2 style="margin: 0; color: #1f2937; font-size: 20px; font-weight: 700;">الأستاذ: ${teacherData.teacherName}</h2>
+          <p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">عدد الطلاب الجاهزين: ${teacherData.students.length}</p>
+        </div>
+      `;
+      
+      // Students table
+      if (teacherData.students.length > 0) {
+        let studentsRowsHTML = '';
+        teacherData.students.forEach((student, index) => {
+          const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+          const typeText = student.type === 'جزء' ? `جزء ${student.number}` : `حزب ${student.number}`;
+          
+          studentsRowsHTML += `
+            <tr style="background: ${bgColor};">
+              <td style="padding: 12px 16px; border: 1px solid #e2e8f0; font-size: 15px; color: #1f2937;">${student.name}</td>
+              <td style="padding: 12px 16px; border: 1px solid #e2e8f0; text-align: center; font-size: 15px; color: #475569;">${typeText}</td>
+              <td style="padding: 12px 16px; border: 1px solid #e2e8f0; text-align: center; font-size: 14px; color: #64748b;">${student.registrationDate}</td>
+              <td style="padding: 12px 16px; border: 1px solid #e2e8f0; text-align: center; font-size: 14px; color: #10b981; font-weight: 600;">${student.daysSince}</td>
+            </tr>
+          `;
+        });
+        
+        reportHTML += `
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th style="background: #10b981; color: white; padding: 14px 16px; text-align: right; border: none; font-size: 15px; font-weight: 600; width: 35%;">اسم الطالب</th>
+                <th style="background: #10b981; color: white; padding: 14px 16px; text-align: center; border: none; font-size: 15px; font-weight: 600; width: 20%;">رقم الحزب/الجزء</th>
+                <th style="background: #10b981; color: white; padding: 14px 16px; text-align: center; border: none; font-size: 15px; font-weight: 600; width: 22%;">تاريخ التسجيل</th>
+                <th style="background: #10b981; color: white; padding: 14px 16px; text-align: center; border: none; font-size: 15px; font-weight: 600; width: 23%;">كم مضى على آخر درس</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${studentsRowsHTML}
+            </tbody>
+          </table>
+        `;
+      } else {
+        reportHTML += `
+          <div style="text-align: center; padding: 30px; background: #f8fafc; border-radius: 10px; color: #94a3b8;">
+            <p style="margin: 0; font-size: 15px;">لا يوجد طلاب جاهزون في هذا التاريخ</p>
+          </div>
+        `;
+      }
+    });
+    
+    // Footer
+    reportHTML += `
+      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #e2e8f0;">
+        <p style="margin: 5px 0; color: #10b981; font-size: 13px;">نظام إدارة حلقات القرآن الكريم</p>
+        <p style="margin: 5px 0; color: #94a3b8; font-size: 12px;">تاريخ التصدير: ${formatDateForDisplay(today)}</p>
+      </div>
+    `;
+    
+    // Create container for PDF generation
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 900px;
+      background: white;
+      padding: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      text-align: right;
+    `;
+    container.innerHTML = reportHTML;
+    document.body.appendChild(container);
+    
+    // Generate PDF
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    document.body.removeChild(container);
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jspdf.jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - 20;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    let heightLeft = imgHeight;
+    let position = 10;
+    
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight + 10;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    // Save PDF
+    const fileName = `كشف_الجاهزين_${dateLabel.replace(/\s/g, '_')}.pdf`;
+    pdf.save(fileName);
+    
+    // Remove loading and modal
+    loadingMsg.remove();
+    document.getElementById('readyByDateModal')?.remove();
+    
+    alert('✅ تم تصدير التقرير بنجاح!');
+    
+  } catch (error) {
+    console.error('Error exporting ready by date report:', error);
+    const loadingMsg = document.getElementById('pdfLoadingMsg');
+    if (loadingMsg) loadingMsg.remove();
+    alert('❌ حدث خطأ في إنشاء التقرير');
+  }
+};
+
 /**
  * Show Hizb Student Report Modal
  */
