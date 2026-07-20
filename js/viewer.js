@@ -7417,7 +7417,7 @@ window.showReadyByDateModal = async function() {
     teachers.forEach(teacher => {
       teachersCheckboxesHTML += `
         <div class="teacher-checkbox-item">
-          <input type="checkbox" class="teacher-checkbox-ready" id="ready-${teacher.id}" value="${teacher.id}" onchange="window.updateSelectedReadyTeachersCount()">
+          <input type="checkbox" class="teacher-checkbox" id="ready-${teacher.id}" value="${teacher.id}" onchange="window.updateSelectedReadyTeachersCount()">
           <label for="ready-${teacher.id}" class="teacher-checkbox-label">${teacher.name}</label>
           <span class="teacher-checkbox-check">✓</span>
         </div>
@@ -7542,7 +7542,16 @@ window.showReadyByDateModal = async function() {
                 </span>
               </div>
             </div>
-            <div class="teachers-checkboxes-container" style="max-height: 300px; overflow-y: auto; border: 2px solid #e2e8f0; border-radius: 12px; padding: 10px;">
+            <div class="teachers-checkboxes-container" style="
+              max-height: 320px; 
+              overflow-y: auto; 
+              border: 2px solid #e2e8f0; 
+              border-radius: 14px; 
+              padding: 12px;
+              background: #fafafa;
+              scrollbar-width: thin;
+              scrollbar-color: #cbd5e1 #f1f5f9;
+            ">
               ${teachersCheckboxesHTML}
             </div>
           </div>
@@ -7697,7 +7706,7 @@ window.updateReadyDateDays = function() {
  * Update selected teachers count
  */
 window.updateSelectedReadyTeachersCount = function() {
-  const checkboxes = document.querySelectorAll('.teacher-checkbox-ready');
+  const checkboxes = document.querySelectorAll('.teacher-checkbox');
   const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
   const countSpan = document.getElementById('readyTeachersCount');
   const selectAllBtn = document.getElementById('selectAllReadyBtn');
@@ -7725,7 +7734,7 @@ window.updateSelectedReadyTeachersCount = function() {
  * Toggle select all teachers
  */
 window.toggleSelectAllReadyTeachers = function() {
-  const checkboxes = document.querySelectorAll('.teacher-checkbox-ready');
+  const checkboxes = document.querySelectorAll('.teacher-checkbox');
   const allChecked = Array.from(checkboxes).every(cb => cb.checked);
   
   checkboxes.forEach(cb => {
@@ -7754,7 +7763,7 @@ window.exportReadyByDateReport = async function() {
     const selectedDate = `${year}-${month}-${day}`;
     
     // Validate teachers selection
-    const selectedCheckboxes = document.querySelectorAll('.teacher-checkbox-ready:checked');
+    const selectedCheckboxes = document.querySelectorAll('.teacher-checkbox:checked');
     const selectedTeachers = Array.from(selectedCheckboxes).map(cb => cb.value);
     
     if (selectedTeachers.length === 0) {
