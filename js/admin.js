@@ -434,6 +434,12 @@ async function incrementStudentAbsenceCount(studentId, studentName) {
     const existingData = await getStudentMonthlyAbsenceData(studentId);
     
     if (existingData) {
+      // Check if this date is already in absenceRecords (prevent duplicates)
+      if (existingData.absenceRecords && existingData.absenceRecords.includes(today)) {
+        console.log(`⚠️  Date ${today} already recorded for student ${studentId}, skipping increment`);
+        return { absenceCount: existingData.absenceCount, currentAction: existingData.currentAction };
+      }
+      
       // Increment existing count
       const newCount = existingData.absenceCount + 1;
       const action = determineActionForAbsenceCount(newCount);
@@ -465,6 +471,59 @@ async function incrementStudentAbsenceCount(studentId, studentName) {
     }
   } catch (error) {
     console.error('Error incrementing absence count:', error);
+    throw error;
+  }
+}
+
+/**
+ * Decrement student's absence count for current month (when changing status from absent to present/excused)
+ * @param {string} studentId - Student ID
+ * @param {string} studentName - Student name
+ * @param {string} dateToRemove - The date to remove from absenceRecords (YYYY-MM-DD)
+ * @returns {Promise<Object>} Updated absence data with count and action
+ */
+async function decrementStudentAbsenceCount(studentId, studentName, dateToRemove) {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    const docRef = doc(db, 'monthlyAbsenceTracking', `${studentId}_${currentMonth}`);
+    
+    // Get existing data
+    const existingData = await getStudentMonthlyAbsenceData(studentId);
+    
+    if (!existingData) {
+      console.log(`ℹ️  No absence tracking record found for student ${studentId}`);
+      return { absenceCount: 0, currentAction: null };
+    }
+    
+    // Check if the date exists in absenceRecords
+    if (!existingData.absenceRecords || !existingData.absenceRecords.includes(dateToRemove)) {
+      console.log(`⚠️  Date ${dateToRemove} not found in absence records for student ${studentId}`);
+      return { absenceCount: existingData.absenceCount, currentAction: existingData.currentAction };
+    }
+    
+    // Decrement count and remove date
+    const newCount = Math.max(0, existingData.absenceCount - 1);
+    
+    if (newCount === 0) {
+      // No more absences - delete the tracking document
+      await deleteDoc(docRef);
+      console.log(`🗑️  Deleted absence tracking for ${studentId} (count reached 0)`);
+      return { absenceCount: 0, currentAction: null };
+    } else {
+      // Update with decremented count
+      const action = determineActionForAbsenceCount(newCount);
+      
+      await updateDoc(docRef, {
+        absenceCount: newCount,
+        absenceRecords: arrayRemove(dateToRemove),
+        currentAction: action,
+        lastUpdated: serverTimestamp()
+      });
+      
+      return { absenceCount: newCount, currentAction: action };
+    }
+  } catch (error) {
+    console.error('Error decrementing absence count:', error);
     throw error;
   }
 }
@@ -825,6 +884,7 @@ async function syncAllStudentsAbsenceData() {
 // Make absence functions globally available
 window.getStudentMonthlyAbsenceData = getStudentMonthlyAbsenceData;
 window.incrementStudentAbsenceCount = incrementStudentAbsenceCount;
+window.decrementStudentAbsenceCount = decrementStudentAbsenceCount;
 window.determineActionForAbsenceCount = determineActionForAbsenceCount;
 window.getStudentAbsenceStatus = getStudentAbsenceStatus;
 window.countStudentAbsenceInCurrentMonth = countStudentAbsenceInCurrentMonth;
@@ -3580,8 +3640,16 @@ window.saveDailyAttendance = async function() {
     // Save to Firebase
     const studentsData = JSON.parse(modal.dataset.studentsData || '[]');
     
+    console.log(`\n💾 SAVING DAILY ATTENDANCE`);
+    console.log(`📅 Date: ${currentDate}`);
+    console.log(`👥 Students: ${attendanceData.length}`);
+    
     for (const record of attendanceData) {
       const reportRef = firestoreDoc(db, 'studentProgress', record.studentId, 'dailyReports', currentDate);
+      
+      // 1. Check if this date already has a saved report
+      const existingReportSnap = await getDoc(reportRef);
+      const existingReport = existingReportSnap.exists() ? existingReportSnap.data() : null;
       
       const reportData = {
         status: record.status,
@@ -3592,18 +3660,44 @@ window.saveDailyAttendance = async function() {
         excuseType: record.excuseType || null  // null لمسح القيم القديمة
       };
       
+      // 2. Save the daily report
       await setDoc(reportRef, reportData, { merge: true });
       
-      // If this is an absence without excuse, increment the absence count
-      if (record.status === 'absent' && record.excuseType === 'withoutExcuse') {
-        // Get student name from studentsData
+      // 3. Handle absence tracking logic
+      // Only increment if:
+      // - Current status is "absent without excuse"
+      // - AND (no existing report OR existing report was NOT "absent without excuse")
+      const wasAbsentWithoutExcuse = existingReport && 
+                                     existingReport.status === 'absent' && 
+                                     existingReport.excuseType === 'withoutExcuse';
+      
+      const isNowAbsentWithoutExcuse = record.status === 'absent' && 
+                                       record.excuseType === 'withoutExcuse';
+      
+      if (isNowAbsentWithoutExcuse && !wasAbsentWithoutExcuse) {
+        // NEW absence without excuse - increment counter
         const studentInfo = studentsData.find(s => s.id === record.studentId);
         const studentName = studentInfo ? studentInfo.name : 'اسم غير معروف';
         
-        // Increment absence count in monthlyAbsenceTracking
+        console.log(`📈 NEW absence without excuse: ${studentName} on ${currentDate}`);
         await incrementStudentAbsenceCount(record.studentId, studentName);
+        
+      } else if (!isNowAbsentWithoutExcuse && wasAbsentWithoutExcuse) {
+        // Changed FROM "absent without excuse" TO something else
+        // We need to DECREMENT the counter (remove this date from absenceRecords)
+        const studentInfo = studentsData.find(s => s.id === record.studentId);
+        const studentName = studentInfo ? studentInfo.name : 'اسم غير معروف';
+        
+        console.log(`📉 REMOVED absence without excuse: ${studentName} on ${currentDate}`);
+        await decrementStudentAbsenceCount(record.studentId, studentName, currentDate);
+        
+      } else if (isNowAbsentWithoutExcuse && wasAbsentWithoutExcuse) {
+        // Status unchanged - already marked as absent without excuse
+        console.log(`ℹ️  Absence status unchanged (already counted): ${record.studentId} on ${currentDate}`);
       }
     }
+    
+    console.log(`✅ Attendance saved successfully\n`);
     
     // Success
     saveBtn.textContent = '✅ تم الحفظ بنجاح';
@@ -3728,6 +3822,7 @@ async function loadAdminNotifications() {
   const notificationsList = document.getElementById('adminNotificationsList');
   const badge = document.getElementById('adminNotificationBadge');
   const newBadge = document.getElementById('newAdminNotificationBadge');
+  const tasksBadge = document.getElementById('tasksNotificationBadge');
   
   if (!notificationsList) {
     console.error('❌ adminNotificationsList element not found!');
@@ -3739,15 +3834,25 @@ async function loadAdminNotifications() {
     
     console.log(`📊 Found ${notificationsSnap.size} unread notification(s)`);
     
-    // Update badges
+    // Update all badges (old design + new design + tasks section)
     const count = notificationsSnap.size;
+    
+    // Old admin badge
     if (badge) {
       badge.textContent = count;
       badge.style.display = count > 0 ? 'flex' : 'none';
     }
+    
+    // New admin badge
     if (newBadge) {
       newBadge.textContent = count;
       newBadge.style.display = count > 0 ? 'block' : 'none';
+    }
+    
+    // Tasks section badge (newly unified)
+    if (tasksBadge) {
+      tasksBadge.textContent = count;
+      tasksBadge.style.display = count > 0 ? 'flex' : 'none';
     }
     
     // Load teacher filter options

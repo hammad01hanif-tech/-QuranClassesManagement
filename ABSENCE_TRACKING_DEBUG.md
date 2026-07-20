@@ -1,12 +1,165 @@
 # دليل فحص وإصلاح نظام تتبع الغيابات الشهرية
 
-## المشكلة
-النظام يعرض عدد غيابات غير صحيح في قسم الإشعارات. مثلاً: طالب غاب يومين فقط لكن النظام يظهر 5 غيابات!
+## ⚠️ المشكلة الحقيقية المكتشفة
 
-## السبب المحتمل
-قد يكون هناك عدم تطابق بين:
-1. **monthlyAbsenceTracking** - الجدول الذي يحفظ عدد الغيابات الشهرية (للإشعارات السريعة)
-2. **dailyReports** - التقارير اليومية الفعلية لكل طالب
+### السبب الرئيسي: **الحفظ المتكرر يضاعف الغيابات!** 🔴
+
+كانت المشكلة في منطق حفظ التحضير اليومي:
+
+```javascript
+// ❌ الكود القديم (المشكلة)
+await setDoc(reportRef, reportData, { merge: true });
+
+if (record.status === 'absent' && record.excuseType === 'withoutExcuse') {
+  await incrementStudentAbsenceCount(record.studentId, studentName);
+}
+```
+
+**ماذا كان يحدث؟**
+- كل مرة المدير يضغط "حفظ التحضير"، يستدعي `incrementStudentAbsenceCount`
+- لو حفظ 5 مرات في نفس اليوم = يسجل 5 غيابات! ❌
+- الطالب غاب مرة واحدة لكن العداد زاد 5 مرات
+
+**مثال واقعي:**
+1. **اليوم الأول (1446-02-01)**: طالب غائب بدون عذر
+   - المدير يحفظ → العداد = 1 ✅
+   - المدير يكتشف خطأ ويعدل ويحفظ → العداد = 2 ❌
+   - المدير يعدل مرة ثانية ويحفظ → العداد = 3 ❌
+
+2. **اليوم الثاني (1446-02-03)**: نفس الطالب غائب
+   - المدير يحفظ → العداد = 4 ❌
+   - المدير يحفظ مرة ثانية → العداد = 5 ❌
+
+**النتيجة**: طالب غاب يومين فقط لكن النظام يظهر 5 غيابات! 🚨
+
+---
+
+## ✅ الحل المطبق
+
+### 1. فحص الحالة السابقة قبل الحفظ
+
+```javascript
+// ✅ الكود الجديد (الحل)
+// 1. Check if this date already has a saved report
+const existingReportSnap = await getDoc(reportRef);
+const existingReport = existingReportSnap.exists() ? existingReportSnap.data() : null;
+
+// 2. Compare old and new status
+const wasAbsentWithoutExcuse = existingReport && 
+                               existingReport.status === 'absent' && 
+                               existingReport.excuseType === 'withoutExcuse';
+
+const isNowAbsentWithoutExcuse = record.status === 'absent' && 
+                                 record.excuseType === 'withoutExcuse';
+
+// 3. Handle different scenarios
+if (isNowAbsentWithoutExcuse && !wasAbsentWithoutExcuse) {
+  // NEW absence - increment
+  await incrementStudentAbsenceCount(record.studentId, studentName);
+  
+} else if (!isNowAbsentWithoutExcuse && wasAbsentWithoutExcuse) {
+  // Changed FROM absent TO present/excused - decrement
+  await decrementStudentAbsenceCount(record.studentId, studentName, currentDate);
+  
+} else if (isNowAbsentWithoutExcuse && wasAbsentWithoutExcuse) {
+  // Status unchanged - do nothing (no duplicate increment)
+  console.log('ℹ️  Absence status unchanged');
+}
+```
+
+### 2. حماية من التكرار في `incrementStudentAbsenceCount`
+
+```javascript
+if (existingData.absenceRecords && existingData.absenceRecords.includes(today)) {
+  console.log(`⚠️  Date ${today} already recorded, skipping increment`);
+  return existingData; // Don't increment again!
+}
+```
+
+### 3. دالة جديدة: `decrementStudentAbsenceCount`
+
+إذا المدير غيّر حالة الطالب من "غائب بدون عذر" إلى "حاضر" أو "غائب بعذر":
+- يزيل التاريخ من `absenceRecords`
+- ينقص العداد
+- إذا وصل العداد لـ 0، يحذف سجل التتبع
+
+---
+
+## 🔍 السيناريوهات المدعومة الآن
+
+### سيناريو 1: حفظ لأول مرة
+```
+اليوم: 1446-02-05
+الحالة: غائب بدون عذر
+النتيجة: ✅ العداد = 1
+```
+
+### سيناريو 2: حفظ متكرر في نفس اليوم
+```
+اليوم: 1446-02-05 (نفس اليوم)
+الحالة: غائب بدون عذر (نفس الحالة)
+النتيجة: ✅ العداد = 1 (ما يزيد!)
+```
+
+### سيناريو 3: تصحيح الحالة
+```
+اليوم: 1446-02-05
+الحالة السابقة: غائب بدون عذر
+الحالة الجديدة: حاضر
+النتيجة: ✅ العداد ينقص من 1 إلى 0
+```
+
+### سيناريو 4: تغيير العذر
+```
+اليوم: 1446-02-05
+الحالة السابقة: غائب بدون عذر
+الحالة الجديدة: غائب بعذر
+النتيجة: ✅ العداد ينقص من 1 إلى 0 (العذر يلغي العقوبة)
+```
+
+---
+
+## 📊 التواريخ الهجرية الدقيقة
+
+### كيف يتم استخدام التواريخ؟
+
+1. **عند حفظ التحضير:**
+```javascript
+const currentDate = modal.dataset.currentDate || getTodayForStorage();
+// currentDate = "1446-02-06" (هجري دقيق من accurateHijriDates)
+```
+
+2. **في incrementStudentAbsenceCount:**
+```javascript
+const todayAccurate = getTodayAccurateHijri();
+const today = todayAccurate && todayAccurate.hijri ? todayAccurate.hijri : getTodayForStorage();
+// today = "1446-02-06" (نفس الصيغة)
+```
+
+3. **في monthlyAbsenceTracking:**
+```javascript
+const currentMonth = getCurrentHijriMonth(); // "1446-02"
+const docId = `${studentId}_${currentMonth}`; // "STU001_1446-02"
+```
+
+✅ **التواريخ متوافقة 100%**: كلها بصيغة `YYYY-MM-DD` من `accurateHijriDates`
+
+---
+
+## 🎯 التصفير التلقائي للغيابات
+
+### كيف يتصفر العداد مع الشهر الجديد؟
+
+```javascript
+// Document ID في monthlyAbsenceTracking
+const docId = `${studentId}_${currentMonth}`;
+
+// مثال:
+// شهر صفر: "STU001_1446-02"
+// شهر ربيع الأول: "STU001_1446-03"  ← وثيقة جديدة!
+```
+
+✅ **التصفير تلقائي**: مع تغيير الشهر، الـ ID يتغير → وثيقة جديدة → العداد يبدأ من صفر!
 
 ## الحل: أدوات الفحص والإصلاح
 
@@ -208,6 +361,37 @@ console.log(result)
 
 ---
 
-تم إضافة هذه الدوال في: 2026-07-20  
+## 🔔 ملاحظة مهمة: زر الإشعارات
+
+### تصميمان مختلفان في الصفحة!
+
+في `index.html` يوجد زران للإشعارات:
+
+#### 1. **زر قديم (سطر 609)** - في قسم المهام ❌
+```html
+<button class="header-notification-btn" onclick="alert('الإشعارات')">
+  <!-- هذا الزر فقط يظهر alert وما يسوي شيء! -->
+</button>
+```
+
+#### 2. **زر جديد (سطر 87, 1654)** - في لوحة الإدارة ✅
+```html
+<button class="new-notification-btn" onclick="window.toggleAdminNotifications()">
+  <!-- هذا الزر يفتح قائمة الإشعارات الحقيقية -->
+</button>
+```
+
+### ⚠️ انتبه!
+- **الزر الفعّال**: `window.toggleAdminNotifications()` (السطر 87 و 1654)
+- **الزر القديم**: `alert('الإشعارات')` (السطر 609) - يحتاج حذف أو تحديث!
+
+إذا كنت ترى إشعارات خاطئة، تأكد أنك تستخدم **لوحة الإدارة الرئيسية** وليس قسم المهام.
+
+---
+
+تم إصلاح النظام في: 2026-07-20  
 الملف: `js/admin.js`  
-السطور: 561-851
+السطور المعدّلة:
+- 425-535: إضافة حماية من التكرار في `incrementStudentAbsenceCount`
+- 537-595: إضافة دالة `decrementStudentAbsenceCount`
+- 3585-3635: تحديث منطق `saveDailyAttendance`
