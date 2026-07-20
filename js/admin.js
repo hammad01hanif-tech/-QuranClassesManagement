@@ -560,13 +560,15 @@ async function getStudentAbsenceStatus(studentId, studentName) {
  */
 async function countStudentAbsenceInCurrentMonth(studentId) {
   try {
-    const currentMonth = getCurrentHijriMonth(); // e.g., "1446-05"
+    const currentMonth = getCurrentHijriMonth(); // e.g., "1446-02"
+    console.log(`🔍 Counting absences for student ${studentId} in month: ${currentMonth}`);
     
     // Get all daily reports for this student
     const reportsRef = collection(db, 'studentProgress', studentId, 'dailyReports');
     const reportsSnapshot = await getDocs(reportsRef);
     
     let absenceCount = 0;
+    const absenceDates = [];
     
     reportsSnapshot.forEach(doc => {
       const data = doc.data();
@@ -577,13 +579,246 @@ async function countStudentAbsenceInCurrentMonth(studentId) {
           data.status === 'absent' && 
           data.excuseType === 'withoutExcuse') {
         absenceCount++;
+        absenceDates.push(reportDate);
       }
     });
     
+    console.log(`📊 Found ${absenceCount} absence(s) without excuse in ${currentMonth}:`, absenceDates);
     return absenceCount;
   } catch (error) {
     console.error('Error counting absence occurrences:', error);
     return 0;
+  }
+}
+
+/**
+ * DEBUG: Verify student absence data consistency
+ * Compare monthlyAbsenceTracking count vs actual dailyReports count
+ * @param {string} studentId - Student ID
+ * @returns {Promise<Object>} Verification result
+ */
+async function verifyStudentAbsenceData(studentId) {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`🔍 ABSENCE DATA VERIFICATION`);
+    console.log(`📅 Current Month: ${currentMonth}`);
+    console.log(`👤 Student ID: ${studentId}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    // 1. Get data from monthlyAbsenceTracking
+    const trackingData = await getStudentMonthlyAbsenceData(studentId);
+    const trackingCount = trackingData ? trackingData.absenceCount : 0;
+    const trackingRecords = trackingData ? trackingData.absenceRecords : [];
+    
+    console.log(`\n📊 monthlyAbsenceTracking:`);
+    console.log(`   Count: ${trackingCount}`);
+    console.log(`   Records:`, trackingRecords);
+    
+    // 2. Count from dailyReports
+    const actualCount = await countStudentAbsenceInCurrentMonth(studentId);
+    
+    console.log(`\n📊 dailyReports (actual):`);
+    console.log(`   Count: ${actualCount}`);
+    
+    // 3. Compare
+    const isConsistent = trackingCount === actualCount;
+    console.log(`\n${isConsistent ? '✅' : '❌'} RESULT: ${isConsistent ? 'CONSISTENT' : 'INCONSISTENT!'}`);
+    
+    if (!isConsistent) {
+      console.log(`   ⚠️  Discrepancy: monthlyAbsenceTracking shows ${trackingCount} but dailyReports shows ${actualCount}`);
+      console.log(`   🔧 Recommended action: Sync monthlyAbsenceTracking with dailyReports`);
+    }
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    return {
+      studentId,
+      currentMonth,
+      trackingCount,
+      trackingRecords,
+      actualCount,
+      isConsistent,
+      discrepancy: trackingCount - actualCount
+    };
+  } catch (error) {
+    console.error('❌ Error verifying absence data:', error);
+    return null;
+  }
+}
+
+/**
+ * FIX: Sync student's monthlyAbsenceTracking with actual dailyReports data
+ * @param {string} studentId - Student ID
+ * @param {string} studentName - Student name
+ * @returns {Promise<Object>} Sync result
+ */
+async function syncStudentAbsenceData(studentId, studentName) {
+  try {
+    const currentMonth = getCurrentHijriMonth();
+    console.log(`\n🔧 SYNCING absence data for ${studentName} (${studentId})...`);
+    
+    // 1. Get actual count from dailyReports
+    const actualCount = await countStudentAbsenceInCurrentMonth(studentId);
+    
+    // 2. Get actual absence dates
+    const reportsRef = collection(db, 'studentProgress', studentId, 'dailyReports');
+    const reportsSnapshot = await getDocs(reportsRef);
+    const absenceDates = [];
+    
+    reportsSnapshot.forEach(doc => {
+      const data = doc.data();
+      const reportDate = doc.id;
+      
+      if (reportDate.startsWith(currentMonth) && 
+          data.status === 'absent' && 
+          data.excuseType === 'withoutExcuse') {
+        absenceDates.push(reportDate);
+      }
+    });
+    
+    // 3. Update or create monthlyAbsenceTracking document
+    const docRef = doc(db, 'monthlyAbsenceTracking', `${studentId}_${currentMonth}`);
+    
+    if (actualCount === 0) {
+      // No absences - delete the tracking document if it exists
+      await deleteDoc(docRef).catch(() => {}); // Ignore error if doesn't exist
+      console.log(`✅ Synced: ${studentName} has 0 absences, tracking document deleted`);
+      return { success: true, action: 'deleted', count: 0 };
+    } else {
+      // Has absences - update/create tracking document
+      const action = determineActionForAbsenceCount(actualCount);
+      
+      await setDoc(docRef, {
+        studentId,
+        studentName,
+        month: currentMonth,
+        absenceCount: actualCount,
+        absenceRecords: absenceDates,
+        currentAction: action,
+        lastUpdated: serverTimestamp(),
+        syncedAt: serverTimestamp()
+      });
+      
+      console.log(`✅ Synced: ${studentName} has ${actualCount} absence(s), tracking updated`);
+      return { success: true, action: 'synced', count: actualCount };
+    }
+  } catch (error) {
+    console.error('❌ Error syncing absence data:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * AUDIT: Check all students' absence data consistency
+ * @returns {Promise<Array>} Array of inconsistent records
+ */
+async function auditAllStudentsAbsenceData() {
+  try {
+    console.log('\n═══════════════════════════════════════════════');
+    console.log('🔍 STARTING FULL ABSENCE DATA AUDIT');
+    console.log('═══════════════════════════════════════════════\n');
+    
+    const currentMonth = getCurrentHijriMonth();
+    const inconsistencies = [];
+    
+    // Get all monthlyAbsenceTracking records for current month
+    const trackingSnap = await getDocs(query(
+      collection(db, 'monthlyAbsenceTracking'),
+      where('month', '==', currentMonth)
+    ));
+    
+    console.log(`📊 Found ${trackingSnap.size} tracking record(s) for month ${currentMonth}\n`);
+    
+    let checkedCount = 0;
+    
+    for (const trackingDoc of trackingSnap.docs) {
+      const data = trackingDoc.data();
+      checkedCount++;
+      
+      console.log(`[${checkedCount}/${trackingSnap.size}] Checking ${data.studentName}...`);
+      
+      const verification = await verifyStudentAbsenceData(data.studentId);
+      
+      if (verification && !verification.isConsistent) {
+        inconsistencies.push(verification);
+      }
+    }
+    
+    console.log('\n═══════════════════════════════════════════════');
+    console.log('📋 AUDIT SUMMARY');
+    console.log('═══════════════════════════════════════════════');
+    console.log(`Total checked: ${checkedCount}`);
+    console.log(`Inconsistencies found: ${inconsistencies.length}`);
+    
+    if (inconsistencies.length > 0) {
+      console.log('\n⚠️  INCONSISTENT RECORDS:');
+      inconsistencies.forEach(record => {
+        console.log(`   - ${record.studentId}: tracking=${record.trackingCount}, actual=${record.actualCount}, diff=${record.discrepancy}`);
+      });
+    } else {
+      console.log('\n✅ All records are consistent!');
+    }
+    
+    console.log('═══════════════════════════════════════════════\n');
+    
+    return inconsistencies;
+  } catch (error) {
+    console.error('❌ Error auditing absence data:', error);
+    return [];
+  }
+}
+
+/**
+ * FIX: Sync all students' absence data
+ * @returns {Promise<Object>} Summary of sync operation
+ */
+async function syncAllStudentsAbsenceData() {
+  try {
+    console.log('\n═══════════════════════════════════════════════');
+    console.log('🔧 SYNCING ALL STUDENTS ABSENCE DATA');
+    console.log('═══════════════════════════════════════════════\n');
+    
+    const inconsistencies = await auditAllStudentsAbsenceData();
+    
+    if (inconsistencies.length === 0) {
+      console.log('✅ No inconsistencies found, nothing to sync.');
+      return { success: true, synced: 0, message: 'All data is already consistent' };
+    }
+    
+    console.log(`\n🔧 Starting sync for ${inconsistencies.length} student(s)...\n`);
+    
+    let syncedCount = 0;
+    const results = [];
+    
+    for (const record of inconsistencies) {
+      // Get student name from users collection
+      const studentDoc = await getDoc(doc(db, 'users', record.studentId));
+      const studentName = studentDoc.exists() ? studentDoc.data().name : 'Unknown';
+      
+      const syncResult = await syncStudentAbsenceData(record.studentId, studentName);
+      results.push({ ...record, syncResult });
+      
+      if (syncResult.success) {
+        syncedCount++;
+      }
+    }
+    
+    console.log('\n═══════════════════════════════════════════════');
+    console.log('✅ SYNC COMPLETED');
+    console.log('═══════════════════════════════════════════════');
+    console.log(`Successfully synced: ${syncedCount}/${inconsistencies.length}`);
+    console.log('═══════════════════════════════════════════════\n');
+    
+    return {
+      success: true,
+      total: inconsistencies.length,
+      synced: syncedCount,
+      results
+    };
+  } catch (error) {
+    console.error('❌ Error syncing all absence data:', error);
+    return { success: false, error: error.message };
   }
 }
 
@@ -593,12 +828,17 @@ window.incrementStudentAbsenceCount = incrementStudentAbsenceCount;
 window.determineActionForAbsenceCount = determineActionForAbsenceCount;
 window.getStudentAbsenceStatus = getStudentAbsenceStatus;
 window.countStudentAbsenceInCurrentMonth = countStudentAbsenceInCurrentMonth;
+window.verifyStudentAbsenceData = verifyStudentAbsenceData;
+window.syncStudentAbsenceData = syncStudentAbsenceData;
+window.auditAllStudentsAbsenceData = auditAllStudentsAbsenceData;
+window.syncAllStudentsAbsenceData = syncAllStudentsAbsenceData;
 
 // Teacher names mapping for display in UI
 const teacherNames = {
   'ABD01': 'الأستاذ عبدالرحمن السيسي',
   'AMR01': 'الأستاذ عامر هوساوي',
   'ANS01': 'الأستاذ أنس',
+  'FSL01': 'الأستاذ فيصل جاويد',
   'HRT01': 'الأستاذ حارث',
   'IBR01': 'الأستاذ إبراهيم',
   'JHD01': 'الأستاذ جهاد',
@@ -623,7 +863,8 @@ const allowedTeacherIds = [
   'MZB01',  // الأستاذ مازن البلوشي
   'MZN01',  // الأستاذ مازن
   'NBL01',  // الأستاذ نبيل
-  'ABD01'   // الأستاذ عبدالرحمن السيسي
+  'ABD01',  // الأستاذ عبدالرحمن السيسي
+  'FSL01'   // الأستاذ فيصل جاويد
 ];
 
 // DOM Elements - will be initialized in initAdmin()
@@ -3681,11 +3922,16 @@ window.showNotificationDetails = async function(notificationId) {
     console.error('Error fetching teacher phone:', error);
   }
   
+  // DEBUG: Verify absence data when viewing notification
+  console.log('\n📋 Viewing notification details for:', notification.studentName);
+  const verificationResult = await verifyStudentAbsenceData(notification.studentId);
+  
   // Store data for WhatsApp functions
   window.currentNotificationData = {
     ...notification,
     guardianPhone,
-    teacherPhone
+    teacherPhone,
+    verificationResult
   };
   
   // Build details HTML
@@ -3693,7 +3939,17 @@ window.showNotificationDetails = async function(notificationId) {
   const content = document.getElementById('notificationDetailsContent');
   const title = document.getElementById('detailsTitle');
   
-  title.textContent = notification.title;
+  // Add warning if data is inconsistent
+  if (verificationResult && !verificationResult.isConsistent) {
+    title.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span>${notification.title}</span>
+        <span style="background: #dc3545; color: white; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;">⚠️ بيانات غير متطابقة</span>
+      </div>
+    `;
+  } else {
+    title.textContent = notification.title;
+  }
   
   // Calculate penalty color gradient
   const penaltyColor = notification.penaltyColor || '#dc3545';
