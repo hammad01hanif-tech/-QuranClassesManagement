@@ -10805,10 +10805,14 @@ let currentVisitFormData = {
   educationalNotes: {},
   studentTests: {},
   teacher: {},
+  teacherNotes: {},
   environment: {},
+  environmentNotes: {},
   imagesData: {}
 };
 let currentVisitId = null;
+let studentTestCounter = 2; // Start from 2 since we already have test1 and test2
+let lastSavedVisitData = null; // Store last saved visit for sending
 
 /**
  * Format date from YYYY-MM-DD to DD-MM-YYYY for display
@@ -11486,6 +11490,342 @@ window.closeVisitDetailsModal = function() {
 };
 
 /**
+ * Generate professional PDF report for supervision visit
+ */
+window.generateVisitPDF = async function() {
+  if (!currentVisitId) {
+    alert('⚠️ خطأ: لم يتم تحديد الزيارة');
+    return;
+  }
+  
+  try {
+    console.log('📄 [PDF] Starting PDF generation for visit:', currentVisitId);
+    
+    // Get visit data
+    const visitDoc = await getDoc(doc(db, 'supervisionVisits', currentVisitId));
+    
+    if (!visitDoc.exists()) {
+      alert('❌ الزيارة غير موجودة');
+      return;
+    }
+    
+    const visit = visitDoc.data();
+    const visitDate = visit.visitDate ? formatDateForDisplay(visit.visitDate) : 'تاريخ غير محدد';
+    const supervisorName = visit.supervisorName || 'غير محدد';
+    const className = visit.className || 'غير محدد';
+    const teacherName = visit.teacherName || 'غير محدد';
+    
+    // Rating mappings (no emojis, professional text)
+    const ratingTextMap = {
+      'excellent': 'ممتاز',
+      'very-good': 'جيد جداً',
+      'good': 'جيد',
+      'weak': 'ضعيف',
+      'not-evaluated': 'لم يُقيّم'
+    };
+    
+    // Create new jsPDF instance
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentWidth = pageWidth - (margin * 2);
+    let yPosition = margin;
+    
+    // Helper function to add new page if needed
+    const checkPageBreak = (requiredHeight) => {
+      if (yPosition + requiredHeight > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+        return true;
+      }
+      return false;
+    };
+    
+    // Helper function to add right-aligned Arabic text
+    const addRTLText = (text, x, y, options = {}) => {
+      doc.text(text, x, y, { align: 'right', ...options });
+    };
+    
+    // Title
+    doc.setFontSize(22);
+    doc.setFont(undefined, 'bold');
+    addRTLText('تقرير زيارة إشرافية', pageWidth - margin, yPosition);
+    yPosition += 12;
+    
+    // Decorative line
+    doc.setDrawColor(102, 126, 234);
+    doc.setLineWidth(0.5);
+    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 10;
+    
+    // Visit Information Section
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    addRTLText('معلومات الزيارة', pageWidth - margin, yPosition);
+    yPosition += 8;
+    
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    addRTLText(`الحلقة: ${className}`, pageWidth - margin, yPosition);
+    yPosition += 6;
+    addRTLText(`المعلم: ${teacherName}`, pageWidth - margin, yPosition);
+    yPosition += 6;
+    addRTLText(`المشرف: ${supervisorName}`, pageWidth - margin, yPosition);
+    yPosition += 6;
+    addRTLText(`التاريخ: ${visitDate}`, pageWidth - margin, yPosition);
+    yPosition += 6;
+    addRTLText(`التقييم الإجمالي: ${calculateOverallRating(visit).toFixed(1)} من 5`, pageWidth - margin, yPosition);
+    yPosition += 10;
+    
+    // Educational Aspect Section
+    if (visit.educational && Object.keys(visit.educational).length > 0) {
+      checkPageBreak(20);
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      addRTLText('الجانب التعليمي', pageWidth - margin, yPosition);
+      yPosition += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      const getItemLabel = (itemId) => {
+        const item = supervisionEvaluationItems.educational.find(i => i.id === itemId);
+        return item ? item.label : itemId;
+      };
+      
+      for (const [key, rating] of Object.entries(visit.educational)) {
+        // Skip not-evaluated items
+        if (rating === 'not-evaluated') continue;
+        
+        checkPageBreak(15);
+        
+        const itemLabel = getItemLabel(key);
+        const ratingText = ratingTextMap[rating] || rating;
+        
+        addRTLText(`• ${itemLabel}: ${ratingText}`, pageWidth - margin, yPosition);
+        yPosition += 5;
+        
+        // Add notes if available
+        const itemNotes = visit.educationalNotes && visit.educationalNotes[key];
+        if (itemNotes) {
+          doc.setFont(undefined, 'italic');
+          doc.setFontSize(9);
+          const lines = doc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
+          lines.forEach(line => {
+            checkPageBreak(5);
+            addRTLText(line, pageWidth - margin - 5, yPosition);
+            yPosition += 4;
+          });
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(10);
+        }
+        
+        yPosition += 2;
+      }
+      
+      yPosition += 5;
+    }
+    
+    // Student Tests Section
+    if (visit.studentTests && Object.keys(visit.studentTests).length > 0) {
+      checkPageBreak(20);
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      addRTLText('اختبار الطلاب', pageWidth - margin, yPosition);
+      yPosition += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      let testNum = 1;
+      for (const [testKey, testData] of Object.entries(visit.studentTests)) {
+        if (!testData.studentName && !testData.lesson && !testData.grade) continue;
+        
+        checkPageBreak(20);
+        
+        doc.setFont(undefined, 'bold');
+        addRTLText(`الطالب ${testNum}:`, pageWidth - margin, yPosition);
+        doc.setFont(undefined, 'normal');
+        yPosition += 6;
+        
+        if (testData.studentName) {
+          addRTLText(`  الاسم: ${testData.studentName}`, pageWidth - margin, yPosition);
+          yPosition += 5;
+        }
+        if (testData.lesson) {
+          addRTLText(`  الدرس: ${testData.lesson}`, pageWidth - margin, yPosition);
+          yPosition += 5;
+        }
+        if (testData.grade) {
+          addRTLText(`  الدرجة: ${testData.grade} من 10`, pageWidth - margin, yPosition);
+          yPosition += 5;
+        }
+        if (testData.notes) {
+          doc.setFont(undefined, 'italic');
+          doc.setFontSize(9);
+          const lines = doc.splitTextToSize(`  ملاحظات: ${testData.notes}`, contentWidth - 10);
+          lines.forEach(line => {
+            checkPageBreak(5);
+            addRTLText(line, pageWidth - margin - 5, yPosition);
+            yPosition += 4;
+          });
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(10);
+        }
+        
+        yPosition += 5;
+        testNum++;
+      }
+      
+      yPosition += 5;
+    }
+    
+    // Teacher Performance Section
+    if (visit.teacher && Object.keys(visit.teacher).length > 0) {
+      checkPageBreak(20);
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      addRTLText('أداء المعلم', pageWidth - margin, yPosition);
+      yPosition += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      const getTeacherItemLabel = (itemId) => {
+        const item = supervisionEvaluationItems.teacher.find(i => i.id === itemId);
+        return item ? item.label : itemId;
+      };
+      
+      for (const [key, rating] of Object.entries(visit.teacher)) {
+        if (rating === 'not-evaluated') continue;
+        
+        checkPageBreak(15);
+        
+        const itemLabel = getTeacherItemLabel(key);
+        const ratingText = ratingTextMap[rating] || rating;
+        
+        addRTLText(`• ${itemLabel}: ${ratingText}`, pageWidth - margin, yPosition);
+        yPosition += 5;
+        
+        const itemNotes = visit.teacherNotes && visit.teacherNotes[key];
+        if (itemNotes) {
+          doc.setFont(undefined, 'italic');
+          doc.setFontSize(9);
+          const lines = doc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
+          lines.forEach(line => {
+            checkPageBreak(5);
+            addRTLText(line, pageWidth - margin - 5, yPosition);
+            yPosition += 4;
+          });
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(10);
+        }
+        
+        yPosition += 2;
+      }
+      
+      yPosition += 5;
+    }
+    
+    // Environment Section
+    if (visit.environment && Object.keys(visit.environment).length > 0) {
+      checkPageBreak(20);
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      addRTLText('البيئة العامة', pageWidth - margin, yPosition);
+      yPosition += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      const getEnvironmentItemLabel = (itemId) => {
+        const item = supervisionEvaluationItems.environment.find(i => i.id === itemId);
+        return item ? item.label : itemId;
+      };
+      
+      for (const [key, rating] of Object.entries(visit.environment)) {
+        if (rating === 'not-evaluated') continue;
+        
+        checkPageBreak(15);
+        
+        const itemLabel = getEnvironmentItemLabel(key);
+        const ratingText = ratingTextMap[rating] || rating;
+        
+        addRTLText(`• ${itemLabel}: ${ratingText}`, pageWidth - margin, yPosition);
+        yPosition += 5;
+        
+        const itemNotes = visit.environmentNotes && visit.environmentNotes[key];
+        if (itemNotes) {
+          doc.setFont(undefined, 'italic');
+          doc.setFontSize(9);
+          const lines = doc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
+          lines.forEach(line => {
+            checkPageBreak(5);
+            addRTLText(line, pageWidth - margin - 5, yPosition);
+            yPosition += 4;
+          });
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(10);
+        }
+        
+        yPosition += 2;
+      }
+      
+      yPosition += 5;
+    }
+    
+    // General Notes and Recommendations
+    if (visit.notes) {
+      checkPageBreak(20);
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      addRTLText('ملاحظات عامة وتوصيات', pageWidth - margin, yPosition);
+      yPosition += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      const lines = doc.splitTextToSize(visit.notes, contentWidth);
+      lines.forEach(line => {
+        checkPageBreak(5);
+        addRTLText(line, pageWidth - margin, yPosition);
+        yPosition += 5;
+      });
+    }
+    
+    // Footer
+    const footerY = pageHeight - 15;
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    addRTLText(`تم إنشاء التقرير بتاريخ: ${new Date().toLocaleDateString('ar-SA')}`, pageWidth - margin, footerY);
+    
+    // Save PDF
+    const fileName = `تقرير_زيارة_${className}_${visit.visitDate || 'تاريخ'}.pdf`;
+    doc.save(fileName);
+    
+    console.log('✅ [PDF] PDF generated successfully:', fileName);
+    alert('✅ تم تصدير التقرير بنجاح!');
+    
+  } catch (error) {
+    console.error('❌ [PDF] Error generating PDF:', error);
+    console.error('Error details:', error.message, error.stack);
+    alert('❌ حدث خطأ في تصدير التقرير: ' + error.message);
+  }
+};
+
+/**
  * Open image viewer modal
  */
 window.openImageViewer = function(imageSrc, caption = '') {
@@ -11515,6 +11855,204 @@ window.closeImageViewer = function() {
     document.body.style.overflow = '';
     
     console.log('🖼️ [IMAGE] Closing image viewer');
+  }
+};
+
+/**
+ * Open send visit report modal
+ */
+window.openSendVisitModal = function(visitData) {
+  lastSavedVisitData = visitData;
+  const modal = document.getElementById('sendVisitReportModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    console.log('📤 [SEND] Opening send visit modal');
+  }
+};
+
+/**
+ * Close send visit report modal
+ */
+window.closeSendVisitModal = function() {
+  const modal = document.getElementById('sendVisitReportModal');
+  if (modal) {
+    modal.style.display = 'none';
+    console.log('📤 [SEND] Closing send visit modal');
+  }
+  
+  // Complete the form closure
+  window.closeNewVisitForm();
+  
+  // Refresh lists
+  if (currentClassData && currentClassData.classId) {
+    loadClassVisits(currentClassData.classId);
+    loadSupervisionClasses();
+  }
+};
+
+/**
+ * Send visit report via WhatsApp
+ */
+window.sendViaWhatsApp = function() {
+  if (!lastSavedVisitData) {
+    alert('⚠️ خطأ: لم يتم العثور على بيانات الزيارة');
+    return;
+  }
+  
+  try {
+    const visit = lastSavedVisitData;
+    const visitDate = visit.visitDate ? formatDateForDisplay(visit.visitDate) : 'تاريخ غير محدد';
+    const overallRating = calculateOverallRating(visit).toFixed(1);
+    
+    // Create WhatsApp message
+    const message = `
+*تقرير زيارة إشرافية* 📋
+
+*معلومات الزيارة:*
+• الحلقة: ${visit.className || 'غير محدد'}
+• المعلم: ${visit.teacherName || 'غير محدد'}
+• المشرف: ${visit.supervisorName || 'غير محدد'}
+• التاريخ: ${visitDate}
+• التقييم الإجمالي: ${overallRating} من 5
+
+*ملاحظات عامة:*
+${visit.notes || 'لا توجد ملاحظات'}
+
+_تم إنشاء التقرير من نظام إدارة حلقات القرآن الكريم_
+    `.trim();
+    
+    // Get teacher's phone number (you'll need to implement this based on your data structure)
+    const teacherPhone = currentClassData.teacherPhone || '';
+    
+    if (teacherPhone) {
+      // Open WhatsApp with pre-filled message
+      const whatsappUrl = `https://wa.me/${teacherPhone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      console.log('📱 [WHATSAPP] Opened WhatsApp with message');
+    } else {
+      // If no phone number, just copy to clipboard
+      navigator.clipboard.writeText(message).then(() => {
+        alert('✅ تم نسخ نص الرسالة!\nيمكنك الآن لصقها في واتساب.');
+      }).catch(() => {
+        alert('⚠️ لم يتم العثور على رقم المعلم.\nيرجى إضافة رقم الهاتف في بيانات المعلم.');
+      });
+      console.log('📱 [WHATSAPP] Copied message to clipboard');
+    }
+    
+    window.closeSendVisitModal();
+    
+  } catch (error) {
+    console.error('❌ [WHATSAPP] Error sending via WhatsApp:', error);
+    alert('❌ حدث خطأ في إرسال الرسالة');
+  }
+};
+
+/**
+ * Send visit report via Email
+ */
+window.sendViaEmail = function() {
+  if (!lastSavedVisitData) {
+    alert('⚠️ خطأ: لم يتم العثور على بيانات الزيارة');
+    return;
+  }
+  
+  try {
+    const visit = lastSavedVisitData;
+    const visitDate = visit.visitDate ? formatDateForDisplay(visit.visitDate) : 'تاريخ غير محدد';
+    const overallRating = calculateOverallRating(visit).toFixed(1);
+    
+    // Create email subject and body
+    const subject = `تقرير زيارة إشرافية - ${visit.className} - ${visitDate}`;
+    const body = `
+تقرير زيارة إشرافية
+
+معلومات الزيارة:
+─────────────────
+• الحلقة: ${visit.className || 'غير محدد'}
+• المعلم: ${visit.teacherName || 'غير محدد'}
+• المشرف: ${visit.supervisorName || 'غير محدد'}
+• التاريخ: ${visitDate}
+• التقييم الإجمالي: ${overallRating} من 5
+
+ملاحظات عامة وتوصيات:
+─────────────────
+${visit.notes || 'لا توجد ملاحظات'}
+
+تم إنشاء التقرير من نظام إدارة حلقات القرآن الكريم
+    `.trim();
+    
+    // Get teacher's email (you'll need to implement this based on your data structure)
+    const teacherEmail = currentClassData.teacherEmail || '';
+    
+    // Open default email client
+    const mailtoUrl = `mailto:${teacherEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoUrl;
+    
+    console.log('✉️ [EMAIL] Opened email client');
+    
+    // Show confirmation
+    setTimeout(() => {
+      alert('✅ تم فتح برنامج البريد الإلكتروني\nيرجى إكمال الإرسال من هناك');
+      window.closeSendVisitModal();
+    }, 500);
+    
+  } catch (error) {
+    console.error('❌ [EMAIL] Error sending via email:', error);
+    alert('❌ حدث خطأ في إرسال البريد الإلكتروني');
+  }
+};
+
+/**
+ * Send visit report via In-App Notification
+ */
+window.sendViaNotification = async function() {
+  if (!lastSavedVisitData) {
+    alert('⚠️ خطأ: لم يتم العثور على بيانات الزيارة');
+    return;
+  }
+  
+  try {
+    const visit = lastSavedVisitData;
+    const visitDate = visit.visitDate ? formatDateForDisplay(visit.visitDate) : 'تاريخ غير محدد';
+    const overallRating = calculateOverallRating(visit).toFixed(1);
+    
+    // Get teacher's user ID (you'll need to implement this based on your data structure)
+    const teacherUserId = currentClassData.teacherUserId || currentClassData.teacherId;
+    
+    if (!teacherUserId) {
+      alert('⚠️ لم يتم العثور على معرف المعلم في النظام');
+      return;
+    }
+    
+    // Create notification data
+    const notificationData = {
+      userId: teacherUserId,
+      type: 'supervision_visit',
+      title: 'تقرير زيارة إشرافية جديد',
+      message: `تم إجراء زيارة إشرافية للحلقة ${visit.className} بتاريخ ${visitDate}. التقييم الإجمالي: ${overallRating} من 5`,
+      relatedData: {
+        visitId: visit.visitId,
+        classId: visit.classId,
+        className: visit.className,
+        supervisorName: visit.supervisorName,
+        visitDate: visit.visitDate,
+        overallRating: overallRating
+      },
+      isRead: false,
+      createdAt: serverTimestamp()
+    };
+    
+    // Save to Firestore notifications collection
+    await addDoc(collection(db, 'notifications'), notificationData);
+    
+    console.log('🔔 [NOTIFICATION] Notification sent successfully');
+    alert('✅ تم إرسال إشعار للمعلم داخل التطبيق');
+    
+    window.closeSendVisitModal();
+    
+  } catch (error) {
+    console.error('❌ [NOTIFICATION] Error sending notification:', error);
+    alert('❌ حدث خطأ في إرسال الإشعار: ' + error.message);
   }
 };
 
@@ -11604,12 +12142,11 @@ function buildVisitForm() {
           <div class="supervision-eval-label">${item.label}</div>
           
           <!-- Student Tests Accordion -->
-          <div class="student-test-container">
+          <div class="student-test-container" id="studentTestContainer">
             <!-- Test 1 Accordion -->
             <div class="student-test-accordion">
               <div class="student-test-accordion-header" onclick="toggleTestAccordion('test1')">
                 <div class="accordion-header-content">
-                  <span class="accordion-icon">🧑‍🎓</span>
                   <span class="accordion-title">اختبار طالب 1</span>
                 </div>
                 <span class="accordion-chevron" id="chevron_test1">▼</span>
@@ -11640,7 +12177,6 @@ function buildVisitForm() {
             <div class="student-test-accordion">
               <div class="student-test-accordion-header" onclick="toggleTestAccordion('test2')">
                 <div class="accordion-header-content">
-                  <span class="accordion-icon">🧑‍🎓</span>
                   <span class="accordion-title">اختبار طالب 2</span>
                 </div>
                 <span class="accordion-chevron" id="chevron_test2">▼</span>
@@ -11666,32 +12202,37 @@ function buildVisitForm() {
                 </div>
               </div>
             </div>
+            
+            <!-- Add Student Button -->
+            <button type="button" class="add-student-test-btn" onclick="window.addStudentTest()">
+              <span class="add-student-icon">+</span>
+              <span class="add-student-text">إضافة طالب</span>
+            </button>
           </div>
           
-          <!-- Overall Rating -->
-          <div style="margin-top: 16px; padding-top: 16px; border-top: 1.5px solid #e9ecef;">
-            <div class="supervision-eval-label" style="font-size: 13px; margin-bottom: 10px;">📊 التقييم العام للنقطة</div>
-            <div class="supervision-rating-options">
-              <div class="supervision-rating-chip excellent" onclick="selectRating('educational', '${item.id}', 'excellent', this)">
-                <span class="chip-icon">⭐</span>
-                <span class="chip-text">ممتاز</span>
-              </div>
-              <div class="supervision-rating-chip good" onclick="selectRating('educational', '${item.id}', 'good', this)">
-                <span class="chip-icon">✓</span>
-                <span class="chip-text">جيد</span>
-              </div>
-              <div class="supervision-rating-chip needs-improvement" onclick="selectRating('educational', '${item.id}', 'needs-improvement', this)">
-                <span class="chip-icon">⚠</span>
-                <span class="chip-text">يحتاج تحسين</span>
-              </div>
-              <div class="supervision-rating-chip weak" onclick="selectRating('educational', '${item.id}', 'weak', this)">
-                <span class="chip-icon">✗</span>
-                <span class="chip-text">ضعيف</span>
-              </div>
-              <div class="supervision-rating-chip not-evaluated" onclick="selectRating('educational', '${item.id}', 'not-evaluated', this)">
-                <span class="chip-icon">○</span>
-                <span class="chip-text">لم يُقيّم</span>
-              </div>
+          <!-- Overall Rating with Radio Buttons -->
+          <div class="supervision-radio-rating-section">
+            <div class="supervision-rating-radio-group">
+              <label class="supervision-radio-option">
+                <input type="radio" name="rating_educational_${item.id}" value="excellent" onchange="selectRating('educational', '${item.id}', 'excellent')">
+                <span class="radio-label">ممتاز</span>
+              </label>
+              <label class="supervision-radio-option">
+                <input type="radio" name="rating_educational_${item.id}" value="very-good" onchange="selectRating('educational', '${item.id}', 'very-good')">
+                <span class="radio-label">جيد جداً</span>
+              </label>
+              <label class="supervision-radio-option">
+                <input type="radio" name="rating_educational_${item.id}" value="good" onchange="selectRating('educational', '${item.id}', 'good')">
+                <span class="radio-label">جيد</span>
+              </label>
+              <label class="supervision-radio-option">
+                <input type="radio" name="rating_educational_${item.id}" value="weak" onchange="selectRating('educational', '${item.id}', 'weak')">
+                <span class="radio-label">ضعيف</span>
+              </label>
+              <label class="supervision-radio-option">
+                <input type="radio" name="rating_educational_${item.id}" value="not-evaluated" onchange="selectRating('educational', '${item.id}', 'not-evaluated')" checked>
+                <span class="radio-label">لم يُقيّم</span>
+              </label>
             </div>
           </div>
           
@@ -11721,44 +12262,43 @@ function buildVisitForm() {
     return `
       <div class="supervision-eval-card">
         <div class="supervision-eval-label">${item.label}</div>
-        <div class="supervision-rating-options">
-          <div class="supervision-rating-chip excellent" onclick="selectRating('educational', '${item.id}', 'excellent', this)">
-            <span class="chip-icon">⭐</span>
-            <span class="chip-text">ممتاز</span>
-          </div>
-          <div class="supervision-rating-chip good" onclick="selectRating('educational', '${item.id}', 'good', this)">
-            <span class="chip-icon">✓</span>
-            <span class="chip-text">جيد</span>
-          </div>
-          <div class="supervision-rating-chip needs-improvement" onclick="selectRating('educational', '${item.id}', 'needs-improvement', this)">
-            <span class="chip-icon">⚠</span>
-            <span class="chip-text">يحتاج تحسين</span>
-          </div>
-          <div class="supervision-rating-chip weak" onclick="selectRating('educational', '${item.id}', 'weak', this)">
-            <span class="chip-icon">✗</span>
-            <span class="chip-text">ضعيف</span>
-          </div>
-          <div class="supervision-rating-chip not-evaluated" onclick="selectRating('educational', '${item.id}', 'not-evaluated', this)">
-            <span class="chip-icon">○</span>
-            <span class="chip-text">لم يُقيّم</span>
+        
+        <!-- Radio Rating -->
+        <div class="supervision-radio-rating-section">
+          <div class="supervision-rating-radio-group">
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_educational_${item.id}" value="excellent" onchange="selectRating('educational', '${item.id}', 'excellent')">
+              <span class="radio-label">ممتاز</span>
+            </label>
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_educational_${item.id}" value="very-good" onchange="selectRating('educational', '${item.id}', 'very-good')">
+              <span class="radio-label">جيد جداً</span>
+            </label>
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_educational_${item.id}" value="good" onchange="selectRating('educational', '${item.id}', 'good')">
+              <span class="radio-label">جيد</span>
+            </label>
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_educational_${item.id}" value="weak" onchange="selectRating('educational', '${item.id}', 'weak')">
+              <span class="radio-label">ضعيف</span>
+            </label>
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_educational_${item.id}" value="not-evaluated" onchange="selectRating('educational', '${item.id}', 'not-evaluated')" checked>
+              <span class="radio-label">لم يُقيّم</span>
+            </label>
           </div>
         </div>
+        
+        <!-- Optional Notes (always visible but optional) -->
         ${item.hasNotes ? `
-          <div class="notes-with-attachment">
-            <div class="notes-input-wrapper">
-              <textarea 
-                class="supervision-item-notes" 
-                id="notes_educational_${item.id}"
-                placeholder="${item.notesPlaceholder}"
-                rows="2"
-                oninput="updateItemNotes('educational', '${item.id}', this.value)"
-              ></textarea>
-              <input type="file" id="image_educational_${item.id}" accept="image/png,image/jpeg,image/jpg" style="display: none;" onchange="handleImageSelect('educational', '${item.id}', this)">
-              <button type="button" class="attach-icon-btn" onclick="document.getElementById('image_educational_${item.id}').click()" title="إرفاق صورة">
-                📷
-              </button>
-            </div>
-            <div id="preview_educational_${item.id}" class="image-preview-container"></div>
+          <div class="supervision-optional-notes">
+            <textarea 
+              class="supervision-item-notes" 
+              id="notes_educational_${item.id}"
+              placeholder="${item.notesPlaceholder}"
+              rows="2"
+              oninput="updateItemNotes('educational', '${item.id}', this.value)"
+            ></textarea>
           </div>
         ` : ''}
       </div>
@@ -11769,27 +12309,42 @@ function buildVisitForm() {
   const teacherHTML = supervisionEvaluationItems.teacher.map((item) => `
     <div class="supervision-eval-card">
       <div class="supervision-eval-label">${item.label}</div>
-      <div class="supervision-rating-options">
-        <div class="supervision-rating-chip excellent" onclick="selectRating('teacher', '${item.id}', 'excellent', this)">
-          <span class="chip-icon">⭐</span>
-          <span class="chip-text">ممتاز</span>
+      
+      <!-- Radio Rating -->
+      <div class="supervision-radio-rating-section">
+        <div class="supervision-rating-radio-group">
+          <label class="supervision-radio-option">
+            <input type="radio" name="rating_teacher_${item.id}" value="excellent" onchange="selectRating('teacher', '${item.id}', 'excellent')">
+            <span class="radio-label">ممتاز</span>
+          </label>
+          <label class="supervision-radio-option">
+            <input type="radio" name="rating_teacher_${item.id}" value="very-good" onchange="selectRating('teacher', '${item.id}', 'very-good')">
+            <span class="radio-label">جيد جداً</span>
+          </label>
+          <label class="supervision-radio-option">
+            <input type="radio" name="rating_teacher_${item.id}" value="good" onchange="selectRating('teacher', '${item.id}', 'good')">
+            <span class="radio-label">جيد</span>
+          </label>
+          <label class="supervision-radio-option">
+            <input type="radio" name="rating_teacher_${item.id}" value="weak" onchange="selectRating('teacher', '${item.id}', 'weak')">
+            <span class="radio-label">ضعيف</span>
+          </label>
+          <label class="supervision-radio-option">
+            <input type="radio" name="rating_teacher_${item.id}" value="not-evaluated" onchange="selectRating('teacher', '${item.id}', 'not-evaluated')" checked>
+            <span class="radio-label">لم يُقيّم</span>
+          </label>
         </div>
-        <div class="supervision-rating-chip good" onclick="selectRating('teacher', '${item.id}', 'good', this)">
-          <span class="chip-icon">✓</span>
-          <span class="chip-text">جيد</span>
-        </div>
-        <div class="supervision-rating-chip needs-improvement" onclick="selectRating('teacher', '${item.id}', 'needs-improvement', this)">
-          <span class="chip-icon">⚠</span>
-          <span class="chip-text">يحتاج تحسين</span>
-        </div>
-        <div class="supervision-rating-chip weak" onclick="selectRating('teacher', '${item.id}', 'weak', this)">
-          <span class="chip-icon">✗</span>
-          <span class="chip-text">ضعيف</span>
-        </div>
-        <div class="supervision-rating-chip not-evaluated" onclick="selectRating('teacher', '${item.id}', 'not-evaluated', this)">
-          <span class="chip-icon">○</span>
-          <span class="chip-text">لم يُقيّم</span>
-        </div>
+      </div>
+      
+      <!-- Optional Notes -->
+      <div class="supervision-optional-notes">
+        <textarea 
+          class="supervision-item-notes" 
+          id="notes_teacher_${item.id}"
+          placeholder="ملاحظات اختيارية..."
+          rows="2"
+          oninput="updateItemNotes('teacher', '${item.id}', this.value)"
+        ></textarea>
       </div>
     </div>
   `).join('');
@@ -11799,27 +12354,42 @@ function buildVisitForm() {
     ? supervisionEvaluationItems.environment.map((item) => `
       <div class="supervision-eval-card">
         <div class="supervision-eval-label">${item.label}</div>
-        <div class="supervision-rating-options">
-          <div class="supervision-rating-chip excellent" onclick="selectRating('environment', '${item.id}', 'excellent', this)">
-            <span class="chip-icon">⭐</span>
-            <span class="chip-text">ممتاز</span>
+        
+        <!-- Radio Rating -->
+        <div class="supervision-radio-rating-section">
+          <div class="supervision-rating-radio-group">
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_environment_${item.id}" value="excellent" onchange="selectRating('environment', '${item.id}', 'excellent')">
+              <span class="radio-label">ممتاز</span>
+            </label>
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_environment_${item.id}" value="very-good" onchange="selectRating('environment', '${item.id}', 'very-good')">
+              <span class="radio-label">جيد جداً</span>
+            </label>
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_environment_${item.id}" value="good" onchange="selectRating('environment', '${item.id}', 'good')">
+              <span class="radio-label">جيد</span>
+            </label>
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_environment_${item.id}" value="weak" onchange="selectRating('environment', '${item.id}', 'weak')">
+              <span class="radio-label">ضعيف</span>
+            </label>
+            <label class="supervision-radio-option">
+              <input type="radio" name="rating_environment_${item.id}" value="not-evaluated" onchange="selectRating('environment', '${item.id}', 'not-evaluated')" checked>
+              <span class="radio-label">لم يُقيّم</span>
+            </label>
           </div>
-          <div class="supervision-rating-chip good" onclick="selectRating('environment', '${item.id}', 'good', this)">
-            <span class="chip-icon">✓</span>
-            <span class="chip-text">جيد</span>
-          </div>
-          <div class="supervision-rating-chip needs-improvement" onclick="selectRating('environment', '${item.id}', 'needs-improvement', this)">
-            <span class="chip-icon">⚠</span>
-            <span class="chip-text">يحتاج تحسين</span>
-          </div>
-          <div class="supervision-rating-chip weak" onclick="selectRating('environment', '${item.id}', 'weak', this)">
-            <span class="chip-icon">✗</span>
-            <span class="chip-text">ضعيف</span>
-          </div>
-          <div class="supervision-rating-chip not-evaluated" onclick="selectRating('environment', '${item.id}', 'not-evaluated', this)">
-            <span class="chip-icon">○</span>
-            <span class="chip-text">لم يُقيّم</span>
-          </div>
+        </div>
+        
+        <!-- Optional Notes -->
+        <div class="supervision-optional-notes">
+          <textarea 
+            class="supervision-item-notes" 
+            id="notes_environment_${item.id}"
+            placeholder="ملاحظات اختيارية..."
+            rows="2"
+            oninput="updateItemNotes('environment', '${item.id}', this.value)"
+          ></textarea>
         </div>
       </div>
     `).join('')
@@ -11832,17 +12402,9 @@ function buildVisitForm() {
 }
 
 /**
- * Select rating for an item
+ * Select rating for an item (updated for radio buttons)
  */
-window.selectRating = function(section, item, rating, element) {
-  // Remove selected class from siblings
-  const card = element.closest('.supervision-eval-card');
-  const siblings = card.querySelectorAll('.supervision-rating-chip');
-  siblings.forEach(chip => chip.classList.remove('selected'));
-  
-  // Add selected class
-  element.classList.add('selected');
-  
+window.selectRating = function(section, item, rating) {
   // Save rating
   currentVisitFormData[section][item] = rating;
   
@@ -11855,6 +12417,16 @@ window.selectRating = function(section, item, rating, element) {
 window.updateItemNotes = function(section, item, notes) {
   if (section === 'educational') {
     currentVisitFormData.educationalNotes[item] = notes;
+  } else if (section === 'teacher') {
+    if (!currentVisitFormData.teacherNotes) {
+      currentVisitFormData.teacherNotes = {};
+    }
+    currentVisitFormData.teacherNotes[item] = notes;
+  } else if (section === 'environment') {
+    if (!currentVisitFormData.environmentNotes) {
+      currentVisitFormData.environmentNotes = {};
+    }
+    currentVisitFormData.environmentNotes[item] = notes;
   }
   console.log('Notes updated:', { section, item, notes: notes.substring(0, 30) + '...' });
 };
@@ -11884,6 +12456,100 @@ window.toggleTestAccordion = function(testId) {
     }, 300);
     chevron.style.transform = 'rotate(0deg)';
     chevron.textContent = '▼';
+  }
+};
+
+/**
+ * Add a new student test accordion dynamically
+ */
+window.addStudentTest = function() {
+  studentTestCounter++;
+  const testId = `test${studentTestCounter}`;
+  const testNumber = studentTestCounter;
+  
+  const container = document.getElementById('studentTestContainer');
+  if (!container) {
+    console.error('Student test container not found');
+    return;
+  }
+  
+  // Find the add button to insert before it
+  const addButton = container.querySelector('.add-student-test-btn');
+  
+  // Create new accordion HTML
+  const newAccordion = document.createElement('div');
+  newAccordion.className = 'student-test-accordion';
+  newAccordion.id = `accordion_${testId}`;
+  newAccordion.innerHTML = `
+    <div class="student-test-accordion-header" onclick="toggleTestAccordion('${testId}')">
+      <div class="accordion-header-content">
+        <span class="accordion-title">اختبار طالب ${testNumber}</span>
+      </div>
+      <div class="accordion-header-actions">
+        <button type="button" class="remove-test-btn" onclick="window.removeStudentTest('${testId}', event)" title="حذف">
+          ×
+        </button>
+        <span class="accordion-chevron" id="chevron_${testId}">▼</span>
+      </div>
+    </div>
+    <div class="student-test-accordion-body" id="body_${testId}" style="display: none;">
+      <div class="student-test-fields">
+        <div class="test-field">
+          <label class="test-field-label">اسم الطالب</label>
+          <input type="text" class="test-field-input" id="${testId}_studentName" placeholder="اسم الطالب">
+        </div>
+        <div class="test-field">
+          <label class="test-field-label">الدرس</label>
+          <input type="text" class="test-field-input" id="${testId}_lesson" placeholder="مثال: سورة النساء 20-25">
+        </div>
+        <div class="test-field">
+          <label class="test-field-label">الدرجة من 10</label>
+          <input type="number" class="test-field-input" id="${testId}_grade" placeholder="0-10" min="0" max="10" step="0.5">
+        </div>
+        <div class="test-field">
+          <label class="test-field-label">ملاحظات</label>
+          <textarea class="test-field-input" id="${testId}_notes" placeholder="ملاحظات على أداء الطالب..." rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Insert before the add button
+  container.insertBefore(newAccordion, addButton);
+  
+  // Auto-open the new accordion
+  setTimeout(() => {
+    window.toggleTestAccordion(testId);
+  }, 100);
+  
+  console.log('✅ Added new student test:', testId);
+};
+
+/**
+ * Remove a student test accordion
+ */
+window.removeStudentTest = function(testId, event) {
+  // Prevent triggering the accordion toggle
+  if (event) {
+    event.stopPropagation();
+  }
+  
+  // Confirm deletion
+  if (!confirm('هل تريد حذف هذا الاختبار؟')) {
+    return;
+  }
+  
+  const accordion = document.getElementById(`accordion_${testId}`);
+  if (accordion) {
+    // Smooth fade out
+    accordion.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    accordion.style.opacity = '0';
+    accordion.style.transform = 'scale(0.95)';
+    
+    setTimeout(() => {
+      accordion.remove();
+      console.log('✅ Removed student test:', testId);
+    }, 300);
   }
 };
 
@@ -12084,28 +12750,37 @@ window.saveVisit = async function() {
   }
   
   try {
-    // Get student test data
-    const test1 = {
-      studentName: document.getElementById('test1_studentName')?.value.trim() || '',
-      lesson: document.getElementById('test1_lesson')?.value.trim() || '',
-      grade: document.getElementById('test1_grade')?.value || '',
-      notes: document.getElementById('test1_notes')?.value.trim() || ''
-    };
+    // Get student test data dynamically (test1, test2, test3, ...)
+    const studentTests = {};
+    let hasAnyTestData = false;
     
-    const test2 = {
-      studentName: document.getElementById('test2_studentName')?.value.trim() || '',
-      lesson: document.getElementById('test2_lesson')?.value.trim() || '',
-      grade: document.getElementById('test2_grade')?.value || '',
-      notes: document.getElementById('test2_notes')?.value.trim() || ''
-    };
+    // Loop through all possible test numbers
+    for (let i = 1; i <= studentTestCounter; i++) {
+      const testId = `test${i}`;
+      const studentNameInput = document.getElementById(`${testId}_studentName`);
+      
+      // Skip if this test doesn't exist (was removed)
+      if (!studentNameInput) continue;
+      
+      const testData = {
+        studentName: studentNameInput?.value.trim() || '',
+        lesson: document.getElementById(`${testId}_lesson`)?.value.trim() || '',
+        grade: document.getElementById(`${testId}_grade`)?.value || '',
+        notes: document.getElementById(`${testId}_notes`)?.value.trim() || ''
+      };
+      
+      // Only add test if it has any data
+      if (testData.studentName || testData.lesson || testData.grade || testData.notes) {
+        studentTests[testId] = testData;
+        hasAnyTestData = true;
+      }
+    }
     
     // Store student tests if any data entered
-    if (test1.studentName || test1.lesson || test1.grade || test1.notes || 
-        test2.studentName || test2.lesson || test2.grade || test2.notes) {
-      currentVisitFormData.studentTests = {
-        test1: test1,
-        test2: test2
-      };
+    if (hasAnyTestData) {
+      currentVisitFormData.studentTests = studentTests;
+    } else {
+      currentVisitFormData.studentTests = {};
     }
     
     // Get current Hijri date
@@ -12114,18 +12789,16 @@ window.saveVisit = async function() {
     
     console.log('📅 [SUPERVISION] Visit date (Hijri):', visitDate, todayHijri);
     
-    // Convert imagesData to a plain object (flatten nested structures)
-    const flatImagesData = {};
-    if (currentVisitFormData.imagesData && Object.keys(currentVisitFormData.imagesData).length > 0) {
-      for (const [key, value] of Object.entries(currentVisitFormData.imagesData)) {
-        // Ensure the value is a valid string
-        if (value && typeof value === 'string') {
-          flatImagesData[key] = value;
-        }
-      }
+    // Process visit images
+    const visitImagesData = {};
+    if (currentVisitFormData.visitImages && currentVisitFormData.visitImages.length > 0) {
+      currentVisitFormData.visitImages.forEach((img, index) => {
+        const imageKey = `visitImage_${index + 1}`;
+        visitImagesData[imageKey] = img.data;
+      });
     }
     
-    console.log('📸 [SUPERVISION] Images to save:', Object.keys(flatImagesData).length);
+    console.log('📸 [SUPERVISION] Images to save:', Object.keys(visitImagesData).length);
     
     // Calculate total data size (for debugging)
     let totalSize = JSON.stringify({
@@ -12137,7 +12810,7 @@ window.saveVisit = async function() {
     }).length;
     
     let imagesSize = 0;
-    for (const [key, value] of Object.entries(flatImagesData)) {
+    for (const value of Object.values(visitImagesData)) {
       imagesSize += value.length;
     }
     
@@ -12166,22 +12839,24 @@ window.saveVisit = async function() {
       educationalNotes: currentVisitFormData.educationalNotes,
       studentTests: currentVisitFormData.studentTests || {},
       teacher: currentVisitFormData.teacher,
+      teacherNotes: currentVisitFormData.teacherNotes || {},
       environment: currentVisitFormData.environment,
+      environmentNotes: currentVisitFormData.environmentNotes || {},
       notes: notes,
       createdAt: serverTimestamp()
     };
     
     // Add images only if they exist
-    if (Object.keys(flatImagesData).length > 0) {
-      visitData.imagesData = flatImagesData;
+    if (Object.keys(visitImagesData).length > 0) {
+      visitData.imagesData = visitImagesData;
     }
     
-    console.log('💾 [SUPERVISION] Preparing to save visit data with', Object.keys(flatImagesData).length, 'images...');
+    console.log('💾 [SUPERVISION] Preparing to save visit data with', Object.keys(visitImagesData).length, 'images...');
     
     // Debug: Log what will be saved
-    if (Object.keys(flatImagesData).length > 0) {
-      console.log('📸 [SUPERVISION] Image keys being saved:', Object.keys(flatImagesData));
-      for (const [key, value] of Object.entries(flatImagesData)) {
+    if (Object.keys(visitImagesData).length > 0) {
+      console.log('📸 [SUPERVISION] Image keys being saved:', Object.keys(visitImagesData));
+      for (const [key, value] of Object.entries(visitImagesData)) {
         console.log(`  - ${key}: ${Math.round(value.length / 1024)} KB`);
       }
     }
@@ -12195,15 +12870,14 @@ window.saveVisit = async function() {
       ratings: totalRatings,
       notes: notes ? 'Yes' : 'No',
       studentTests: currentVisitFormData.studentTests ? 'Yes' : 'No',
-      images: Object.keys(flatImagesData).length
+      images: Object.keys(visitImagesData).length
     });
     
-    alert('✅ تم حفظ الزيارة بنجاح!\nالتاريخ الهجري: ' + formatDateForDisplay(visitDate));
+    // Store visit data with ID for sending
+    visitData.visitId = docRef.id;
     
-    // Close form and refresh
-    window.closeNewVisitForm();
-    await loadClassVisits(currentClassData.classId);
-    await loadSupervisionClasses(); // Refresh main grid
+    // Open send visit modal instead of closing directly
+    window.openSendVisitModal(visitData);
     
   } catch (error) {
     console.error('❌ [SUPERVISION] Error saving visit:', error);
@@ -12223,18 +12897,128 @@ window.saveVisit = async function() {
 };
 
 /**
+ * Handle visit images upload and preview
+ */
+window.handleVisitImages = async function(files) {
+  if (!files || files.length === 0) return;
+  
+  const previewContainer = document.getElementById('visitImagesPreview');
+  
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('⚠️ يرجى اختيار ملفات صور فقط');
+      continue;
+    }
+    
+    // Validate file size (max 5MB before compression)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('⚠️ حجم الصورة كبير جداً. الحد الأقصى 5 ميجابايت');
+      continue;
+    }
+    
+    try {
+      // Compress image
+      console.log('📸 Compressing visit image:', file.name);
+      const compressedData = await compressImage(file, 400);
+      
+      if (!compressedData || !compressedData.startsWith('data:image/')) {
+        alert('⚠️ فشل ضغط الصورة: ' + file.name);
+        continue;
+      }
+      
+      const finalSizeKB = Math.round(compressedData.length / 1024);
+      console.log('✅ Image compressed:', file.name, 'Final size:', finalSizeKB, 'KB');
+      
+      // Create unique ID for this image
+      const imageId = 'visit_img_' + Date.now() + '_' + i;
+      
+      // Store compressed image data
+      if (!currentVisitFormData.visitImages) {
+        currentVisitFormData.visitImages = [];
+      }
+      currentVisitFormData.visitImages.push({
+        id: imageId,
+        data: compressedData,
+        name: file.name,
+        sizeKB: finalSizeKB
+      });
+      
+      // Create preview element
+      const imageItem = document.createElement('div');
+      imageItem.className = 'supervision-image-item';
+      imageItem.id = imageId;
+      imageItem.innerHTML = `
+        <img src="${compressedData}" alt="صورة الزيارة">
+        <button class="supervision-image-remove" onclick="window.removeVisitImage('${imageId}')" title="حذف الصورة">
+          ×
+        </button>
+      `;
+      
+      previewContainer.appendChild(imageItem);
+      
+    } catch (error) {
+      console.error('❌ Error processing image:', file.name, error);
+      alert('⚠️ حدث خطأ في معالجة الصورة: ' + file.name);
+    }
+  }
+  
+  // Reset file input
+  document.getElementById('visitImages').value = '';
+};
+
+/**
+ * Remove image from visit images
+ */
+window.removeVisitImage = function(imageId) {
+  // Remove from DOM
+  const imageElement = document.getElementById(imageId);
+  if (imageElement) {
+    imageElement.remove();
+  }
+  
+  // Remove from data
+  if (currentVisitFormData.visitImages) {
+    currentVisitFormData.visitImages = currentVisitFormData.visitImages.filter(img => img.id !== imageId);
+  }
+};
+
+/**
  * Close new visit form
  */
 window.closeNewVisitForm = function() {
   document.getElementById('newVisitFormModal').style.display = 'none';
   document.body.style.overflow = '';
+  
+  // Clear images preview
+  const previewContainer = document.getElementById('visitImagesPreview');
+  if (previewContainer) {
+    previewContainer.innerHTML = '';
+  }
+  
+  // Remove dynamically added student tests (test3, test4, ...)
+  const container = document.getElementById('studentTestContainer');
+  if (container) {
+    const dynamicTests = container.querySelectorAll('.student-test-accordion[id^="accordion_test"]:not(#accordion_test1):not(#accordion_test2)');
+    dynamicTests.forEach(test => test.remove());
+  }
+  
+  // Reset student test counter
+  studentTestCounter = 2;
+  
+  // Reset form data
   currentVisitFormData = {
     educational: {},
     educationalNotes: {},
     studentTests: {},
     teacher: {},
+    teacherNotes: {},
     environment: {},
-    imagesData: {}
+    environmentNotes: {},
+    imagesData: {},
+    visitImages: []
   };
 };
 

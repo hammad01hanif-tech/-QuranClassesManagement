@@ -1412,10 +1412,16 @@
               <div class="supervision-modal-title">
                 <h3>تفاصيل الزيارة</h3>
               </div>
-              <button class="supervision-delete-btn" id="deleteVisitBtn" onclick="window.confirmDeleteVisit()">
-                <span>🗑️</span>
-                <span>حذف</span>
-              </button>
+              <div class="supervision-header-actions">
+                <button class="supervision-export-pdf-btn" id="exportVisitPdfBtn" onclick="window.generateVisitPDF()" title="تصدير كملف PDF">
+                  <span>📄</span>
+                  <span>تصدير PDF</span>
+                </button>
+                <button class="supervision-delete-btn" id="deleteVisitBtn" onclick="window.confirmDeleteVisit()">
+                  <span>🗑️</span>
+                  <span>حذف</span>
+                </button>
+              </div>
             </div>
 
             <!-- Visit Details Content -->
@@ -1440,9 +1446,31 @@
             <!-- Visit Form -->
             <div class="supervision-visit-form">
               
+              <!-- Images Upload Section -->
+              <div class="supervision-form-section supervision-images-section">
+                <h4 class="supervision-section-title">إضافة صور للزيارة</h4>
+                <div class="supervision-images-container">
+                  <input 
+                    type="file" 
+                    id="visitImages" 
+                    accept="image/*" 
+                    multiple 
+                    style="display: none;"
+                    onchange="window.handleVisitImages(this.files)"
+                  >
+                  <button class="supervision-upload-btn" onclick="document.getElementById('visitImages').click()">
+                    <span class="upload-icon">📷</span>
+                    <span class="upload-text">اختر صور</span>
+                  </button>
+                  <div class="supervision-images-preview" id="visitImagesPreview">
+                    <!-- Image previews will be added here -->
+                  </div>
+                </div>
+              </div>
+              
               <!-- Educational Aspect Section -->
               <div class="supervision-form-section">
-                <h4 class="supervision-section-title">📚 الجانب التعليمي</h4>
+                <h4 class="supervision-section-title">الجانب التعليمي</h4>
                 <div class="supervision-form-items" id="educationalAspectItems">
                   <!-- Items will be added here -->
                 </div>
@@ -1450,7 +1478,7 @@
 
               <!-- Teacher Performance Section -->
               <div class="supervision-form-section">
-                <h4 class="supervision-section-title">👨‍🏫 أداء المعلم</h4>
+                <h4 class="supervision-section-title">أداء المعلم</h4>
                 <div class="supervision-form-items" id="teacherPerformanceItems">
                   <!-- Items will be added here -->
                 </div>
@@ -1458,7 +1486,7 @@
 
               <!-- General Environment Section -->
               <div class="supervision-form-section">
-                <h4 class="supervision-section-title">🏫 البيئة العامة</h4>
+                <h4 class="supervision-section-title">البيئة العامة</h4>
                 <div class="supervision-form-items" id="generalEnvironmentItems">
                   <!-- Items will be added here -->
                 </div>
@@ -1466,11 +1494,11 @@
 
               <!-- Notes Section -->
               <div class="supervision-form-section">
-                <h4 class="supervision-section-title">📝 الملاحظات</h4>
+                <h4 class="supervision-section-title">ملاحظات عامة وتوصيات</h4>
                 <textarea 
                   class="supervision-notes-textarea" 
                   id="visitNotes" 
-                  placeholder="اكتب ملاحظاتك هنا..."
+                  placeholder="اكتب الملاحظات العامة والتوصيات هنا..."
                   rows="4"
                 ></textarea>
               </div>
@@ -1478,7 +1506,6 @@
               <!-- Supervisor Name -->
               <div class="supervisor-name-field">
                 <label class="supervisor-name-label">
-                  <span>👤</span>
                   <span>اسم المشرف</span>
                 </label>
                 <input 
@@ -4243,6 +4270,60 @@
           <span>رسالة للمعلم</span>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Image Viewer Modal -->
+  <!-- Send Visit Report Modal -->
+  <div id="sendVisitReportModal" class="supervision-modal" style="display: none;">
+    <div class="supervision-modal-overlay" onclick="window.closeSendVisitModal()"></div>
+    <div class="supervision-modal-content send-report-modal-content">
+      
+      <!-- Modal Header -->
+      <div class="supervision-modal-header">
+        <button class="supervision-close-btn" onclick="window.closeSendVisitModal()">×</button>
+        <h3 class="supervision-modal-title">إرسال التقرير للمعلم</h3>
+      </div>
+
+      <!-- Send Options -->
+      <div class="send-report-options">
+        <p class="send-report-description">تم حفظ الزيارة بنجاح! اختر طريقة إرسال التقرير للمعلم:</p>
+        
+        <div class="send-option-cards">
+          <!-- WhatsApp Option -->
+          <button class="send-option-card whatsapp-option" onclick="window.sendViaWhatsApp()">
+            <div class="send-option-icon">📱</div>
+            <div class="send-option-content">
+              <h4 class="send-option-title">واتساب</h4>
+              <p class="send-option-desc">إرسال رسالة مباشرة عبر واتساب</p>
+            </div>
+          </button>
+
+          <!-- Email Option -->
+          <button class="send-option-card email-option" onclick="window.sendViaEmail()">
+            <div class="send-option-icon">✉️</div>
+            <div class="send-option-content">
+              <h4 class="send-option-title">البريد الإلكتروني</h4>
+              <p class="send-option-desc">إرسال التقرير بالإيميل</p>
+            </div>
+          </button>
+
+          <!-- In-App Notification Option -->
+          <button class="send-option-card notification-option" onclick="window.sendViaNotification()">
+            <div class="send-option-icon">🔔</div>
+            <div class="send-option-content">
+              <h4 class="send-option-title">إشعار داخلي</h4>
+              <p class="send-option-desc">إرسال إشعار في التطبيق</p>
+            </div>
+          </button>
+        </div>
+
+        <!-- Skip Button -->
+        <button class="skip-send-btn" onclick="window.closeSendVisitModal()">
+          تخطي الآن
+        </button>
+      </div>
+
     </div>
   </div>
 

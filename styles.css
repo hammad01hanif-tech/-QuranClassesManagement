@@ -12021,6 +12021,39 @@ details[open] > summary {
   color: #1a202c;
 }
 
+.supervision-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.supervision-export-pdf-btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+}
+
+.supervision-export-pdf-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}
+
+.supervision-export-pdf-btn:active {
+  transform: translateY(0);
+}
+
 .supervision-delete-btn {
   padding: 8px 16px;
   border-radius: 10px;
@@ -12044,6 +12077,179 @@ details[open] > summary {
 
 .supervision-delete-btn:active {
   transform: translateY(0);
+}
+
+/* ===================================
+   Send Visit Report Modal Styles
+   =================================== */
+
+.send-report-modal-content {
+  max-width: 600px;
+  border-radius: 20px;
+}
+
+.send-report-options {
+  padding: 20px 0;
+}
+
+.send-report-description {
+  text-align: center;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 25px;
+  padding: 0 10px;
+}
+
+.send-option-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.send-option-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 2px solid #e5e7eb;
+  background: #fafbfc;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: right;
+  width: 100%;
+}
+
+.send-option-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.send-option-card:active {
+  transform: translateY(0);
+}
+
+.send-option-icon {
+  font-size: 32px;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.send-option-content {
+  flex: 1;
+  text-align: right;
+}
+
+.send-option-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.send-option-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* WhatsApp Option */
+.whatsapp-option {
+  border-color: #dcfce7;
+}
+
+.whatsapp-option:hover {
+  border-color: #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(5, 150, 105, 0.03));
+}
+
+.whatsapp-option .send-option-icon {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+/* Email Option */
+.email-option {
+  border-color: #dbeafe;
+}
+
+.email-option:hover {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(37, 99, 235, 0.03));
+}
+
+.email-option .send-option-icon {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+/* Notification Option */
+.notification-option {
+  border-color: #fae8ff;
+}
+
+.notification-option:hover {
+  border-color: #a855f7;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.05), rgba(147, 51, 234, 0.03));
+}
+
+.notification-option .send-option-icon {
+  background: linear-gradient(135deg, #a855f7, #9333ea);
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.25);
+}
+
+/* Skip Button */
+.skip-send-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px solid #e5e7eb;
+  background: white;
+  color: #64748b;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 10px;
+}
+
+.skip-send-btn:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.skip-send-btn:active {
+  transform: scale(0.98);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .send-option-card {
+    padding: 15px;
+  }
+  
+  .send-option-icon {
+    font-size: 28px;
+    width: 45px;
+    height: 45px;
+  }
+  
+  .send-option-title {
+    font-size: 15px;
+  }
+  
+  .send-option-desc {
+    font-size: 12px;
+  }
 }
 
 .supervision-modal-title {
@@ -13488,6 +13694,44 @@ details[open] > summary {
   color: #cbd5e0;
 }
 
+/* Add Student Test Button */
+.add-student-test-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.add-student-test-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.add-student-test-btn:active {
+  transform: translateY(0);
+}
+
+.add-student-icon {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.add-student-text {
+  font-size: 13px;
+}
+
 /* Student Test Accordion */
 .student-test-accordion {
   background: rgba(102, 126, 234, 0.04);
@@ -13525,6 +13769,37 @@ details[open] > summary {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+}
+
+.accordion-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remove-test-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1.5px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.remove-test-btn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+  transform: scale(1.1);
 }
 
 .accordion-icon {
@@ -15087,5 +15362,245 @@ details[open] > summary {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* ============================================
+   NEW SUPERVISION RADIO RATING SYSTEM
+   ============================================ */
+
+/* Radio Rating Section - Clean & Professional */
+.supervision-radio-rating-section {
+  margin: 12px 0;
+}
+
+.supervision-rating-radio-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.supervision-radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  transition: all 0.2s ease;
+  user-select: none;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.supervision-radio-option:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.supervision-radio-option input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.supervision-radio-option input[type="radio"]:checked + .radio-label {
+  font-weight: 700;
+  color: #667eea;
+}
+
+.supervision-radio-option:has(input:checked) {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.radio-label {
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+/* Optional Notes Section */
+.supervision-optional-notes {
+  margin-top: 12px;
+}
+
+.supervision-optional-notes textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+  transition: all 0.2s ease;
+  background: #fafbfc;
+}
+
+.supervision-optional-notes textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.08);
+}
+
+.supervision-optional-notes textarea::placeholder {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .supervision-rating-radio-group {
+    gap: 8px;
+  }
+  
+  .supervision-radio-option {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  .supervision-radio-option input[type="radio"] {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .radio-label {
+    font-size: 12px;
+  }
+}
+
+/* ============================================
+   CENTRALIZED IMAGE UPLOAD SECTION
+   ============================================ */
+
+.supervision-images-section {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%);
+  border: 1.5px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.supervision-images-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.supervision-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+  width: fit-content;
+}
+
+.supervision-upload-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.35);
+}
+
+.supervision-upload-btn:active {
+  transform: translateY(0);
+}
+
+.upload-icon {
+  font-size: 18px;
+}
+
+.upload-text {
+  font-size: 14px;
+}
+
+/* Images Preview Grid */
+.supervision-images-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.supervision-image-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #e5e7eb;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.supervision-image-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.supervision-image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.supervision-image-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  background: rgba(239, 68, 68, 0.95);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.supervision-image-item:hover .supervision-image-remove {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.supervision-image-remove:hover {
+  background: rgb(220, 38, 38);
+  transform: scale(1.1);
+}
+
+/* Responsive for Images */
+@media (max-width: 768px) {
+  .supervision-images-preview {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 10px;
+  }
+  
+  .supervision-upload-btn {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+  
+  .supervision-images-section {
+    padding: 16px;
   }
 }
