@@ -11490,7 +11490,7 @@ window.closeVisitDetailsModal = function() {
 };
 
 /**
- * Generate professional PDF report for supervision visit
+ * Generate professional PDF report for supervision visit using html2canvas
  */
 window.generateVisitPDF = async function() {
   if (!currentVisitId) {
@@ -11499,7 +11499,14 @@ window.generateVisitPDF = async function() {
   }
   
   try {
-    console.log('📄 [PDF] Starting PDF generation for visit:', currentVisitId);
+    console.log('📄 [PDF] Starting PDF generation with html2canvas for visit:', currentVisitId);
+    
+    // Check if html2canvas is available
+    if (typeof html2canvas === 'undefined') {
+      console.error('❌ html2canvas library not loaded!');
+      alert('⚠️ مكتبة html2canvas غير محملة. يرجى إعادة تحميل الصفحة.');
+      return;
+    }
     
     // Get visit data
     const visitDoc = await getDoc(doc(db, 'supervisionVisits', currentVisitId));
@@ -11514,6 +11521,7 @@ window.generateVisitPDF = async function() {
     const supervisorName = visit.supervisorName || 'غير محدد';
     const className = visit.className || 'غير محدد';
     const teacherName = visit.teacherName || 'غير محدد';
+    const overallRating = calculateOverallRating(visit).toFixed(1);
     
     // Rating mappings (no emojis, professional text)
     const ratingTextMap = {
@@ -11524,7 +11532,252 @@ window.generateVisitPDF = async function() {
       'not-evaluated': 'لم يُقيّم'
     };
     
-    // Create new jsPDF instance
+    // Helper to get color for rating
+    const getRatingColor = (rating) => {
+      const colorMap = {
+        'excellent': '#10b981',
+        'very-good': '#3b82f6',
+        'good': '#f59e0b',
+        'weak': '#ef4444',
+        'not-evaluated': '#9ca3af'
+      };
+      return colorMap[rating] || '#9ca3af';
+    };
+    
+    // Build Educational Section HTML
+    let educationalHTML = '';
+    if (visit.educational && Object.keys(visit.educational).length > 0) {
+      const getItemLabel = (itemId) => {
+        const item = supervisionEvaluationItems.educational.find(i => i.id === itemId);
+        return item ? item.label : itemId;
+      };
+      
+      let educationalItems = '';
+      for (const [key, rating] of Object.entries(visit.educational)) {
+        if (rating === 'not-evaluated') continue;
+        
+        const itemLabel = getItemLabel(key);
+        const ratingText = ratingTextMap[rating] || rating;
+        const ratingColor = getRatingColor(rating);
+        const itemNotes = visit.educationalNotes && visit.educationalNotes[key];
+        
+        educationalItems += `
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-right: 4px solid ${ratingColor};">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 14px; font-weight: 600;">${itemLabel}</div>
+              <div style="background: ${ratingColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">${ratingText}</div>
+            </div>
+            ${itemNotes ? `<div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic; padding: 8px; background: white; border-radius: 4px;">💬 ${itemNotes}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      if (educationalItems) {
+        educationalHTML = `
+          <div style="margin-bottom: 25px;">
+            <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #667eea; padding-bottom: 8px;">الجانب التعليمي</h2>
+            ${educationalItems}
+          </div>
+        `;
+      }
+    }
+    
+    // Build Student Tests Section HTML
+    let studentTestsHTML = '';
+    if (visit.studentTests && Object.keys(visit.studentTests).length > 0) {
+      let testNum = 1;
+      let testsItems = '';
+      
+      for (const [testKey, testData] of Object.entries(visit.studentTests)) {
+        if (!testData.studentName && !testData.lesson && !testData.grade) continue;
+        
+        testsItems += `
+          <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 2px solid #3b82f6;">
+            <div style="font-size: 15px; font-weight: bold; color: #1e40af; margin-bottom: 10px;">الطالب ${testNum}</div>
+            ${testData.studentName ? `<div style="font-size: 13px; margin-bottom: 6px;"><strong>الاسم:</strong> ${testData.studentName}</div>` : ''}
+            ${testData.lesson ? `<div style="font-size: 13px; margin-bottom: 6px;"><strong>الدرس:</strong> ${testData.lesson}</div>` : ''}
+            ${testData.grade ? `<div style="font-size: 13px; margin-bottom: 6px;"><strong>الدرجة:</strong> <span style="color: #10b981; font-weight: bold;">${testData.grade} من 10</span></div>` : ''}
+            ${testData.notes ? `<div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic; padding: 8px; background: white; border-radius: 4px;">💬 ${testData.notes}</div>` : ''}
+          </div>
+        `;
+        testNum++;
+      }
+      
+      if (testsItems) {
+        studentTestsHTML = `
+          <div style="margin-bottom: 25px;">
+            <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #667eea; padding-bottom: 8px;">اختبار الطلاب</h2>
+            ${testsItems}
+          </div>
+        `;
+      }
+    }
+    
+    // Build Teacher Performance Section HTML
+    let teacherHTML = '';
+    if (visit.teacher && Object.keys(visit.teacher).length > 0) {
+      const getTeacherItemLabel = (itemId) => {
+        const item = supervisionEvaluationItems.teacher.find(i => i.id === itemId);
+        return item ? item.label : itemId;
+      };
+      
+      let teacherItems = '';
+      for (const [key, rating] of Object.entries(visit.teacher)) {
+        if (rating === 'not-evaluated') continue;
+        
+        const itemLabel = getTeacherItemLabel(key);
+        const ratingText = ratingTextMap[rating] || rating;
+        const ratingColor = getRatingColor(rating);
+        const itemNotes = visit.teacherNotes && visit.teacherNotes[key];
+        
+        teacherItems += `
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-right: 4px solid ${ratingColor};">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 14px; font-weight: 600;">${itemLabel}</div>
+              <div style="background: ${ratingColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">${ratingText}</div>
+            </div>
+            ${itemNotes ? `<div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic; padding: 8px; background: white; border-radius: 4px;">💬 ${itemNotes}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      if (teacherItems) {
+        teacherHTML = `
+          <div style="margin-bottom: 25px;">
+            <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #667eea; padding-bottom: 8px;">أداء المعلم</h2>
+            ${teacherItems}
+          </div>
+        `;
+      }
+    }
+    
+    // Build Environment Section HTML
+    let environmentHTML = '';
+    if (visit.environment && Object.keys(visit.environment).length > 0) {
+      const getEnvironmentItemLabel = (itemId) => {
+        const item = supervisionEvaluationItems.environment.find(i => i.id === itemId);
+        return item ? item.label : itemId;
+      };
+      
+      let environmentItems = '';
+      for (const [key, rating] of Object.entries(visit.environment)) {
+        if (rating === 'not-evaluated') continue;
+        
+        const itemLabel = getEnvironmentItemLabel(key);
+        const ratingText = ratingTextMap[rating] || rating;
+        const ratingColor = getRatingColor(rating);
+        const itemNotes = visit.environmentNotes && visit.environmentNotes[key];
+        
+        environmentItems += `
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-right: 4px solid ${ratingColor};">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 14px; font-weight: 600;">${itemLabel}</div>
+              <div style="background: ${ratingColor}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">${ratingText}</div>
+            </div>
+            ${itemNotes ? `<div style="margin-top: 8px; font-size: 12px; color: #666; font-style: italic; padding: 8px; background: white; border-radius: 4px;">💬 ${itemNotes}</div>` : ''}
+          </div>
+        `;
+      }
+      
+      if (environmentItems) {
+        environmentHTML = `
+          <div style="margin-bottom: 25px;">
+            <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #667eea; padding-bottom: 8px;">البيئة العامة</h2>
+            ${environmentItems}
+          </div>
+        `;
+      }
+    }
+    
+    // Build General Notes Section HTML
+    let notesHTML = '';
+    if (visit.notes) {
+      notesHTML = `
+        <div style="margin-bottom: 25px;">
+          <h2 style="color: #667eea; margin: 0 0 15px 0; font-size: 20px; border-bottom: 3px solid #667eea; padding-bottom: 8px;">ملاحظات عامة وتوصيات</h2>
+          <div style="background: #fffbeb; padding: 15px; border-radius: 8px; border-right: 4px solid #f59e0b;">
+            <p style="margin: 0; font-size: 13px; line-height: 1.8; color: #333; white-space: pre-wrap;">${visit.notes}</p>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Create temporary container
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 800px;
+      background: white;
+      padding: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, Arial;
+      direction: rtl;
+      text-align: right;
+    `;
+    
+    container.innerHTML = `
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #667eea; margin: 0 0 10px 0; font-size: 32px;">تقرير زيارة إشرافية</h1>
+        <div style="width: 120px; height: 4px; background: linear-gradient(90deg, #667eea, #764ba2); margin: 0 auto; border-radius: 2px;"></div>
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 12px; margin-bottom: 30px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <h2 style="margin: 0 0 20px 0; font-size: 20px; text-align: center;">معلومات الزيارة</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">الحلقة</div>
+            <div style="font-size: 16px; font-weight: bold;">${className}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">المعلم</div>
+            <div style="font-size: 16px; font-weight: bold;">${teacherName}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">المشرف</div>
+            <div style="font-size: 16px; font-weight: bold;">${supervisorName}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px;">
+            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">التاريخ</div>
+            <div style="font-size: 16px; font-weight: bold;">${visitDate}</div>
+          </div>
+        </div>
+        <div style="background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; margin-top: 15px; text-align: center;">
+          <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">التقييم الإجمالي</div>
+          <div style="font-size: 28px; font-weight: bold; color: #ffd700;">${overallRating} من 5</div>
+        </div>
+      </div>
+      
+      ${educationalHTML}
+      ${studentTestsHTML}
+      ${teacherHTML}
+      ${environmentHTML}
+      ${notesHTML}
+      
+      <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+        <p style="margin: 5px 0; color: #667eea; font-size: 14px; font-weight: 600;">نظام إدارة حلقات القرآن الكريم</p>
+        <p style="margin: 5px 0; color: #999; font-size: 11px;">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</p>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    console.log('📸 [PDF] Converting HTML to canvas...');
+    
+    // Convert HTML to canvas using html2canvas
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    console.log('✅ [PDF] Canvas created successfully');
+    
+    // Remove temporary container
+    document.body.removeChild(container);
+    
+    // Create PDF from canvas
+    console.log('📄 [PDF] Creating PDF from canvas...');
     const { jsPDF } = window.jspdf;
     const pdfDoc = new jsPDF({
       orientation: 'p',
@@ -11532,290 +11785,32 @@ window.generateVisitPDF = async function() {
       format: 'a4'
     });
     
-    const pageWidth = pdfDoc.internal.pageSize.getWidth();
-    const pageHeight = pdfDoc.internal.pageSize.getHeight();
-    const margin = 15;
-    const contentWidth = pageWidth - (margin * 2);
-    let yPosition = margin;
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
-    // Helper function to add new page if needed
-    const checkPageBreak = (requiredHeight) => {
-      if (yPosition + requiredHeight > pageHeight - margin) {
-        pdfDoc.addPage();
-        yPosition = margin;
-        return true;
-      }
-      return false;
-    };
+    // Handle multi-page PDF if content is longer than one page
+    const pageHeight = 297; // A4 height in mm
+    let heightLeft = imgHeight;
+    let position = 0;
     
-    // Helper function to add right-aligned Arabic text
-    const addRTLText = (text, x, y, options = {}) => {
-      pdfDoc.text(text, x, y, { align: 'right', ...options });
-    };
+    pdfDoc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
     
-    // Title
-    pdfDoc.setFontSize(22);
-    pdfDoc.setFont(undefined, 'bold');
-    addRTLText('تقرير زيارة إشرافية', pageWidth - margin, yPosition);
-    yPosition += 12;
-    
-    // Decorative line
-    pdfDoc.setDrawColor(102, 126, 234);
-    pdfDoc.setLineWidth(0.5);
-    pdfDoc.line(margin, yPosition, pageWidth - margin, yPosition);
-    yPosition += 10;
-    
-    // Visit Information Section
-    pdfDoc.setFontSize(14);
-    pdfDoc.setFont(undefined, 'bold');
-    addRTLText('معلومات الزيارة', pageWidth - margin, yPosition);
-    yPosition += 8;
-    
-    pdfDoc.setFontSize(11);
-    pdfDoc.setFont(undefined, 'normal');
-    addRTLText(`الحلقة: ${className}`, pageWidth - margin, yPosition);
-    yPosition += 6;
-    addRTLText(`المعلم: ${teacherName}`, pageWidth - margin, yPosition);
-    yPosition += 6;
-    addRTLText(`المشرف: ${supervisorName}`, pageWidth - margin, yPosition);
-    yPosition += 6;
-    addRTLText(`التاريخ: ${visitDate}`, pageWidth - margin, yPosition);
-    yPosition += 6;
-    addRTLText(`التقييم الإجمالي: ${calculateOverallRating(visit).toFixed(1)} من 5`, pageWidth - margin, yPosition);
-    yPosition += 10;
-    
-    // Educational Aspect Section
-    if (visit.educational && Object.keys(visit.educational).length > 0) {
-      checkPageBreak(20);
-      
-      pdfDoc.setFontSize(14);
-      pdfDoc.setFont(undefined, 'bold');
-      addRTLText('الجانب التعليمي', pageWidth - margin, yPosition);
-      yPosition += 8;
-      
-      pdfDoc.setFontSize(10);
-      pdfDoc.setFont(undefined, 'normal');
-      
-      const getItemLabel = (itemId) => {
-        const item = supervisionEvaluationItems.educational.find(i => i.id === itemId);
-        return item ? item.label : itemId;
-      };
-      
-      for (const [key, rating] of Object.entries(visit.educational)) {
-        // Skip not-evaluated items
-        if (rating === 'not-evaluated') continue;
-        
-        checkPageBreak(15);
-        
-        const itemLabel = getItemLabel(key);
-        const ratingText = ratingTextMap[rating] || rating;
-        
-        addRTLText(`• ${itemLabel}: ${ratingText}`, pageWidth - margin, yPosition);
-        yPosition += 5;
-        
-        // Add notes if available
-        const itemNotes = visit.educationalNotes && visit.educationalNotes[key];
-        if (itemNotes) {
-          pdfDoc.setFont(undefined, 'italic');
-          pdfDoc.setFontSize(9);
-          const lines = pdfDoc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
-          lines.forEach(line => {
-            checkPageBreak(5);
-            addRTLText(line, pageWidth - margin - 5, yPosition);
-            yPosition += 4;
-          });
-          pdfDoc.setFont(undefined, 'normal');
-          pdfDoc.setFontSize(10);
-        }
-        
-        yPosition += 2;
-      }
-      
-      yPosition += 5;
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdfDoc.addPage();
+      pdfDoc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
     }
     
-    // Student Tests Section
-    if (visit.studentTests && Object.keys(visit.studentTests).length > 0) {
-      checkPageBreak(20);
-      
-      pdfDoc.setFontSize(14);
-      pdfDoc.setFont(undefined, 'bold');
-      addRTLText('اختبار الطلاب', pageWidth - margin, yPosition);
-      yPosition += 8;
-      
-      pdfDoc.setFontSize(10);
-      pdfDoc.setFont(undefined, 'normal');
-      
-      let testNum = 1;
-      for (const [testKey, testData] of Object.entries(visit.studentTests)) {
-        if (!testData.studentName && !testData.lesson && !testData.grade) continue;
-        
-        checkPageBreak(20);
-        
-        pdfDoc.setFont(undefined, 'bold');
-        addRTLText(`الطالب ${testNum}:`, pageWidth - margin, yPosition);
-        pdfDoc.setFont(undefined, 'normal');
-        yPosition += 6;
-        
-        if (testData.studentName) {
-          addRTLText(`  الاسم: ${testData.studentName}`, pageWidth - margin, yPosition);
-          yPosition += 5;
-        }
-        if (testData.lesson) {
-          addRTLText(`  الدرس: ${testData.lesson}`, pageWidth - margin, yPosition);
-          yPosition += 5;
-        }
-        if (testData.grade) {
-          addRTLText(`  الدرجة: ${testData.grade} من 10`, pageWidth - margin, yPosition);
-          yPosition += 5;
-        }
-        if (testData.notes) {
-          pdfDoc.setFont(undefined, 'italic');
-          pdfDoc.setFontSize(9);
-          const lines = pdfDoc.splitTextToSize(`  ملاحظات: ${testData.notes}`, contentWidth - 10);
-          lines.forEach(line => {
-            checkPageBreak(5);
-            addRTLText(line, pageWidth - margin - 5, yPosition);
-            yPosition += 4;
-          });
-          pdfDoc.setFont(undefined, 'normal');
-          pdfDoc.setFontSize(10);
-        }
-        
-        yPosition += 5;
-        testNum++;
-      }
-      
-      yPosition += 5;
-    }
-    
-    // Teacher Performance Section
-    if (visit.teacher && Object.keys(visit.teacher).length > 0) {
-      checkPageBreak(20);
-      
-      pdfDoc.setFontSize(14);
-      pdfDoc.setFont(undefined, 'bold');
-      addRTLText('أداء المعلم', pageWidth - margin, yPosition);
-      yPosition += 8;
-      
-      pdfDoc.setFontSize(10);
-      pdfDoc.setFont(undefined, 'normal');
-      
-      const getTeacherItemLabel = (itemId) => {
-        const item = supervisionEvaluationItems.teacher.find(i => i.id === itemId);
-        return item ? item.label : itemId;
-      };
-      
-      for (const [key, rating] of Object.entries(visit.teacher)) {
-        if (rating === 'not-evaluated') continue;
-        
-        checkPageBreak(15);
-        
-        const itemLabel = getTeacherItemLabel(key);
-        const ratingText = ratingTextMap[rating] || rating;
-        
-        addRTLText(`• ${itemLabel}: ${ratingText}`, pageWidth - margin, yPosition);
-        yPosition += 5;
-        
-        const itemNotes = visit.teacherNotes && visit.teacherNotes[key];
-        if (itemNotes) {
-          pdfDoc.setFont(undefined, 'italic');
-          pdfDoc.setFontSize(9);
-          const lines = pdfDoc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
-          lines.forEach(line => {
-            checkPageBreak(5);
-            addRTLText(line, pageWidth - margin - 5, yPosition);
-            yPosition += 4;
-          });
-          pdfDoc.setFont(undefined, 'normal');
-          pdfDoc.setFontSize(10);
-        }
-        
-        yPosition += 2;
-      }
-      
-      yPosition += 5;
-    }
-    
-    // Environment Section
-    if (visit.environment && Object.keys(visit.environment).length > 0) {
-      checkPageBreak(20);
-      
-      pdfDoc.setFontSize(14);
-      pdfDoc.setFont(undefined, 'bold');
-      addRTLText('البيئة العامة', pageWidth - margin, yPosition);
-      yPosition += 8;
-      
-      pdfDoc.setFontSize(10);
-      pdfDoc.setFont(undefined, 'normal');
-      
-      const getEnvironmentItemLabel = (itemId) => {
-        const item = supervisionEvaluationItems.environment.find(i => i.id === itemId);
-        return item ? item.label : itemId;
-      };
-      
-      for (const [key, rating] of Object.entries(visit.environment)) {
-        if (rating === 'not-evaluated') continue;
-        
-        checkPageBreak(15);
-        
-        const itemLabel = getEnvironmentItemLabel(key);
-        const ratingText = ratingTextMap[rating] || rating;
-        
-        addRTLText(`• ${itemLabel}: ${ratingText}`, pageWidth - margin, yPosition);
-        yPosition += 5;
-        
-        const itemNotes = visit.environmentNotes && visit.environmentNotes[key];
-        if (itemNotes) {
-          pdfDoc.setFont(undefined, 'italic');
-          pdfDoc.setFontSize(9);
-          const lines = pdfDoc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
-          lines.forEach(line => {
-            checkPageBreak(5);
-            addRTLText(line, pageWidth - margin - 5, yPosition);
-            yPosition += 4;
-          });
-          pdfDoc.setFont(undefined, 'normal');
-          pdfDoc.setFontSize(10);
-        }
-        
-        yPosition += 2;
-      }
-      
-      yPosition += 5;
-    }
-    
-    // General Notes and Recommendations
-    if (visit.notes) {
-      checkPageBreak(20);
-      
-      pdfDoc.setFontSize(14);
-      pdfDoc.setFont(undefined, 'bold');
-      addRTLText('ملاحظات عامة وتوصيات', pageWidth - margin, yPosition);
-      yPosition += 8;
-      
-      pdfDoc.setFontSize(10);
-      pdfDoc.setFont(undefined, 'normal');
-      
-      const lines = pdfDoc.splitTextToSize(visit.notes, contentWidth);
-      lines.forEach(line => {
-        checkPageBreak(5);
-        addRTLText(line, pageWidth - margin, yPosition);
-        yPosition += 5;
-      });
-    }
-    
-    // Footer
-    const footerY = pageHeight - 15;
-    pdfDoc.setFontSize(8);
-    pdfDoc.setTextColor(150);
-    addRTLText(`تم إنشاء التقرير بتاريخ: ${new Date().toLocaleDateString('ar-SA')}`, pageWidth - margin, footerY);
+    console.log('✅ [PDF] PDF generated successfully');
     
     // Save PDF
     const fileName = `تقرير_زيارة_${className}_${visit.visitDate || 'تاريخ'}.pdf`;
     pdfDoc.save(fileName);
     
-    console.log('✅ [PDF] PDF generated successfully:', fileName);
+    console.log('✅ [PDF] PDF saved:', fileName);
     alert('✅ تم تصدير التقرير بنجاح!');
     
   } catch (error) {
