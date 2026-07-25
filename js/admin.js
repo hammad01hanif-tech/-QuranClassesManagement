@@ -11904,39 +11904,145 @@ window.sendViaWhatsApp = function() {
     const visitDate = visit.visitDate ? formatDateForDisplay(visit.visitDate) : 'تاريخ غير محدد';
     const overallRating = calculateOverallRating(visit).toFixed(1);
     
-    // Create WhatsApp message
-    const message = `
-*تقرير زيارة إشرافية* 📋
-
-*معلومات الزيارة:*
-• الحلقة: ${visit.className || 'غير محدد'}
-• المعلم: ${visit.teacherName || 'غير محدد'}
-• المشرف: ${visit.supervisorName || 'غير محدد'}
-• التاريخ: ${visitDate}
-• التقييم الإجمالي: ${overallRating} من 5
-
-*ملاحظات عامة:*
-${visit.notes || 'لا توجد ملاحظات'}
-
-_تم إنشاء التقرير من نظام إدارة حلقات القرآن الكريم_
-    `.trim();
+    // Rating text mappings (no emojis)
+    const ratingTextMap = {
+      'excellent': 'ممتاز',
+      'very-good': 'جيد جداً',
+      'good': 'جيد',
+      'weak': 'ضعيف',
+      'not-evaluated': 'لم يُقيّم'
+    };
     
-    // Get teacher's phone number (you'll need to implement this based on your data structure)
+    // Helper function to get item label
+    const getItemLabel = (section, itemId) => {
+      const item = supervisionEvaluationItems[section].find(i => i.id === itemId);
+      return item ? item.label : itemId;
+    };
+    
+    // Start building comprehensive message
+    let message = `*━━━━━━━━━━━━━━━━━━*
+*تقرير زيارة إشرافية* 📋
+*━━━━━━━━━━━━━━━━━━*
+
+*📌 معلومات الزيارة:*
+────────────────
+• *الحلقة:* ${visit.className || 'غير محدد'}
+• *المعلم:* ${visit.teacherName || 'غير محدد'}
+• *المشرف:* ${visit.supervisorName || 'غير محدد'}
+• *التاريخ:* ${visitDate}
+• *التقييم الإجمالي:* ${overallRating} من 5
+`;
+
+    // Educational Aspect Section
+    if (visit.educational && Object.keys(visit.educational).length > 0) {
+      message += `\n*📚 الجانب التعليمي:*\n────────────────\n`;
+      
+      for (const [key, rating] of Object.entries(visit.educational)) {
+        // Skip not-evaluated items
+        if (rating === 'not-evaluated') continue;
+        
+        const itemLabel = getItemLabel('educational', key);
+        const ratingText = ratingTextMap[rating] || rating;
+        
+        message += `\n• *${itemLabel}*\n  التقييم: ${ratingText}\n`;
+        
+        // Add notes if available
+        const itemNotes = visit.educationalNotes && visit.educationalNotes[key];
+        if (itemNotes) {
+          message += `  📝 ملاحظة: ${itemNotes}\n`;
+        }
+      }
+    }
+    
+    // Student Tests Section
+    if (visit.studentTests && Object.keys(visit.studentTests).length > 0) {
+      message += `\n*🎓 اختبار الطلاب:*\n────────────────\n`;
+      
+      let testNum = 1;
+      for (const [testKey, testData] of Object.entries(visit.studentTests)) {
+        if (!testData.studentName && !testData.lesson && !testData.grade) continue;
+        
+        message += `\n*الطالب ${testNum}:*\n`;
+        
+        if (testData.studentName) {
+          message += `  الاسم: ${testData.studentName}\n`;
+        }
+        if (testData.lesson) {
+          message += `  الدرس: ${testData.lesson}\n`;
+        }
+        if (testData.grade) {
+          message += `  الدرجة: ${testData.grade} من 10\n`;
+        }
+        if (testData.notes) {
+          message += `  📝 ملاحظات: ${testData.notes}\n`;
+        }
+        
+        testNum++;
+      }
+    }
+    
+    // Teacher Performance Section
+    if (visit.teacher && Object.keys(visit.teacher).length > 0) {
+      message += `\n*👨‍🏫 أداء المعلم:*\n────────────────\n`;
+      
+      for (const [key, rating] of Object.entries(visit.teacher)) {
+        if (rating === 'not-evaluated') continue;
+        
+        const itemLabel = getItemLabel('teacher', key);
+        const ratingText = ratingTextMap[rating] || rating;
+        
+        message += `\n• *${itemLabel}*\n  التقييم: ${ratingText}\n`;
+        
+        const itemNotes = visit.teacherNotes && visit.teacherNotes[key];
+        if (itemNotes) {
+          message += `  📝 ملاحظة: ${itemNotes}\n`;
+        }
+      }
+    }
+    
+    // Environment Section
+    if (visit.environment && Object.keys(visit.environment).length > 0) {
+      message += `\n*🏫 البيئة العامة:*\n────────────────\n`;
+      
+      for (const [key, rating] of Object.entries(visit.environment)) {
+        if (rating === 'not-evaluated') continue;
+        
+        const itemLabel = getItemLabel('environment', key);
+        const ratingText = ratingTextMap[rating] || rating;
+        
+        message += `\n• *${itemLabel}*\n  التقييم: ${ratingText}\n`;
+        
+        const itemNotes = visit.environmentNotes && visit.environmentNotes[key];
+        if (itemNotes) {
+          message += `  📝 ملاحظة: ${itemNotes}\n`;
+        }
+      }
+    }
+    
+    // General Notes and Recommendations
+    if (visit.notes) {
+      message += `\n*📝 ملاحظات عامة وتوصيات:*\n────────────────\n${visit.notes}\n`;
+    }
+    
+    // Footer
+    message += `\n*━━━━━━━━━━━━━━━━━━*\n_تم إنشاء التقرير من نظام إدارة حلقات القرآن الكريم_\n_${new Date().toLocaleDateString('ar-SA')}_`;
+    
+    // Get teacher's phone number
     const teacherPhone = currentClassData.teacherPhone || '';
     
     if (teacherPhone) {
       // Open WhatsApp with pre-filled message
       const whatsappUrl = `https://wa.me/${teacherPhone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
-      console.log('📱 [WHATSAPP] Opened WhatsApp with message');
+      console.log('📱 [WHATSAPP] Opened WhatsApp with comprehensive message');
     } else {
-      // If no phone number, just copy to clipboard
+      // If no phone number, copy to clipboard
       navigator.clipboard.writeText(message).then(() => {
-        alert('✅ تم نسخ نص الرسالة!\nيمكنك الآن لصقها في واتساب.');
+        alert('✅ تم نسخ التقرير الكامل!\n\nيمكنك الآن لصقه في واتساب.\n\n💡 نصيحة: يمكنك إضافة رقم المعلم في بيانات الحلقة للإرسال المباشر.');
       }).catch(() => {
-        alert('⚠️ لم يتم العثور على رقم المعلم.\nيرجى إضافة رقم الهاتف في بيانات المعلم.');
+        alert('⚠️ لم يتم العثور على رقم المعلم.\n\nتم نسخ التقرير، يمكنك لصقه يدوياً.');
       });
-      console.log('📱 [WHATSAPP] Copied message to clipboard');
+      console.log('📱 [WHATSAPP] Copied comprehensive message to clipboard');
     }
     
     window.closeSendVisitModal();
@@ -11961,10 +12067,27 @@ window.sendViaEmail = function() {
     const visitDate = visit.visitDate ? formatDateForDisplay(visit.visitDate) : 'تاريخ غير محدد';
     const overallRating = calculateOverallRating(visit).toFixed(1);
     
-    // Create email subject and body
+    // Rating text mappings
+    const ratingTextMap = {
+      'excellent': 'ممتاز',
+      'very-good': 'جيد جداً',
+      'good': 'جيد',
+      'weak': 'ضعيف',
+      'not-evaluated': 'لم يُقيّم'
+    };
+    
+    // Helper function to get item label
+    const getItemLabel = (section, itemId) => {
+      const item = supervisionEvaluationItems[section].find(i => i.id === itemId);
+      return item ? item.label : itemId;
+    };
+    
+    // Create email subject
     const subject = `تقرير زيارة إشرافية - ${visit.className} - ${visitDate}`;
-    const body = `
-تقرير زيارة إشرافية
+    
+    // Build comprehensive email body
+    let body = `تقرير زيارة إشرافية
+═══════════════════════════
 
 معلومات الزيارة:
 ─────────────────
@@ -11973,26 +12096,103 @@ window.sendViaEmail = function() {
 • المشرف: ${visit.supervisorName || 'غير محدد'}
 • التاريخ: ${visitDate}
 • التقييم الإجمالي: ${overallRating} من 5
+`;
 
-ملاحظات عامة وتوصيات:
-─────────────────
-${visit.notes || 'لا توجد ملاحظات'}
-
-تم إنشاء التقرير من نظام إدارة حلقات القرآن الكريم
-    `.trim();
+    // Educational Aspect
+    if (visit.educational && Object.keys(visit.educational).length > 0) {
+      body += `\n\nالجانب التعليمي:\n─────────────────\n`;
+      
+      for (const [key, rating] of Object.entries(visit.educational)) {
+        if (rating === 'not-evaluated') continue;
+        
+        const itemLabel = getItemLabel('educational', key);
+        const ratingText = ratingTextMap[rating] || rating;
+        
+        body += `\n• ${itemLabel}\n  التقييم: ${ratingText}\n`;
+        
+        const itemNotes = visit.educationalNotes && visit.educationalNotes[key];
+        if (itemNotes) {
+          body += `  ملاحظة: ${itemNotes}\n`;
+        }
+      }
+    }
     
-    // Get teacher's email (you'll need to implement this based on your data structure)
+    // Student Tests
+    if (visit.studentTests && Object.keys(visit.studentTests).length > 0) {
+      body += `\n\nاختبار الطلاب:\n─────────────────\n`;
+      
+      let testNum = 1;
+      for (const [testKey, testData] of Object.entries(visit.studentTests)) {
+        if (!testData.studentName && !testData.lesson && !testData.grade) continue;
+        
+        body += `\nالطالب ${testNum}:\n`;
+        if (testData.studentName) body += `  الاسم: ${testData.studentName}\n`;
+        if (testData.lesson) body += `  الدرس: ${testData.lesson}\n`;
+        if (testData.grade) body += `  الدرجة: ${testData.grade} من 10\n`;
+        if (testData.notes) body += `  ملاحظات: ${testData.notes}\n`;
+        
+        testNum++;
+      }
+    }
+    
+    // Teacher Performance
+    if (visit.teacher && Object.keys(visit.teacher).length > 0) {
+      body += `\n\nأداء المعلم:\n─────────────────\n`;
+      
+      for (const [key, rating] of Object.entries(visit.teacher)) {
+        if (rating === 'not-evaluated') continue;
+        
+        const itemLabel = getItemLabel('teacher', key);
+        const ratingText = ratingTextMap[rating] || rating;
+        
+        body += `\n• ${itemLabel}\n  التقييم: ${ratingText}\n`;
+        
+        const itemNotes = visit.teacherNotes && visit.teacherNotes[key];
+        if (itemNotes) {
+          body += `  ملاحظة: ${itemNotes}\n`;
+        }
+      }
+    }
+    
+    // Environment
+    if (visit.environment && Object.keys(visit.environment).length > 0) {
+      body += `\n\nالبيئة العامة:\n─────────────────\n`;
+      
+      for (const [key, rating] of Object.entries(visit.environment)) {
+        if (rating === 'not-evaluated') continue;
+        
+        const itemLabel = getItemLabel('environment', key);
+        const ratingText = ratingTextMap[rating] || rating;
+        
+        body += `\n• ${itemLabel}\n  التقييم: ${ratingText}\n`;
+        
+        const itemNotes = visit.environmentNotes && visit.environmentNotes[key];
+        if (itemNotes) {
+          body += `  ملاحظة: ${itemNotes}\n`;
+        }
+      }
+    }
+    
+    // General Notes
+    if (visit.notes) {
+      body += `\n\nملاحظات عامة وتوصيات:\n─────────────────\n${visit.notes}\n`;
+    }
+    
+    // Footer
+    body += `\n\n═══════════════════════════\nتم إنشاء التقرير من نظام إدارة حلقات القرآن الكريم\n${new Date().toLocaleDateString('ar-SA')}`;
+    
+    // Get teacher's email
     const teacherEmail = currentClassData.teacherEmail || '';
     
     // Open default email client
     const mailtoUrl = `mailto:${teacherEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoUrl;
     
-    console.log('✉️ [EMAIL] Opened email client');
+    console.log('✉️ [EMAIL] Opened email client with comprehensive report');
     
     // Show confirmation
     setTimeout(() => {
-      alert('✅ تم فتح برنامج البريد الإلكتروني\nيرجى إكمال الإرسال من هناك');
+      alert('✅ تم فتح برنامج البريد الإلكتروني\n\nالتقرير الشامل جاهز للإرسال');
       window.closeSendVisitModal();
     }, 500);
     
