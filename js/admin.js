@@ -11526,14 +11526,14 @@ window.generateVisitPDF = async function() {
     
     // Create new jsPDF instance
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
+    const pdfDoc = new jsPDF({
       orientation: 'p',
       unit: 'mm',
       format: 'a4'
     });
     
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = pdfDoc.internal.pageSize.getWidth();
+    const pageHeight = pdfDoc.internal.pageSize.getHeight();
     const margin = 15;
     const contentWidth = pageWidth - (margin * 2);
     let yPosition = margin;
@@ -11541,7 +11541,7 @@ window.generateVisitPDF = async function() {
     // Helper function to add new page if needed
     const checkPageBreak = (requiredHeight) => {
       if (yPosition + requiredHeight > pageHeight - margin) {
-        doc.addPage();
+        pdfDoc.addPage();
         yPosition = margin;
         return true;
       }
@@ -11550,29 +11550,29 @@ window.generateVisitPDF = async function() {
     
     // Helper function to add right-aligned Arabic text
     const addRTLText = (text, x, y, options = {}) => {
-      doc.text(text, x, y, { align: 'right', ...options });
+      pdfDoc.text(text, x, y, { align: 'right', ...options });
     };
     
     // Title
-    doc.setFontSize(22);
-    doc.setFont(undefined, 'bold');
+    pdfDoc.setFontSize(22);
+    pdfDoc.setFont(undefined, 'bold');
     addRTLText('تقرير زيارة إشرافية', pageWidth - margin, yPosition);
     yPosition += 12;
     
     // Decorative line
-    doc.setDrawColor(102, 126, 234);
-    doc.setLineWidth(0.5);
-    doc.line(margin, yPosition, pageWidth - margin, yPosition);
+    pdfDoc.setDrawColor(102, 126, 234);
+    pdfDoc.setLineWidth(0.5);
+    pdfDoc.line(margin, yPosition, pageWidth - margin, yPosition);
     yPosition += 10;
     
     // Visit Information Section
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
+    pdfDoc.setFontSize(14);
+    pdfDoc.setFont(undefined, 'bold');
     addRTLText('معلومات الزيارة', pageWidth - margin, yPosition);
     yPosition += 8;
     
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
+    pdfDoc.setFontSize(11);
+    pdfDoc.setFont(undefined, 'normal');
     addRTLText(`الحلقة: ${className}`, pageWidth - margin, yPosition);
     yPosition += 6;
     addRTLText(`المعلم: ${teacherName}`, pageWidth - margin, yPosition);
@@ -11588,13 +11588,13 @@ window.generateVisitPDF = async function() {
     if (visit.educational && Object.keys(visit.educational).length > 0) {
       checkPageBreak(20);
       
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
+      pdfDoc.setFontSize(14);
+      pdfDoc.setFont(undefined, 'bold');
       addRTLText('الجانب التعليمي', pageWidth - margin, yPosition);
       yPosition += 8;
       
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
+      pdfDoc.setFontSize(10);
+      pdfDoc.setFont(undefined, 'normal');
       
       const getItemLabel = (itemId) => {
         const item = supervisionEvaluationItems.educational.find(i => i.id === itemId);
@@ -11616,16 +11616,16 @@ window.generateVisitPDF = async function() {
         // Add notes if available
         const itemNotes = visit.educationalNotes && visit.educationalNotes[key];
         if (itemNotes) {
-          doc.setFont(undefined, 'italic');
-          doc.setFontSize(9);
-          const lines = doc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
+          pdfDoc.setFont(undefined, 'italic');
+          pdfDoc.setFontSize(9);
+          const lines = pdfDoc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
           lines.forEach(line => {
             checkPageBreak(5);
             addRTLText(line, pageWidth - margin - 5, yPosition);
             yPosition += 4;
           });
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(10);
+          pdfDoc.setFont(undefined, 'normal');
+          pdfDoc.setFontSize(10);
         }
         
         yPosition += 2;
@@ -11638,13 +11638,13 @@ window.generateVisitPDF = async function() {
     if (visit.studentTests && Object.keys(visit.studentTests).length > 0) {
       checkPageBreak(20);
       
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
+      pdfDoc.setFontSize(14);
+      pdfDoc.setFont(undefined, 'bold');
       addRTLText('اختبار الطلاب', pageWidth - margin, yPosition);
       yPosition += 8;
       
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
+      pdfDoc.setFontSize(10);
+      pdfDoc.setFont(undefined, 'normal');
       
       let testNum = 1;
       for (const [testKey, testData] of Object.entries(visit.studentTests)) {
@@ -11652,9 +11652,9 @@ window.generateVisitPDF = async function() {
         
         checkPageBreak(20);
         
-        doc.setFont(undefined, 'bold');
+        pdfDoc.setFont(undefined, 'bold');
         addRTLText(`الطالب ${testNum}:`, pageWidth - margin, yPosition);
-        doc.setFont(undefined, 'normal');
+        pdfDoc.setFont(undefined, 'normal');
         yPosition += 6;
         
         if (testData.studentName) {
@@ -11670,16 +11670,16 @@ window.generateVisitPDF = async function() {
           yPosition += 5;
         }
         if (testData.notes) {
-          doc.setFont(undefined, 'italic');
-          doc.setFontSize(9);
-          const lines = doc.splitTextToSize(`  ملاحظات: ${testData.notes}`, contentWidth - 10);
+          pdfDoc.setFont(undefined, 'italic');
+          pdfDoc.setFontSize(9);
+          const lines = pdfDoc.splitTextToSize(`  ملاحظات: ${testData.notes}`, contentWidth - 10);
           lines.forEach(line => {
             checkPageBreak(5);
             addRTLText(line, pageWidth - margin - 5, yPosition);
             yPosition += 4;
           });
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(10);
+          pdfDoc.setFont(undefined, 'normal');
+          pdfDoc.setFontSize(10);
         }
         
         yPosition += 5;
@@ -11693,13 +11693,13 @@ window.generateVisitPDF = async function() {
     if (visit.teacher && Object.keys(visit.teacher).length > 0) {
       checkPageBreak(20);
       
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
+      pdfDoc.setFontSize(14);
+      pdfDoc.setFont(undefined, 'bold');
       addRTLText('أداء المعلم', pageWidth - margin, yPosition);
       yPosition += 8;
       
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
+      pdfDoc.setFontSize(10);
+      pdfDoc.setFont(undefined, 'normal');
       
       const getTeacherItemLabel = (itemId) => {
         const item = supervisionEvaluationItems.teacher.find(i => i.id === itemId);
@@ -11719,16 +11719,16 @@ window.generateVisitPDF = async function() {
         
         const itemNotes = visit.teacherNotes && visit.teacherNotes[key];
         if (itemNotes) {
-          doc.setFont(undefined, 'italic');
-          doc.setFontSize(9);
-          const lines = doc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
+          pdfDoc.setFont(undefined, 'italic');
+          pdfDoc.setFontSize(9);
+          const lines = pdfDoc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
           lines.forEach(line => {
             checkPageBreak(5);
             addRTLText(line, pageWidth - margin - 5, yPosition);
             yPosition += 4;
           });
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(10);
+          pdfDoc.setFont(undefined, 'normal');
+          pdfDoc.setFontSize(10);
         }
         
         yPosition += 2;
@@ -11741,13 +11741,13 @@ window.generateVisitPDF = async function() {
     if (visit.environment && Object.keys(visit.environment).length > 0) {
       checkPageBreak(20);
       
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
+      pdfDoc.setFontSize(14);
+      pdfDoc.setFont(undefined, 'bold');
       addRTLText('البيئة العامة', pageWidth - margin, yPosition);
       yPosition += 8;
       
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
+      pdfDoc.setFontSize(10);
+      pdfDoc.setFont(undefined, 'normal');
       
       const getEnvironmentItemLabel = (itemId) => {
         const item = supervisionEvaluationItems.environment.find(i => i.id === itemId);
@@ -11767,16 +11767,16 @@ window.generateVisitPDF = async function() {
         
         const itemNotes = visit.environmentNotes && visit.environmentNotes[key];
         if (itemNotes) {
-          doc.setFont(undefined, 'italic');
-          doc.setFontSize(9);
-          const lines = doc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
+          pdfDoc.setFont(undefined, 'italic');
+          pdfDoc.setFontSize(9);
+          const lines = pdfDoc.splitTextToSize(`  ملاحظة: ${itemNotes}`, contentWidth - 10);
           lines.forEach(line => {
             checkPageBreak(5);
             addRTLText(line, pageWidth - margin - 5, yPosition);
             yPosition += 4;
           });
-          doc.setFont(undefined, 'normal');
-          doc.setFontSize(10);
+          pdfDoc.setFont(undefined, 'normal');
+          pdfDoc.setFontSize(10);
         }
         
         yPosition += 2;
@@ -11789,15 +11789,15 @@ window.generateVisitPDF = async function() {
     if (visit.notes) {
       checkPageBreak(20);
       
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
+      pdfDoc.setFontSize(14);
+      pdfDoc.setFont(undefined, 'bold');
       addRTLText('ملاحظات عامة وتوصيات', pageWidth - margin, yPosition);
       yPosition += 8;
       
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
+      pdfDoc.setFontSize(10);
+      pdfDoc.setFont(undefined, 'normal');
       
-      const lines = doc.splitTextToSize(visit.notes, contentWidth);
+      const lines = pdfDoc.splitTextToSize(visit.notes, contentWidth);
       lines.forEach(line => {
         checkPageBreak(5);
         addRTLText(line, pageWidth - margin, yPosition);
@@ -11807,13 +11807,13 @@ window.generateVisitPDF = async function() {
     
     // Footer
     const footerY = pageHeight - 15;
-    doc.setFontSize(8);
-    doc.setTextColor(150);
+    pdfDoc.setFontSize(8);
+    pdfDoc.setTextColor(150);
     addRTLText(`تم إنشاء التقرير بتاريخ: ${new Date().toLocaleDateString('ar-SA')}`, pageWidth - margin, footerY);
     
     // Save PDF
     const fileName = `تقرير_زيارة_${className}_${visit.visitDate || 'تاريخ'}.pdf`;
-    doc.save(fileName);
+    pdfDoc.save(fileName);
     
     console.log('✅ [PDF] PDF generated successfully:', fileName);
     alert('✅ تم تصدير التقرير بنجاح!');
