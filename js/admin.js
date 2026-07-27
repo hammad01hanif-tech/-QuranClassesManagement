@@ -10901,7 +10901,7 @@ async function loadSupervisionClasses() {
   // قائمة المعلمين المطلوب الإشراف عليهم فقط
   const supervisionClassIds = [
     'ANS01', 'IBR01', 'OSM01', 'HRT01', 'JHD01', 
-    'AMR01', 'OMR01', 'MZB01', 'MZN01', 'NBL01', 'ABD01'
+    'AMR01', 'OMR01', 'MZB01', 'MZN01', 'NBL01', 'ABD01', 'FSL01'
   ];
   
   try {
