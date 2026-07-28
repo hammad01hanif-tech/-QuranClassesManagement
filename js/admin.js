@@ -10785,6 +10785,7 @@ const supervisionEvaluationItems = {
     { id: 'progressTracking', label: 'متابعة مدى التقدم في الدروس', hasNotes: true, notesPlaceholder: 'اذكر مدى تقدم الطلاب في حفظ المقرر ومتابعة الجدول الزمني...' },
     { id: 'strugglingStudents', label: 'متابعة الطلاب المتعثرين', hasNotes: true, notesPlaceholder: 'اذكر حالة الطلاب المتعثرين ومدى المتابعة...' },
     { id: 'studentRevision', label: 'متابعة مراجعة الطلاب', hasNotes: true, notesPlaceholder: 'وضح مستوى المراجعة وانتظام الطلاب...' },
+    { id: 'readingLesson', label: 'متابعة قراءة الدرس بالنظر', hasNotes: true, notesPlaceholder: 'اذكر مدى متابعة الطلاب لقراءة الدرس من المصحف...' },
     { id: 'maherApp', label: 'التسجيل في تطبيق ماهر', hasNotes: false }
   ],
   teacher: [
@@ -12405,9 +12406,13 @@ function buildVisitForm() {
             </button>
           </div>
           
-          <!-- Overall Rating with Radio Buttons -->
+          <!-- Overall Rating with Radio Buttons (Collapsible) -->
           <div class="supervision-radio-rating-section">
-            <div class="supervision-rating-radio-group">
+            <div class="supervision-eval-label-clickable" onclick="toggleRatingSection('educational_${item.id}')" style="cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+              <span>اضغط للتقييم</span>
+              <span class="toggle-icon" id="toggle_educational_${item.id}">▼</span>
+            </div>
+            <div class="supervision-rating-radio-group" id="rating_group_educational_${item.id}" style="display: none;">
               <label class="supervision-radio-option">
                 <input type="radio" name="rating_educational_${item.id}" value="excellent" onchange="selectRating('educational', '${item.id}', 'excellent')">
                 <span class="radio-label">ممتاز</span>
@@ -12458,9 +12463,13 @@ function buildVisitForm() {
       <div class="supervision-eval-card">
         <div class="supervision-eval-label">${item.label}</div>
         
-        <!-- Radio Rating -->
+        <!-- Radio Rating (Collapsible) -->
         <div class="supervision-radio-rating-section">
-          <div class="supervision-rating-radio-group">
+          <div class="supervision-eval-label-clickable" onclick="toggleRatingSection('educational_${item.id}')" style="cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <span>اضغط للتقييم</span>
+            <span class="toggle-icon" id="toggle_educational_${item.id}">▼</span>
+          </div>
+          <div class="supervision-rating-radio-group" id="rating_group_educational_${item.id}" style="display: none;">
             <label class="supervision-radio-option">
               <input type="radio" name="rating_educational_${item.id}" value="excellent" onchange="selectRating('educational', '${item.id}', 'excellent')">
               <span class="radio-label">ممتاز</span>
@@ -12505,9 +12514,13 @@ function buildVisitForm() {
     <div class="supervision-eval-card">
       <div class="supervision-eval-label">${item.label}</div>
       
-      <!-- Radio Rating -->
+      <!-- Radio Rating (Collapsible) -->
       <div class="supervision-radio-rating-section">
-        <div class="supervision-rating-radio-group">
+        <div class="supervision-eval-label-clickable" onclick="toggleRatingSection('teacher_${item.id}')" style="cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <span>اضغط للتقييم</span>
+          <span class="toggle-icon" id="toggle_teacher_${item.id}">▼</span>
+        </div>
+        <div class="supervision-rating-radio-group" id="rating_group_teacher_${item.id}" style="display: none;">
           <label class="supervision-radio-option">
             <input type="radio" name="rating_teacher_${item.id}" value="excellent" onchange="selectRating('teacher', '${item.id}', 'excellent')">
             <span class="radio-label">ممتاز</span>
@@ -12550,9 +12563,13 @@ function buildVisitForm() {
       <div class="supervision-eval-card">
         <div class="supervision-eval-label">${item.label}</div>
         
-        <!-- Radio Rating -->
+        <!-- Radio Rating (Collapsible) -->
         <div class="supervision-radio-rating-section">
-          <div class="supervision-rating-radio-group">
+          <div class="supervision-eval-label-clickable" onclick="toggleRatingSection('environment_${item.id}')" style="cursor: pointer; padding: 8px; background: #f8f9fa; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <span>اضغط للتقييم</span>
+            <span class="toggle-icon" id="toggle_environment_${item.id}">▼</span>
+          </div>
+          <div class="supervision-rating-radio-group" id="rating_group_environment_${item.id}" style="display: none;">
             <label class="supervision-radio-option">
               <input type="radio" name="rating_environment_${item.id}" value="excellent" onchange="selectRating('environment', '${item.id}', 'excellent')">
               <span class="radio-label">ممتاز</span>
@@ -12595,6 +12612,24 @@ function buildVisitForm() {
   document.getElementById('generalEnvironmentItems').innerHTML = environmentHTML;
   document.getElementById('visitNotes').value = '';
 }
+
+/**
+ * Toggle rating section visibility (show/hide rating buttons)
+ */
+window.toggleRatingSection = function(sectionId) {
+  const ratingGroup = document.getElementById(`rating_group_${sectionId}`);
+  const toggleIcon = document.getElementById(`toggle_${sectionId}`);
+  
+  if (!ratingGroup) return;
+  
+  if (ratingGroup.style.display === 'none' || ratingGroup.style.display === '') {
+    ratingGroup.style.display = 'flex';
+    toggleIcon.textContent = '▲';
+  } else {
+    ratingGroup.style.display = 'none';
+    toggleIcon.textContent = '▼';
+  }
+};
 
 /**
  * Select rating for an item (updated for radio buttons)
