@@ -1,6 +1,7 @@
 // Honor System JavaScript - نظام تكريم الأوائل
 import { db, collection, getDocs, addDoc, doc, getDoc, setDoc, query, where, serverTimestamp } from '../firebase-config.js';
 import { getCurrentHijriDate } from './hijri-date.js';
+import { accurateHijriToGregorian } from './accurate-hijri-dates.js';
 
 // Global variables
 let allNominees = [];
@@ -341,12 +342,16 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       const displayDate = record.displayDate || '';
       const lastLessonDate = record.lastLessonDate || '';
       
+      // Convert Hijri dates to Gregorian for comparison
+      const displayDateGregorian = hijriToGregorianString(displayDate);
+      const lastLessonDateGregorian = hijriToGregorianString(lastLessonDate);
+      
       // Both dates must be on or after the starting point
-      if (displayDate >= startingPoint && lastLessonDate >= startingPoint) {
-        console.log(`  ✅ Hizb ${record.hizbNumber}: lastLesson=${lastLessonDate}, display=${displayDate} - ACCEPTED`);
+      if (displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint) {
+        console.log(`  ✅ Hizb ${record.hizbNumber}: lastLesson=${lastLessonDate} (${lastLessonDateGregorian}), display=${displayDate} (${displayDateGregorian}) - ACCEPTED`);
         allRecords.push({ ...record, type: 'hizb' });
       } else {
-        console.log(`  ❌ Hizb ${record.hizbNumber}: lastLesson=${lastLessonDate}, display=${displayDate} - REJECTED`);
+        console.log(`  ❌ Hizb ${record.hizbNumber}: lastLesson=${lastLessonDate} (${lastLessonDateGregorian}), display=${displayDate} (${displayDateGregorian}) - REJECTED`);
       }
     });
     
@@ -355,12 +360,16 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       const displayDate = record.displayDate || '';
       const lastLessonDate = record.lastLessonDate || '';
       
+      // Convert Hijri dates to Gregorian for comparison
+      const displayDateGregorian = hijriToGregorianString(displayDate);
+      const lastLessonDateGregorian = hijriToGregorianString(lastLessonDate);
+      
       // Both dates must be on or after the starting point
-      if (displayDate >= startingPoint && lastLessonDate >= startingPoint) {
-        console.log(`  ✅ Juz ${record.juzNumber}: lastLesson=${lastLessonDate}, display=${displayDate} - ACCEPTED`);
+      if (displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint) {
+        console.log(`  ✅ Juz ${record.juzNumber}: lastLesson=${lastLessonDate} (${lastLessonDateGregorian}), display=${displayDate} (${displayDateGregorian}) - ACCEPTED`);
         allRecords.push({ ...record, type: 'juz' });
       } else {
-        console.log(`  ❌ Juz ${record.juzNumber}: lastLesson=${lastLessonDate}, display=${displayDate} - REJECTED`);
+        console.log(`  ❌ Juz ${record.juzNumber}: lastLesson=${lastLessonDate} (${lastLessonDateGregorian}), display=${displayDate} (${displayDateGregorian}) - REJECTED`);
       }
     });
     
@@ -644,6 +653,33 @@ function normalizeDate(dateStr) {
   }
   
   return dateStr;
+}
+
+/**
+ * Convert Hijri date to Gregorian date string (YYYY-MM-DD)
+ * @param {string} hijriDate - Hijri date in YYYY-MM-DD format (e.g., "1448-02-15")
+ * @returns {string} - Gregorian date in YYYY-MM-DD format (e.g., "2026-08-01")
+ */
+function hijriToGregorianString(hijriDate) {
+  if (!hijriDate) return '0000-00-00';
+  
+  try {
+    // Normalize the Hijri date format (ensure padding)
+    const normalizedHijri = normalizeDate(hijriDate);
+    
+    // Convert to Gregorian using accurateHijriToGregorian
+    const gregorianDateObj = accurateHijriToGregorian(normalizedHijri);
+    
+    // Convert Date object to YYYY-MM-DD string
+    const year = gregorianDateObj.getFullYear();
+    const month = String(gregorianDateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(gregorianDateObj.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error(`Error converting Hijri date ${hijriDate}:`, error);
+    return '0000-00-00';
+  }
 }
 
 /**
