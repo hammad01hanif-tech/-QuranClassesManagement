@@ -310,26 +310,66 @@ window.loadNominees = async function() {
 
 /**
  * Calculate student eligibility - OPTIMIZED (uses pre-loaded data)
+ * 
+ * New rules:
+ * 1. Safar (1447-08) is the starting point for the first cycle
+ * 2. Both lastLessonDate AND displayDate must be after the checkpoint/starting point
+ * 3. After first honor, checkpoint becomes the new starting point (moving checkpoint)
+ * 4. Extra achievements are carried over to next months automatically
  */
 function calculateStudentEligibilityOptimized(studentId, studentName, teacherId, teacherName, checkpoint, studentHizbs, studentJuz, examsByStudentMonth) {
   try {
-    // Get checkpoint date
+    // Determine the starting point
+    // If no checkpoint exists, use Safar 1447-08 as the starting point
+    // If checkpoint exists, use the last honor date (moving checkpoint)
+    const SAFAR_START = '1447-08'; // Safar is the launch month
     const lastCheckpointDate = checkpoint?.lastHonorDate || '0';
     
-    // Filter records after checkpoint
+    // For first cycle (no checkpoint), we need both registration and completion in/after Safar
+    // For subsequent cycles, we use the checkpoint date
+    const hasCheckpoint = checkpoint && checkpoint.lastHonorDate;
+    const startingPoint = hasCheckpoint ? lastCheckpointDate : '0';
+    
+    // Filter records: both lastLessonDate and displayDate must be after starting point
     const allRecords = [];
     
-    // Add hizbs after checkpoint
+    // Process hizbs
     studentHizbs.forEach(record => {
-      if ((record.displayDate || '') > lastCheckpointDate) {
-        allRecords.push(record);
+      const displayDate = record.displayDate || '';
+      const lastLessonDate = record.lastLessonDate || '';
+      const displayMonth = extractMonth(displayDate);
+      const lessonMonth = extractMonth(lastLessonDate);
+      
+      // For first cycle: both must be in/after Safar
+      // For subsequent cycles: both must be after checkpoint
+      if (hasCheckpoint) {
+        // Moving checkpoint: compare with last honor date
+        if (displayDate > startingPoint && lastLessonDate > startingPoint) {
+          allRecords.push({ ...record, type: 'hizb' });
+        }
+      } else {
+        // First cycle: both must be in/after Safar (1447-08)
+        if (displayMonth >= SAFAR_START && lessonMonth >= SAFAR_START) {
+          allRecords.push({ ...record, type: 'hizb' });
+        }
       }
     });
     
-    // Add juz after checkpoint
+    // Process juz
     studentJuz.forEach(record => {
-      if ((record.displayDate || '') > lastCheckpointDate) {
-        allRecords.push(record);
+      const displayDate = record.displayDate || '';
+      const lastLessonDate = record.lastLessonDate || '';
+      const displayMonth = extractMonth(displayDate);
+      const lessonMonth = extractMonth(lastLessonDate);
+      
+      if (hasCheckpoint) {
+        if (displayDate > startingPoint && lastLessonDate > startingPoint) {
+          allRecords.push({ ...record, type: 'juz' });
+        }
+      } else {
+        if (displayMonth >= SAFAR_START && lessonMonth >= SAFAR_START) {
+          allRecords.push({ ...record, type: 'juz' });
+        }
       }
     });
     
@@ -344,16 +384,15 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       return dateA.localeCompare(dateB);
     });
     
-    // Determine student type and required count
+    // Determine student type and required count based on the records
     let requiredCount = 0;
     let studentType = '';
     
     if (allRecords[0].type === 'juz') {
-      // Student is doing juz
       requiredCount = 2;
       studentType = 'جزآن';
     } else {
-      // Student is doing hizb - determine based on last hizb number
+      // Determine based on latest hizb number
       const latestHizbNumber = allRecords[allRecords.length - 1].hizbNumber || 0;
       
       if (latestHizbNumber >= 1 && latestHizbNumber <= 15) {
@@ -365,14 +404,45 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       }
     }
     
-    // Check if student has completed required count
+    // Check if completed the required count
     if (allRecords.length < requiredCount) {
       return { eligible: false };
     }
     
-    // Get the record that completed the requirement
-    const completionRecord = allRecords[requiredCount - 1];
-    const eligibleMonth = extractMonth(completionRecord.displayDate);
+    // Handle extra achievements (carry over to next months)
+    // Example: if required is 1 but achieved 3, then:
+    //   - 1st achievement = current month
+    //   - 2nd achievement = next month (automatic)
+    //   - 3rd achievement = month after next (automatic)
+    
+    const eligibleNominations = [];
+    
+    // Split achievements into groups based on required count
+    for (let i = 0; i < allRecords.length; i += requiredCount) {
+      const group = allRecords.slice(i, i + requiredCount);
+      
+      // Only add if this group has the full required count
+      if (group.length === requiredCount) {
+        const completionRecord = group[group.length - 1];
+        const eligibleMonth = extractMonth(completionRecord.displayDate);
+        
+        eligibleNominations.push({
+          records: group,
+          completionRecord: completionRecord,
+          eligibleMonth: eligibleMonth
+        });
+      }
+    }
+    
+    // For now, return only the FIRST nomination (current month)
+    // The extra nominations are implicitly stored for future months
+    if (eligibleNominations.length === 0) {
+      return { eligible: false };
+    }
+    
+    const firstNomination = eligibleNominations[0];
+    const eligibleMonth = firstNomination.eligibleMonth;
+    const completionRecord = firstNomination.completionRecord;
     
     // Get exam score from pre-loaded map
     const examKey = `${studentId}_${eligibleMonth}`;
@@ -382,15 +452,14 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     let hasExamScore = false;
     
     if (monthExams.length > 0) {
-      // Sort by createdAt and get latest
       const sortedExams = monthExams.sort((a, b) => {
         const timeA = a.createdAt?.toMillis?.() || 0;
         const timeB = b.createdAt?.toMillis?.() || 0;
-        return timeB - timeA; // descending
+        return timeB - timeA;
       });
       
       const examData = sortedExams[0];
-      examScore = (examData.score || 0) / 2;  // Convert from 100 to 50
+      examScore = (examData.score || 0) / 2;
       hasExamScore = true;
     }
     
@@ -404,14 +473,16 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       teacherName: teacherName,
       type: studentType,
       requiredCount: requiredCount,
-      completedCount: allRecords.length,
+      completedCount: firstNomination.records.length,
       eligibleMonth: eligibleMonth,
       eligibleDate: completionRecord.displayDate,
       completionScore: 50,
       examScore: examScore,
       totalScore: totalScore,
       hasExamScore: hasExamScore,
-      lastNumber: completionRecord.hizbNumber || completionRecord.juzNumber || 0
+      lastNumber: completionRecord.hizbNumber || completionRecord.juzNumber || 0,
+      totalAchievements: allRecords.length, // For future reference
+      extraNominations: eligibleNominations.length - 1 // How many months ahead they're eligible
     };
     
   } catch (error) {
@@ -640,7 +711,29 @@ function displayNominees() {
   // Sort by total score descending
   filteredNominees.sort((a, b) => b.totalScore - a.totalScore);
   
-  let tableHTML = `
+  // Check if there are any extra nominations
+  const hasExtraNominations = filteredNominees.some(n => n.extraNominations && n.extraNominations > 0);
+  
+  let tableHTML = '';
+  
+  // Add info box if there are extra nominations
+  if (hasExtraNominations) {
+    tableHTML += `
+      <div style="background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; border-right: 4px solid #f39c12;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">⚡</span>
+          <div>
+            <div style="font-weight: bold; color: #2d3436; margin-bottom: 3px;">📋 ملاحظة: إنجازات إضافية</div>
+            <div style="font-size: 13px; color: #636e72;">
+              بعض الطلاب أنجزوا أكثر من المطلوب في شهر واحد. الأرقام في عمود "⚡ إضافي" تعني عدد الشهور القادمة التي سيكونون مرشحين فيها تلقائياً!
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  tableHTML += `
     <div style="overflow-x: auto;">
       <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
         <thead>
@@ -652,6 +745,7 @@ function displayNominees() {
             <th style="padding: 12px; text-align: center;">الإنجاز (50)</th>
             <th style="padding: 12px; text-align: center;">الاختبار (50)</th>
             <th style="padding: 12px; text-align: center; font-weight: bold;">المجموع</th>
+            <th style="padding: 12px; text-align: center; font-size: 12px;">⚡ إضافي</th>
           </tr>
         </thead>
         <tbody>
@@ -667,6 +761,14 @@ function displayNominees() {
       `<span style="font-size: 16px; font-weight: bold; color: #667eea;">${nominee.totalScore.toFixed(1)}</span>` :
       `<span style="color: #999;">-</span>`;
     
+    // Extra nominations display
+    let extraDisplay = '';
+    if (nominee.extraNominations && nominee.extraNominations > 0) {
+      extraDisplay = `<span style="background: #ffc107; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;" title="يمكن ترشيحه ${nominee.extraNominations} شهر إضافي">+${nominee.extraNominations}</span>`;
+    } else {
+      extraDisplay = `<span style="color: #ccc;">-</span>`;
+    }
+    
     tableHTML += `
       <tr style="background: ${bgColor};">
         <td style="padding: 10px; border: 1px solid #dee2e6;">${nominee.studentName}</td>
@@ -676,6 +778,7 @@ function displayNominees() {
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; color: #28a745; font-weight: bold;">50.0</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${examStatus}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${totalDisplay}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${extraDisplay}</td>
       </tr>
     `;
   });
