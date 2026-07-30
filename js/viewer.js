@@ -5349,15 +5349,21 @@ window.generateClassReport = async function() {
     });
     
     // 🆕 STEP 5: ترتيب السجلات
-    // حسب الحالة: غير المسجلين أولاً، ثم المسجلين، ثم المجتازين
+    // حسب اسم الطالب أولاً (لتجميع سجلات نفس الطالب)
     allRecords.sort((a, b) => {
-      // ترتيب حسب الحالة
+      // ترتيب حسب الاسم أولاً
+      const nameDiff = a.name.localeCompare(b.name, 'ar');
+      if (nameDiff !== 0) return nameDiff;
+      
+      // ثم حسب الحالة (للطالب نفسه)
       const statusOrder = { 'not_registered': 0, 'incomplete': 1, 'completed': 2 };
       const statusDiff = statusOrder[a.status] - statusOrder[b.status];
       if (statusDiff !== 0) return statusDiff;
       
-      // ثم حسب الاسم
-      return a.name.localeCompare(b.name, 'ar');
+      // ثم حسب رقم الجزء (للطالب نفسه)
+      const numA = parseInt(a.juzNumber) || 0;
+      const numB = parseInt(b.juzNumber) || 0;
+      return numA - numB;
     });
     
     console.log(`📊 إجمالي السجلات في التقرير: ${allRecords.length}`);
@@ -7161,11 +7167,21 @@ window.exportHizbClassReport = async function() {
       });
       
       // ترتيب السجلات
+      // حسب اسم الطالب أولاً (لتجميع سجلات نفس الطالب)
       allRecords.sort((a, b) => {
+        // ترتيب حسب الاسم أولاً
+        const nameDiff = a.name.localeCompare(b.name, 'ar');
+        if (nameDiff !== 0) return nameDiff;
+        
+        // ثم حسب الحالة (للطالب نفسه)
         const statusOrder = { 'not_registered': 0, 'incomplete': 1, 'completed': 2 };
         const statusDiff = statusOrder[a.status] - statusOrder[b.status];
         if (statusDiff !== 0) return statusDiff;
-        return a.name.localeCompare(b.name, 'ar');
+        
+        // ثم حسب رقم الحزب (للطالب نفسه)
+        const numA = parseInt(a.hizbNumber) || 0;
+        const numB = parseInt(b.hizbNumber) || 0;
+        return numA - numB;
       });
       
       const totalStudents = allStudentsMap.size;

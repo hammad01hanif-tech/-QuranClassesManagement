@@ -939,7 +939,8 @@ window.switchViewerSection = function(section) {
     'register': 'viewerRegisterSection',
     'tasks': 'viewerTasksSection',
     'more': 'viewerMoreSection',
-    'exams': 'viewerExamsSection'
+    'exams': 'viewerExamsSection',
+    'honor': 'viewerHonorSection'
   };
   
   const targetSection = document.getElementById(sectionMap[section]);
@@ -972,6 +973,11 @@ window.switchViewerSection = function(section) {
     // Initialize exams section
     if (typeof window.initExamsSection === 'function') {
       window.initExamsSection();
+    }
+  } else if (section === 'honor') {
+    // Initialize honor system
+    if (typeof window.initHonorSystem === 'function') {
+      window.initHonorSystem();
     }
   }
 };
