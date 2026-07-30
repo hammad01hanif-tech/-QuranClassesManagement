@@ -320,38 +320,33 @@ window.loadNominees = async function() {
 function calculateStudentEligibilityOptimized(studentId, studentName, teacherId, teacherName, checkpoint, studentHizbs, studentJuz, examsByStudentMonth) {
   try {
     // Determine the starting point
-    // If no checkpoint exists, use Safar 1447-08 as the starting point
+    // Safar 1448 starts on July 15, 2026 (Gregorian date) - based on Umm Al-Qura calendar
+    // If no checkpoint exists, use this Gregorian date as the starting point
     // If checkpoint exists, use the last honor date (moving checkpoint)
-    const SAFAR_START = '1447-08'; // Safar is the launch month
+    const SAFAR_START_GREGORIAN = '2026-07-15'; // First day of Safar 1448 in Gregorian calendar
     const lastCheckpointDate = checkpoint?.lastHonorDate || '0';
     
-    // For first cycle (no checkpoint), we need both registration and completion in/after Safar
+    // For first cycle (no checkpoint), we need both registration and completion on/after Safar start date
     // For subsequent cycles, we use the checkpoint date
     const hasCheckpoint = checkpoint && checkpoint.lastHonorDate;
-    const startingPoint = hasCheckpoint ? lastCheckpointDate : '0';
+    const startingPoint = hasCheckpoint ? lastCheckpointDate : SAFAR_START_GREGORIAN;
     
-    // Filter records: both lastLessonDate and displayDate must be after starting point
+    console.log(`🔍 Student ${studentName}: startingPoint = ${startingPoint}, hasCheckpoint = ${hasCheckpoint}`);
+    
+    // Filter records: both lastLessonDate and displayDate must be on/after starting point
     const allRecords = [];
     
     // Process hizbs
     studentHizbs.forEach(record => {
       const displayDate = record.displayDate || '';
       const lastLessonDate = record.lastLessonDate || '';
-      const displayMonth = extractMonth(displayDate);
-      const lessonMonth = extractMonth(lastLessonDate);
       
-      // For first cycle: both must be in/after Safar
-      // For subsequent cycles: both must be after checkpoint
-      if (hasCheckpoint) {
-        // Moving checkpoint: compare with last honor date
-        if (displayDate > startingPoint && lastLessonDate > startingPoint) {
-          allRecords.push({ ...record, type: 'hizb' });
-        }
+      // Both dates must be on or after the starting point
+      if (displayDate >= startingPoint && lastLessonDate >= startingPoint) {
+        console.log(`  ✅ Hizb ${record.hizbNumber}: lastLesson=${lastLessonDate}, display=${displayDate} - ACCEPTED`);
+        allRecords.push({ ...record, type: 'hizb' });
       } else {
-        // First cycle: both must be in/after Safar (1447-08)
-        if (displayMonth >= SAFAR_START && lessonMonth >= SAFAR_START) {
-          allRecords.push({ ...record, type: 'hizb' });
-        }
+        console.log(`  ❌ Hizb ${record.hizbNumber}: lastLesson=${lastLessonDate}, display=${displayDate} - REJECTED`);
       }
     });
     
@@ -359,17 +354,13 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     studentJuz.forEach(record => {
       const displayDate = record.displayDate || '';
       const lastLessonDate = record.lastLessonDate || '';
-      const displayMonth = extractMonth(displayDate);
-      const lessonMonth = extractMonth(lastLessonDate);
       
-      if (hasCheckpoint) {
-        if (displayDate > startingPoint && lastLessonDate > startingPoint) {
-          allRecords.push({ ...record, type: 'juz' });
-        }
+      // Both dates must be on or after the starting point
+      if (displayDate >= startingPoint && lastLessonDate >= startingPoint) {
+        console.log(`  ✅ Juz ${record.juzNumber}: lastLesson=${lastLessonDate}, display=${displayDate} - ACCEPTED`);
+        allRecords.push({ ...record, type: 'juz' });
       } else {
-        if (displayMonth >= SAFAR_START && lessonMonth >= SAFAR_START) {
-          allRecords.push({ ...record, type: 'juz' });
-        }
+        console.log(`  ❌ Juz ${record.juzNumber}: lastLesson=${lastLessonDate}, display=${displayDate} - REJECTED`);
       }
     });
     
