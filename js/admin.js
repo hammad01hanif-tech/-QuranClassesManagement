@@ -11422,8 +11422,19 @@ window.editVisit = async function(visitId) {
     
     const visitData = { id: visitId, ...visitDoc.data() };
     
+    // Preserve currentClassData from visit data before closing modal
+    const preservedClassData = {
+      classId: visitData.classId,
+      className: visitData.className,
+      teacherName: visitData.teacherName,
+      studentsCount: currentClassData?.studentsCount || 0
+    };
+    
     // Close visits modal
     closeClassVisitsModal();
+    
+    // Restore currentClassData
+    currentClassData = preservedClassData;
     
     // Open form in edit mode
     await openNewVisitForm(visitData);
