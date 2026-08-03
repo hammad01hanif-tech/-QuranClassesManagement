@@ -928,8 +928,11 @@ function updateViewerHijriDate() {
 
 // Switch Viewer Section
 window.switchViewerSection = function(section) {
+  console.log('🔍 switchViewerSection called with:', section);
+  
   // Hide all sections
   const sections = document.querySelectorAll('.viewer-main-section');
+  console.log('📊 Total viewer sections found:', sections.length);
   sections.forEach(s => s.classList.remove('active-section'));
   
   // Show selected section
@@ -943,9 +946,17 @@ window.switchViewerSection = function(section) {
     'honor': 'viewerHonorSection'
   };
   
-  const targetSection = document.getElementById(sectionMap[section]);
+  const sectionId = sectionMap[section];
+  console.log('🎯 Looking for section ID:', sectionId);
+  
+  const targetSection = document.getElementById(sectionId);
+  console.log('📍 Target section found:', targetSection ? 'YES ✅' : 'NO ❌');
+  
   if (targetSection) {
     targetSection.classList.add('active-section');
+    console.log('✅ Added active-section class to:', sectionId);
+  } else {
+    console.error('❌ ERROR: Section not found in DOM:', sectionId);
   }
   
   // Update nav buttons
@@ -975,9 +986,13 @@ window.switchViewerSection = function(section) {
       window.initExamsSection();
     }
   } else if (section === 'honor') {
+    console.log('🏆 Initializing Honor System...');
     // Initialize honor system
     if (typeof window.initHonorSystem === 'function') {
+      console.log('✅ window.initHonorSystem function exists, calling it...');
       window.initHonorSystem();
+    } else {
+      console.error('❌ ERROR: window.initHonorSystem function NOT FOUND!');
     }
   }
 };

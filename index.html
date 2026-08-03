@@ -1516,22 +1516,12 @@
                 >
               </div>
 
-              <!-- Form Actions -->
+              <!-- Save Button -->
               <div class="supervision-form-actions">
-                <!-- Auto-save Indicator -->
-                <div class="auto-save-indicator" id="autoSaveStatus">
-                  جاهز للحفظ التلقائي
-                </div>
-                
-                <!-- Action Buttons -->
-                <div class="action-buttons-group">
-                  <button type="button" class="supervision-draft-btn" onclick="window.saveDraft()">
-                    حفظ كمسودة
-                  </button>
-                  <button type="button" class="supervision-save-btn" onclick="window.saveVisit()">
-                    حفظ الزيارة
-                  </button>
-                </div>
+                <button class="supervision-save-btn" onclick="window.saveVisit()">
+                  <span class="btn-icon">✅</span>
+                  <span class="btn-text">حفظ الزيارة</span>
+                </button>
               </div>
 
             </div>
@@ -3735,6 +3725,15 @@
                 <span class="more-arrow">◀</span>
               </button>
 
+              <button class="more-menu-item" onclick="console.log('🏆 تم الضغط على زر تكريم الأوائل'); window.switchViewerSection('honor')">
+                <span class="more-icon">🏆</span>
+                <div class="more-text">
+                  <div class="more-title">تكريم الأوائل</div>
+                  <div class="more-desc">نظام تكريم الطلاب المتميزين</div>
+                </div>
+                <span class="more-arrow">◀</span>
+              </button>
+
               <button class="more-menu-item" onclick="window.toggleViewerInbox()">
                 <span class="more-icon">🔔</span>
                 <div class="more-text">
@@ -3900,6 +3899,123 @@
 
         </div>
 
+        <!-- Honor System Section -->
+        <div id="viewerHonorSection" class="viewer-main-section">
+          
+          <!-- Header -->
+          <div class="welcome-card">
+            <h2 style="margin: 0 0 10px 0; font-size: 22px;">🏆 نظام تكريم الأوائل</h2>
+            <p style="margin: 0; opacity: 0.9;">تكريم الطلاب المتميزين في حفظ القرآن الكريم</p>
+          </div>
+
+          <!-- Tabs Navigation -->
+          <div class="exam-tabs-container">
+            <div class="exam-tabs">
+              <button class="exam-tab active" data-tab="nominees" onclick="window.switchHonorTab('nominees')">
+                <span class="exam-tab-icon">📋</span>
+                <span class="exam-tab-text">المرشحون</span>
+              </button>
+              <button class="exam-tab" data-tab="honored" onclick="window.switchHonorTab('honored')">
+                <span class="exam-tab-icon">🏆</span>
+                <span class="exam-tab-text">المكرمون</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab Content: Nominees -->
+          <div id="nomineesTab" class="exam-tab-content active">
+            <div class="content-card">
+              
+              <!-- Statistics Cards -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                  <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">إجمالي المرشحين</div>
+                  <div id="totalNominees" style="font-size: 32px; font-weight: bold;">0</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                  <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">لديهم درجات</div>
+                  <div id="nomineesWithScores" style="font-size: 32px; font-weight: bold;">0</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                  <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">بانتظار الدرجات</div>
+                  <div id="nomineesWaiting" style="font-size: 32px; font-weight: bold;">0</div>
+                </div>
+              </div>
+
+              <!-- Filters -->
+              <div class="exams-filters" style="margin-bottom: 20px;">
+                <div class="filter-group">
+                  <label class="filter-label">
+                    <span class="filter-icon">🗓️</span>
+                    <span>الشهر الهجري</span>
+                  </label>
+                  <select id="honorFilterMonth" class="filter-select smart-select" onchange="window.filterNominees()">
+                    <option value="">جميع الأشهر</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label class="filter-label">
+                    <span class="filter-icon">👨‍🏫</span>
+                    <span>الحلقة</span>
+                  </label>
+                  <select id="honorFilterClass" class="filter-select smart-select" onchange="window.filterNominees()">
+                    <option value="">جميع الحلقات</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button onclick="window.loadNominees()" style="flex: 1; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;">
+                  🔄 تحديث البيانات
+                </button>
+                <button onclick="window.selectTop30()" style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;">
+                  🏆 اختيار أفضل 30
+                </button>
+              </div>
+
+              <!-- Nominees Table -->
+              <div id="nomineesTableContainer" class="table-container">
+                <p style="text-align: center; color: #999; padding: 40px;">اضغط "تحديث البيانات" لتحميل المرشحين...</p>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Tab Content: Honored Students -->
+          <div id="honoredTab" class="exam-tab-content">
+            <div class="content-card">
+              
+              <!-- Month Selection -->
+              <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: #555; font-weight: bold;">
+                  <span style="font-size: 18px;">🗓️</span> اختر شهر التكريم
+                </label>
+                <select id="honoredMonthSelect" class="filter-select" onchange="window.loadHonoredStudents()" style="width: 100%; max-width: 300px;">
+                  <option value="">-- اختر الشهر --</option>
+                </select>
+              </div>
+
+              <!-- Action Buttons -->
+              <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <button onclick="window.loadHonoredStudents()" style="flex: 1; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;">
+                  🔄 تحديث
+                </button>
+                <button onclick="window.exportHonoredPDF()" style="flex: 1; padding: 12px; background: #dc3545; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer;">
+                  📄 تصدير PDF
+                </button>
+              </div>
+
+              <!-- Honored Students Table -->
+              <div id="honoredTableContainer" class="table-container">
+                <p style="text-align: center; color: #999; padding: 40px;">اختر شهر التكريم لعرض القائمة...</p>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
       </div>
 
       <!-- Bottom Navigation Bar -->
@@ -3924,7 +4040,7 @@
           <span class="nav-label">المهام</span>
         </button>
         
-        <button class="nav-item" onclick="window.switchViewerSection('more')" data-section="more">
+        <button class="nav-item" onclick="console.log('⋯ تم الضغط على زر المزيد'); window.switchViewerSection('more')" data-section="more">
           <span class="nav-icon">⋯</span>
           <span class="nav-label">المزيد</span>
         </button>
@@ -4375,5 +4491,34 @@
     }, 100);
   </script>
   <script type="module" src="js/mobile-ui.js"></script>
+  <script type="module" src="js/honor-system.js"></script>
+  
+  <!-- Debug: Check Honor Section on page load -->
+  <script>
+    window.addEventListener('load', function() {
+      console.log('🔍 ====== DEBUG: Checking Honor Section ======');
+      
+      const honorSection = document.getElementById('viewerHonorSection');
+      console.log('🏆 viewerHonorSection element:', honorSection);
+      console.log('📍 Is in DOM:', honorSection ? 'YES ✅' : 'NO ❌');
+      
+      if (honorSection) {
+        console.log('📏 Display style:', window.getComputedStyle(honorSection).display);
+        console.log('👁️ Visibility:', window.getComputedStyle(honorSection).visibility);
+        console.log('🎨 Classes:', honorSection.className);
+        console.log('📐 Dimensions:', honorSection.offsetWidth + 'x' + honorSection.offsetHeight);
+      }
+      
+      const allViewerSections = document.querySelectorAll('.viewer-main-section');
+      console.log('📊 Total viewer-main-section elements:', allViewerSections.length);
+      allViewerSections.forEach((section, index) => {
+        console.log(`   ${index + 1}. ${section.id} - ${section.classList.contains('active-section') ? '✅ ACTIVE' : '⭕ hidden'}`);
+      });
+      
+      console.log('✅ window.initHonorSystem exists:', typeof window.initHonorSystem === 'function' ? 'YES ✅' : 'NO ❌');
+      console.log('✅ window.switchViewerSection exists:', typeof window.switchViewerSection === 'function' ? 'YES ✅' : 'NO ❌');
+      console.log('🔍 ====================================');
+    });
+  </script>
 </body>
 </html>
