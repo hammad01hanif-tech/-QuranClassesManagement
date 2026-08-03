@@ -762,7 +762,7 @@ function displayNominees() {
   
   tableHTML += `
     <div style="overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <table class="keep-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
         <thead>
           <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
             <th style="padding: 12px; text-align: right;">الطالب</th>
@@ -971,7 +971,7 @@ function displayHonoredStudents() {
   
   let tableHTML = `
     <div style="overflow-x: auto;">
-      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <table class="keep-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
         <thead>
           <tr style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); color: #333;">
             <th style="padding: 12px; text-align: center; font-weight: bold;">🏆 المرتبة</th>
