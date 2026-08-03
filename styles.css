@@ -12325,15 +12325,82 @@ details[open] > summary {
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 12px;
-  cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid transparent;
+  position: relative;
 }
 
 .supervision-visit-card:hover {
   background: rgba(102, 126, 234, 0.05);
   border-color: rgba(102, 126, 234, 0.2);
   transform: translateX(-4px);
+}
+
+/* Draft Visit Card */
+.draft-visit-card {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1.5px dashed rgba(251, 191, 36, 0.3);
+}
+
+.draft-visit-card:hover {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.5);
+}
+
+/* Draft Badge */
+.draft-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(251, 191, 36, 0.3);
+}
+
+/* Visit Actions */
+.supervision-visit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.visit-action-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.2);
+}
+
+.edit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+}
+
+.view-btn {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.view-btn:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.3);
 }
 
 .supervision-visit-card-header {
@@ -14078,29 +14145,72 @@ details[open] > summary {
   padding: 16px 0 0 0;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
+/* Auto-save Indicator */
+.auto-save-indicator {
+  text-align: center;
+  font-size: 12px;
+  color: #10b981;
+  font-weight: 600;
+  padding: 6px 12px;
+  background: rgba(16, 185, 129, 0.08);
+  border-radius: 6px;
+  transition: opacity 0.3s ease;
+}
+
+/* Action Buttons Group */
+.action-buttons-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Draft Button */
+.supervision-draft-btn {
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(100, 116, 139, 0.2);
+}
+
+.supervision-draft-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+}
+
+.supervision-draft-btn:active {
+  transform: translateY(0);
+}
+
+/* Save Button */
 .supervision-save-btn {
-  width: 100%;
-  padding: 16px 20px;
+  padding: 14px 20px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 700;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
 }
 
 .supervision-save-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
 }
 
 .supervision-save-btn:active {

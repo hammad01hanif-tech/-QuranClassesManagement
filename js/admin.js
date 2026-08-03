@@ -10815,6 +10815,195 @@ let currentVisitId = null;
 let studentTestCounter = 2; // Start from 2 since we already have test1 and test2
 let lastSavedVisitData = null; // Store last saved visit for sending
 
+// Auto-save and draft management
+let autoSaveTimer = null;
+let autoSaveInterval = 30000; // 30 seconds
+let isEditMode = false; // Track if editing existing visit
+let editingVisitId = null; // Store ID of visit being edited
+
+/**
+ * ═══════════════════════════════════════════════════════
+ * AUTO-SAVE & DRAFT MANAGEMENT SYSTEM
+ * ═══════════════════════════════════════════════════════
+ */
+
+/**
+ * Get localStorage key for draft
+ */
+function getDraftKey(classId) {
+  return `supervision_draft_${classId}`;
+}
+
+/**
+ * Save draft to localStorage (auto-save)
+ */
+function saveToLocalStorage() {
+  if (!currentClassData) return;
+  
+  try {
+    const draftData = {
+      classId: currentClassData.classId,
+      className: currentClassData.className,
+      teacherName: currentClassData.teacherName,
+      formData: currentVisitFormData,
+      supervisorName: document.getElementById('supervisorName')?.value || '',
+      visitNotes: document.getElementById('visitNotes')?.value || '',
+      studentTestCounter: studentTestCounter,
+      lastSaved: new Date().toISOString(),
+      autoSaved: true
+    };
+    
+    localStorage.setItem(getDraftKey(currentClassData.classId), JSON.stringify(draftData));
+    
+    // Update auto-save indicator
+    updateAutoSaveIndicator('تم الحفظ تلقائياً');
+    
+    console.log('✓ [AUTO-SAVE] Draft saved to localStorage');
+  } catch (error) {
+    console.error('❌ [AUTO-SAVE] Error saving to localStorage:', error);
+  }
+}
+
+/**
+ * Load draft from localStorage
+ */
+function loadFromLocalStorage(classId) {
+  try {
+    const draftKey = getDraftKey(classId);
+    const draftJSON = localStorage.getItem(draftKey);
+    
+    if (!draftJSON) return null;
+    
+    const draft = JSON.parse(draftJSON);
+    console.log('✓ [AUTO-SAVE] Draft found in localStorage:', draft);
+    return draft;
+  } catch (error) {
+    console.error('❌ [AUTO-SAVE] Error loading from localStorage:', error);
+    return null;
+  }
+}
+
+/**
+ * Delete draft from localStorage
+ */
+function deleteFromLocalStorage(classId) {
+  try {
+    localStorage.removeItem(getDraftKey(classId));
+    console.log('✓ [AUTO-SAVE] Draft deleted from localStorage');
+  } catch (error) {
+    console.error('❌ [AUTO-SAVE] Error deleting from localStorage:', error);
+  }
+}
+
+/**
+ * Check for cloud draft (Firestore)
+ */
+async function checkCloudDraft(classId) {
+  try {
+    const draftsQuery = query(
+      collection(db, 'supervisionVisits'),
+      where('classId', '==', classId),
+      where('isDraft', '==', true)
+    );
+    
+    const snapshot = await getDocs(draftsQuery);
+    
+    if (snapshot.empty) return null;
+    
+    // Return the most recent draft
+    const drafts = [];
+    snapshot.forEach(doc => {
+      drafts.push({ id: doc.id, ...doc.data() });
+    });
+    
+    // Sort by lastModified or createdAt
+    drafts.sort((a, b) => {
+      const aTime = a.lastModified?.toMillis() || a.createdAt?.toMillis() || 0;
+      const bTime = b.lastModified?.toMillis() || b.createdAt?.toMillis() || 0;
+      return bTime - aTime;
+    });
+    
+    console.log('✓ [DRAFT] Cloud draft found:', drafts[0]);
+    return drafts[0];
+  } catch (error) {
+    console.error('❌ [DRAFT] Error checking cloud draft:', error);
+    return null;
+  }
+}
+
+/**
+ * Update auto-save indicator
+ */
+function updateAutoSaveIndicator(message) {
+  const indicator = document.getElementById('autoSaveStatus');
+  if (indicator) {
+    indicator.textContent = message;
+    indicator.style.opacity = '1';
+    
+    // Fade out after 3 seconds
+    setTimeout(() => {
+      indicator.style.opacity = '0.6';
+    }, 3000);
+  }
+}
+
+/**
+ * Start auto-save timer
+ */
+function startAutoSave() {
+  // Clear existing timer
+  if (autoSaveTimer) {
+    clearInterval(autoSaveTimer);
+  }
+  
+  // Start new timer
+  autoSaveTimer = setInterval(() => {
+    saveToLocalStorage();
+  }, autoSaveInterval);
+  
+  console.log('✓ [AUTO-SAVE] Auto-save started (every 30 seconds)');
+}
+
+/**
+ * Stop auto-save timer
+ */
+function stopAutoSave() {
+  if (autoSaveTimer) {
+    clearInterval(autoSaveTimer);
+    autoSaveTimer = null;
+    console.log('✓ [AUTO-SAVE] Auto-save stopped');
+  }
+}
+
+/**
+ * Setup auto-save event listeners
+ */
+function setupAutoSaveListeners() {
+  // Save on any input change (debounced)
+  const formInputs = document.querySelectorAll('#newVisitFormModal input, #newVisitFormModal textarea, #newVisitFormModal select');
+  
+  formInputs.forEach(input => {
+    input.addEventListener('input', debounce(() => {
+      saveToLocalStorage();
+    }, 5000)); // Debounce 5 seconds
+  });
+}
+
+/**
+ * Debounce helper function
+ */
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 /**
  * Format date from YYYY-MM-DD to DD-MM-YYYY for display
  */
@@ -11167,23 +11356,37 @@ async function loadClassVisits(classId) {
       const overallRating = calculateOverallRating(visit);
       const notesPreview = visit.notes ? visit.notes.substring(0, 80) + (visit.notes.length > 80 ? '...' : '') : 'لا توجد ملاحظات';
       
+      // Check if draft
+      const isDraft = visit.isDraft === true || visit.status === 'draft';
+      
       let statusText = 'جيدة';
       if (overallRating >= 4) statusText = 'ممتازة';
       else if (overallRating < 3) statusText = 'تحتاج تحسين';
       
+      // Draft indicator
+      const draftIndicator = isDraft ? '<div class="draft-badge">غير مكتملة</div>' : '';
+      
       visitsHTML += `
-        <div class="supervision-visit-card" onclick="window.openVisitDetails('${visitId}')">
+        <div class="supervision-visit-card ${isDraft ? 'draft-visit-card' : ''}">
+          ${draftIndicator}
           <div class="supervision-visit-card-header">
-            <span class="supervision-visit-date">📅 ${visitDate}</span>
-            <span class="supervision-rating">
-              <span>⭐</span>
-              <span>${overallRating.toFixed(1)}</span>
-            </span>
+            <span class="supervision-visit-date">${visitDate}</span>
+            ${!isDraft ? `<span class="supervision-rating"><span>⭐</span><span>${overallRating.toFixed(1)}</span></span>` : ''}
           </div>
           <div class="supervision-visit-body">
-            <div class="supervision-visit-info">👤 المشرف: ${supervisorName}</div>
-            <div class="supervision-visit-info">📊 الحالة: ${statusText}</div>
+            <div class="supervision-visit-info">المشرف: ${supervisorName}</div>
+            ${!isDraft ? `<div class="supervision-visit-info">الحالة: ${statusText}</div>` : ''}
             <div class="supervision-visit-notes-preview">${notesPreview}</div>
+          </div>
+          <div class="supervision-visit-actions">
+            <button class="visit-action-btn edit-btn" onclick="event.stopPropagation(); window.editVisit('${visitId}')">
+              تعديل
+            </button>
+            ${!isDraft ? `
+              <button class="visit-action-btn view-btn" onclick="event.stopPropagation(); window.openVisitDetails('${visitId}')">
+                عرض التفاصيل
+              </button>
+            ` : ''}
           </div>
         </div>
       `;
@@ -11202,6 +11405,34 @@ async function loadClassVisits(classId) {
     `;
   }
 }
+
+/**
+ * Edit visit (draft or completed)
+ */
+window.editVisit = async function(visitId) {
+  console.log('✏️ [SUPERVISION] Editing visit:', visitId);
+  
+  try {
+    const visitDoc = await getDoc(doc(db, 'supervisionVisits', visitId));
+    
+    if (!visitDoc.exists()) {
+      alert('❌ الزيارة غير موجودة');
+      return;
+    }
+    
+    const visitData = { id: visitId, ...visitDoc.data() };
+    
+    // Close visits modal
+    closeClassVisitsModal();
+    
+    // Open form in edit mode
+    await openNewVisitForm(visitData);
+    
+  } catch (error) {
+    console.error('❌ [SUPERVISION] Error loading visit for editing:', error);
+    alert('❌ حدث خطأ في تحميل الزيارة');
+  }
+};
 
 /**
  * Close class visits modal
@@ -12299,7 +12530,7 @@ async function deleteVisit(visitId) {
 /**
  * Open new visit form
  */
-window.openNewVisitForm = function() {
+window.openNewVisitForm = async function(visitData = null) {
   console.log('🔍 [SUPERVISION] Opening new visit form...');
   
   if (!currentClassData) {
@@ -12307,13 +12538,97 @@ window.openNewVisitForm = function() {
     return;
   }
   
+  // Check if editing existing visit
+  if (visitData) {
+    isEditMode = true;
+    editingVisitId = visitData.visitId || visitData.id;
+    await loadVisitForEditing(visitData);
+    return;
+  }
+  
+  // Check for existing drafts
+  const localDraft = loadFromLocalStorage(currentClassData.classId);
+  const cloudDraft = await checkCloudDraft(currentClassData.classId);
+  
+  // If draft exists, show resume dialog
+  if (cloudDraft || localDraft) {
+    showResumeDialog(cloudDraft, localDraft);
+    return;
+  }
+  
+  // No drafts - start fresh
+  startNewVisitForm();
+};
+
+/**
+ * Show resume draft dialog
+ */
+function showResumeDialog(cloudDraft, localDraft) {
+  const draft = cloudDraft || localDraft;
+  const draftSource = cloudDraft ? 'سحابية' : 'محلية';
+  
+  let lastSavedText = 'غير محدد';
+  if (cloudDraft && cloudDraft.lastModified) {
+    const time = cloudDraft.lastModified.toDate();
+    lastSavedText = getRelativeTime(time);
+  } else if (localDraft && localDraft.lastSaved) {
+    const time = new Date(localDraft.lastSaved);
+    lastSavedText = getRelativeTime(time);
+  }
+  
+  const message = `لديك زيارة غير مكتملة (${draftSource})\n\nالحلقة: ${draft.className || currentClassData.className}\nآخر حفظ: ${lastSavedText}\n\nهل تريد استكمال الزيارة؟`;
+  
+  if (confirm(message)) {
+    // Resume draft
+    if (cloudDraft) {
+      loadVisitForEditing(cloudDraft);
+    } else {
+      loadLocalDraftForEditing(localDraft);
+    }
+  } else {
+    // Delete draft and start fresh
+    if (cloudDraft) {
+      deleteDraft(cloudDraft.id);
+    }
+    if (localDraft) {
+      deleteFromLocalStorage(currentClassData.classId);
+    }
+    startNewVisitForm();
+  }
+}
+
+/**
+ * Get relative time text (e.g., "قبل 5 دقائق")
+ */
+function getRelativeTime(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'قبل لحظات';
+  if (diffMins < 60) return `قبل ${diffMins} دقيقة`;
+  if (diffHours < 24) return `قبل ${diffHours} ساعة`;
+  return `قبل ${diffDays} يوم`;
+}
+
+/**
+ * Start new visit form (fresh)
+ */
+function startNewVisitForm() {
+  isEditMode = false;
+  editingVisitId = null;
+  
   // Reset form data
   currentVisitFormData = {
     educational: {},
     educationalNotes: {},
     studentTests: {},
     teacher: {},
+    teacherNotes: {},
     environment: {},
+    environmentNotes: {},
     imagesData: {}
   };
   
@@ -12323,7 +12638,160 @@ window.openNewVisitForm = function() {
   // Show modal
   document.getElementById('newVisitFormModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
-};
+  
+  // Clear supervisor name and notes
+  document.getElementById('supervisorName').value = '';
+  document.getElementById('visitNotes').value = '';
+  
+  // Start auto-save
+  startAutoSave();
+  
+  // Setup auto-save listeners
+  setTimeout(() => {
+    setupAutoSaveListeners();
+  }, 500);
+  
+  updateAutoSaveIndicator('جاهز للحفظ التلقائي');
+}
+
+/**
+ * Load visit for editing (from cloud draft or saved visit)
+ */
+async function loadVisitForEditing(visitData) {
+  isEditMode = true;
+  editingVisitId = visitData.id || visitData.visitId;
+  
+  // Populate form data
+  currentVisitFormData = {
+    educational: visitData.educational || {},
+    educationalNotes: visitData.educationalNotes || {},
+    studentTests: visitData.studentTests || {},
+    teacher: visitData.teacher || {},
+    teacherNotes: visitData.teacherNotes || {},
+    environment: visitData.environment || {},
+    environmentNotes: visitData.environmentNotes || {},
+    imagesData: visitData.imagesData || {}
+  };
+  
+  // Build form
+  buildVisitForm();
+  
+  // Show modal
+  document.getElementById('newVisitFormModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  
+  // Populate fields
+  document.getElementById('supervisorName').value = visitData.supervisorName || '';
+  document.getElementById('visitNotes').value = visitData.notes || '';
+  
+  // Populate ratings
+  setTimeout(() => {
+    populateFormFields(visitData);
+  }, 300);
+  
+  // Start auto-save
+  startAutoSave();
+  setupAutoSaveListeners();
+  
+  updateAutoSaveIndicator('وضع التعديل - جاهز للحفظ');
+}
+
+/**
+ * Load local draft for editing
+ */
+function loadLocalDraftForEditing(draft) {
+  isEditMode = false; // Local drafts are not yet saved to Firestore
+  editingVisitId = null;
+  
+  // Populate form data
+  currentVisitFormData = draft.formData || {
+    educational: {},
+    educationalNotes: {},
+    studentTests: {},
+    teacher: {},
+    teacherNotes: {},
+    environment: {},
+    environmentNotes: {},
+    imagesData: {}
+  };
+  
+  studentTestCounter = draft.studentTestCounter || 2;
+  
+  // Build form
+  buildVisitForm();
+  
+  // Show modal
+  document.getElementById('newVisitFormModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  
+  // Populate fields
+  document.getElementById('supervisorName').value = draft.supervisorName || '';
+  document.getElementById('visitNotes').value = draft.visitNotes || '';
+  
+  // Populate ratings
+  setTimeout(() => {
+    populateFormFieldsFromDraft(draft);
+  }, 300);
+  
+  // Start auto-save
+  startAutoSave();
+  setupAutoSaveListeners();
+  
+  updateAutoSaveIndicator('استكمال المسودة - جاهز للحفظ');
+}
+
+/**
+ * Populate form fields from visit data
+ */
+function populateFormFields(visitData) {
+  // Populate ratings
+  Object.entries(visitData.educational || {}).forEach(([key, value]) => {
+    const radio = document.querySelector(`input[name="rating_educational_${key}"][value="${value}"]`);
+    if (radio) radio.checked = true;
+  });
+  
+  Object.entries(visitData.teacher || {}).forEach(([key, value]) => {
+    const radio = document.querySelector(`input[name="rating_teacher_${key}"][value="${value}"]`);
+    if (radio) radio.checked = true;
+  });
+  
+  Object.entries(visitData.environment || {}).forEach(([key, value]) => {
+    const radio = document.querySelector(`input[name="rating_environment_${key}"][value="${value}"]`);
+    if (radio) radio.checked = true;
+  });
+  
+  // Populate notes
+  Object.entries(visitData.educationalNotes || {}).forEach(([key, value]) => {
+    const textarea = document.getElementById(`notes_educational_${key}`);
+    if (textarea) textarea.value = value;
+  });
+  
+  Object.entries(visitData.teacherNotes || {}).forEach(([key, value]) => {
+    const textarea = document.getElementById(`notes_teacher_${key}`);
+    if (textarea) textarea.value = value;
+  });
+  
+  Object.entries(visitData.environmentNotes || {}).forEach(([key, value]) => {
+    const textarea = document.getElementById(`notes_environment_${key}`);
+    if (textarea) textarea.value = value;
+  });
+  
+  // Populate student tests
+  Object.entries(visitData.studentTests || {}).forEach(([testId, testData]) => {
+    const testNum = testId.replace('test', '');
+    document.getElementById(`${testId}_studentName`)?.setAttribute('value', testData.studentName || '');
+    document.getElementById(`${testId}_lesson`)?.setAttribute('value', testData.lesson || '');
+    document.getElementById(`${testId}_grade`)?.setAttribute('value', testData.grade || '');
+    document.getElementById(`${testId}_notes`)?.setAttribute('value', testData.notes || '');
+  });
+}
+
+/**
+ * Populate form fields from draft data
+ */
+function populateFormFieldsFromDraft(draft) {
+  populateFormFields(draft.formData);
+}
 
 /**
  * Build visit form with evaluation items
@@ -13092,9 +13560,26 @@ window.saveVisit = async function() {
     }
     
     // Save to Firestore
-    const docRef = await addDoc(collection(db, 'supervisionVisits'), visitData);
+    let docRef;
+    if (isEditMode && editingVisitId) {
+      // Update existing visit (remove draft status)
+      await updateDoc(doc(db, 'supervisionVisits', editingVisitId), {
+        ...visitData,
+        isDraft: false,
+        status: 'completed',
+        lastModified: serverTimestamp()
+      });
+      docRef = { id: editingVisitId };
+      console.log('✅ [SUPERVISION] Visit updated successfully');
+    } else {
+      // Create new visit
+      visitData.isDraft = false;
+      visitData.status = 'completed';
+      docRef = await addDoc(collection(db, 'supervisionVisits'), visitData);
+      console.log('✅ [SUPERVISION] Visit saved successfully');
+    }
     
-    console.log('✅ [SUPERVISION] Visit saved successfully with date:', visitDate);
+    console.log('✅ [SUPERVISION] Visit saved with date:', visitDate);
     console.log('✅ [SUPERVISION] Document ID:', docRef.id);
     console.log('📊 [SUPERVISION] Saved data includes:', {
       ratings: totalRatings,
@@ -13106,8 +13591,20 @@ window.saveVisit = async function() {
     // Store visit data with ID for sending
     visitData.visitId = docRef.id;
     
-    // Open send visit modal instead of closing directly
-    window.openSendVisitModal(visitData);
+    // Delete localStorage draft
+    deleteFromLocalStorage(currentClassData.classId);
+    
+    // Stop auto-save
+    stopAutoSave();
+    
+    // Close modal
+    closeNewVisitForm();
+    
+    // Show success message
+    alert('✓ تم حفظ الزيارة بنجاح');
+    
+    // Reload class visits to show the saved visit
+    await openClassVisits(currentClassData.classId, currentClassData.className, currentClassData.teacherName);
     
   } catch (error) {
     console.error('❌ [SUPERVISION] Error saving visit:', error);
@@ -13216,9 +13713,144 @@ window.removeVisitImage = function(imageId) {
 };
 
 /**
+ * Save draft to Firestore
+ */
+window.saveDraft = async function() {
+  console.log('💾 [DRAFT] Saving draft...');
+  
+  if (!currentClassData) {
+    alert('⚠️ خطأ: لم يتم تحديد الحلقة');
+    return;
+  }
+  
+  // Get supervisor name
+  const supervisorName = document.getElementById('supervisorName').value.trim();
+  
+  // Get notes
+  const notes = document.getElementById('visitNotes').value.trim();
+  
+  try {
+    // Get student test data dynamically
+    const studentTests = {};
+    let hasAnyTestData = false;
+    
+    for (let i = 1; i <= studentTestCounter; i++) {
+      const testId = `test${i}`;
+      const studentNameInput = document.getElementById(`${testId}_studentName`);
+      
+      if (!studentNameInput) continue;
+      
+      const testData = {
+        studentName: studentNameInput?.value.trim() || '',
+        lesson: document.getElementById(`${testId}_lesson`)?.value.trim() || '',
+        grade: document.getElementById(`${testId}_grade`)?.value || '',
+        notes: document.getElementById(`${testId}_notes`)?.value.trim() || ''
+      };
+      
+      if (testData.studentName || testData.lesson || testData.grade || testData.notes) {
+        studentTests[testId] = testData;
+        hasAnyTestData = true;
+      }
+    }
+    
+    if (hasAnyTestData) {
+      currentVisitFormData.studentTests = studentTests;
+    }
+    
+    // Get current Hijri date
+    const todayHijri = getCurrentHijriDate();
+    const visitDate = `${todayHijri.hijriYear}-${String(todayHijri.hijriMonth).padStart(2, '0')}-${String(todayHijri.hijriDay).padStart(2, '0')}`;
+    
+    // Process visit images
+    const visitImagesData = {};
+    if (currentVisitFormData.visitImages && currentVisitFormData.visitImages.length > 0) {
+      currentVisitFormData.visitImages.forEach((img, index) => {
+        const imageKey = `visitImage_${index + 1}`;
+        visitImagesData[imageKey] = img.data;
+      });
+    }
+    
+    // Prepare draft data
+    const draftData = {
+      classId: currentClassData.classId,
+      className: currentClassData.className,
+      teacherName: currentClassData.teacherName,
+      visitDate: visitDate,
+      supervisorName: supervisorName,
+      educational: currentVisitFormData.educational,
+      educationalNotes: currentVisitFormData.educationalNotes,
+      studentTests: currentVisitFormData.studentTests || {},
+      teacher: currentVisitFormData.teacher,
+      teacherNotes: currentVisitFormData.teacherNotes || {},
+      environment: currentVisitFormData.environment,
+      environmentNotes: currentVisitFormData.environmentNotes || {},
+      notes: notes,
+      isDraft: true,
+      status: 'draft',
+      lastModified: serverTimestamp(),
+      createdAt: serverTimestamp()
+    };
+    
+    // Add images if they exist
+    if (Object.keys(visitImagesData).length > 0) {
+      draftData.imagesData = visitImagesData;
+    }
+    
+    // Save or update draft
+    let docRef;
+    if (isEditMode && editingVisitId) {
+      // Update existing draft
+      await updateDoc(doc(db, 'supervisionVisits', editingVisitId), {
+        ...draftData,
+        lastModified: serverTimestamp()
+      });
+      docRef = { id: editingVisitId };
+      console.log('✅ [DRAFT] Draft updated successfully');
+    } else {
+      // Create new draft
+      docRef = await addDoc(collection(db, 'supervisionVisits'), draftData);
+      console.log('✅ [DRAFT] Draft saved successfully');
+    }
+    
+    // Delete localStorage draft
+    deleteFromLocalStorage(currentClassData.classId);
+    
+    // Stop auto-save
+    stopAutoSave();
+    
+    alert('✓ تم حفظ المسودة بنجاح');
+    
+    // Close modal and return to visits view
+    closeNewVisitForm();
+    
+    // Reload class visits to show the draft
+    await openClassVisits(currentClassData.classId, currentClassData.className, currentClassData.teacherName);
+    
+  } catch (error) {
+    console.error('❌ [DRAFT] Error saving draft:', error);
+    alert('❌ حدث خطأ في حفظ المسودة: ' + error.message);
+  }
+};
+
+/**
+ * Delete draft from Firestore
+ */
+async function deleteDraft(draftId) {
+  try {
+    await deleteDoc(doc(db, 'supervisionVisits', draftId));
+    console.log('✓ [DRAFT] Draft deleted from Firestore');
+  } catch (error) {
+    console.error('❌ [DRAFT] Error deleting draft:', error);
+  }
+}
+
+/**
  * Close new visit form
  */
 window.closeNewVisitForm = function() {
+  // Stop auto-save
+  stopAutoSave();
+  
   document.getElementById('newVisitFormModal').style.display = 'none';
   document.body.style.overflow = '';
   
@@ -13237,6 +13869,10 @@ window.closeNewVisitForm = function() {
   
   // Reset student test counter
   studentTestCounter = 2;
+  
+  // Reset flags
+  isEditMode = false;
+  editingVisitId = null;
   
   // Reset form data
   currentVisitFormData = {
