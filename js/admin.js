@@ -11382,11 +11382,15 @@ async function loadClassVisits(classId) {
             <button class="visit-action-btn edit-btn" onclick="event.stopPropagation(); window.editVisit('${visitId}')">
               تعديل
             </button>
-            ${!isDraft ? `
+            ${isDraft ? `
+              <button class="visit-action-btn delete-btn" onclick="event.stopPropagation(); window.deleteVisit('${visitId}', true)">
+                حذف
+              </button>
+            ` : `
               <button class="visit-action-btn view-btn" onclick="event.stopPropagation(); window.openVisitDetails('${visitId}')">
                 عرض التفاصيل
               </button>
-            ` : ''}
+            `}
           </div>
         </div>
       `;
@@ -11442,6 +11446,46 @@ window.editVisit = async function(visitId) {
   } catch (error) {
     console.error('❌ [SUPERVISION] Error loading visit for editing:', error);
     alert('❌ حدث خطأ في تحميل الزيارة');
+  }
+};
+
+/**
+ * Delete visit (draft or completed)
+ */
+window.deleteVisit = async function(visitId, isDraft = false) {
+  console.log('🗑️ [SUPERVISION] Deleting visit:', visitId);
+  
+  // Confirmation dialog
+  const confirmMessage = isDraft 
+    ? 'هل أنت متأكد من حذف هذه المسودة؟\n\nلن يمكن استرجاعها بعد الحذف.'
+    : 'هل أنت متأكد من حذف هذه الزيارة؟\n\nلن يمكن استرجاعها بعد الحذف.';
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  try {
+    // Delete from Firestore
+    await deleteDoc(doc(db, 'supervisionVisits', visitId));
+    
+    console.log('✅ [SUPERVISION] Visit deleted successfully');
+    
+    // Delete from localStorage if it's a draft
+    if (isDraft && currentClassData) {
+      deleteFromLocalStorage(currentClassData.classId);
+    }
+    
+    // Show success message
+    alert('✓ تم حذف ' + (isDraft ? 'المسودة' : 'الزيارة') + ' بنجاح');
+    
+    // Reload the visits list
+    if (currentClassData) {
+      await loadClassVisits(currentClassData.classId);
+    }
+    
+  } catch (error) {
+    console.error('❌ [SUPERVISION] Error deleting visit:', error);
+    alert('❌ حدث خطأ في حذف ' + (isDraft ? 'المسودة' : 'الزيارة'));
   }
 };
 
