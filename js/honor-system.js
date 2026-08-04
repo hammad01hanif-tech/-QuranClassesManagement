@@ -325,6 +325,7 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     // If no checkpoint exists, use this Gregorian date as the starting point
     // If checkpoint exists, use the last honor date (moving checkpoint)
     const SAFAR_START_GREGORIAN = '2026-07-15'; // First day of Safar 1448 in Gregorian calendar
+    const SAFAR_START_HIJRI = '1448-02-01'; // First day of Safar 1448 in Hijri calendar
     const lastCheckpointDate = checkpoint?.lastHonorDate || '0';
     
     // For first cycle (no checkpoint), we need both registration and completion on/after Safar start date
@@ -332,13 +333,19 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     const hasCheckpoint = checkpoint && checkpoint.lastHonorDate;
     const startingPoint = hasCheckpoint ? lastCheckpointDate : SAFAR_START_GREGORIAN;
     
-    console.log(`🔍 Student ${studentName}: startingPoint = ${startingPoint}, hasCheckpoint = ${hasCheckpoint}`);
+    const totalRecords = (studentHizbs?.length || 0) + (studentJuz?.length || 0);
+    if (totalRecords > 0) {
+      console.log(`\n🔍 ============ Student ${studentName} (${studentId}) ============`);
+      console.log(`   📊 Total records: ${studentHizbs?.length || 0} hizbs + ${studentJuz?.length || 0} juz = ${totalRecords}`);
+      console.log(`   🎯 Starting point: ${startingPoint} (${hasCheckpoint ? 'من آخر تكريم' : 'من بداية صفر 1448'})`);
+      console.log(`   📅 Safar 1448 starts: ${SAFAR_START_HIJRI} Hijri = ${SAFAR_START_GREGORIAN} Gregorian`);
+    }
     
     // Filter records: both lastLessonDate and displayDate must be on/after starting point
     const allRecords = [];
     
     // Process hizbs
-    studentHizbs.forEach(record => {
+    studentHizbs.forEach((record, index) => {
       const displayDate = record.displayDate || '';
       const lastLessonDate = record.lastLessonDate || '';
       
@@ -346,17 +353,23 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       const displayDateGregorian = hijriToGregorianString(displayDate);
       const lastLessonDateGregorian = hijriToGregorianString(lastLessonDate);
       
+      console.log(`   📋 Hizb #${index + 1} (رقم ${record.hizbNumber}):`);
+      console.log(`      • lastLessonDate: ${lastLessonDate} → Gregorian: ${lastLessonDateGregorian}`);
+      console.log(`      • displayDate: ${displayDate} → Gregorian: ${displayDateGregorian}`);
+      console.log(`      • Check: ${lastLessonDateGregorian} >= ${startingPoint}? ${lastLessonDateGregorian >= startingPoint}`);
+      console.log(`      • Check: ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+      
       // Both dates must be on or after the starting point
       if (displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint) {
-        console.log(`  ✅ Hizb ${record.hizbNumber}: lastLesson=${lastLessonDate} (${lastLessonDateGregorian}), display=${displayDate} (${displayDateGregorian}) - ACCEPTED`);
+        console.log(`      ✅ ACCEPTED - Both dates are on/after starting point`);
         allRecords.push({ ...record, type: 'hizb' });
       } else {
-        console.log(`  ❌ Hizb ${record.hizbNumber}: lastLesson=${lastLessonDate} (${lastLessonDateGregorian}), display=${displayDate} (${displayDateGregorian}) - REJECTED`);
+        console.log(`      ❌ REJECTED - One or both dates are before starting point`);
       }
     });
     
     // Process juz
-    studentJuz.forEach(record => {
+    studentJuz.forEach((record, index) => {
       const displayDate = record.displayDate || '';
       const lastLessonDate = record.lastLessonDate || '';
       
@@ -364,18 +377,29 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       const displayDateGregorian = hijriToGregorianString(displayDate);
       const lastLessonDateGregorian = hijriToGregorianString(lastLessonDate);
       
+      console.log(`   📖 Juz #${index + 1} (رقم ${record.juzNumber}):`);
+      console.log(`      • lastLessonDate: ${lastLessonDate} → Gregorian: ${lastLessonDateGregorian}`);
+      console.log(`      • displayDate: ${displayDate} → Gregorian: ${displayDateGregorian}`);
+      console.log(`      • Check: ${lastLessonDateGregorian} >= ${startingPoint}? ${lastLessonDateGregorian >= startingPoint}`);
+      console.log(`      • Check: ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+      
       // Both dates must be on or after the starting point
       if (displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint) {
-        console.log(`  ✅ Juz ${record.juzNumber}: lastLesson=${lastLessonDate} (${lastLessonDateGregorian}), display=${displayDate} (${displayDateGregorian}) - ACCEPTED`);
+        console.log(`      ✅ ACCEPTED - Both dates are on/after starting point`);
         allRecords.push({ ...record, type: 'juz' });
       } else {
-        console.log(`  ❌ Juz ${record.juzNumber}: lastLesson=${lastLessonDate} (${lastLessonDateGregorian}), display=${displayDate} (${displayDateGregorian}) - REJECTED`);
+        console.log(`      ❌ REJECTED - One or both dates are before starting point`);
       }
     });
     
     if (allRecords.length === 0) {
+      if (totalRecords > 0) {
+        console.log(`   ❌ INELIGIBLE: No records passed the date filter (0 out of ${totalRecords})`);
+      }
       return { eligible: false };
     }
+    
+    console.log(`   ✅ Accepted records: ${allRecords.length} out of ${totalRecords}`);
     
     // Sort by displayDate
     allRecords.sort((a, b) => {
@@ -404,8 +428,11 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       }
     }
     
+    console.log(`   📊 Required: ${requiredCount} ${studentType}, Available: ${allRecords.length}`);
+    
     // Check if completed the required count
     if (allRecords.length < requiredCount) {
+      console.log(`   ❌ INELIGIBLE: Not enough records (need ${requiredCount}, have ${allRecords.length})`);
       return { eligible: false };
     }
     
@@ -465,6 +492,9 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     
     const totalScore = 50 + examScore;
     
+    console.log(`   🎯 ELIGIBLE! Month: ${eligibleMonth}, Type: ${studentType}, Total Score: ${totalScore}`);
+    console.log(`   ============================================\n`);
+    
     return {
       eligible: true,
       studentId: studentId,
@@ -486,7 +516,7 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     };
     
   } catch (error) {
-    console.error(`Error calculating eligibility for ${studentName}:`, error);
+    console.error(`❌ Error calculating eligibility for ${studentName}:`, error);
     return { eligible: false };
   }
 }
