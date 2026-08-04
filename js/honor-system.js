@@ -1044,6 +1044,169 @@ function displayHonoredStudents() {
 /**
  * Export Honored Students to PDF
  */
+/**
+ * Export Nominees to PDF - grouped by teacher
+ */
+window.exportNomineesPDF = async function() {
+  if (allNominees.length === 0) {
+    alert('⚠️ لا توجد بيانات للتصدير! يرجى تحميل المرشحين أولاً.');
+    return;
+  }
+  
+  try {
+    // Get current Hijri month name
+    const currentHijriData = getCurrentHijriDate();
+    const hijriMonths = [
+      'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+    ];
+    const currentMonthName = hijriMonths[currentHijriData.hijriMonth - 1];
+    const currentYear = currentHijriData.hijriYear;
+    
+    // Group nominees by teacher
+    const nomineesByTeacher = {};
+    allNominees.forEach(nominee => {
+      const teacherName = nominee.teacherName || 'غير محدد';
+      if (!nomineesByTeacher[teacherName]) {
+        nomineesByTeacher[teacherName] = [];
+      }
+      nomineesByTeacher[teacherName].push(nominee);
+    });
+    
+    // Sort teachers alphabetically
+    const teacherNames = Object.keys(nomineesByTeacher).sort();
+    
+    // Create temporary container for PDF content
+    const pdfContainer = document.createElement('div');
+    pdfContainer.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 800px; background: white; padding: 40px; font-family: Arial, sans-serif;';
+    
+    // Build HTML content
+    let htmlContent = `
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #667eea; padding-bottom: 20px;">
+        <h1 style="color: #667eea; margin: 0 0 10px 0; font-size: 28px;">الطلاب المرشحين لشهر ${currentMonthName} ${currentYear} حتى الآن</h1>
+        <p style="color: #666; margin: 0; font-size: 14px;">تم إنشاء التقرير بتاريخ: ${new Date().toLocaleDateString('ar-SA')}</p>
+      </div>
+    `;
+    
+    // Add each teacher's section
+    teacherNames.forEach((teacherName, index) => {
+      const nominees = nomineesByTeacher[teacherName];
+      
+      // Sort nominees by total score descending
+      nominees.sort((a, b) => b.totalScore - a.totalScore);
+      
+      htmlContent += `
+        <div style="margin-bottom: 40px; ${index > 0 ? 'page-break-before: always;' : ''}">
+          <h2 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; margin: 0 0 20px 0; border-radius: 8px; font-size: 20px;">
+            ${teacherName}
+          </h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background: #f8f9fa;">
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 14px; font-weight: bold;">#</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: right; font-size: 14px; font-weight: bold;">اسم الطالب</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 14px; font-weight: bold;">النوع</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 14px; font-weight: bold;">الشهر</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 14px; font-weight: bold;">الاكمال</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 14px; font-weight: bold;">الاختبار</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 14px; font-weight: bold;">المجموع</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      nominees.forEach((nominee, idx) => {
+        // Extract month name from eligibleMonth (YYYY-MM format)
+        const monthParts = nominee.eligibleMonth.split('-');
+        const monthIndex = parseInt(monthParts[1]) - 1;
+        const monthName = hijriMonths[monthIndex];
+        
+        htmlContent += `
+          <tr style="${idx % 2 === 0 ? 'background: #f8f9fa;' : 'background: white;'}">
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${idx + 1}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: right; font-size: 13px;">${nominee.studentName}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${nominee.type}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${monthName}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${nominee.completionScore}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${nominee.examScore.toFixed(1)}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #667eea;">${nominee.totalScore.toFixed(1)}</td>
+          </tr>
+        `;
+      });
+      
+      htmlContent += `
+            </tbody>
+          </table>
+          
+          <p style="text-align: right; color: #666; font-size: 13px; margin: 10px 0;">
+            <strong>اجمالي المرشحين:</strong> ${nominees.length} طالب
+          </p>
+        </div>
+      `;
+    });
+    
+    // Add footer
+    htmlContent += `
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd; text-align: center; color: #999; font-size: 12px;">
+        <p style="margin: 0;">نظام تكريم الأوائل - حلقات القرآن الكريم</p>
+      </div>
+    `;
+    
+    pdfContainer.innerHTML = htmlContent;
+    document.body.appendChild(pdfContainer);
+    
+    // Generate PDF using html2canvas
+    const canvas = await html2canvas(pdfContainer, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false
+    });
+    
+    // Remove temporary container
+    document.body.removeChild(pdfContainer);
+    
+    // Calculate PDF dimensions
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    // Create PDF
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    
+    // Add image to PDF (handle multiple pages if needed)
+    const pageHeight = 297; // A4 height in mm
+    let heightLeft = imgHeight;
+    let position = 0;
+    
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    
+    // Save PDF
+    const fileName = `المرشحين_${currentMonthName}_${currentYear}_${new Date().getTime()}.pdf`;
+    pdf.save(fileName);
+    
+    console.log('✅ PDF exported successfully');
+    
+  } catch (error) {
+    console.error('❌ Error exporting PDF:', error);
+    alert('حدث خطأ في تصدير PDF. يرجى المحاولة مرة أخرى.');
+  }
+};
+
+/**
+ * Export Honored Students to PDF
+ */
 window.exportHonoredPDF = async function() {
   if (allHonored.length === 0) {
     alert('⚠️ لا توجد بيانات للتصدير! يرجى تحميل قائمة التكريم أولاً.');
