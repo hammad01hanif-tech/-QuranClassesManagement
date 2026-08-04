@@ -1516,12 +1516,20 @@
                 >
               </div>
 
-              <!-- Save Button -->
+              <!-- Save Actions -->
               <div class="supervision-form-actions">
-                <button class="supervision-save-btn" onclick="window.saveVisit()">
-                  <span class="btn-icon">✅</span>
-                  <span class="btn-text">حفظ الزيارة</span>
-                </button>
+                <!-- Auto-save Indicator -->
+                <div id="autoSaveStatus" class="auto-save-indicator" style="display: none;"></div>
+                
+                <!-- Action Buttons -->
+                <div class="action-buttons-group">
+                  <button class="supervision-draft-btn" onclick="window.saveDraft()">
+                    حفظ كمسودة
+                  </button>
+                  <button class="supervision-save-btn" onclick="window.saveVisit()">
+                    حفظ الزيارة
+                  </button>
+                </div>
               </div>
 
             </div>
