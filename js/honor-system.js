@@ -906,8 +906,27 @@ function displayNominees() {
   
   // Check if there are any extra nominations
   const hasExtraNominations = filteredNominees.some(n => n.extraNominations && n.extraNominations > 0);
+  const hasWaitingExams = filteredNominees.some(n => !n.hasExamScore);
   
   let tableHTML = '';
+  
+  // Add warning box if there are students waiting for exam scores
+  if (hasWaitingExams) {
+    const waitingCount = filteredNominees.filter(n => !n.hasExamScore).length;
+    tableHTML += `
+      <div style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; border-right: 4px solid #ffc107;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">⚠️</span>
+          <div>
+            <div style="font-weight: bold; color: #856404; margin-bottom: 3px;">⏳ تنبيه: طلاب بانتظار درجة الاختبار</div>
+            <div style="font-size: 13px; color: #856404;">
+              يوجد <strong>${waitingCount}</strong> طالب لم يتم رصد درجة الاختبار الشهري لهم (خلفية صفراء). <strong>لن يتم تكريمهم</strong> حتى يتم رصد الدرجة.
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
   
   // Add info box if there are extra nominations
   if (hasExtraNominations) {
@@ -947,7 +966,17 @@ function displayNominees() {
   `;
   
   filteredNominees.forEach((nominee, index) => {
-    const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+    // Determine row background color and style
+    let bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+    let rowStyle = '';
+    let warningIcon = '';
+    
+    // Special styling for students without exam scores
+    if (!nominee.hasExamScore) {
+      bgColor = '#fff3cd'; // Yellow warning background
+      rowStyle = 'border-right: 4px solid #ffc107;'; // Yellow left border
+      warningIcon = '<span style="color: #ffc107; font-size: 16px; margin-left: 5px;" title="⚠️ لن يتم تكريم هذا الطالب حتى يتم رصد درجة الاختبار الشهري">⚠️</span>';
+    }
     
     // Exam score display with original score in tooltip
     let examStatus = '';
@@ -956,7 +985,8 @@ function displayNominees() {
       examStatus = `<span style="color: #28a745; font-weight: bold;" title="الدرجة الأصلية: ${originalScore.toFixed(2)}/100">${nominee.examScore.toFixed(2)}</span>
                     <div style="font-size: 10px; color: #666; margin-top: 2px;">(${originalScore.toFixed(2)}/100)</div>`;
     } else {
-      examStatus = `<span style="color: #ffc107;">⏳ انتظار</span>`;
+      examStatus = `<span style="color: #ffc107; font-weight: bold;">⏳ انتظار</span>
+                    <div style="font-size: 10px; color: #856404; margin-top: 2px; font-weight: bold;">لن يتكرم</div>`;
     }
     
     const totalDisplay = nominee.hasExamScore ? 
@@ -982,8 +1012,8 @@ function displayNominees() {
     }
     
     tableHTML += `
-      <tr style="background: ${bgColor};">
-        <td style="padding: 10px; border: 1px solid #dee2e6;">${nominee.studentName}</td>
+      <tr style="background: ${bgColor}; ${rowStyle}" title="${!nominee.hasExamScore ? '⚠️ هذا الطالب لن يتم تكريمه حتى يتم رصد درجة الاختبار الشهري' : ''}">
+        <td style="padding: 10px; border: 1px solid #dee2e6;">${nominee.studentName}${warningIcon}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${nominee.teacherName}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${nominee.type}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${nominee.eligibleMonth}</td>
@@ -1013,13 +1043,25 @@ window.selectTop30 = async function() {
   
   // Filter only nominees with exam scores
   const nomineesWithScores = allNominees.filter(n => n.hasExamScore);
+  const nomineesWithoutScores = allNominees.filter(n => !n.hasExamScore);
   
   if (nomineesWithScores.length === 0) {
     alert('⚠️ لا يوجد مرشحين لديهم درجات اختبار!');
     return;
   }
   
-  if (!confirm(`هل أنت متأكد من اختيار أفضل 30 طالب؟\n\nسيتم:\n- حفظ قائمة المكرمين\n- منح الحوافز للمعلمين تلقائياً\n- إنشاء نقاط تصفير للطلاب`)) {
+  let confirmMessage = `هل أنت متأكد من اختيار أفضل 30 طالب؟\n\n`;
+  confirmMessage += `✅ سيتم اختيار من بين: ${nomineesWithScores.length} طالب (لديهم درجات اختبار)\n`;
+  
+  if (nomineesWithoutScores.length > 0) {
+    confirmMessage += `⚠️ تم استبعاد: ${nomineesWithoutScores.length} طالب (بانتظار درجة الاختبار)\n\n`;
+  } else {
+    confirmMessage += `\n`;
+  }
+  
+  confirmMessage += `سيتم:\n- حفظ قائمة المكرمين\n- منح الحوافز للمعلمين تلقائياً\n- إنشاء نقاط تصفير للطلاب`;
+  
+  if (!confirm(confirmMessage)) {
     return;
   }
   
