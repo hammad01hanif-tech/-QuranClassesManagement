@@ -170,7 +170,7 @@ window.saveMonthlyExam = async function() {
   const teacherId = document.getElementById('examTeacherSelect')?.value;
   const studentId = document.getElementById('examStudentSelect')?.value;
   const scope = document.getElementById('examScope')?.value.trim();
-  const score = parseInt(document.getElementById('examScore')?.value);
+  const score = parseFloat(document.getElementById('examScore')?.value);
   const notes = document.getElementById('examNotes')?.value.trim();
   
   const messageBox = document.getElementById('examFormMessage');
@@ -766,7 +766,7 @@ window.closeEditExam = function() {
  */
 window.saveEditExam = async function(examId) {
   const scope = document.getElementById('editExamScope')?.value.trim();
-  const score = parseInt(document.getElementById('editExamScore')?.value);
+  const score = parseFloat(document.getElementById('editExamScore')?.value);
   const notes = document.getElementById('editExamNotes')?.value.trim();
   const messageDiv = document.getElementById('editFormMessage');
   

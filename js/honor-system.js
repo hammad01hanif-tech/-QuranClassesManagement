@@ -850,14 +850,14 @@ function displayNominees() {
     let examStatus = '';
     if (nominee.hasExamScore) {
       const originalScore = nominee.examDetails?.originalScore || (nominee.examScore * 2);
-      examStatus = `<span style="color: #28a745; font-weight: bold;" title="الدرجة الأصلية: ${originalScore}/100">${nominee.examScore.toFixed(1)}</span>
-                    <div style="font-size: 10px; color: #666; margin-top: 2px;">(${originalScore}/100)</div>`;
+      examStatus = `<span style="color: #28a745; font-weight: bold;" title="الدرجة الأصلية: ${originalScore.toFixed(2)}/100">${nominee.examScore.toFixed(2)}</span>
+                    <div style="font-size: 10px; color: #666; margin-top: 2px;">(${originalScore.toFixed(2)}/100)</div>`;
     } else {
       examStatus = `<span style="color: #ffc107;">⏳ انتظار</span>`;
     }
     
     const totalDisplay = nominee.hasExamScore ? 
-      `<span style="font-size: 16px; font-weight: bold; color: #667eea;">${nominee.totalScore.toFixed(1)}</span>` :
+      `<span style="font-size: 16px; font-weight: bold; color: #667eea;">${nominee.totalScore.toFixed(2)}</span>` :
       `<span style="color: #999;">-</span>`;
     
     // Extra nominations display
@@ -1172,8 +1172,8 @@ window.exportNomineesPDF = async function() {
             <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${nominee.type}</td>
             <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${monthName}</td>
             <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${nominee.completionScore}</td>
-            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${nominee.examScore.toFixed(1)}</td>
-            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #667eea;">${nominee.totalScore.toFixed(1)}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${nominee.examScore.toFixed(2)}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #667eea;">${nominee.totalScore.toFixed(2)}</td>
           </tr>
         `;
       });
