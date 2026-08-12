@@ -365,8 +365,19 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       
       // Both dates must be on or after the starting point
       if (displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint) {
+        // Calculate duration in days
+        const duration = calculateDaysBetween(lastLessonDate, displayDate);
+        const attemptsCount = record.attemptsCount || 1;
+        
         console.log(`      ✅ ACCEPTED - Both dates are on/after starting point`);
-        allRecords.push({ ...record, type: 'hizb' });
+        console.log(`      • Attempts: ${attemptsCount}, Duration: ${duration} days`);
+        
+        allRecords.push({ 
+          ...record, 
+          type: 'hizb',
+          attemptsCount: attemptsCount,
+          duration: duration
+        });
       } else {
         console.log(`      ❌ REJECTED - One or both dates are before starting point`);
       }
@@ -389,8 +400,19 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       
       // Both dates must be on or after the starting point
       if (displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint) {
+        // Calculate duration in days
+        const duration = calculateDaysBetween(lastLessonDate, displayDate);
+        const attemptsCount = record.attemptsCount || 1;
+        
         console.log(`      ✅ ACCEPTED - Both dates are on/after starting point`);
-        allRecords.push({ ...record, type: 'juz' });
+        console.log(`      • Attempts: ${attemptsCount}, Duration: ${duration} days`);
+        
+        allRecords.push({ 
+          ...record, 
+          type: 'juz',
+          attemptsCount: attemptsCount,
+          duration: duration
+        });
       } else {
         console.log(`      ❌ REJECTED - One or both dates are before starting point`);
       }
@@ -479,6 +501,30 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     console.log(`      • Student ID: ${studentId}`);
     console.log(`      • Eligible Month: ${eligibleMonth}`);
     
+    // Find the best record (least attempts, then shortest duration)
+    const recordsForBest = firstNomination.records;
+    let bestRecord = recordsForBest[0];
+    
+    for (let i = 1; i < recordsForBest.length; i++) {
+      const current = recordsForBest[i];
+      
+      // Compare attempts first
+      if (current.attemptsCount < bestRecord.attemptsCount) {
+        bestRecord = current;
+      } else if (current.attemptsCount === bestRecord.attemptsCount) {
+        // If attempts are equal, compare duration
+        if (current.duration < bestRecord.duration) {
+          bestRecord = current;
+        }
+      }
+    }
+    
+    console.log(`   🏆 Best Record (for tiebreaker):`);
+    console.log(`      • Type: ${bestRecord.type === 'hizb' ? 'حزب' : 'جزء'}`);
+    console.log(`      • Number: ${bestRecord.type === 'hizb' ? bestRecord.hizbNumber : bestRecord.juzNumber}`);
+    console.log(`      • Attempts: ${bestRecord.attemptsCount}`);
+    console.log(`      • Duration: ${bestRecord.duration} days`);
+    
     // Get exam score from pre-loaded map
     const examKey = `${studentId}_${eligibleMonth}`;
     const monthExams = examsByStudentMonth[examKey] || [];
@@ -544,10 +590,14 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       examScore: examScore,
       totalScore: totalScore,
       hasExamScore: hasExamScore,
-      examDetails: examDetails, // Add exam details for debugging
+      examDetails: examDetails,
+      bestAttempts: bestRecord.attemptsCount, // For tiebreaker
+      bestDuration: bestRecord.duration, // For tiebreaker
+      bestRecordType: bestRecord.type,
+      bestRecordNumber: bestRecord.type === 'hizb' ? bestRecord.hizbNumber : bestRecord.juzNumber,
       lastNumber: completionRecord.hizbNumber || completionRecord.juzNumber || 0,
-      totalAchievements: allRecords.length, // For future reference
-      extraNominations: eligibleNominations.length - 1 // How many months ahead they're eligible
+      totalAchievements: allRecords.length,
+      extraNominations: eligibleNominations.length - 1
     };
     
   } catch (error) {
@@ -760,6 +810,39 @@ function extractMonth(dateStr) {
 }
 
 /**
+ * Calculate days between two Hijri dates
+ * @param {string} startDate - Hijri date in YYYY-MM-DD format
+ * @param {string} endDate - Hijri date in YYYY-MM-DD format
+ * @returns {number} - Number of days between the dates
+ */
+function calculateDaysBetween(startDate, endDate) {
+  try {
+    // Convert both Hijri dates to Gregorian
+    const startGregorian = hijriToGregorianString(startDate);
+    const endGregorian = hijriToGregorianString(endDate);
+    
+    if (!startGregorian || !endGregorian) {
+      return 0;
+    }
+    
+    // Parse dates
+    const start = new Date(startGregorian);
+    const end = new Date(endGregorian);
+    
+    // Calculate difference in milliseconds
+    const diffMs = end - start;
+    
+    // Convert to days
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    
+    return Math.max(0, diffDays); // Return 0 if negative
+  } catch (error) {
+    console.error('Error calculating days between:', error);
+    return 0;
+  }
+}
+
+/**
  * Update nominees statistics
  */
 function updateNomineesStatistics() {
@@ -800,8 +883,26 @@ function displayNominees() {
     return;
   }
   
-  // Sort by total score descending
-  filteredNominees.sort((a, b) => b.totalScore - a.totalScore);
+  // Sort by multiple criteria (total score, then best attempts, then best duration)
+  filteredNominees.sort((a, b) => {
+    // 1. Total score (descending - higher is better)
+    if (b.totalScore !== a.totalScore) {
+      return b.totalScore - a.totalScore;
+    }
+    
+    // 2. Best attempts (ascending - fewer is better)
+    if (a.bestAttempts !== b.bestAttempts) {
+      return a.bestAttempts - b.bestAttempts;
+    }
+    
+    // 3. Best duration (ascending - shorter is better)
+    if (a.bestDuration !== b.bestDuration) {
+      return a.bestDuration - b.bestDuration;
+    }
+    
+    // 4. Same rank if all criteria are equal
+    return 0;
+  });
   
   // Check if there are any extra nominations
   const hasExtraNominations = filteredNominees.some(n => n.extraNominations && n.extraNominations > 0);
@@ -837,6 +938,8 @@ function displayNominees() {
             <th style="padding: 12px; text-align: center;">الإنجاز (50)</th>
             <th style="padding: 12px; text-align: center;">الاختبار (50)</th>
             <th style="padding: 12px; text-align: center; font-weight: bold;">المجموع</th>
+            <th style="padding: 12px; text-align: center; font-size: 12px;" title="أفضل عدد محاولات">🔄 المحاولات</th>
+            <th style="padding: 12px; text-align: center; font-size: 12px;" title="أقصر مدة إنجاز">⏱️ المدة</th>
             <th style="padding: 12px; text-align: center; font-size: 12px;">⚡ إضافي</th>
           </tr>
         </thead>
@@ -860,6 +963,16 @@ function displayNominees() {
       `<span style="font-size: 16px; font-weight: bold; color: #667eea;">${nominee.totalScore.toFixed(2)}</span>` :
       `<span style="color: #999;">-</span>`;
     
+    // Attempts display with color coding
+    let attemptsColor = '#28a745'; // Green for 1
+    if (nominee.bestAttempts === 2) attemptsColor = '#ffc107'; // Yellow for 2
+    else if (nominee.bestAttempts >= 3) attemptsColor = '#dc3545'; // Red for 3+
+    
+    const attemptsDisplay = `<span style="background: ${attemptsColor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold;" title="أفضل إنجاز: ${nominee.bestRecordType === 'hizb' ? 'حزب' : 'جزء'} رقم ${nominee.bestRecordNumber}">${nominee.bestAttempts}</span>`;
+    
+    // Duration display
+    const durationDisplay = `<span style="color: #764ba2; font-weight: bold;" title="المدة المستغرقة لأفضل إنجاز">${nominee.bestDuration} يوم</span>`;
+    
     // Extra nominations display
     let extraDisplay = '';
     if (nominee.extraNominations && nominee.extraNominations > 0) {
@@ -877,6 +990,8 @@ function displayNominees() {
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; color: #28a745; font-weight: bold;">50.0</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${examStatus}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${totalDisplay}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${attemptsDisplay}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${durationDisplay}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${extraDisplay}</td>
       </tr>
     `;
@@ -909,8 +1024,25 @@ window.selectTop30 = async function() {
   }
   
   try {
-    // Sort by total score descending
-    nomineesWithScores.sort((a, b) => b.totalScore - a.totalScore);
+    // Sort by multiple criteria (same as display)
+    nomineesWithScores.sort((a, b) => {
+      // 1. Total score (descending)
+      if (b.totalScore !== a.totalScore) {
+        return b.totalScore - a.totalScore;
+      }
+      
+      // 2. Best attempts (ascending - fewer is better)
+      if (a.bestAttempts !== b.bestAttempts) {
+        return a.bestAttempts - b.bestAttempts;
+      }
+      
+      // 3. Best duration (ascending - shorter is better)
+      if (a.bestDuration !== b.bestDuration) {
+        return a.bestDuration - b.bestDuration;
+      }
+      
+      return 0;
+    });
     
     // Select top 30
     const winners = nomineesWithScores.slice(0, 30);
@@ -1135,8 +1267,13 @@ window.exportNomineesPDF = async function() {
     teacherNames.forEach((teacherName, index) => {
       const nominees = nomineesByTeacher[teacherName];
       
-      // Sort nominees by total score descending
-      nominees.sort((a, b) => b.totalScore - a.totalScore);
+      // Sort nominees by multiple criteria (same as display)
+      nominees.sort((a, b) => {
+        if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+        if (a.bestAttempts !== b.bestAttempts) return a.bestAttempts - b.bestAttempts;
+        if (a.bestDuration !== b.bestDuration) return a.bestDuration - b.bestDuration;
+        return 0;
+      });
       
       htmlContent += `
         <div style="margin-bottom: 40px; ${index > 0 ? 'page-break-before: always;' : ''}">
@@ -1154,6 +1291,8 @@ window.exportNomineesPDF = async function() {
                 <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 14px; font-weight: bold;">الاكمال</th>
                 <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 14px; font-weight: bold;">الاختبار</th>
                 <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 14px; font-weight: bold;">المجموع</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 13px; font-weight: bold;">المحاولات</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center; font-size: 13px; font-weight: bold;">المدة</th>
               </tr>
             </thead>
             <tbody>
@@ -1174,6 +1313,8 @@ window.exportNomineesPDF = async function() {
             <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${nominee.completionScore}</td>
             <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px;">${nominee.examScore.toFixed(2)}</td>
             <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px; font-weight: bold; color: #667eea;">${nominee.totalScore.toFixed(2)}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 12px;">${nominee.bestAttempts}</td>
+            <td style="border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 12px;">${nominee.bestDuration} يوم</td>
           </tr>
         `;
       });
