@@ -237,6 +237,7 @@ window.loadNominees = async function() {
     
     // Exams by student and month map
     const examsByStudentMonth = {};
+    let totalExamsProcessed = 0;
     allExamsSnapshot.forEach(doc => {
       const data = doc.data();
       const key = `${data.studentId}_${data.hijriMonth}`;
@@ -244,9 +245,12 @@ window.loadNominees = async function() {
         examsByStudentMonth[key] = [];
       }
       examsByStudentMonth[key].push(data);
+      totalExamsProcessed++;
     });
     
     console.log('✅ Data maps built');
+    console.log(`   📝 Total exams processed: ${totalExamsProcessed}`);
+    console.log(`   📊 Unique student-month combinations: ${Object.keys(examsByStudentMonth).length}`);
     
     // Step 3: Process each student (fast in-memory operations)
     container.innerHTML = '<p style="text-align: center; color: #667eea; padding: 40px;">⏳ جاري حساب المرشحين... (3/5)</p>';
@@ -471,14 +475,23 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     const eligibleMonth = firstNomination.eligibleMonth;
     const completionRecord = firstNomination.completionRecord;
     
+    console.log(`   📊 Looking for exam score...`);
+    console.log(`      • Student ID: ${studentId}`);
+    console.log(`      • Eligible Month: ${eligibleMonth}`);
+    
     // Get exam score from pre-loaded map
     const examKey = `${studentId}_${eligibleMonth}`;
     const monthExams = examsByStudentMonth[examKey] || [];
     
+    console.log(`      • Exam key: ${examKey}`);
+    console.log(`      • Found exams: ${monthExams.length}`);
+    
     let examScore = 0;
     let hasExamScore = false;
+    let examDetails = null;
     
     if (monthExams.length > 0) {
+      // Sort by creation time (most recent first)
       const sortedExams = monthExams.sort((a, b) => {
         const timeA = a.createdAt?.toMillis?.() || 0;
         const timeB = b.createdAt?.toMillis?.() || 0;
@@ -486,8 +499,29 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       });
       
       const examData = sortedExams[0];
-      examScore = (examData.score || 0) / 2;
+      const originalScore = examData.score || 0;
+      
+      console.log(`      • Most recent exam data:`, {
+        score: originalScore,
+        hijriMonth: examData.hijriMonth,
+        createdAt: examData.createdAt?.toDate?.()?.toLocaleString('ar-SA') || 'N/A'
+      });
+      
+      // Calculate exam score (out of 50)
+      // If the original score is out of 100, divide by 2 to make it out of 50
+      examScore = originalScore / 2;
       hasExamScore = true;
+      
+      examDetails = {
+        originalScore: originalScore,
+        calculatedScore: examScore,
+        hijriMonth: examData.hijriMonth
+      };
+      
+      console.log(`      • Original score: ${originalScore}/100`);
+      console.log(`      • Calculated score: ${examScore}/50`);
+    } else {
+      console.log(`      • ❌ No exam found for this month`);
     }
     
     const totalScore = 50 + examScore;
@@ -510,6 +544,7 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       examScore: examScore,
       totalScore: totalScore,
       hasExamScore: hasExamScore,
+      examDetails: examDetails, // Add exam details for debugging
       lastNumber: completionRecord.hizbNumber || completionRecord.juzNumber || 0,
       totalAchievements: allRecords.length, // For future reference
       extraNominations: eligibleNominations.length - 1 // How many months ahead they're eligible
@@ -810,9 +845,16 @@ function displayNominees() {
   
   filteredNominees.forEach((nominee, index) => {
     const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-    const examStatus = nominee.hasExamScore ? 
-      `<span style="color: #28a745; font-weight: bold;">${nominee.examScore.toFixed(1)}</span>` :
-      `<span style="color: #ffc107;">⏳ انتظار</span>`;
+    
+    // Exam score display with original score in tooltip
+    let examStatus = '';
+    if (nominee.hasExamScore) {
+      const originalScore = nominee.examDetails?.originalScore || (nominee.examScore * 2);
+      examStatus = `<span style="color: #28a745; font-weight: bold;" title="الدرجة الأصلية: ${originalScore}/100">${nominee.examScore.toFixed(1)}</span>
+                    <div style="font-size: 10px; color: #666; margin-top: 2px;">(${originalScore}/100)</div>`;
+    } else {
+      examStatus = `<span style="color: #ffc107;">⏳ انتظار</span>`;
+    }
     
     const totalDisplay = nominee.hasExamScore ? 
       `<span style="font-size: 16px; font-weight: bold; color: #667eea;">${nominee.totalScore.toFixed(1)}</span>` :
