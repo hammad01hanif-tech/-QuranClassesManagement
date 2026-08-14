@@ -844,6 +844,9 @@ window.exportMonthlyExamsPDF = async function() {
     });
     
     const imgData = canvas.toDataURL('image/png');
+    
+    // Create PDF with jsPDF from window object
+    const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
     
     const imgWidth = 210; // A4 width in mm
@@ -968,6 +971,9 @@ window.exportNotTestedPDF = async function() {
     });
     
     const imgData = canvas.toDataURL('image/png');
+    
+    // Create PDF with jsPDF from window object
+    const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
     
     const imgWidth = 210;
