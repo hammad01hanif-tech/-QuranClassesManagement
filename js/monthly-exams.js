@@ -718,13 +718,23 @@ window.openAddExamForStudent = function(studentId, studentName, teacherId) {
  * Export Monthly Exams to PDF
  */
 window.exportMonthlyExamsPDF = async function() {
-  if (filteredExams.length === 0) {
+  // Get filter values
+  const monthFilter = document.getElementById('filterExamMonth')?.value;
+  const teacherFilter = document.getElementById('filterExamTeacher')?.value;
+  const statusFilter = document.getElementById('filterExamStatus')?.value || 'all';
+  
+  // Check if we need to include all students (tested + not tested)
+  const includeAllStudents = (statusFilter === 'all');
+  
+  if (!includeAllStudents && filteredExams.length === 0) {
     alert('لا توجد بيانات للتصدير');
     return;
   }
   
   // Group exams by teacher
   const examsByTeacher = {};
+  
+  // First, add students who have exams
   filteredExams.forEach(exam => {
     const teacherId = exam.teacherId;
     const teacherName = exam.teacherName || allTeachers[teacherId] || 'غير محدد';
@@ -738,11 +748,80 @@ window.exportMonthlyExamsPDF = async function() {
     
     examsByTeacher[teacherId].students.push({
       name: exam.studentName,
+      studentId: exam.studentId,
       score: exam.score,
       date: exam.hijriDate,
-      scope: exam.examScope || '-'
+      scope: exam.examScope || '-',
+      hasTested: true
     });
   });
+  
+  // If "all" is selected, add students who haven't tested
+  if (includeAllStudents) {
+    try {
+      // Get all students
+      let studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'));
+      if (teacherFilter) {
+        studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'), where('classId', '==', teacherFilter));
+      }
+      
+      const studentsSnap = await getDocs(studentsQuery);
+      const allStudents = [];
+      studentsSnap.forEach(doc => {
+        allStudents.push({
+          id: doc.id,
+          name: doc.data().name,
+          teacherId: doc.data().classId || doc.data().teacherId,
+          teacherName: allTeachers[doc.data().classId || doc.data().teacherId] || 'غير محدد'
+        });
+      });
+      
+      // Get students who tested in the selected month
+      let testedStudentIds = new Set();
+      if (monthFilter) {
+        // Filter by specific month
+        testedStudentIds = new Set(
+          allExams
+            .filter(exam => exam.hijriMonth === monthFilter && (!teacherFilter || exam.teacherId === teacherFilter))
+            .map(exam => exam.studentId)
+        );
+      } else {
+        // All months - get students who have ANY exam
+        testedStudentIds = new Set(
+          allExams
+            .filter(exam => !teacherFilter || exam.teacherId === teacherFilter)
+            .map(exam => exam.studentId)
+        );
+      }
+      
+      // Add not-tested students to examsByTeacher
+      allStudents.forEach(student => {
+        if (!testedStudentIds.has(student.id)) {
+          const teacherId = student.teacherId;
+          const teacherName = student.teacherName;
+          
+          if (!examsByTeacher[teacherId]) {
+            examsByTeacher[teacherId] = {
+              teacherName: teacherName,
+              students: []
+            };
+          }
+          
+          examsByTeacher[teacherId].students.push({
+            name: student.name,
+            studentId: student.id,
+            score: null,
+            date: '-',
+            scope: '-',
+            hasTested: false
+          });
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error loading all students:', error);
+    }
+  }
   
   // Sort students by name within each teacher
   Object.values(examsByTeacher).forEach(teacher => {
@@ -750,8 +829,6 @@ window.exportMonthlyExamsPDF = async function() {
   });
   
   // Get filter info for title
-  const monthFilter = document.getElementById('filterExamMonth')?.value;
-  const teacherFilter = document.getElementById('filterExamTeacher')?.value;
   let reportTitle = 'تقرير الاختبارات الشهرية';
   let filterSubtitle = '';
   
@@ -800,26 +877,47 @@ window.exportMonthlyExamsPDF = async function() {
     
     teacherData.students.forEach((student, index) => {
       const rowBg = index % 2 === 0 ? '#ffffff' : '#f9fafb';
-      const scoreColor = student.score >= 90 ? '#10b981' : student.score >= 75 ? '#3b82f6' : student.score >= 60 ? '#f59e0b' : '#ef4444';
+      
+      // Handle students who haven't tested
+      let scoreDisplay, scoreColor, scoreStyle;
+      if (student.score === null || student.score === undefined) {
+        scoreDisplay = 'لم يختبر';
+        scoreColor = '#dc2626';
+        scoreStyle = 'font-size: 13px; font-weight: 600;';
+      } else {
+        scoreDisplay = student.score;
+        scoreColor = student.score >= 90 ? '#10b981' : student.score >= 75 ? '#3b82f6' : student.score >= 60 ? '#f59e0b' : '#ef4444';
+        scoreStyle = 'font-size: 16px; font-weight: 700;';
+      }
       
       pdfHTML += `
         <tr style="background: ${rowBg};">
           <td style="padding: 10px; text-align: center; border: 1px solid #e5e7eb; color: #6b7280;">${index + 1}</td>
           <td style="padding: 10px; text-align: right; border: 1px solid #e5e7eb; color: #1f2937; font-weight: 600;">${student.name}</td>
-          <td style="padding: 10px; text-align: center; border: 1px solid #e5e7eb; font-weight: 700; color: ${scoreColor}; font-size: 16px;">${student.score}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #e5e7eb; color: ${scoreColor}; ${scoreStyle}">${scoreDisplay}</td>
           <td style="padding: 10px; text-align: center; border: 1px solid #e5e7eb; color: #6b7280;">${student.scope}</td>
           <td style="padding: 10px; text-align: center; border: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">${student.date}</td>
         </tr>
       `;
     });
     
-    // Add summary row
-    const avgScore = (teacherData.students.reduce((sum, s) => sum + s.score, 0) / teacherData.students.length).toFixed(2);
+    // Add summary row - calculate average only for students who tested
+    const testedStudents = teacherData.students.filter(s => s.score !== null && s.score !== undefined);
+    const notTestedCount = teacherData.students.length - testedStudents.length;
+    const avgScore = testedStudents.length > 0 
+      ? (testedStudents.reduce((sum, s) => sum + s.score, 0) / testedStudents.length).toFixed(2)
+      : '0.00';
+    
+    let summaryText = `المجموع: ${teacherData.students.length} طالب`;
+    if (notTestedCount > 0) {
+      summaryText += ` (${notTestedCount} لم يختبر)`;
+    }
+    
     pdfHTML += `
           </tbody>
           <tfoot>
             <tr style="background: #f3f4f6; font-weight: 700;">
-              <td colspan="2" style="padding: 12px; text-align: right; border: 1px solid #e5e7eb; color: #374151;">المجموع: ${teacherData.students.length} طالب</td>
+              <td colspan="2" style="padding: 12px; text-align: right; border: 1px solid #e5e7eb; color: #374151;">${summaryText}</td>
               <td style="padding: 12px; text-align: center; border: 1px solid #e5e7eb; color: #667eea; font-size: 16px;">${avgScore}</td>
               <td colspan="2" style="padding: 12px; text-align: center; border: 1px solid #e5e7eb; color: #6b7280;">المعدل</td>
             </tr>
