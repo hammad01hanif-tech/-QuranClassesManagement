@@ -752,7 +752,8 @@ window.exportMonthlyExamsPDF = async function() {
   // Get filter info for title
   const monthFilter = document.getElementById('filterExamMonth')?.value;
   const teacherFilter = document.getElementById('filterExamTeacher')?.value;
-  let filterTitle = 'جميع الاختبارات';
+  let reportTitle = 'تقرير الاختبارات الشهرية';
+  let filterSubtitle = '';
   
   if (monthFilter) {
     const [year, month] = monthFilter.split('-');
@@ -762,15 +763,17 @@ window.exportMonthlyExamsPDF = async function() {
       'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
     ];
     const monthName = hijriMonths[parseInt(month) - 1];
-    filterTitle = `${monthName} ${year} هـ`;
+    reportTitle = `تقرير اختبارات شهر ${monthName} ${year} هـ`;
+    filterSubtitle = `${monthName} ${year} هـ`;
+  } else {
+    filterSubtitle = 'جميع الأشهر';
   }
   
   // Create PDF content
   let pdfHTML = `
     <div id="pdfExportContent" style="padding: 40px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; background: white;">
       <div style="text-align: center; margin-bottom: 40px; border-bottom: 3px solid #667eea; padding-bottom: 20px;">
-        <h1 style="margin: 0 0 10px 0; color: #1f2937; font-size: 28px;">تقرير الاختبارات الشهرية</h1>
-        <p style="margin: 0; color: #6b7280; font-size: 16px;">${filterTitle}</p>
+        <h1 style="margin: 0 0 10px 0; color: #1f2937; font-size: 28px;">${reportTitle}</h1>
         <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 13px;">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</p>
       </div>
   `;
@@ -780,7 +783,7 @@ window.exportMonthlyExamsPDF = async function() {
     pdfHTML += `
       <div style="margin-bottom: 40px; page-break-inside: avoid;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; border-radius: 8px 8px 0 0; font-size: 18px; font-weight: 700;">
-          المعلم: ${teacherData.teacherName}
+          حلقة الأستاذ ${teacherData.teacherName}
         </div>
         <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
           <thead>
@@ -865,7 +868,7 @@ window.exportMonthlyExamsPDF = async function() {
     }
     
     // Save PDF
-    const fileName = `monthly-exams-${filterTitle.replace(/\s+/g, '-')}-${Date.now()}.pdf`;
+    const fileName = `monthly-exams-${filterSubtitle.replace(/\s+/g, '-')}-${Date.now()}.pdf`;
     pdf.save(fileName);
     
     // Remove temporary div
@@ -938,7 +941,7 @@ window.exportNotTestedPDF = async function() {
     pdfHTML += `
       <div style="margin-bottom: 30px; page-break-inside: avoid;">
         <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 15px 20px; border-radius: 8px 8px 0 0; font-size: 18px; font-weight: 700;">
-          المعلم: ${teacher} (${studentNames.length} طالب)
+          حلقة الأستاذ ${teacher} (${studentNames.length} طالب)
         </div>
         <div style="background: white; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
     `;
