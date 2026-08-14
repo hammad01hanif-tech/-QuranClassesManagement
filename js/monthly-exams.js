@@ -539,8 +539,17 @@ function displayExams() {
     return;
   }
   
+  // Create export header with PDF button
+  let cardsHTML = `
+    <div class="export-header">
+      <button class="export-pdf-btn" onclick="window.exportMonthlyExamsPDF()">
+        <span>تصدير PDF</span>
+      </button>
+    </div>
+  `;
+  
   // Create cards grid
-  let cardsHTML = '<div class="exams-cards-grid">';
+  cardsHTML += '<div class="exams-cards-grid">';
   
   filteredExams.forEach(exam => {
     // Determine score class
@@ -637,6 +646,11 @@ async function displayNotTestedStudents(monthFilter, teacherFilter) {
     
     // Create not-tested students view
     let html = `
+      <div class="export-header">
+        <button class="export-pdf-btn" onclick="window.exportNotTestedPDF()">
+          <span>تصدير PDF</span>
+        </button>
+      </div>
       <div class="not-tested-header">
         <h4 class="not-tested-title">الطلاب الذين لم يختبروا</h4>
         <span class="not-tested-count">${notTestedStudents.length} طالب</span>
@@ -698,6 +712,289 @@ window.openAddExamForStudent = function(studentId, studentName, teacherId) {
       }, 500);
     }
   }, 100);
+};
+
+/**
+ * Export Monthly Exams to PDF
+ */
+window.exportMonthlyExamsPDF = async function() {
+  if (filteredExams.length === 0) {
+    alert('لا توجد بيانات للتصدير');
+    return;
+  }
+  
+  // Group exams by teacher
+  const examsByTeacher = {};
+  filteredExams.forEach(exam => {
+    const teacherId = exam.teacherId;
+    const teacherName = exam.teacherName || allTeachers[teacherId] || 'غير محدد';
+    
+    if (!examsByTeacher[teacherId]) {
+      examsByTeacher[teacherId] = {
+        teacherName: teacherName,
+        students: []
+      };
+    }
+    
+    examsByTeacher[teacherId].students.push({
+      name: exam.studentName,
+      score: exam.score,
+      date: exam.hijriDate,
+      scope: exam.examScope || '-'
+    });
+  });
+  
+  // Sort students by name within each teacher
+  Object.values(examsByTeacher).forEach(teacher => {
+    teacher.students.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  });
+  
+  // Get filter info for title
+  const monthFilter = document.getElementById('filterExamMonth')?.value;
+  const teacherFilter = document.getElementById('filterExamTeacher')?.value;
+  let filterTitle = 'جميع الاختبارات';
+  
+  if (monthFilter) {
+    const [year, month] = monthFilter.split('-');
+    const hijriMonths = [
+      'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+    ];
+    const monthName = hijriMonths[parseInt(month) - 1];
+    filterTitle = `${monthName} ${year} هـ`;
+  }
+  
+  // Create PDF content
+  let pdfHTML = `
+    <div id="pdfExportContent" style="padding: 40px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; background: white;">
+      <div style="text-align: center; margin-bottom: 40px; border-bottom: 3px solid #667eea; padding-bottom: 20px;">
+        <h1 style="margin: 0 0 10px 0; color: #1f2937; font-size: 28px;">تقرير الاختبارات الشهرية</h1>
+        <p style="margin: 0; color: #6b7280; font-size: 16px;">${filterTitle}</p>
+        <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 13px;">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</p>
+      </div>
+  `;
+  
+  // Create table for each teacher
+  Object.entries(examsByTeacher).forEach(([teacherId, teacherData]) => {
+    pdfHTML += `
+      <div style="margin-bottom: 40px; page-break-inside: avoid;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; border-radius: 8px 8px 0 0; font-size: 18px; font-weight: 700;">
+          المعلم: ${teacherData.teacherName}
+        </div>
+        <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <thead>
+            <tr style="background: #f3f4f6;">
+              <th style="padding: 12px; text-align: center; border: 1px solid #e5e7eb; font-weight: 700; color: #374151;">#</th>
+              <th style="padding: 12px; text-align: right; border: 1px solid #e5e7eb; font-weight: 700; color: #374151;">اسم الطالب</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #e5e7eb; font-weight: 700; color: #374151;">الدرجة</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #e5e7eb; font-weight: 700; color: #374151;">المقدار</th>
+              <th style="padding: 12px; text-align: center; border: 1px solid #e5e7eb; font-weight: 700; color: #374151;">التاريخ</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    teacherData.students.forEach((student, index) => {
+      const rowBg = index % 2 === 0 ? '#ffffff' : '#f9fafb';
+      const scoreColor = student.score >= 90 ? '#10b981' : student.score >= 75 ? '#3b82f6' : student.score >= 60 ? '#f59e0b' : '#ef4444';
+      
+      pdfHTML += `
+        <tr style="background: ${rowBg};">
+          <td style="padding: 10px; text-align: center; border: 1px solid #e5e7eb; color: #6b7280;">${index + 1}</td>
+          <td style="padding: 10px; text-align: right; border: 1px solid #e5e7eb; color: #1f2937; font-weight: 600;">${student.name}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #e5e7eb; font-weight: 700; color: ${scoreColor}; font-size: 16px;">${student.score}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #e5e7eb; color: #6b7280;">${student.scope}</td>
+          <td style="padding: 10px; text-align: center; border: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">${student.date}</td>
+        </tr>
+      `;
+    });
+    
+    // Add summary row
+    const avgScore = (teacherData.students.reduce((sum, s) => sum + s.score, 0) / teacherData.students.length).toFixed(2);
+    pdfHTML += `
+          </tbody>
+          <tfoot>
+            <tr style="background: #f3f4f6; font-weight: 700;">
+              <td colspan="2" style="padding: 12px; text-align: right; border: 1px solid #e5e7eb; color: #374151;">المجموع: ${teacherData.students.length} طالب</td>
+              <td style="padding: 12px; text-align: center; border: 1px solid #e5e7eb; color: #667eea; font-size: 16px;">${avgScore}</td>
+              <td colspan="2" style="padding: 12px; text-align: center; border: 1px solid #e5e7eb; color: #6b7280;">المعدل</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  });
+  
+  pdfHTML += '</div>';
+  
+  // Add to document temporarily
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = pdfHTML;
+  document.body.appendChild(tempDiv);
+  
+  // Generate PDF using html2canvas
+  try {
+    const content = document.getElementById('pdfExportContent');
+    const canvas = await html2canvas(content, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+    
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= 297; // A4 height in mm
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= 297;
+    }
+    
+    // Save PDF
+    const fileName = `monthly-exams-${filterTitle.replace(/\s+/g, '-')}-${Date.now()}.pdf`;
+    pdf.save(fileName);
+    
+    // Remove temporary div
+    document.body.removeChild(tempDiv);
+    
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    alert('حدث خطأ أثناء إنشاء ملف PDF');
+    document.body.removeChild(tempDiv);
+  }
+};
+
+/**
+ * Export Not-Tested Students to PDF
+ */
+window.exportNotTestedPDF = async function() {
+  const container = document.getElementById('examsTableContainer');
+  if (!container) return;
+  
+  // Get filter info
+  const monthFilter = document.getElementById('filterExamMonth')?.value;
+  const teacherFilter = document.getElementById('filterExamTeacher')?.value;
+  
+  let filterTitle = 'الطلاب الذين لم يختبروا';
+  if (monthFilter) {
+    const [year, month] = monthFilter.split('-');
+    const hijriMonths = [
+      'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+    ];
+    const monthName = hijriMonths[parseInt(month) - 1];
+    filterTitle += ` - ${monthName} ${year} هـ`;
+  }
+  
+  // Get students from current view
+  const notTestedCards = container.querySelectorAll('.not-tested-card');
+  if (notTestedCards.length === 0) {
+    alert('لا توجد بيانات للتصدير');
+    return;
+  }
+  
+  // Extract data from cards
+  const students = [];
+  notTestedCards.forEach(card => {
+    const name = card.querySelector('.not-tested-name')?.textContent || '';
+    const teacher = card.querySelector('.not-tested-teacher')?.textContent || '';
+    students.push({ name, teacher });
+  });
+  
+  // Group by teacher
+  const byTeacher = {};
+  students.forEach(student => {
+    if (!byTeacher[student.teacher]) {
+      byTeacher[student.teacher] = [];
+    }
+    byTeacher[student.teacher].push(student.name);
+  });
+  
+  // Create PDF content
+  let pdfHTML = `
+    <div id="pdfNotTestedContent" style="padding: 40px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; background: white;">
+      <div style="text-align: center; margin-bottom: 40px; border-bottom: 3px solid #ffc107; padding-bottom: 20px;">
+        <h1 style="margin: 0 0 10px 0; color: #1f2937; font-size: 28px;">${filterTitle}</h1>
+        <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 13px;">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</p>
+      </div>
+  `;
+  
+  Object.entries(byTeacher).forEach(([teacher, studentNames]) => {
+    pdfHTML += `
+      <div style="margin-bottom: 30px; page-break-inside: avoid;">
+        <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 15px 20px; border-radius: 8px 8px 0 0; font-size: 18px; font-weight: 700;">
+          المعلم: ${teacher} (${studentNames.length} طالب)
+        </div>
+        <div style="background: white; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    `;
+    
+    studentNames.forEach((name, index) => {
+      pdfHTML += `
+        <div style="padding: 10px; border-bottom: 1px solid #f3f4f6; color: #1f2937;">
+          ${index + 1}. ${name}
+        </div>
+      `;
+    });
+    
+    pdfHTML += '</div></div>';
+  });
+  
+  pdfHTML += '</div>';
+  
+  // Generate PDF
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = pdfHTML;
+  document.body.appendChild(tempDiv);
+  
+  try {
+    const content = document.getElementById('pdfNotTestedContent');
+    const canvas = await html2canvas(content, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    
+    const imgWidth = 210;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+    
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= 297;
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= 297;
+    }
+    
+    const fileName = `not-tested-students-${Date.now()}.pdf`;
+    pdf.save(fileName);
+    
+    document.body.removeChild(tempDiv);
+    
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    alert('حدث خطأ أثناء إنشاء ملف PDF');
+    document.body.removeChild(tempDiv);
+  }
 };
 
 /**

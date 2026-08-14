@@ -13706,6 +13706,62 @@ details[open] > summary {
 }
 
 /* ===================================
+   EXPORT PDF BUTTON
+   =================================== */
+
+/* Export Header Container */
+.export-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+/* Export PDF Button */
+.export-pdf-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  font-family: inherit;
+}
+
+.export-pdf-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+}
+
+.export-pdf-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* Responsive Export Button */
+@media (max-width: 768px) {
+  .export-pdf-btn {
+    padding: 9px 18px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .export-header {
+    justify-content: stretch;
+  }
+  
+  .export-pdf-btn {
+    width: 100%;
+    padding: 12px 20px;
+  }
+}
+
+/* ===================================
    NOT TESTED STUDENTS VIEW
    =================================== */
 
