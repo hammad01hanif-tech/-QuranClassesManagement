@@ -489,11 +489,19 @@ window.onTeacherFilterChange = async function() {
 /**
  * Smart Filter Exams with Live Updates
  */
-window.filterExams = function() {
+window.filterExams = async function() {
   const monthFilter = document.getElementById('filterExamMonth')?.value;
   const teacherFilter = document.getElementById('filterExamTeacher')?.value;
   const studentFilter = document.getElementById('filterExamStudent')?.value;
+  const statusFilter = document.getElementById('filterExamStatus')?.value || 'all';
   
+  // Handle "not-tested" status filter
+  if (statusFilter === 'not-tested') {
+    await displayNotTestedStudents(monthFilter, teacherFilter);
+    return;
+  }
+  
+  // Standard filtering for "all" or "tested"
   filteredExams = allExams.filter(exam => {
     // Filter by month
     if (monthFilter && exam.hijriMonth !== monthFilter) return false;
@@ -562,6 +570,135 @@ function displayExams() {
   cardsHTML += '</div>';
   container.innerHTML = cardsHTML;
 }
+
+/**
+ * Display Students Who Have NOT Tested
+ */
+async function displayNotTestedStudents(monthFilter, teacherFilter) {
+  const container = document.getElementById('examsTableContainer');
+  if (!container) return;
+  
+  container.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><p>جاري التحميل...</p></div>';
+  
+  try {
+    // Get all students
+    let studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'));
+    if (teacherFilter) {
+      studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'), where('classId', '==', teacherFilter));
+    }
+    
+    const studentsSnap = await getDocs(studentsQuery);
+    const allStudents = [];
+    studentsSnap.forEach(doc => {
+      allStudents.push({
+        id: doc.id,
+        name: doc.data().name,
+        teacherId: doc.data().classId || doc.data().teacherId,
+        teacherName: allTeachers[doc.data().classId || doc.data().teacherId] || 'غير محدد'
+      });
+    });
+    
+    // Get students who tested in the selected month
+    let testedStudentIds = new Set();
+    
+    if (monthFilter) {
+      // Filter by specific month
+      testedStudentIds = new Set(
+        allExams
+          .filter(exam => exam.hijriMonth === monthFilter && (!teacherFilter || exam.teacherId === teacherFilter))
+          .map(exam => exam.studentId)
+      );
+    } else {
+      // All months - get students who have ANY exam
+      testedStudentIds = new Set(
+        allExams
+          .filter(exam => !teacherFilter || exam.teacherId === teacherFilter)
+          .map(exam => exam.studentId)
+      );
+    }
+    
+    // Find students who have NOT tested
+    const notTestedStudents = allStudents.filter(student => !testedStudentIds.has(student.id));
+    
+    // Sort by name
+    notTestedStudents.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    
+    // Display results
+    if (notTestedStudents.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">✅</div>
+          <p class="empty-state-text">جميع الطلاب اختبروا</p>
+          <p class="empty-state-hint">لا يوجد طلاب بدون اختبار في الفترة المحددة</p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Create not-tested students view
+    let html = `
+      <div class="not-tested-header">
+        <h4 class="not-tested-title">الطلاب الذين لم يختبروا</h4>
+        <span class="not-tested-count">${notTestedStudents.length} طالب</span>
+      </div>
+      <div class="not-tested-grid">
+    `;
+    
+    notTestedStudents.forEach(student => {
+      html += `
+        <div class="not-tested-card">
+          <div class="not-tested-info">
+            <div class="not-tested-name">${student.name}</div>
+            <div class="not-tested-teacher">${student.teacherName}</div>
+          </div>
+          <button class="add-exam-btn" onclick="window.openAddExamForStudent('${student.id}', '${student.name}', '${student.teacherId}')" title="إضافة درجة">
+            <span>إضافة درجة</span>
+          </button>
+        </div>
+      `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+  } catch (error) {
+    console.error('Error loading not-tested students:', error);
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">⚠️</div>
+        <p class="empty-state-text">حدث خطأ أثناء التحميل</p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Open Add Exam Form for Specific Student
+ */
+window.openAddExamForStudent = function(studentId, studentName, teacherId) {
+  // Switch to "add" tab
+  const addTab = document.querySelector('[data-exam-tab="add"]');
+  if (addTab) addTab.click();
+  
+  // Pre-fill the form
+  setTimeout(() => {
+    const teacherSelect = document.getElementById('examTeacherSelect');
+    const studentSelect = document.getElementById('examStudentSelect');
+    
+    if (teacherSelect) {
+      teacherSelect.value = teacherId;
+      // Trigger change to load students
+      teacherSelect.dispatchEvent(new Event('change'));
+      
+      // Wait for students to load, then select the student
+      setTimeout(() => {
+        if (studentSelect) {
+          studentSelect.value = studentId;
+        }
+      }, 500);
+    }
+  }, 100);
+};
 
 /**
  * Open Exam Details Modal

@@ -13705,6 +13705,135 @@ details[open] > summary {
   font-weight: 600;
 }
 
+/* ===================================
+   NOT TESTED STUDENTS VIEW
+   =================================== */
+
+/* Header for Not-Tested View */
+.not-tested-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #fff3cd 0%, #ffe8a1 100%);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  border: 2px solid #ffc107;
+}
+
+.not-tested-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #856404;
+  margin: 0;
+}
+
+.not-tested-count {
+  font-size: 16px;
+  font-weight: 700;
+  color: #856404;
+  background: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Grid Layout for Not-Tested Students */
+.not-tested-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+/* Not-Tested Student Card */
+.not-tested-card {
+  background: white;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.not-tested-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-color: #667eea;
+}
+
+.not-tested-info {
+  flex: 1;
+}
+
+.not-tested-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 6px;
+}
+
+.not-tested-teacher {
+  font-size: 13px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+/* Add Exam Button */
+.add-exam-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.add-exam-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+}
+
+.add-exam-btn:active {
+  transform: translateY(0);
+}
+
+/* Responsive Not-Tested View */
+@media (max-width: 768px) {
+  .not-tested-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .not-tested-card {
+    padding: 16px;
+  }
+  
+  .not-tested-header {
+    padding: 16px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .not-tested-card {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .add-exam-btn {
+    width: 100%;
+    padding: 12px 20px;
+  }
+}
+
 .supervision-rating-chip.selected {
   transform: translateY(-2px) scale(1.03);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);

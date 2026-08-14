@@ -3869,8 +3869,7 @@
               <div class="exams-filters">
                 <div class="filter-group">
                   <label class="filter-label">
-                    <span class="filter-icon">🗓️</span>
-                    <span>الشهر الهجري</span>
+                    <span class="filter-icon">الشهر</span>
                   </label>
                   <select id="filterExamMonth" class="filter-select smart-select" onchange="window.filterExams()">
                     <option value="">جميع الأشهر</option>
@@ -3879,8 +3878,7 @@
 
                 <div class="filter-group">
                   <label class="filter-label">
-                    <span class="filter-icon">👨‍🏫</span>
-                    <span>المعلم</span>
+                    <span class="filter-icon">المعلم</span>
                   </label>
                   <select id="filterExamTeacher" class="filter-select smart-select" onchange="window.onTeacherFilterChange()">
                     <option value="">جميع المعلمين</option>
@@ -3889,11 +3887,21 @@
 
                 <div class="filter-group">
                   <label class="filter-label">
-                    <span class="filter-icon">👤</span>
-                    <span>الطالب</span>
+                    <span class="filter-icon">الطالب</span>
                   </label>
                   <select id="filterExamStudent" class="filter-select smart-select" onchange="window.filterExams()">
                     <option value="">جميع الطلاب</option>
+                  </select>
+                </div>
+
+                <div class="filter-group">
+                  <label class="filter-label">
+                    <span class="filter-icon">الحالة</span>
+                  </label>
+                  <select id="filterExamStatus" class="filter-select smart-select" onchange="window.filterExams()">
+                    <option value="all">الكل</option>
+                    <option value="tested">اختبروا فقط</option>
+                    <option value="not-tested">لم يختبروا</option>
                   </select>
                 </div>
             </div>
