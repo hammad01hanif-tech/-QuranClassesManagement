@@ -367,13 +367,13 @@ function initializeMonthFilter() {
 }
 
 /**
- * Initialize Teacher Filter with All Teachers
+ * Initialize Teacher Filter with All Teachers (Multi-Select)
  */
 function initializeTeacherFilter() {
-  const teacherFilter = document.getElementById('filterExamTeacher');
-  if (!teacherFilter) return;
+  const container = document.getElementById('teacherCheckboxContainer');
+  if (!container) return;
   
-  teacherFilter.innerHTML = '<option value="">جميع المعلمين</option>';
+  container.innerHTML = '';
   
   // Sort teachers by name
   const sortedTeachers = Object.entries(allTeachers).sort((a, b) => 
@@ -381,17 +381,137 @@ function initializeTeacherFilter() {
   );
   
   sortedTeachers.forEach(([id, name]) => {
-    const option = document.createElement('option');
-    option.value = id;
-    option.textContent = name;
-    teacherFilter.appendChild(option);
+    const optionDiv = document.createElement('div');
+    optionDiv.className = 'multi-select-option';
+    optionDiv.innerHTML = `
+      <label class="multi-select-label">
+        <input type="checkbox" class="multi-select-checkbox teacher-checkbox" value="${id}" onchange="window.handleTeacherCheckboxChange()">
+        <span>${name}</span>
+      </label>
+    `;
+    container.appendChild(optionDiv);
   });
+}
+
+/**
+ * Toggle Teacher Multi-Select Dropdown
+ */
+window.toggleTeacherDropdown = function() {
+  const trigger = document.getElementById('teacherMultiSelectTrigger');
+  const dropdown = document.getElementById('teacherMultiSelectDropdown');
+  
+  if (!trigger || !dropdown) return;
+  
+  const isActive = dropdown.classList.contains('active');
+  
+  if (isActive) {
+    trigger.classList.remove('active');
+    dropdown.classList.remove('active');
+  } else {
+    trigger.classList.add('active');
+    dropdown.classList.add('active');
+  }
+};
+
+/**
+ * Close dropdown when clicking outside
+ */
+document.addEventListener('click', function(event) {
+  const wrapper = event.target.closest('.multi-select-wrapper');
+  if (!wrapper) {
+    const trigger = document.getElementById('teacherMultiSelectTrigger');
+    const dropdown = document.getElementById('teacherMultiSelectDropdown');
+    if (trigger && dropdown) {
+      trigger.classList.remove('active');
+      dropdown.classList.remove('active');
+    }
+  }
+});
+
+/**
+ * Handle "Select All" Checkbox
+ */
+window.handleTeacherSelectAll = function(checkbox) {
+  const teacherCheckboxes = document.querySelectorAll('.teacher-checkbox');
+  
+  if (checkbox.checked) {
+    // Uncheck all teacher checkboxes
+    teacherCheckboxes.forEach(cb => {
+      cb.checked = false;
+    });
+  }
+  
+  window.handleTeacherCheckboxChange();
+};
+
+/**
+ * Handle Individual Teacher Checkbox Change
+ */
+window.handleTeacherCheckboxChange = async function() {
+  const selectAllCheckbox = document.querySelector('.multi-select-checkbox[value="all"]');
+  const teacherCheckboxes = document.querySelectorAll('.teacher-checkbox');
+  const selectedTeachers = Array.from(teacherCheckboxes)
+    .filter(cb => cb.checked)
+    .map(cb => cb.value);
+  
+  // Update "Select All" checkbox
+  const anyTeacherSelected = selectedTeachers.length > 0;
+  if (selectAllCheckbox) {
+    selectAllCheckbox.checked = !anyTeacherSelected;
+  }
+  
+  // Update trigger text
+  const triggerText = document.getElementById('teacherMultiSelectText');
+  if (triggerText) {
+    if (selectedTeachers.length === 0) {
+      triggerText.textContent = 'جميع المعلمين';
+    } else if (selectedTeachers.length === 1) {
+      const teacherName = allTeachers[selectedTeachers[0]] || selectedTeachers[0];
+      triggerText.textContent = teacherName;
+    } else {
+      triggerText.textContent = `${selectedTeachers.length} معلمين محددين`;
+    }
+  }
+  
+  // Update trigger style
+  const trigger = document.getElementById('teacherMultiSelectTrigger');
+  if (trigger) {
+    if (selectedTeachers.length > 0) {
+      trigger.style.borderColor = '#667eea';
+      trigger.style.background = 'linear-gradient(135deg, #f0f3ff 0%, #e8ecff 100%)';
+      trigger.style.color = '#4c51bf';
+      trigger.style.fontWeight = '600';
+    } else {
+      trigger.style.borderColor = '#dee2e6';
+      trigger.style.background = 'white';
+      trigger.style.color = '#212529';
+      trigger.style.fontWeight = '500';
+    }
+  }
+  
+  // Reset student filter and reload based on selected teachers
+  document.getElementById('filterExamStudent').value = '';
+  await initializeStudentFilter(selectedTeachers);
+  
+  // Apply filters
+  window.filterExams();
+};
+
+/**
+ * Get Selected Teachers
+ */
+function getSelectedTeachers() {
+  const teacherCheckboxes = document.querySelectorAll('.teacher-checkbox');
+  const selectedTeachers = Array.from(teacherCheckboxes)
+    .filter(cb => cb.checked)
+    .map(cb => cb.value);
+  return selectedTeachers;
 }
 
 /**
  * Initialize Student Filter (Dynamic based on teacher)
  */
-async function initializeStudentFilter(teacherId = '') {
+async function initializeStudentFilter(teacherIds = []) {
   const studentFilter = document.getElementById('filterExamStudent');
   if (!studentFilter) return;
   
@@ -399,7 +519,14 @@ async function initializeStudentFilter(teacherId = '') {
   studentFilter.disabled = true;
   
   try {
-    if (!teacherId) {
+    // Convert single teacher ID to array for backward compatibility
+    if (typeof teacherIds === 'string' && teacherIds) {
+      teacherIds = [teacherIds];
+    } else if (!Array.isArray(teacherIds)) {
+      teacherIds = [];
+    }
+    
+    if (teacherIds.length === 0) {
       // No teacher selected - show all students from exams
       const students = new Set();
       allExams.forEach(exam => {
@@ -419,12 +546,12 @@ async function initializeStudentFilter(teacherId = '') {
           option.textContent = student.name;
           studentFilter.appendChild(option);
         });
-    } else {
-      // Teacher selected - load students from Firestore
+    } else if (teacherIds.length === 1) {
+      // Single teacher selected - load students from Firestore
       const studentsSnap = await getDocs(query(
         collection(db, 'users'),
         where('role', '==', 'student'),
-        where('classId', '==', teacherId)
+        where('classId', '==', teacherIds[0])
       ));
       
       currentFilteredStudents = [];
@@ -449,6 +576,10 @@ async function initializeStudentFilter(teacherId = '') {
             studentFilter.appendChild(option);
           });
       }
+    } else {
+      // Multiple teachers selected - show "All Students" only
+      studentFilter.innerHTML = '<option value="">جميع الطلاب</option>';
+      currentFilteredStudents = [];
     }
     
     studentFilter.disabled = false;
@@ -471,33 +602,17 @@ async function initializeFilters() {
 }
 
 /**
- * Handle Teacher Filter Change
- */
-window.onTeacherFilterChange = async function() {
-  const teacherId = document.getElementById('filterExamTeacher')?.value;
-  
-  // Reset student filter
-  document.getElementById('filterExamStudent').value = '';
-  
-  // Reload student filter based on selected teacher
-  await initializeStudentFilter(teacherId);
-  
-  // Apply filters
-  window.filterExams();
-};
-
-/**
  * Smart Filter Exams with Live Updates
  */
 window.filterExams = async function() {
   const monthFilter = document.getElementById('filterExamMonth')?.value;
-  const teacherFilter = document.getElementById('filterExamTeacher')?.value;
+  const selectedTeachers = getSelectedTeachers();
   const studentFilter = document.getElementById('filterExamStudent')?.value;
   const statusFilter = document.getElementById('filterExamStatus')?.value || 'all';
   
   // Handle "not-tested" status filter
   if (statusFilter === 'not-tested') {
-    await displayNotTestedStudents(monthFilter, teacherFilter);
+    await displayNotTestedStudents(monthFilter, selectedTeachers);
     return;
   }
   
@@ -506,8 +621,8 @@ window.filterExams = async function() {
     // Filter by month
     if (monthFilter && exam.hijriMonth !== monthFilter) return false;
     
-    // Filter by teacher
-    if (teacherFilter && exam.teacherId !== teacherFilter) return false;
+    // Filter by teachers (array)
+    if (selectedTeachers.length > 0 && !selectedTeachers.includes(exam.teacherId)) return false;
     
     // Filter by student (exact match on ID)
     if (studentFilter && exam.studentId !== studentFilter) return false;
@@ -583,7 +698,7 @@ function displayExams() {
 /**
  * Display Students Who Have NOT Tested
  */
-async function displayNotTestedStudents(monthFilter, teacherFilter) {
+async function displayNotTestedStudents(monthFilter, selectedTeachers) {
   const container = document.getElementById('examsTableContainer');
   if (!container) return;
   
@@ -591,19 +706,38 @@ async function displayNotTestedStudents(monthFilter, teacherFilter) {
   
   try {
     // Get all students
-    let studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'));
-    if (teacherFilter) {
-      studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'), where('classId', '==', teacherFilter));
+    let studentsQuery;
+    if (selectedTeachers.length === 0) {
+      // No teacher filter - get all students
+      studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'));
+    } else if (selectedTeachers.length === 1) {
+      // Single teacher - direct filter
+      studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'), where('classId', '==', selectedTeachers[0]));
+    } else {
+      // Multiple teachers - use 'in' operator (max 10 teachers)
+      if (selectedTeachers.length <= 10) {
+        studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'), where('classId', 'in', selectedTeachers));
+      } else {
+        // If more than 10 teachers, fetch all and filter in memory
+        studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'));
+      }
     }
     
     const studentsSnap = await getDocs(studentsQuery);
     const allStudents = [];
     studentsSnap.forEach(doc => {
+      const studentTeacherId = doc.data().classId || doc.data().teacherId;
+      
+      // Additional filter if more than 10 teachers
+      if (selectedTeachers.length > 10 && !selectedTeachers.includes(studentTeacherId)) {
+        return;
+      }
+      
       allStudents.push({
         id: doc.id,
         name: doc.data().name,
-        teacherId: doc.data().classId || doc.data().teacherId,
-        teacherName: allTeachers[doc.data().classId || doc.data().teacherId] || 'غير محدد'
+        teacherId: studentTeacherId,
+        teacherName: allTeachers[studentTeacherId] || 'غير محدد'
       });
     });
     
@@ -614,14 +748,21 @@ async function displayNotTestedStudents(monthFilter, teacherFilter) {
       // Filter by specific month
       testedStudentIds = new Set(
         allExams
-          .filter(exam => exam.hijriMonth === monthFilter && (!teacherFilter || exam.teacherId === teacherFilter))
+          .filter(exam => {
+            if (exam.hijriMonth !== monthFilter) return false;
+            if (selectedTeachers.length > 0 && !selectedTeachers.includes(exam.teacherId)) return false;
+            return true;
+          })
           .map(exam => exam.studentId)
       );
     } else {
       // All months - get students who have ANY exam
       testedStudentIds = new Set(
         allExams
-          .filter(exam => !teacherFilter || exam.teacherId === teacherFilter)
+          .filter(exam => {
+            if (selectedTeachers.length > 0 && !selectedTeachers.includes(exam.teacherId)) return false;
+            return true;
+          })
           .map(exam => exam.studentId)
       );
     }
@@ -720,7 +861,7 @@ window.openAddExamForStudent = function(studentId, studentName, teacherId) {
 window.exportMonthlyExamsPDF = async function() {
   // Get filter values
   const monthFilter = document.getElementById('filterExamMonth')?.value;
-  const teacherFilter = document.getElementById('filterExamTeacher')?.value;
+  const selectedTeachers = getSelectedTeachers();
   const statusFilter = document.getElementById('filterExamStatus')?.value || 'all';
   
   // Check if we need to include all students (tested + not tested)
@@ -760,19 +901,38 @@ window.exportMonthlyExamsPDF = async function() {
   if (includeAllStudents) {
     try {
       // Get all students
-      let studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'));
-      if (teacherFilter) {
-        studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'), where('classId', '==', teacherFilter));
+      let studentsQuery;
+      if (selectedTeachers.length === 0) {
+        // No teacher filter - get all students
+        studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'));
+      } else if (selectedTeachers.length === 1) {
+        // Single teacher - direct filter
+        studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'), where('classId', '==', selectedTeachers[0]));
+      } else {
+        // Multiple teachers - use 'in' operator (max 10 teachers)
+        if (selectedTeachers.length <= 10) {
+          studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'), where('classId', 'in', selectedTeachers));
+        } else {
+          // If more than 10 teachers, fetch all and filter in memory
+          studentsQuery = query(collection(db, 'users'), where('role', '==', 'student'));
+        }
       }
       
       const studentsSnap = await getDocs(studentsQuery);
       const allStudents = [];
       studentsSnap.forEach(doc => {
+        const studentTeacherId = doc.data().classId || doc.data().teacherId;
+        
+        // Additional filter if more than 10 teachers
+        if (selectedTeachers.length > 10 && !selectedTeachers.includes(studentTeacherId)) {
+          return;
+        }
+        
         allStudents.push({
           id: doc.id,
           name: doc.data().name,
-          teacherId: doc.data().classId || doc.data().teacherId,
-          teacherName: allTeachers[doc.data().classId || doc.data().teacherId] || 'غير محدد'
+          teacherId: studentTeacherId,
+          teacherName: allTeachers[studentTeacherId] || 'غير محدد'
         });
       });
       
@@ -782,14 +942,21 @@ window.exportMonthlyExamsPDF = async function() {
         // Filter by specific month
         testedStudentIds = new Set(
           allExams
-            .filter(exam => exam.hijriMonth === monthFilter && (!teacherFilter || exam.teacherId === teacherFilter))
+            .filter(exam => {
+              if (exam.hijriMonth !== monthFilter) return false;
+              if (selectedTeachers.length > 0 && !selectedTeachers.includes(exam.teacherId)) return false;
+              return true;
+            })
             .map(exam => exam.studentId)
         );
       } else {
         // All months - get students who have ANY exam
         testedStudentIds = new Set(
           allExams
-            .filter(exam => !teacherFilter || exam.teacherId === teacherFilter)
+            .filter(exam => {
+              if (selectedTeachers.length > 0 && !selectedTeachers.includes(exam.teacherId)) return false;
+              return true;
+            })
             .map(exam => exam.studentId)
         );
       }

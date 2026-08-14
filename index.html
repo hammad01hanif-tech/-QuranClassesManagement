@@ -3880,9 +3880,22 @@
                   <label class="filter-label">
                     <span class="filter-icon">المعلم</span>
                   </label>
-                  <select id="filterExamTeacher" class="filter-select smart-select" onchange="window.onTeacherFilterChange()">
-                    <option value="">جميع المعلمين</option>
-                  </select>
+                  <div class="multi-select-wrapper">
+                    <button type="button" class="multi-select-trigger" id="teacherMultiSelectTrigger" onclick="window.toggleTeacherDropdown()">
+                      <span class="multi-select-text" id="teacherMultiSelectText">جميع المعلمين</span>
+                      <span class="multi-select-arrow">▼</span>
+                    </button>
+                    <div class="multi-select-dropdown" id="teacherMultiSelectDropdown">
+                      <div class="multi-select-option">
+                        <label class="multi-select-label">
+                          <input type="checkbox" class="multi-select-checkbox" value="all" checked onchange="window.handleTeacherSelectAll(this)">
+                          <span>جميع المعلمين</span>
+                        </label>
+                      </div>
+                      <div class="multi-select-divider"></div>
+                      <div id="teacherCheckboxContainer"></div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="filter-group">
