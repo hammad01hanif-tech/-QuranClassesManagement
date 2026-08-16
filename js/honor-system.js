@@ -9,6 +9,38 @@ let filteredNominees = [];
 let allHonored = [];
 
 /**
+ * Add months to a Hijri date string
+ * @param {string} hijriMonth - Format: "YYYY-MM"
+ * @param {number} monthsToAdd - Number of months to add
+ * @returns {string} New Hijri month in format "YYYY-MM"
+ */
+function addMonthsToHijri(hijriMonth, monthsToAdd) {
+  if (monthsToAdd === 0) return hijriMonth;
+  
+  const [yearStr, monthStr] = hijriMonth.split('-');
+  let year = parseInt(yearStr);
+  let month = parseInt(monthStr);
+  
+  // Add months
+  month += monthsToAdd;
+  
+  // Handle year overflow
+  while (month > 12) {
+    month -= 12;
+    year += 1;
+  }
+  
+  // Handle underflow (in case of negative monthsToAdd)
+  while (month < 1) {
+    month += 12;
+    year -= 1;
+  }
+  
+  // Return formatted string
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+/**
  * Initialize Honor System
  */
 window.initHonorSystem = async function() {
@@ -266,8 +298,8 @@ window.loadNominees = async function() {
       const teacherId = studentData.classId;
       const teacherName = teacherNamesMap[teacherId] || 'غير محدد';
       
-      // Calculate eligibility using pre-loaded maps
-      const eligibility = calculateStudentEligibilityOptimized(
+      // Calculate eligibility using pre-loaded maps (returns array of nominations)
+      const eligibilities = calculateStudentEligibilityOptimized(
         studentId,
         studentName,
         teacherId,
@@ -278,8 +310,9 @@ window.loadNominees = async function() {
         examsByStudentMonth
       );
       
-      if (eligibility.eligible) {
-        allNominees.push(eligibility);
+      // Add all eligibilities to allNominees
+      if (eligibilities && eligibilities.length > 0) {
+        allNominees.push(...eligibilities);
       }
     });
     
@@ -464,11 +497,18 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     
     // Handle extra achievements (carry over to next months)
     // Example: if required is 1 but achieved 3, then:
-    //   - 1st achievement = current month
-    //   - 2nd achievement = next month (automatic)
-    //   - 3rd achievement = month after next (automatic)
+    //   - 1st achievement = month 1 (based on displayDate of 1st hizb)
+    //   - 2nd achievement = month 2 (based on displayDate of 2nd hizb)
+    //   - 3rd achievement = month 3 (based on displayDate of 3rd hizb)
+    // For required 2: every 2 hizbs = 1 nomination
     
     const eligibleNominations = [];
+    
+    // Get the base month from the FIRST complete group (earliest achievement)
+    const firstCompletionRecord = allRecords[Math.min(requiredCount - 1, allRecords.length - 1)];
+    const baseMonth = extractMonth(firstCompletionRecord.displayDate);
+    
+    console.log(`   📅 Base eligibility month: ${baseMonth}`);
     
     // Split achievements into groups based on required count
     for (let i = 0; i < allRecords.length; i += requiredCount) {
@@ -477,132 +517,146 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       // Only add if this group has the full required count
       if (group.length === requiredCount) {
         const completionRecord = group[group.length - 1];
-        const eligibleMonth = extractMonth(completionRecord.displayDate);
+        
+        // Calculate eligibility month based on nomination index
+        // First nomination = base month
+        // Second nomination = base month + 1
+        // Third nomination = base month + 2, etc.
+        const nominationIndex = i / requiredCount;
+        const eligibleMonth = addMonthsToHijri(baseMonth, nominationIndex);
+        
+        console.log(`   📋 Nomination #${nominationIndex + 1}: Eligible Month = ${eligibleMonth}`);
         
         eligibleNominations.push({
           records: group,
           completionRecord: completionRecord,
-          eligibleMonth: eligibleMonth
+          eligibleMonth: eligibleMonth,
+          nominationIndex: nominationIndex
         });
       }
     }
     
-    // For now, return only the FIRST nomination (current month)
-    // The extra nominations are implicitly stored for future months
+    // Return empty array if no complete nominations
     if (eligibleNominations.length === 0) {
-      return { eligible: false };
+      return [];
     }
     
-    const firstNomination = eligibleNominations[0];
-    const eligibleMonth = firstNomination.eligibleMonth;
-    const completionRecord = firstNomination.completionRecord;
-    
-    console.log(`   📊 Looking for exam score...`);
-    console.log(`      • Student ID: ${studentId}`);
-    console.log(`      • Eligible Month: ${eligibleMonth}`);
-    
-    // Find the best record (least attempts, then shortest duration)
-    const recordsForBest = firstNomination.records;
-    let bestRecord = recordsForBest[0];
-    
-    for (let i = 1; i < recordsForBest.length; i++) {
-      const current = recordsForBest[i];
+    // Find the BEST record across ALL records (for tiebreaker)
+    let globalBestRecord = allRecords[0];
+    for (let i = 1; i < allRecords.length; i++) {
+      const current = allRecords[i];
       
       // Compare attempts first
-      if (current.attemptsCount < bestRecord.attemptsCount) {
-        bestRecord = current;
-      } else if (current.attemptsCount === bestRecord.attemptsCount) {
+      if (current.attemptsCount < globalBestRecord.attemptsCount) {
+        globalBestRecord = current;
+      } else if (current.attemptsCount === globalBestRecord.attemptsCount) {
         // If attempts are equal, compare duration
-        if (current.duration < bestRecord.duration) {
-          bestRecord = current;
+        if (current.duration < globalBestRecord.duration) {
+          globalBestRecord = current;
         }
       }
     }
     
-    console.log(`   🏆 Best Record (for tiebreaker):`);
-    console.log(`      • Type: ${bestRecord.type === 'hizb' ? 'حزب' : 'جزء'}`);
-    console.log(`      • Number: ${bestRecord.type === 'hizb' ? bestRecord.hizbNumber : bestRecord.juzNumber}`);
-    console.log(`      • Attempts: ${bestRecord.attemptsCount}`);
-    console.log(`      • Duration: ${bestRecord.duration} days`);
+    console.log(`   🏆 Global Best Record (for tiebreaker across all achievements):`);
+    console.log(`      • Type: ${globalBestRecord.type === 'hizb' ? 'حزب' : 'جزء'}`);
+    console.log(`      • Number: ${globalBestRecord.type === 'hizb' ? globalBestRecord.hizbNumber : globalBestRecord.juzNumber}`);
+    console.log(`      • Attempts: ${globalBestRecord.attemptsCount}`);
+    console.log(`      • Duration: ${globalBestRecord.duration} days`);
     
-    // Get exam score from pre-loaded map
-    const examKey = `${studentId}_${eligibleMonth}`;
-    const monthExams = examsByStudentMonth[examKey] || [];
+    // Create eligibility object for EACH nomination
+    const results = [];
     
-    console.log(`      • Exam key: ${examKey}`);
-    console.log(`      • Found exams: ${monthExams.length}`);
-    
-    let examScore = 0;
-    let hasExamScore = false;
-    let examDetails = null;
-    
-    if (monthExams.length > 0) {
-      // Sort by creation time (most recent first)
-      const sortedExams = monthExams.sort((a, b) => {
-        const timeA = a.createdAt?.toMillis?.() || 0;
-        const timeB = b.createdAt?.toMillis?.() || 0;
-        return timeB - timeA;
+    for (let i = 0; i < eligibleNominations.length; i++) {
+      const nomination = eligibleNominations[i];
+      const eligibleMonth = nomination.eligibleMonth;
+      const completionRecord = nomination.completionRecord;
+      
+      console.log(`\n   📊 Processing Nomination #${i + 1} for Month: ${eligibleMonth}...`);
+      console.log(`      • Student ID: ${studentId}`);
+      console.log(`      • Eligible Month: ${eligibleMonth}`);
+      
+      // Get exam score from pre-loaded map (exam MUST be in the eligibility month)
+      const examKey = `${studentId}_${eligibleMonth}`;
+      const monthExams = examsByStudentMonth[examKey] || [];
+      
+      console.log(`      • Exam key: ${examKey}`);
+      console.log(`      • Found exams: ${monthExams.length}`);
+      
+      let examScore = 0;
+      let hasExamScore = false;
+      let examDetails = null;
+      
+      if (monthExams.length > 0) {
+        // Sort by creation time (most recent first)
+        const sortedExams = monthExams.sort((a, b) => {
+          const timeA = a.createdAt?.toMillis?.() || 0;
+          const timeB = b.createdAt?.toMillis?.() || 0;
+          return timeB - timeA;
+        });
+        
+        const examData = sortedExams[0];
+        const originalScore = examData.score || 0;
+        
+        console.log(`      • Most recent exam data:`, {
+          score: originalScore,
+          hijriMonth: examData.hijriMonth,
+          createdAt: examData.createdAt?.toDate?.()?.toLocaleString('ar-SA') || 'N/A'
+        });
+        
+        // Calculate exam score (out of 50)
+        examScore = originalScore / 2;
+        hasExamScore = true;
+        
+        examDetails = {
+          originalScore: originalScore,
+          calculatedScore: examScore,
+          hijriMonth: examData.hijriMonth
+        };
+        
+        console.log(`      • Original score: ${originalScore}/100`);
+        console.log(`      • Calculated score: ${examScore}/50`);
+      } else {
+        console.log(`      • ❌ No exam found for this month`);
+      }
+      
+      const totalScore = 50 + examScore;
+      
+      console.log(`   🎯 ELIGIBLE! Month: ${eligibleMonth}, Type: ${studentType}, Total Score: ${totalScore}`);
+      
+      results.push({
+        eligible: true,
+        studentId: studentId,
+        studentName: studentName,
+        teacherId: teacherId,
+        teacherName: teacherName,
+        type: studentType,
+        requiredCount: requiredCount,
+        completedCount: nomination.records.length,
+        eligibleMonth: eligibleMonth,
+        eligibleDate: completionRecord.displayDate,
+        completionScore: 50,
+        examScore: examScore,
+        totalScore: totalScore,
+        hasExamScore: hasExamScore,
+        examDetails: examDetails,
+        bestAttempts: globalBestRecord.attemptsCount, // Use global best
+        bestDuration: globalBestRecord.duration, // Use global best
+        bestRecordType: globalBestRecord.type,
+        bestRecordNumber: globalBestRecord.type === 'hizb' ? globalBestRecord.hizbNumber : globalBestRecord.juzNumber,
+        lastNumber: completionRecord.hizbNumber || completionRecord.juzNumber || 0,
+        totalAchievements: allRecords.length,
+        nominationIndex: i,
+        totalNominations: eligibleNominations.length
       });
-      
-      const examData = sortedExams[0];
-      const originalScore = examData.score || 0;
-      
-      console.log(`      • Most recent exam data:`, {
-        score: originalScore,
-        hijriMonth: examData.hijriMonth,
-        createdAt: examData.createdAt?.toDate?.()?.toLocaleString('ar-SA') || 'N/A'
-      });
-      
-      // Calculate exam score (out of 50)
-      // If the original score is out of 100, divide by 2 to make it out of 50
-      examScore = originalScore / 2;
-      hasExamScore = true;
-      
-      examDetails = {
-        originalScore: originalScore,
-        calculatedScore: examScore,
-        hijriMonth: examData.hijriMonth
-      };
-      
-      console.log(`      • Original score: ${originalScore}/100`);
-      console.log(`      • Calculated score: ${examScore}/50`);
-    } else {
-      console.log(`      • ❌ No exam found for this month`);
     }
     
-    const totalScore = 50 + examScore;
-    
-    console.log(`   🎯 ELIGIBLE! Month: ${eligibleMonth}, Type: ${studentType}, Total Score: ${totalScore}`);
     console.log(`   ============================================\n`);
     
-    return {
-      eligible: true,
-      studentId: studentId,
-      studentName: studentName,
-      teacherId: teacherId,
-      teacherName: teacherName,
-      type: studentType,
-      requiredCount: requiredCount,
-      completedCount: firstNomination.records.length,
-      eligibleMonth: eligibleMonth,
-      eligibleDate: completionRecord.displayDate,
-      completionScore: 50,
-      examScore: examScore,
-      totalScore: totalScore,
-      hasExamScore: hasExamScore,
-      examDetails: examDetails,
-      bestAttempts: bestRecord.attemptsCount, // For tiebreaker
-      bestDuration: bestRecord.duration, // For tiebreaker
-      bestRecordType: bestRecord.type,
-      bestRecordNumber: bestRecord.type === 'hizb' ? bestRecord.hizbNumber : bestRecord.juzNumber,
-      lastNumber: completionRecord.hizbNumber || completionRecord.juzNumber || 0,
-      totalAchievements: allRecords.length,
-      extraNominations: eligibleNominations.length - 1
-    };
+    return results;
     
   } catch (error) {
     console.error(`❌ Error calculating eligibility for ${studentName}:`, error);
-    return { eligible: false };
+    return [];
   }
 }
 
@@ -905,7 +959,6 @@ function displayNominees() {
   });
   
   // Check if there are any extra nominations
-  const hasExtraNominations = filteredNominees.some(n => n.extraNominations && n.extraNominations > 0);
   const hasWaitingExams = filteredNominees.some(n => !n.hasExamScore);
   
   let tableHTML = '';
@@ -928,23 +981,6 @@ function displayNominees() {
     `;
   }
   
-  // Add info box if there are extra nominations
-  if (hasExtraNominations) {
-    tableHTML += `
-      <div style="background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; border-right: 4px solid #f39c12;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 24px;">⚡</span>
-          <div>
-            <div style="font-weight: bold; color: #2d3436; margin-bottom: 3px;">📋 ملاحظة: إنجازات إضافية</div>
-            <div style="font-size: 13px; color: #636e72;">
-              بعض الطلاب أنجزوا أكثر من المطلوب في شهر واحد. الأرقام في عمود "⚡ إضافي" تعني عدد الشهور القادمة التي سيكونون مرشحين فيها تلقائياً!
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-  
   tableHTML += `
     <div style="overflow-x: auto;">
       <table class="keep-table" style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -959,7 +995,6 @@ function displayNominees() {
             <th style="padding: 12px; text-align: center; font-weight: bold;">المجموع</th>
             <th style="padding: 12px; text-align: center; font-size: 12px;" title="أفضل عدد محاولات">🔄 المحاولات</th>
             <th style="padding: 12px; text-align: center; font-size: 12px;" title="أقصر مدة إنجاز">⏱️ المدة</th>
-            <th style="padding: 12px; text-align: center; font-size: 12px;">⚡ إضافي</th>
           </tr>
         </thead>
         <tbody>
@@ -1003,14 +1038,6 @@ function displayNominees() {
     // Duration display
     const durationDisplay = `<span style="color: #764ba2; font-weight: bold;" title="المدة المستغرقة لأفضل إنجاز">${nominee.bestDuration} يوم</span>`;
     
-    // Extra nominations display
-    let extraDisplay = '';
-    if (nominee.extraNominations && nominee.extraNominations > 0) {
-      extraDisplay = `<span style="background: #ffc107; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;" title="يمكن ترشيحه ${nominee.extraNominations} شهر إضافي">+${nominee.extraNominations}</span>`;
-    } else {
-      extraDisplay = `<span style="color: #ccc;">-</span>`;
-    }
-    
     tableHTML += `
       <tr style="background: ${bgColor}; ${rowStyle}" title="${!nominee.hasExamScore ? '⚠️ هذا الطالب لن يتم تكريمه حتى يتم رصد درجة الاختبار الشهري' : ''}">
         <td style="padding: 10px; border: 1px solid #dee2e6;">${nominee.studentName}${warningIcon}</td>
@@ -1022,7 +1049,6 @@ function displayNominees() {
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${totalDisplay}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${attemptsDisplay}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${durationDisplay}</td>
-        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${extraDisplay}</td>
       </tr>
     `;
   });
@@ -1041,16 +1067,45 @@ window.selectTop30 = async function() {
     return;
   }
   
-  // Filter only nominees with exam scores
-  const nomineesWithScores = allNominees.filter(n => n.hasExamScore);
-  const nomineesWithoutScores = allNominees.filter(n => !n.hasExamScore);
+  // Get unique months from all nominees
+  const uniqueMonths = [...new Set(allNominees.map(n => n.eligibleMonth))].sort();
   
-  if (nomineesWithScores.length === 0) {
-    alert('⚠️ لا يوجد مرشحين لديهم درجات اختبار!');
+  if (uniqueMonths.length === 0) {
+    alert('⚠️ لا يوجد أشهر متاحة للتكريم!');
     return;
   }
   
-  let confirmMessage = `هل أنت متأكد من اختيار أفضل 30 طالب؟\n\n`;
+  // Ask user to select month
+  let monthMessage = 'اختر الشهر المراد تكريمه:\n\n';
+  uniqueMonths.forEach((month, index) => {
+    monthMessage += `${index + 1}. ${month}\n`;
+  });
+  monthMessage += '\nأدخل رقم الشهر:';
+  
+  const monthChoice = prompt(monthMessage);
+  if (!monthChoice) return;
+  
+  const monthIndex = parseInt(monthChoice) - 1;
+  if (monthIndex < 0 || monthIndex >= uniqueMonths.length) {
+    alert('⚠️ اختيار خاطئ!');
+    return;
+  }
+  
+  const selectedMonth = uniqueMonths[monthIndex];
+  
+  // Filter nominees by selected month
+  const monthNominees = allNominees.filter(n => n.eligibleMonth === selectedMonth);
+  
+  // Filter only nominees with exam scores
+  const nomineesWithScores = monthNominees.filter(n => n.hasExamScore);
+  const nomineesWithoutScores = monthNominees.filter(n => !n.hasExamScore);
+  
+  if (nomineesWithScores.length === 0) {
+    alert(`⚠️ لا يوجد مرشحين لديهم درجات اختبار في شهر ${selectedMonth}!`);
+    return;
+  }
+  
+  let confirmMessage = `هل أنت متأكد من اختيار أفضل 30 طالب لشهر ${selectedMonth}؟\n\n`;
   confirmMessage += `✅ سيتم اختيار من بين: ${nomineesWithScores.length} طالب (لديهم درجات اختبار)\n`;
   
   if (nomineesWithoutScores.length > 0) {
@@ -1089,10 +1144,7 @@ window.selectTop30 = async function() {
     // Select top 30
     const winners = nomineesWithScores.slice(0, 30);
     
-    console.log(`🏆 Selecting top ${winners.length} students...`);
-    
-    const currentHijriData = getCurrentHijriDate();
-    const currentMonth = `${currentHijriData.hijriYear}-${String(currentHijriData.hijriMonth).padStart(2, '0')}`;
+    console.log(`🏆 Selecting top ${winners.length} students for ${selectedMonth}...`);
     
     // Save honored students and grant incentives
     for (let i = 0; i < winners.length; i++) {
@@ -1112,8 +1164,7 @@ window.selectTop30 = async function() {
         examScore: winner.examScore,
         totalScore: winner.totalScore,
         rank: rank,
-        honorMonth: currentMonth,
-        honorYear: currentHijriData.hijriYear,
+        honorMonth: selectedMonth,
         eligibleDate: winner.eligibleDate,
         createdAt: serverTimestamp()
       });
@@ -1121,7 +1172,7 @@ window.selectTop30 = async function() {
       // Create checkpoint
       await setDoc(doc(db, 'studentHonorCheckpoints', winner.studentId), {
         lastHonorDate: winner.eligibleDate,
-        lastHonorMonth: currentMonth,
+        lastHonorMonth: selectedMonth,
         lastCompletedNumber: winner.lastNumber,
         checkpointType: winner.type,
         updatedAt: serverTimestamp()
@@ -1137,8 +1188,7 @@ window.selectTop30 = async function() {
         studentName: winner.studentName,
         rank: rank,
         reason: `تكريم طالب في قائمة الأوائل - المرتبة ${rank}`,
-        month: currentMonth,
-        year: currentHijriData.hijriYear,
+        month: selectedMonth,
         createdAt: serverTimestamp(),
         autoGenerated: true
       });
@@ -1146,7 +1196,51 @@ window.selectTop30 = async function() {
       console.log(`✅ Honored ${rank}. ${winner.studentName} - ${winner.totalScore} pts`);
     }
     
-    alert(`✅ تم تكريم ${winners.length} طالب بنجاح!\n\n- تم حفظ قائمة المكرمين\n- تم منح الحوافز للمعلمين\n- تم إنشاء نقاط التصفير`);
+    // Reset checkpoints for all remaining nominees who completed requirements but weren't honored
+    console.log(`\n🔄 Resetting checkpoints for non-winners who completed requirements...`);
+    
+    // Get unique student IDs from all nominees with scores in this month
+    const allStudentIdsInMonth = new Map();
+    nomineesWithScores.forEach(nominee => {
+      if (!allStudentIdsInMonth.has(nominee.studentId)) {
+        allStudentIdsInMonth.set(nominee.studentId, nominee);
+      }
+    });
+    
+    // Get winner IDs for exclusion
+    const winnerIds = new Set(winners.map(w => w.studentId));
+    
+    // Reset checkpoints for non-winners
+    let resetCount = 0;
+    for (const [studentId, nominee] of allStudentIdsInMonth.entries()) {
+      // Skip if this student was a winner
+      if (winnerIds.has(studentId)) {
+        continue;
+      }
+      
+      // Create checkpoint for this student (same as winners)
+      await setDoc(doc(db, 'studentHonorCheckpoints', studentId), {
+        lastHonorDate: nominee.eligibleDate,
+        lastHonorMonth: selectedMonth,
+        lastCompletedNumber: nominee.lastNumber,
+        checkpointType: nominee.type,
+        updatedAt: serverTimestamp()
+      });
+      
+      resetCount++;
+      console.log(`   ↻ Reset checkpoint for ${nominee.studentName} (non-winner)`);
+    }
+    
+    console.log(`✅ Reset ${resetCount} checkpoints for non-winners`);
+    
+    let successMessage = `✅ تم تكريم ${winners.length} طالب بنجاح في شهر ${selectedMonth}!\n\n`;
+    successMessage += `📊 الإحصائيات:\n`;
+    successMessage += `- المكرّمون (أفضل 30): ${winners.length} طالب\n`;
+    successMessage += `- تم تصفير عداداتهم: ${resetCount} طالب (أكملوا المطلوب لكن لم يكرموا)\n`;
+    successMessage += `- تم منح الحوافز للمعلمين\n\n`;
+    successMessage += `💡 ملاحظة: الإنجازات الإضافية محفوظة للأشهر القادمة`;
+    
+    alert(successMessage);
     
     // Reload honored months
     await loadHonoredMonths();
