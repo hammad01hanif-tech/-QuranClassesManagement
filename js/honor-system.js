@@ -1634,8 +1634,134 @@ window.exportHonoredPDF = async function() {
     return;
   }
   
-  alert('🚧 ميزة تصدير PDF قيد التطوير...');
-  // TODO: Implement PDF export
+  try {
+    // Show loading message
+    const container = document.getElementById('honoredTableContainer');
+    const originalContent = container.innerHTML;
+    container.innerHTML = '<p style="text-align: center; color: #667eea; padding: 40px; font-size: 18px;">⏳ جاري إنشاء تقرير PDF...<br><small>يرجى الانتظار...</small></p>';
+    
+    // Get selected month name
+    const monthSelect = document.getElementById('honoredMonthSelect');
+    const selectedMonth = monthSelect.value; // e.g., "1448-02"
+    
+    const hijriMonths = [
+      'محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر',
+      'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+      'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+    ];
+    
+    const [year, month] = selectedMonth.split('-');
+    const monthIndex = parseInt(month) - 1;
+    const monthName = hijriMonths[monthIndex];
+    
+    // Create temporary container for PDF content
+    const pdfContainer = document.createElement('div');
+    pdfContainer.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 800px; background: white; padding: 40px; font-family: Arial, sans-serif;';
+    
+    // Build HTML content
+    let htmlContent = `
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #ffd700; padding-bottom: 20px;">
+        <h1 style="color: #333; margin: 0 0 10px 0; font-size: 32px; font-weight: bold;">الطلاب المكرمون</h1>
+        <h2 style="color: #667eea; margin: 0; font-size: 24px;">شهر ${monthName} ${year}</h2>
+      </div>
+      
+      <div style="overflow-x: auto; margin-top: 20px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 16px;">
+          <thead>
+            <tr style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); color: #333;">
+              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">المرتبة</th>
+              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">اسم الطالب</th>
+              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">اسم المعلم</th>
+              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">النوع</th>
+              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">المجموع</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    // Add honored students
+    allHonored.forEach((student, index) => {
+      const bgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      
+      // Medal for top 3
+      let rankDisplay = student.rank;
+      if (student.rank === 1) rankDisplay = '🥇 1';
+      else if (student.rank === 2) rankDisplay = '🥈 2';
+      else if (student.rank === 3) rankDisplay = '🥉 3';
+      
+      htmlContent += `
+        <tr style="background: ${bgColor};">
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 18px; font-weight: bold;">${rankDisplay}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 16px;">${student.studentName}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 15px;">${student.teacherName}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 14px;">${student.type}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 16px; font-weight: bold; color: #667eea;">${student.totalScore.toFixed(1)}</td>
+        </tr>
+      `;
+    });
+    
+    htmlContent += `
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="margin-top: 30px; text-align: center; padding-top: 20px; border-top: 2px solid #eee;">
+        <p style="color: #666; font-size: 14px; margin: 0;">
+          تم إنشاء التقرير بتاريخ: ${new Date().toLocaleDateString('ar-SA')} - ${new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
+    `;
+    
+    pdfContainer.innerHTML = htmlContent;
+    document.body.appendChild(pdfContainer);
+    
+    // Wait for fonts and styles to load
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Generate PDF using html2canvas
+    const canvas = await html2canvas(pdfContainer, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff'
+    });
+    
+    // Remove temporary container
+    document.body.removeChild(pdfContainer);
+    
+    // Restore original content
+    container.innerHTML = originalContent;
+    
+    // Create PDF
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    
+    // Save PDF
+    const fileName = `المكرمون_${monthName}_${year}.pdf`;
+    pdf.save(fileName);
+    
+    console.log('✅ PDF exported successfully');
+    
+  } catch (error) {
+    console.error('Error exporting PDF:', error);
+    alert('❌ حدث خطأ في تصدير PDF');
+    
+    // Restore original content
+    const container = document.getElementById('honoredTableContainer');
+    if (container) {
+      displayHonoredStudents();
+    }
+  }
 };
 
 // Initialize on load
