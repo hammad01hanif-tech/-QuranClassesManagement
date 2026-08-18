@@ -1656,24 +1656,25 @@ window.exportHonoredPDF = async function() {
     
     // Create temporary container for PDF content
     const pdfContainer = document.createElement('div');
-    pdfContainer.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 800px; background: white; padding: 40px; font-family: Arial, sans-serif;';
+    pdfContainer.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 1000px; background: white; padding: 40px; font-family: Arial, sans-serif;';
     
     // Build HTML content
     let htmlContent = `
       <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #ffd700; padding-bottom: 20px;">
-        <h1 style="color: #333; margin: 0 0 10px 0; font-size: 32px; font-weight: bold;">الطلاب المكرمون</h1>
-        <h2 style="color: #667eea; margin: 0; font-size: 24px;">شهر ${monthName} ${year}</h2>
+        <h1 style="color: #333; margin: 0; font-size: 24px; font-weight: bold; line-height: 1.6;">تكريم الطلاب الشهري لشهر ${monthName} ${year}هـ<br/>لطلاب حلقات جامع حمدة آل ثاني</h1>
       </div>
       
       <div style="overflow-x: auto; margin-top: 20px;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 16px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <thead>
             <tr style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); color: #333;">
-              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">المرتبة</th>
-              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">اسم الطالب</th>
-              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">اسم المعلم</th>
-              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">النوع</th>
-              <th style="padding: 15px; text-align: center; font-weight: bold; border: 2px solid #ddd;">المجموع</th>
+              <th style="padding: 12px; text-align: center; font-weight: bold; border: 2px solid #ddd; width: 8%;">المرتبة</th>
+              <th style="padding: 12px; text-align: center; font-weight: bold; border: 2px solid #ddd; width: 22%;">اسم الطالب</th>
+              <th style="padding: 12px; text-align: center; font-weight: bold; border: 2px solid #ddd; width: 18%;">اسم المعلم</th>
+              <th style="padding: 12px; text-align: center; font-weight: bold; border: 2px solid #ddd; width: 13%;">درجة الاختبار الشهري</th>
+              <th style="padding: 12px; text-align: center; font-weight: bold; border: 2px solid #ddd; width: 13%;">الهدف المنجز</th>
+              <th style="padding: 12px; text-align: center; font-weight: bold; border: 2px solid #ddd; width: 11%;">المجموع</th>
+              <th style="padding: 12px; text-align: center; font-weight: bold; border: 2px solid #ddd; width: 15%;">المكافأة</th>
             </tr>
           </thead>
           <tbody>
@@ -1689,13 +1690,37 @@ window.exportHonoredPDF = async function() {
       else if (student.rank === 2) rankDisplay = '🥈 2';
       else if (student.rank === 3) rankDisplay = '🥉 3';
       
+      // Calculate reward based on rank
+      let reward = 20; // Default for 26-30
+      if (student.rank === 1) reward = 100;
+      else if (student.rank === 2) reward = 85;
+      else if (student.rank === 3) reward = 65;
+      else if (student.rank === 4) reward = 55;
+      else if (student.rank === 5) reward = 50;
+      else if (student.rank >= 6 && student.rank <= 15) reward = 30;
+      else if (student.rank >= 16 && student.rank <= 25) reward = 25;
+      
+      // Clean up type text (remove يس and الناس)
+      let achievementText = student.type || '';
+      achievementText = achievementText
+        .replace(/\(يس\)/g, '')
+        .replace(/\(الناس\)/g, '')
+        .replace('يس', '')
+        .replace('الناس', '')
+        .trim();
+      
+      // Get exam score (stored as /50, multiply by 2 to get original /100)
+      const examScore = (student.examScore || 0) * 2;
+      
       htmlContent += `
         <tr style="background: ${bgColor};">
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 18px; font-weight: bold;">${rankDisplay}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 16px;">${student.studentName}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 15px;">${student.teacherName}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 14px;">${student.type}</td>
-          <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 16px; font-weight: bold; color: #667eea;">${student.totalScore.toFixed(1)}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-size: 16px; font-weight: bold;">${rankDisplay}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 14px;">${student.studentName}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-size: 13px;">${student.teacherName}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-size: 14px; color: #28a745; font-weight: bold;">${examScore.toFixed(1)}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-size: 13px;">${achievementText}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-size: 15px; font-weight: bold; color: #667eea;">${student.totalScore.toFixed(1)}</td>
+          <td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-size: 14px; color: #dc3545; font-weight: bold;">${reward} ريال</td>
         </tr>
       `;
     });
