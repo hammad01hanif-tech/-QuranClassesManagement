@@ -69,6 +69,10 @@ window.initHonorSystem = async function() {
 /**
  * Switch between Honor tabs
  */
+// Track if data has been loaded
+let nomineesDataLoaded = false;
+let honoredDataLoaded = false;
+
 window.switchHonorTab = function(tabName) {
   // Hide all tab contents
   const tabContents = document.querySelectorAll('.exam-tab-content');
@@ -88,6 +92,15 @@ window.switchHonorTab = function(tabName) {
   const selectedTab = document.querySelector(`.exam-tab[data-tab="${tabName}"]`);
   if (selectedTab) {
     selectedTab.classList.add('active');
+  }
+  
+  // Auto-load data when switching to tab for the first time
+  if (tabName === 'nominees' && !nomineesDataLoaded) {
+    nomineesDataLoaded = true;
+    loadNominees();
+  } else if (tabName === 'honored' && !honoredDataLoaded) {
+    honoredDataLoaded = true;
+    loadHonoredStudents();
   }
 };
 
@@ -207,6 +220,9 @@ window.loadNominees = async function() {
   const container = document.getElementById('nomineesTableContainer');
   if (!container) return;
   
+  // Mark as loaded so auto-load doesn't trigger again
+  nomineesDataLoaded = true;
+  
   container.innerHTML = '<p style="text-align: center; color: #667eea; padding: 40px;">⏳ جاري تحميل البيانات...<br><small>سيستغرق بضع ثوانٍ فقط</small></p>';
   
   try {
@@ -317,16 +333,40 @@ window.loadNominees = async function() {
     });
     
     const totalTime = Date.now() - startTime;
-    console.log(`✅ Total eligible nominees: ${allNominees.length}`);
+    console.log(`✅ Total eligible nominees (before filtering): ${allNominees.length}`);
+    
+    // Filter out old months (before Safar 1448)
+    // Only keep nominations from Safar 1448 (1448-02) and onwards
+    const MINIMUM_MONTH = '1448-02'; // Safar 1448
+    allNominees = allNominees.filter(nominee => {
+      return nominee.eligibleMonth >= MINIMUM_MONTH;
+    });
+    
+    console.log(`✅ Total eligible nominees (after old months filter): ${allNominees.length}`);
     console.log(`⚡ Total processing time: ${totalTime}ms (${(totalTime/1000).toFixed(2)}s)`);
     
     // Step 4: Update statistics
     container.innerHTML = '<p style="text-align: center; color: #667eea; padding: 40px;">⏳ جاري تحديث الإحصائيات... (4/5)</p>';
-    updateNomineesStatistics();
     
-    // Step 5: Display nominees
+    // Step 5: Apply filters and display nominees
     container.innerHTML = '<p style="text-align: center; color: #667eea; padding: 40px;">⏳ جاري عرض النتائج... (5/5)</p>';
-    filteredNominees = [...allNominees];
+    
+    // Apply current filters if any
+    const monthFilter = document.getElementById('honorFilterMonth')?.value;
+    const classFilter = document.getElementById('honorFilterClass')?.value;
+    
+    if (monthFilter || classFilter) {
+      // Apply filters
+      filteredNominees = allNominees.filter(nominee => {
+        if (monthFilter && nominee.eligibleMonth !== monthFilter) return false;
+        if (classFilter && nominee.teacherId !== classFilter) return false;
+        return true;
+      });
+    } else {
+      // No filters, show all
+      filteredNominees = [...allNominees];
+    }
+    
     displayNominees();
     
     console.log(`🎉 All done in ${(totalTime/1000).toFixed(2)}s!`);
@@ -376,9 +416,12 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       console.log(`   📊 Total records: ${studentHizbs?.length || 0} hizbs + ${studentJuz?.length || 0} juz = ${totalRecords}`);
       console.log(`   🎯 Starting point: ${startingPoint} (${hasCheckpoint ? 'من آخر تكريم' : 'من بداية صفر 1448'})`);
       console.log(`   📅 Safar 1448 starts: ${SAFAR_START_HIJRI} Hijri = ${SAFAR_START_GREGORIAN} Gregorian`);
+      console.log(`   🔒 Comparison operator: ${hasCheckpoint ? '>' : '>='} (${hasCheckpoint ? 'AFTER checkpoint' : 'ON/AFTER Safar start'})`);
     }
     
-    // Filter records: both lastLessonDate and displayDate must be on/after starting point
+    // Filter records: both lastLessonDate and displayDate must be after starting point
+    // For first cycle: >= (on or after Safar start)
+    // After honor: > (strictly after checkpoint to prevent re-nomination)
     const allRecords = [];
     
     // Process hizbs
@@ -393,16 +436,29 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       console.log(`   📋 Hizb #${index + 1} (رقم ${record.hizbNumber}):`);
       console.log(`      • lastLessonDate: ${lastLessonDate} → Gregorian: ${lastLessonDateGregorian}`);
       console.log(`      • displayDate: ${displayDate} → Gregorian: ${displayDateGregorian}`);
-      console.log(`      • Check: ${lastLessonDateGregorian} >= ${startingPoint}? ${lastLessonDateGregorian >= startingPoint}`);
-      console.log(`      • Check: ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
       
-      // Both dates must be on or after the starting point
-      if (displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint) {
+      // Check based on whether checkpoint exists
+      let isValid = false;
+      if (hasCheckpoint) {
+        // After honor: must be AFTER checkpoint (not equal)
+        isValid = displayDateGregorian > startingPoint && lastLessonDateGregorian > startingPoint;
+        console.log(`      • Check (AFTER): ${lastLessonDateGregorian} > ${startingPoint}? ${lastLessonDateGregorian > startingPoint}`);
+        console.log(`      • Check (AFTER): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
+      } else {
+        // First cycle: can be ON or AFTER Safar start
+        isValid = displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint;
+        console.log(`      • Check (ON/AFTER): ${lastLessonDateGregorian} >= ${startingPoint}? ${lastLessonDateGregorian >= startingPoint}`);
+        console.log(`      • Check (ON/AFTER): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+      }
+      
+      // Both dates must be AFTER the starting point (not equal)
+      // This ensures honored achievements don't reappear
+      if (isValid) {
         // Calculate duration in days
         const duration = calculateDaysBetween(lastLessonDate, displayDate);
         const attemptsCount = record.attemptsCount || 1;
         
-        console.log(`      ✅ ACCEPTED - Both dates are on/after starting point`);
+        console.log(`      ✅ ACCEPTED - Dates ${hasCheckpoint ? 'AFTER' : 'ON/AFTER'} starting point`);
         console.log(`      • Attempts: ${attemptsCount}, Duration: ${duration} days`);
         
         allRecords.push({ 
@@ -412,7 +468,7 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
           duration: duration
         });
       } else {
-        console.log(`      ❌ REJECTED - One or both dates are before starting point`);
+        console.log(`      ❌ REJECTED - Dates ${hasCheckpoint ? 'before/equal to checkpoint' : 'before Safar start'}`);
       }
     });
     
@@ -428,16 +484,29 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       console.log(`   📖 Juz #${index + 1} (رقم ${record.juzNumber}):`);
       console.log(`      • lastLessonDate: ${lastLessonDate} → Gregorian: ${lastLessonDateGregorian}`);
       console.log(`      • displayDate: ${displayDate} → Gregorian: ${displayDateGregorian}`);
-      console.log(`      • Check: ${lastLessonDateGregorian} >= ${startingPoint}? ${lastLessonDateGregorian >= startingPoint}`);
-      console.log(`      • Check: ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
       
-      // Both dates must be on or after the starting point
-      if (displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint) {
+      // Check based on whether checkpoint exists
+      let isValid = false;
+      if (hasCheckpoint) {
+        // After honor: must be AFTER checkpoint (not equal)
+        isValid = displayDateGregorian > startingPoint && lastLessonDateGregorian > startingPoint;
+        console.log(`      • Check (AFTER): ${lastLessonDateGregorian} > ${startingPoint}? ${lastLessonDateGregorian > startingPoint}`);
+        console.log(`      • Check (AFTER): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
+      } else {
+        // First cycle: can be ON or AFTER Safar start
+        isValid = displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint;
+        console.log(`      • Check (ON/AFTER): ${lastLessonDateGregorian} >= ${startingPoint}? ${lastLessonDateGregorian >= startingPoint}`);
+        console.log(`      • Check (ON/AFTER): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+      }
+      
+      // Both dates must be AFTER the starting point (not equal)
+      // This ensures honored achievements don't reappear
+      if (isValid) {
         // Calculate duration in days
         const duration = calculateDaysBetween(lastLessonDate, displayDate);
         const attemptsCount = record.attemptsCount || 1;
         
-        console.log(`      ✅ ACCEPTED - Both dates are on/after starting point`);
+        console.log(`      ✅ ACCEPTED - Dates ${hasCheckpoint ? 'AFTER' : 'ON/AFTER'} starting point`);
         console.log(`      • Attempts: ${attemptsCount}, Duration: ${duration} days`);
         
         allRecords.push({ 
@@ -447,7 +516,7 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
           duration: duration
         });
       } else {
-        console.log(`      ❌ REJECTED - One or both dates are before starting point`);
+        console.log(`      ❌ REJECTED - Dates ${hasCheckpoint ? 'before/equal to checkpoint' : 'before Safar start'}`);
       }
     });
     
@@ -496,19 +565,26 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     }
     
     // Handle extra achievements (carry over to next months)
-    // Example: if required is 1 but achieved 3, then:
-    //   - 1st achievement = month 1 (based on displayDate of 1st hizb)
-    //   - 2nd achievement = month 2 (based on displayDate of 2nd hizb)
-    //   - 3rd achievement = month 3 (based on displayDate of 3rd hizb)
-    // For required 2: every 2 hizbs = 1 nomination
+    // Rules:
+    // 1. First complete nomination = eligible in the month of completion (displayDate)
+    // 2. Additional nominations = eligible in NEXT month after previous nomination
+    // 3. If student completes later than expected, use the actual completion month
+    //
+    // Example 1: Student completed 4 hizbs all in Safar (required: 2):
+    //   - Nomination 1: eligible in Safar (actual completion month)
+    //   - Nomination 2: eligible in Rabi' al-Awwal (next month)
+    //
+    // Example 2: Student completed 2 hizbs in Safar + 2 hizbs in Rabi' (required: 2):
+    //   - Nomination 1: eligible in Safar (actual completion)
+    //   - Nomination 2: eligible in Rabi' (actual completion month, which is also next month)
+    //
+    // Example 3: Student completed 2 hizbs in Safar + 2 hizbs in Jumada (required: 2):
+    //   - Nomination 1: eligible in Safar
+    //   - Nomination 2: eligible in Jumada (actual completion, skipping Rabi')
     
     const eligibleNominations = [];
     
-    // Get the base month from the FIRST complete group (earliest achievement)
-    const firstCompletionRecord = allRecords[Math.min(requiredCount - 1, allRecords.length - 1)];
-    const baseMonth = extractMonth(firstCompletionRecord.displayDate);
-    
-    console.log(`   📅 Base eligibility month: ${baseMonth}`);
+    console.log(`   📅 Creating nominations based on completion dates...`);
     
     // Split achievements into groups based on required count
     for (let i = 0; i < allRecords.length; i += requiredCount) {
@@ -516,16 +592,31 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       
       // Only add if this group has the full required count
       if (group.length === requiredCount) {
-        const completionRecord = group[group.length - 1];
+        const completionRecord = group[group.length - 1]; // Last record in the group
+        const completionMonth = extractMonth(completionRecord.displayDate); // Month when displayDate happened
         
-        // Calculate eligibility month based on nomination index
-        // First nomination = base month
-        // Second nomination = base month + 1
-        // Third nomination = base month + 2, etc.
         const nominationIndex = i / requiredCount;
-        const eligibleMonth = addMonthsToHijri(baseMonth, nominationIndex);
         
-        console.log(`   📋 Nomination #${nominationIndex + 1}: Eligible Month = ${eligibleMonth}`);
+        let eligibleMonth;
+        
+        if (nominationIndex === 0) {
+          // First nomination: eligible in actual completion month
+          eligibleMonth = completionMonth;
+        } else {
+          // Additional nominations: eligible in next month after previous nomination
+          // OR in actual completion month, whichever is later
+          const previousNomination = eligibleNominations[nominationIndex - 1];
+          const nextMonthAfterPrevious = addMonthsToHijri(previousNomination.eligibleMonth, 1);
+          
+          // Use whichever is later: actual completion month or next month
+          eligibleMonth = (completionMonth >= nextMonthAfterPrevious) 
+            ? completionMonth 
+            : nextMonthAfterPrevious;
+        }
+        
+        console.log(`   📋 Nomination #${nominationIndex + 1}:`);
+        console.log(`      • Completion Month (displayDate): ${completionMonth}`);
+        console.log(`      • Eligible Month: ${eligibleMonth}`);
         
         eligibleNominations.push({
           records: group,
@@ -900,8 +991,9 @@ function calculateDaysBetween(startDate, endDate) {
  * Update nominees statistics
  */
 function updateNomineesStatistics() {
-  const total = allNominees.length;
-  const withScores = allNominees.filter(n => n.hasExamScore).length;
+  // Use filteredNominees to reflect current filter state
+  const total = filteredNominees.length;
+  const withScores = filteredNominees.filter(n => n.hasExamScore).length;
   const waiting = total - withScores;
   
   document.getElementById('totalNominees').textContent = total;
@@ -1056,6 +1148,9 @@ function displayNominees() {
   tableHTML += '</tbody></table></div>';
   
   container.innerHTML = tableHTML;
+  
+  // Update statistics after displaying
+  updateNomineesStatistics();
 }
 
 /**
@@ -1245,6 +1340,10 @@ window.selectTop30 = async function() {
     // Reload honored months
     await loadHonoredMonths();
     
+    // Reload nominees to reflect checkpoint changes
+    console.log('🔄 Reloading nominees after honor ceremony...');
+    await window.loadNominees();
+    
     // Switch to honored tab
     window.switchHonorTab('honored');
     
@@ -1260,6 +1359,9 @@ window.selectTop30 = async function() {
 window.loadHonoredStudents = async function() {
   const monthSelect = document.getElementById('honoredMonthSelect');
   const container = document.getElementById('honoredTableContainer');
+  
+  // Mark as loaded so auto-load doesn't trigger again
+  honoredDataLoaded = true;
   
   if (!monthSelect || !container) return;
   
