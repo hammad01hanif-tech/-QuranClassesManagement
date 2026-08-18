@@ -1732,7 +1732,7 @@ window.exportHonoredPDF = async function() {
     // Restore original content
     container.innerHTML = originalContent;
     
-    // Create PDF
+    // Create PDF with multiple pages if needed
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({
@@ -1742,9 +1742,23 @@ window.exportHonoredPDF = async function() {
     });
     
     const imgWidth = 210; // A4 width in mm
+    const pageHeight = 297; // A4 height in mm
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
-    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+    let heightLeft = imgHeight;
+    let position = 0;
+    
+    // Add first page
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    
+    // Add additional pages if content exceeds one page
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
     
     // Save PDF
     const fileName = `المكرمون_${monthName}_${year}.pdf`;
