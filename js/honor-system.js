@@ -387,6 +387,31 @@ window.loadNominees = async function() {
 };
 
 /**
+ * Get the last day of a Hijri month (29 or 30)
+ * @param {string} hijriMonth - Hijri month in format "YYYY-MM"
+ * @returns {string} - Last day of the month in format "YYYY-MM-DD"
+ */
+function getLastDayOfHijriMonth(hijriMonth) {
+  const [year, month] = hijriMonth.split('-');
+  const paddedMonth = month.padStart(2, '0');
+  
+  // Try day 30 first
+  const day30 = `${year}-${paddedMonth}-30`;
+  try {
+    const gregorian30 = hijriToGregorianString(day30);
+    if (gregorian30 && gregorian30 !== '0000-00-00') {
+      // Successfully converted, month has 30 days
+      return day30;
+    }
+  } catch (e) {
+    // Day 30 failed, try day 29
+  }
+  
+  // Month has 29 days
+  return `${year}-${paddedMonth}-29`;
+}
+
+/**
  * Calculate student eligibility - OPTIMIZED (uses pre-loaded data)
  * 
  * New rules:
@@ -400,21 +425,34 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     // Determine the starting point
     // Safar 1448 starts on July 15, 2026 (Gregorian date) - based on Umm Al-Qura calendar
     // If no checkpoint exists, use this Gregorian date as the starting point
-    // If checkpoint exists, use the last honor date (moving checkpoint)
+    // If checkpoint exists, use the last day of the honored month (not the achievement date)
     const SAFAR_START_GREGORIAN = '2026-07-15'; // First day of Safar 1448 in Gregorian calendar
     const SAFAR_START_HIJRI = '1448-02-01'; // First day of Safar 1448 in Hijri calendar
-    const lastCheckpointDate = checkpoint?.lastHonorDate || '0';
     
     // For first cycle (no checkpoint), we need both registration and completion on/after Safar start date
-    // For subsequent cycles, we use the checkpoint date
-    const hasCheckpoint = checkpoint && checkpoint.lastHonorDate;
-    const startingPoint = hasCheckpoint ? lastCheckpointDate : SAFAR_START_GREGORIAN;
+    // For subsequent cycles, we use the last day of the honored month
+    const hasCheckpoint = checkpoint && checkpoint.lastHonorMonth;
+    let startingPoint;
+    let lastCheckpointDateHijri = '0';
+    
+    if (hasCheckpoint) {
+      // Calculate the last day of the honored month
+      lastCheckpointDateHijri = getLastDayOfHijriMonth(checkpoint.lastHonorMonth);
+      startingPoint = hijriToGregorianString(lastCheckpointDateHijri);
+    } else {
+      startingPoint = SAFAR_START_GREGORIAN;
+    }
     
     const totalRecords = (studentHizbs?.length || 0) + (studentJuz?.length || 0);
     if (totalRecords > 0) {
       console.log(`\n🔍 ============ Student ${studentName} (${studentId}) ============`);
       console.log(`   📊 Total records: ${studentHizbs?.length || 0} hizbs + ${studentJuz?.length || 0} juz = ${totalRecords}`);
-      console.log(`   🎯 Starting point: ${startingPoint} (${hasCheckpoint ? 'من آخر تكريم' : 'من بداية صفر 1448'})`);
+      if (hasCheckpoint) {
+        console.log(`   🎯 Starting point: ${startingPoint} Gregorian (آخر يوم من شهر التكريم: ${lastCheckpointDateHijri} Hijri)`);
+        console.log(`   📅 Honor month: ${checkpoint.lastHonorMonth}`);
+      } else {
+        console.log(`   🎯 Starting point: ${startingPoint} (من بداية صفر 1448)`);
+      }
       console.log(`   📅 Safar 1448 starts: ${SAFAR_START_HIJRI} Hijri = ${SAFAR_START_GREGORIAN} Gregorian`);
       console.log(`   🔒 Comparison operator: ${hasCheckpoint ? '>' : '>='} (${hasCheckpoint ? 'AFTER checkpoint' : 'ON/AFTER Safar start'})`);
     }
@@ -1264,9 +1302,10 @@ window.selectTop30 = async function() {
         createdAt: serverTimestamp()
       });
       
-      // Create checkpoint
+      // Create checkpoint (use last day of honored month, not last achievement date)
+      const checkpointDate = getLastDayOfHijriMonth(selectedMonth);
       await setDoc(doc(db, 'studentHonorCheckpoints', winner.studentId), {
-        lastHonorDate: winner.eligibleDate,
+        lastHonorDate: checkpointDate,
         lastHonorMonth: selectedMonth,
         lastCompletedNumber: winner.lastNumber,
         checkpointType: winner.type,
@@ -1313,9 +1352,10 @@ window.selectTop30 = async function() {
         continue;
       }
       
-      // Create checkpoint for this student (same as winners)
+      // Create checkpoint for this student (use last day of month, not last achievement date)
+      const checkpointDate = getLastDayOfHijriMonth(selectedMonth);
       await setDoc(doc(db, 'studentHonorCheckpoints', studentId), {
-        lastHonorDate: nominee.eligibleDate,
+        lastHonorDate: checkpointDate,
         lastHonorMonth: selectedMonth,
         lastCompletedNumber: nominee.lastNumber,
         checkpointType: nominee.type,
