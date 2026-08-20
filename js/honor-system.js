@@ -453,9 +453,9 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     let checkpointDateGregorian = null; // Date to exclude previously honored achievements
     
     if (hasCheckpoint) {
-      // Calculate the last day of the honored month (checkpoint cutoff date)
-      const lastCheckpointDateHijri = getLastDayOfHijriMonth(checkpoint.lastHonorMonth);
-      checkpointDateGregorian = hijriToGregorianString(lastCheckpointDateHijri);
+      // Use the exact lastHonorDate (displayDate of last used achievement)
+      // This is more precise than end-of-month and allows carry-over within same month
+      checkpointDateGregorian = hijriToGregorianString(checkpoint.lastHonorDate);
     }
     
     // Read carried-over count (remaining achievements from last honor)
@@ -467,7 +467,7 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       console.log(`   📊 Total records: ${studentHizbs?.length || 0} hizbs + ${studentJuz?.length || 0} juz = ${totalRecords}`);
       console.log(`   🎯 Starting point (UNIFIED): ${SAFAR_START_GREGORIAN} (بداية صفر 1448 - للجميع)`);
       if (hasCheckpoint) {
-        console.log(`   🔒 Checkpoint cutoff: ${checkpointDateGregorian} (استبعاد المُكرّمين سابقاً)`);
+        console.log(`   🔒 Checkpoint (last used): ${checkpoint.lastHonorDate} Hijri → ${checkpointDateGregorian} Gregorian`);
         console.log(`   📦 Carried over: ${carriedOverCount} (الرصيد المحفوظ)`);
       } else {
         console.log(`   ✨ First cycle (no checkpoint)`);
@@ -1372,10 +1372,11 @@ window.selectTop30 = async function() {
         createdAt: serverTimestamp()
       });
       
-      // Create checkpoint (use last day of honored month, not last achievement date)
-      const checkpointDate = getLastDayOfHijriMonth(selectedMonth);
+      // Create checkpoint (use displayDate of last used achievement, not end of month)
+      // This ensures only achievements USED in this nomination are excluded
+      // Achievements after this displayDate (including in same month) will be carried over
       await setDoc(doc(db, 'studentHonorCheckpoints', winner.studentId), {
-        lastHonorDate: checkpointDate,
+        lastHonorDate: winner.eligibleDate, // displayDate of last achievement used
         lastHonorMonth: selectedMonth,
         lastCompletedNumber: winner.lastNumber,
         checkpointType: winner.checkpointType || 'hizb-yas',
@@ -1423,10 +1424,10 @@ window.selectTop30 = async function() {
         continue;
       }
       
-      // Create checkpoint for this student (use last day of month, not last achievement date)
-      const checkpointDate = getLastDayOfHijriMonth(selectedMonth);
+      // Create checkpoint for this student (use displayDate of last used achievement)
+      // Same logic as winners: only exclude achievements actually used in nomination
       await setDoc(doc(db, 'studentHonorCheckpoints', studentId), {
-        lastHonorDate: checkpointDate,
+        lastHonorDate: nominee.eligibleDate, // displayDate of last achievement used
         lastHonorMonth: selectedMonth,
         lastCompletedNumber: nominee.lastNumber,
         checkpointType: nominee.checkpointType || 'hizb-yas',
