@@ -414,11 +414,29 @@ function getLastDayOfHijriMonth(hijriMonth) {
 /**
  * Calculate student eligibility - OPTIMIZED (uses pre-loaded data)
  * 
- * New rules:
- * 1. Safar (1447-08) is the starting point for the first cycle
- * 2. Both lastLessonDate AND displayDate must be after the checkpoint/starting point
- * 3. After first honor, checkpoint becomes the new starting point (moving checkpoint)
- * 4. Extra achievements are carried over to next months automatically
+ * UNIFIED ELIGIBILITY RULES FOR FAIRNESS:
+ * =======================================
+ * 
+ * RULE 1 - lastLessonDate (Registration Date):
+ *   ✅ MUST be >= Safar 1448 start (2026-07-15)
+ *   ❌ Rejects any lesson registered in Muharram or earlier
+ *   🌐 Applies to ALL students (with or without checkpoint)
+ *   ⚖️ Ensures fairness: everyone starts from same baseline
+ * 
+ * RULE 2 - displayDate (Completion Date):
+ *   📅 If NO checkpoint: displayDate >= Safar start (first cycle)
+ *   🔒 If HAS checkpoint: displayDate > last day of honored month
+ *   🚫 Ensures no double-honor for same achievement
+ * 
+ * CHECKPOINT SYSTEM:
+ *   🏆 After honor: checkpoint = last day of honored month
+ *   🔄 Resets counter: student needs full requirement again
+ *   ➕ Extra achievements carry to next month
+ * 
+ * EXAMPLE:
+ *   Student: 4 hizbs in Safar (all lastLesson in Safar)
+ *     → Month 1 (Safar): hizb 1+2 ✅
+ *     → Month 2 (Rabi'): hizb 3+4 ✅
  */
 function calculateStudentEligibilityOptimized(studentId, studentName, teacherId, teacherName, checkpoint, studentHizbs, studentJuz, examsByStudentMonth) {
   try {
@@ -457,9 +475,10 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       console.log(`   🔒 Comparison operator: ${hasCheckpoint ? '>' : '>='} (${hasCheckpoint ? 'AFTER checkpoint' : 'ON/AFTER Safar start'})`);
     }
     
-    // Filter records: both lastLessonDate and displayDate must be after starting point
-    // For first cycle: >= (on or after Safar start)
-    // After honor: > (strictly after checkpoint to prevent re-nomination)
+    // Filter records with TWO critical rules for fairness:
+    // RULE 1: lastLessonDate MUST be >= Safar start (no lessons registered before Safar)
+    // RULE 2 (displayDate): For first cycle >= Safar start, After honor > checkpoint
+    // This ensures all students are judged equally regardless of checkpoint status
     const allRecords = [];
     
     // Process hizbs
@@ -475,17 +494,24 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       console.log(`      • lastLessonDate: ${lastLessonDate} → Gregorian: ${lastLessonDateGregorian}`);
       console.log(`      • displayDate: ${displayDate} → Gregorian: ${displayDateGregorian}`);
       
+      // CRITICAL RULE: lastLessonDate MUST be >= Safar start (no lessons from Muharram)
+      // This ensures fairness for all students regardless of checkpoint status
+      if (lastLessonDateGregorian < SAFAR_START_GREGORIAN) {
+        console.log(`      ❌ REJECTED - lastLessonDate before Safar start (registered in Muharram or earlier)`);
+        console.log(`      • ${lastLessonDateGregorian} < ${SAFAR_START_GREGORIAN}`);
+        return; // Skip this record
+      }
+      
       // Check based on whether checkpoint exists
       let isValid = false;
       if (hasCheckpoint) {
         // After honor: displayDate must be AFTER checkpoint (not equal)
-        // lastLessonDate can be before/equal checkpoint (student may register last lesson at end of month)
         isValid = displayDateGregorian > startingPoint;
-        console.log(`      • Check displayDate (AFTER): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
+        console.log(`      • Check displayDate (AFTER checkpoint): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
       } else {
         // First cycle: displayDate must be ON or AFTER Safar start
         isValid = displayDateGregorian >= startingPoint;
-        console.log(`      • Check displayDate (ON/AFTER): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+        console.log(`      • Check displayDate (ON/AFTER Safar): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
       }
       
       // displayDate must be after the starting point
@@ -522,17 +548,24 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       console.log(`      • lastLessonDate: ${lastLessonDate} → Gregorian: ${lastLessonDateGregorian}`);
       console.log(`      • displayDate: ${displayDate} → Gregorian: ${displayDateGregorian}`);
       
+      // CRITICAL RULE: lastLessonDate MUST be >= Safar start (no lessons from Muharram)
+      // This ensures fairness for all students regardless of checkpoint status
+      if (lastLessonDateGregorian < SAFAR_START_GREGORIAN) {
+        console.log(`      ❌ REJECTED - lastLessonDate before Safar start (registered in Muharram or earlier)`);
+        console.log(`      • ${lastLessonDateGregorian} < ${SAFAR_START_GREGORIAN}`);
+        return; // Skip this record
+      }
+      
       // Check based on whether checkpoint exists
       let isValid = false;
       if (hasCheckpoint) {
         // After honor: displayDate must be AFTER checkpoint (not equal)
-        // lastLessonDate can be before/equal checkpoint (student may register last lesson at end of month)
         isValid = displayDateGregorian > startingPoint;
-        console.log(`      • Check displayDate (AFTER): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
+        console.log(`      • Check displayDate (AFTER checkpoint): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
       } else {
         // First cycle: displayDate must be ON or AFTER Safar start
         isValid = displayDateGregorian >= startingPoint;
-        console.log(`      • Check displayDate (ON/AFTER): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+        console.log(`      • Check displayDate (ON/AFTER Safar): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
       }
       
       // displayDate must be after the starting point
