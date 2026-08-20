@@ -478,19 +478,18 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       // Check based on whether checkpoint exists
       let isValid = false;
       if (hasCheckpoint) {
-        // After honor: must be AFTER checkpoint (not equal)
-        isValid = displayDateGregorian > startingPoint && lastLessonDateGregorian > startingPoint;
-        console.log(`      • Check (AFTER): ${lastLessonDateGregorian} > ${startingPoint}? ${lastLessonDateGregorian > startingPoint}`);
-        console.log(`      • Check (AFTER): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
+        // After honor: displayDate must be AFTER checkpoint (not equal)
+        // lastLessonDate can be before/equal checkpoint (student may register last lesson at end of month)
+        isValid = displayDateGregorian > startingPoint;
+        console.log(`      • Check displayDate (AFTER): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
       } else {
-        // First cycle: can be ON or AFTER Safar start
-        isValid = displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint;
-        console.log(`      • Check (ON/AFTER): ${lastLessonDateGregorian} >= ${startingPoint}? ${lastLessonDateGregorian >= startingPoint}`);
-        console.log(`      • Check (ON/AFTER): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+        // First cycle: displayDate must be ON or AFTER Safar start
+        isValid = displayDateGregorian >= startingPoint;
+        console.log(`      • Check displayDate (ON/AFTER): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
       }
       
-      // Both dates must be AFTER the starting point (not equal)
-      // This ensures honored achievements don't reappear
+      // displayDate must be after the starting point
+      // This ensures only new achievements (completed after checkpoint) are counted
       if (isValid) {
         // Calculate duration in days
         const duration = calculateDaysBetween(lastLessonDate, displayDate);
@@ -526,19 +525,18 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       // Check based on whether checkpoint exists
       let isValid = false;
       if (hasCheckpoint) {
-        // After honor: must be AFTER checkpoint (not equal)
-        isValid = displayDateGregorian > startingPoint && lastLessonDateGregorian > startingPoint;
-        console.log(`      • Check (AFTER): ${lastLessonDateGregorian} > ${startingPoint}? ${lastLessonDateGregorian > startingPoint}`);
-        console.log(`      • Check (AFTER): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
+        // After honor: displayDate must be AFTER checkpoint (not equal)
+        // lastLessonDate can be before/equal checkpoint (student may register last lesson at end of month)
+        isValid = displayDateGregorian > startingPoint;
+        console.log(`      • Check displayDate (AFTER): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
       } else {
-        // First cycle: can be ON or AFTER Safar start
-        isValid = displayDateGregorian >= startingPoint && lastLessonDateGregorian >= startingPoint;
-        console.log(`      • Check (ON/AFTER): ${lastLessonDateGregorian} >= ${startingPoint}? ${lastLessonDateGregorian >= startingPoint}`);
-        console.log(`      • Check (ON/AFTER): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+        // First cycle: displayDate must be ON or AFTER Safar start
+        isValid = displayDateGregorian >= startingPoint;
+        console.log(`      • Check displayDate (ON/AFTER): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
       }
       
-      // Both dates must be AFTER the starting point (not equal)
-      // This ensures honored achievements don't reappear
+      // displayDate must be after the starting point
+      // This ensures only new achievements (completed after checkpoint) are counted
       if (isValid) {
         // Calculate duration in days
         const duration = calculateDaysBetween(lastLessonDate, displayDate);
