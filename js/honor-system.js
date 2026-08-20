@@ -440,39 +440,38 @@ function getLastDayOfHijriMonth(hijriMonth) {
  */
 function calculateStudentEligibilityOptimized(studentId, studentName, teacherId, teacherName, checkpoint, studentHizbs, studentJuz, examsByStudentMonth) {
   try {
-    // Determine the starting point
-    // Safar 1448 starts on July 15, 2026 (Gregorian date) - based on Umm Al-Qura calendar
-    // If no checkpoint exists, use this Gregorian date as the starting point
-    // If checkpoint exists, use the last day of the honored month (not the achievement date)
+    // UNIFIED STARTING POINT FOR ALL STUDENTS (FAIRNESS)
+    // =================================================
+    // Starting point is ALWAYS Safar 1448 start date for ALL students
+    // This ensures every student is judged by the same baseline
+    // Checkpoint is used ONLY to exclude previously honored achievements
     const SAFAR_START_GREGORIAN = '2026-07-15'; // First day of Safar 1448 in Gregorian calendar
     const SAFAR_START_HIJRI = '1448-02-01'; // First day of Safar 1448 in Hijri calendar
     
-    // For first cycle (no checkpoint), we need both registration and completion on/after Safar start date
-    // For subsequent cycles, we use the last day of the honored month
+    // Checkpoint tracks: which achievements were already honored (to avoid double-counting)
     const hasCheckpoint = checkpoint && checkpoint.lastHonorMonth;
-    let startingPoint;
-    let lastCheckpointDateHijri = '0';
+    let checkpointDateGregorian = null; // Date to exclude previously honored achievements
     
     if (hasCheckpoint) {
-      // Calculate the last day of the honored month
-      lastCheckpointDateHijri = getLastDayOfHijriMonth(checkpoint.lastHonorMonth);
-      startingPoint = hijriToGregorianString(lastCheckpointDateHijri);
-    } else {
-      startingPoint = SAFAR_START_GREGORIAN;
+      // Calculate the last day of the honored month (checkpoint cutoff date)
+      const lastCheckpointDateHijri = getLastDayOfHijriMonth(checkpoint.lastHonorMonth);
+      checkpointDateGregorian = hijriToGregorianString(lastCheckpointDateHijri);
     }
+    
+    // Read carried-over count (remaining achievements from last honor)
+    const carriedOverCount = (checkpoint && checkpoint.carriedOverCount) || 0;
     
     const totalRecords = (studentHizbs?.length || 0) + (studentJuz?.length || 0);
     if (totalRecords > 0) {
       console.log(`\n🔍 ============ Student ${studentName} (${studentId}) ============`);
       console.log(`   📊 Total records: ${studentHizbs?.length || 0} hizbs + ${studentJuz?.length || 0} juz = ${totalRecords}`);
+      console.log(`   🎯 Starting point (UNIFIED): ${SAFAR_START_GREGORIAN} (بداية صفر 1448 - للجميع)`);
       if (hasCheckpoint) {
-        console.log(`   🎯 Starting point: ${startingPoint} Gregorian (آخر يوم من شهر التكريم: ${lastCheckpointDateHijri} Hijri)`);
-        console.log(`   📅 Honor month: ${checkpoint.lastHonorMonth}`);
+        console.log(`   🔒 Checkpoint cutoff: ${checkpointDateGregorian} (استبعاد المُكرّمين سابقاً)`);
+        console.log(`   📦 Carried over: ${carriedOverCount} (الرصيد المحفوظ)`);
       } else {
-        console.log(`   🎯 Starting point: ${startingPoint} (من بداية صفر 1448)`);
+        console.log(`   ✨ First cycle (no checkpoint)`);
       }
-      console.log(`   📅 Safar 1448 starts: ${SAFAR_START_HIJRI} Hijri = ${SAFAR_START_GREGORIAN} Gregorian`);
-      console.log(`   🔒 Comparison operator: ${hasCheckpoint ? '>' : '>='} (${hasCheckpoint ? 'AFTER checkpoint' : 'ON/AFTER Safar start'})`);
     }
     
     // Filter records with TWO critical rules for fairness:
@@ -494,34 +493,30 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       console.log(`      • lastLessonDate: ${lastLessonDate} → Gregorian: ${lastLessonDateGregorian}`);
       console.log(`      • displayDate: ${displayDate} → Gregorian: ${displayDateGregorian}`);
       
-      // CRITICAL RULE: lastLessonDate MUST be >= Safar start (no lessons from Muharram)
-      // This ensures fairness for all students regardless of checkpoint status
+      // RULE 1: lastLessonDate MUST be >= Safar start (UNIFIED for all students)
       if (lastLessonDateGregorian < SAFAR_START_GREGORIAN) {
-        console.log(`      ❌ REJECTED - lastLessonDate before Safar start (registered in Muharram or earlier)`);
+        console.log(`      ❌ REJECTED - lastLessonDate before Safar start (registered before system start)`);
         console.log(`      • ${lastLessonDateGregorian} < ${SAFAR_START_GREGORIAN}`);
-        return; // Skip this record
+        return;
       }
       
-      // Check based on whether checkpoint exists
+      // RULE 2: displayDate must exclude previously honored achievements
       let isValid = false;
       if (hasCheckpoint) {
-        // After honor: displayDate must be AFTER checkpoint (not equal)
-        isValid = displayDateGregorian > startingPoint;
-        console.log(`      • Check displayDate (AFTER checkpoint): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
+        // Student was honored before: exclude achievements up to checkpoint
+        isValid = displayDateGregorian > checkpointDateGregorian;
+        console.log(`      • Check displayDate > checkpoint: ${displayDateGregorian} > ${checkpointDateGregorian}? ${isValid}`);
       } else {
-        // First cycle: displayDate must be ON or AFTER Safar start
-        isValid = displayDateGregorian >= startingPoint;
-        console.log(`      • Check displayDate (ON/AFTER Safar): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+        // First cycle: accept all from Safar start
+        isValid = displayDateGregorian >= SAFAR_START_GREGORIAN;
+        console.log(`      • Check displayDate >= Safar start: ${displayDateGregorian} >= ${SAFAR_START_GREGORIAN}? ${isValid}`);
       }
       
-      // displayDate must be after the starting point
-      // This ensures only new achievements (completed after checkpoint) are counted
       if (isValid) {
-        // Calculate duration in days
         const duration = calculateDaysBetween(lastLessonDate, displayDate);
         const attemptsCount = record.attemptsCount || 1;
         
-        console.log(`      ✅ ACCEPTED - Dates ${hasCheckpoint ? 'AFTER' : 'ON/AFTER'} starting point`);
+        console.log(`      ✅ ACCEPTED - New achievement (not previously honored)`);
         console.log(`      • Attempts: ${attemptsCount}, Duration: ${duration} days`);
         
         allRecords.push({ 
@@ -531,7 +526,7 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
           duration: duration
         });
       } else {
-        console.log(`      ❌ REJECTED - Dates ${hasCheckpoint ? 'before/equal to checkpoint' : 'before Safar start'}`);
+        console.log(`      ❌ REJECTED - ${hasCheckpoint ? 'Already honored (before checkpoint)' : 'Before system start'}`);
       }
     });
     
@@ -548,34 +543,30 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       console.log(`      • lastLessonDate: ${lastLessonDate} → Gregorian: ${lastLessonDateGregorian}`);
       console.log(`      • displayDate: ${displayDate} → Gregorian: ${displayDateGregorian}`);
       
-      // CRITICAL RULE: lastLessonDate MUST be >= Safar start (no lessons from Muharram)
-      // This ensures fairness for all students regardless of checkpoint status
+      // RULE 1: lastLessonDate MUST be >= Safar start (UNIFIED for all students)
       if (lastLessonDateGregorian < SAFAR_START_GREGORIAN) {
-        console.log(`      ❌ REJECTED - lastLessonDate before Safar start (registered in Muharram or earlier)`);
+        console.log(`      ❌ REJECTED - lastLessonDate before Safar start (registered before system start)`);
         console.log(`      • ${lastLessonDateGregorian} < ${SAFAR_START_GREGORIAN}`);
-        return; // Skip this record
+        return;
       }
       
-      // Check based on whether checkpoint exists
+      // RULE 2: displayDate must exclude previously honored achievements
       let isValid = false;
       if (hasCheckpoint) {
-        // After honor: displayDate must be AFTER checkpoint (not equal)
-        isValid = displayDateGregorian > startingPoint;
-        console.log(`      • Check displayDate (AFTER checkpoint): ${displayDateGregorian} > ${startingPoint}? ${displayDateGregorian > startingPoint}`);
+        // Student was honored before: exclude achievements up to checkpoint
+        isValid = displayDateGregorian > checkpointDateGregorian;
+        console.log(`      • Check displayDate > checkpoint: ${displayDateGregorian} > ${checkpointDateGregorian}? ${isValid}`);
       } else {
-        // First cycle: displayDate must be ON or AFTER Safar start
-        isValid = displayDateGregorian >= startingPoint;
-        console.log(`      • Check displayDate (ON/AFTER Safar): ${displayDateGregorian} >= ${startingPoint}? ${displayDateGregorian >= startingPoint}`);
+        // First cycle: accept all from Safar start
+        isValid = displayDateGregorian >= SAFAR_START_GREGORIAN;
+        console.log(`      • Check displayDate >= Safar start: ${displayDateGregorian} >= ${SAFAR_START_GREGORIAN}? ${isValid}`);
       }
       
-      // displayDate must be after the starting point
-      // This ensures only new achievements (completed after checkpoint) are counted
       if (isValid) {
-        // Calculate duration in days
         const duration = calculateDaysBetween(lastLessonDate, displayDate);
         const attemptsCount = record.attemptsCount || 1;
         
-        console.log(`      ✅ ACCEPTED - Dates ${hasCheckpoint ? 'AFTER' : 'ON/AFTER'} starting point`);
+        console.log(`      ✅ ACCEPTED - New achievement (not previously honored)`);
         console.log(`      • Attempts: ${attemptsCount}, Duration: ${duration} days`);
         
         allRecords.push({ 
@@ -585,7 +576,7 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
           duration: duration
         });
       } else {
-        console.log(`      ❌ REJECTED - Dates ${hasCheckpoint ? 'before/equal to checkpoint' : 'before Safar start'}`);
+        console.log(`      ❌ REJECTED - ${hasCheckpoint ? 'Already honored (before checkpoint)' : 'Before system start'}`);
       }
     });
     
@@ -597,6 +588,8 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     }
     
     console.log(`   ✅ Accepted records: ${allRecords.length} out of ${totalRecords}`);
+    console.log(`   📦 Carried over from previous: ${carriedOverCount}`);
+    console.log(`   📊 Total available: ${allRecords.length} + ${carriedOverCount} = ${allRecords.length + carriedOverCount}`);
     
     // Sort by displayDate
     allRecords.sort((a, b) => {
@@ -609,10 +602,10 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     let requiredCount = 0;
     let studentType = '';
     
-    if (allRecords[0].type === 'juz') {
+    if (allRecords.length > 0 && allRecords[0].type === 'juz') {
       requiredCount = 2;
       studentType = 'جزآن';
-    } else {
+    } else if (allRecords.length > 0) {
       // Determine based on latest hizb number
       const latestHizbNumber = allRecords[allRecords.length - 1].hizbNumber || 0;
       
@@ -623,106 +616,143 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
         requiredCount = 2;
         studentType = 'حزبان (يس)';
       }
+    } else if (carriedOverCount > 0) {
+      // No new records but has carried over - use checkpoint info
+      requiredCount = (checkpoint.checkpointType === 'juz') ? 2 : 
+                     (checkpoint.checkpointType === 'hizb-nas') ? 1 : 2;
+      studentType = (checkpoint.checkpointType === 'juz') ? 'جزآن' :
+                   (checkpoint.checkpointType === 'hizb-nas') ? 'حزب واحد (الناس)' : 'حزبان (يس)';
     }
     
-    console.log(`   📊 Required: ${requiredCount} ${studentType}, Available: ${allRecords.length}`);
+    console.log(`   📊 Required: ${requiredCount} ${studentType}, New: ${allRecords.length}, Carried: ${carriedOverCount}`);
     
-    // Check if completed the required count
-    if (allRecords.length < requiredCount) {
-      console.log(`   ❌ INELIGIBLE: Not enough records (need ${requiredCount}, have ${allRecords.length})`);
+    // Calculate total with carried over count
+    const totalAvailable = allRecords.length + carriedOverCount;
+    
+    // Check if completed the required count (including carried over)
+    if (totalAvailable < requiredCount) {
+      console.log(`   ❌ INELIGIBLE: Not enough (need ${requiredCount}, have ${totalAvailable} = ${allRecords.length} new + ${carriedOverCount} carried)`);
       return { eligible: false };
     }
     
     // Handle extra achievements (carry over to next months)
-    // Rules:
-    // 1. First complete nomination = eligible in the month of completion (displayDate)
-    // 2. Additional nominations = eligible in NEXT month after previous nomination
-    // 3. If student completes later than expected, use the actual completion month
+    // 
+    // CARRIED OVER LOGIC:
+    // ===================
+    // If student has carriedOverCount > 0, they already have partial progress
+    // Example: requiredCount=2, carriedOverCount=1, newRecords=1
+    //   → First nomination uses: 1 carried + 1 new = complete!
+    //   → eligibleMonth = month of the 1 new record
+    // 
+    // Example: requiredCount=2, carriedOverCount=1, newRecords=3
+    //   → Nomination 1: 1 carried + 1 new (first record)
+    //   → Nomination 2: 2 new (records 2+3)
     //
-    // Example 1: Student completed 4 hizbs all in Safar (required: 2):
-    //   - Nomination 1: eligible in Safar (actual completion month)
-    //   - Nomination 2: eligible in Rabi' al-Awwal (next month)
-    //
-    // Example 2: Student completed 2 hizbs in Safar + 2 hizbs in Rabi' (required: 2):
-    //   - Nomination 1: eligible in Safar (actual completion)
-    //   - Nomination 2: eligible in Rabi' (actual completion month, which is also next month)
-    //
-    // Example 3: Student completed 2 hizbs in Safar + 2 hizbs in Jumada (required: 2):
-    //   - Nomination 1: eligible in Safar
-    //   - Nomination 2: eligible in Jumada (actual completion, skipping Rabi')
+    // Example: requiredCount=2, carriedOverCount=0, newRecords=4
+    //   → Nomination 1: 2 new (records 1+2)
+    //   → Nomination 2: 2 new (records 3+4)
     
     const eligibleNominations = [];
     
-    console.log(`   📅 Creating nominations based on completion dates...`);
+    console.log(`   📅 Creating nominations (with carried over: ${carriedOverCount})...`);
     
-    // Split achievements into groups based on required count
-    for (let i = 0; i < allRecords.length; i += requiredCount) {
-      const group = allRecords.slice(i, i + requiredCount);
+    let currentCarriedOver = carriedOverCount;
+    let recordIndex = 0;
+    
+    while (recordIndex < allRecords.length || currentCarriedOver >= requiredCount) {
+      // Calculate how many new records needed for this nomination
+      const neededFromNew = Math.max(0, requiredCount - currentCarriedOver);
       
-      // Only add if this group has the full required count
-      if (group.length === requiredCount) {
-        const completionRecord = group[group.length - 1]; // Last record in the group
-        const completionMonth = extractMonth(completionRecord.displayDate); // Month when displayDate happened
-        
-        const nominationIndex = i / requiredCount;
-        
-        let eligibleMonth;
-        
-        if (nominationIndex === 0) {
-          // First nomination: eligible in actual completion month
-          eligibleMonth = completionMonth;
-        } else {
-          // Additional nominations: eligible in next month after previous nomination
-          // OR in actual completion month, whichever is later
-          const previousNomination = eligibleNominations[nominationIndex - 1];
-          const nextMonthAfterPrevious = addMonthsToHijri(previousNomination.eligibleMonth, 1);
-          
-          // Use whichever is later: actual completion month or next month
-          eligibleMonth = (completionMonth >= nextMonthAfterPrevious) 
-            ? completionMonth 
-            : nextMonthAfterPrevious;
-        }
-        
-        console.log(`   📋 Nomination #${nominationIndex + 1}:`);
-        console.log(`      • Completion Month (displayDate): ${completionMonth}`);
-        console.log(`      • Eligible Month: ${eligibleMonth}`);
-        
-        eligibleNominations.push({
-          records: group,
-          completionRecord: completionRecord,
-          eligibleMonth: eligibleMonth,
-          nominationIndex: nominationIndex
-        });
+      console.log(`   🔄 Nomination attempt: need ${neededFromNew} from new (carried: ${currentCarriedOver})`);
+      
+      // Check if we have enough records
+      if (recordIndex + neededFromNew > allRecords.length) {
+        // Not enough new records, save as carried over for next time
+        const remaining = currentCarriedOver + (allRecords.length - recordIndex);
+        console.log(`   💾 Not enough for complete nomination. Carrying over: ${remaining}`);
+        break;
       }
+      
+      // Get the records for this nomination
+      const nominationRecords = allRecords.slice(recordIndex, recordIndex + neededFromNew);
+      const completionRecord = nominationRecords.length > 0 ? 
+                              nominationRecords[nominationRecords.length - 1] : 
+                              null;
+      
+      // Determine eligible month
+      let eligibleMonth;
+      if (completionRecord) {
+        // Has new records: use completion month of last new record
+        eligibleMonth = extractMonth(completionRecord.displayDate);
+      } else {
+        // Only carried over (no new records), shouldn't happen after check above
+        console.log(`   ⚠️ ERROR: No completion record found`);
+        break;
+      }
+      
+      // Adjust for sequential months (nominations in different months should be sequential)
+      if (eligibleNominations.length > 0) {
+        const previousNomination = eligibleNominations[eligibleNominations.length - 1];
+        const nextMonthAfterPrevious = addMonthsToHijri(previousNomination.eligibleMonth, 1);
+        
+        // Use whichever is later: actual completion month or next month after previous
+        if (eligibleMonth < nextMonthAfterPrevious) {
+          eligibleMonth = nextMonthAfterPrevious;
+        }
+      }
+      
+      console.log(`   ✅ Nomination #${eligibleNominations.length + 1}:`);
+      console.log(`      • Carried over used: ${Math.min(currentCarriedOver, requiredCount)}`);
+      console.log(`      • New records used: ${neededFromNew}`);
+      console.log(`      • Completion Month: ${eligibleMonth}`);
+      console.log(`      • Eligible Month: ${eligibleMonth}`);
+      
+      eligibleNominations.push({
+        records: nominationRecords,
+        completionRecord: completionRecord,
+        eligibleMonth: eligibleMonth,
+        nominationIndex: eligibleNominations.length,
+        usedCarriedOver: Math.min(currentCarriedOver, requiredCount)
+      });
+      
+      // Update counters
+      currentCarriedOver = Math.max(0, currentCarriedOver - requiredCount);
+      recordIndex += neededFromNew;
     }
+    
+    // Calculate remaining carried over
+    const newCarriedOver = currentCarriedOver + (allRecords.length - recordIndex);
+    console.log(`   💾 New carried over for next time: ${newCarriedOver}`);
     
     // Return empty array if no complete nominations
     if (eligibleNominations.length === 0) {
+      console.log(`   ❌ No complete nominations (will carry over ${newCarriedOver})`);
       return [];
     }
     
     // Find the BEST record across ALL records (for tiebreaker)
-    let globalBestRecord = allRecords[0];
-    for (let i = 1; i < allRecords.length; i++) {
-      const current = allRecords[i];
-      
-      // Compare attempts first
-      if (current.attemptsCount < globalBestRecord.attemptsCount) {
-        globalBestRecord = current;
-      } else if (current.attemptsCount === globalBestRecord.attemptsCount) {
-        // If attempts are equal, compare duration
-        if (current.duration < globalBestRecord.duration) {
+    let globalBestRecord = allRecords.length > 0 ? allRecords[0] : null;
+    if (globalBestRecord) {
+      for (let i = 1; i < allRecords.length; i++) {
+        const current = allRecords[i];
+        
+        // Compare attempts first
+        if (current.attemptsCount < globalBestRecord.attemptsCount) {
           globalBestRecord = current;
+        } else if (current.attemptsCount === globalBestRecord.attemptsCount) {
+          // If attempts are equal, compare duration
+          if (current.duration < globalBestRecord.duration) {
+            globalBestRecord = current;
+          }
         }
       }
-    }
-    
-    console.log(`   🏆 Global Best Record (for tiebreaker across all achievements):`);
-    console.log(`      • Type: ${globalBestRecord.type === 'hizb' ? 'حزب' : 'جزء'}`);
-    console.log(`      • Number: ${globalBestRecord.type === 'hizb' ? globalBestRecord.hizbNumber : globalBestRecord.juzNumber}`);
-    console.log(`      • Attempts: ${globalBestRecord.attemptsCount}`);
-    console.log(`      • Duration: ${globalBestRecord.duration} days`);
-    
+      
+      console.log(`   🏆 Global Best Record (for tiebreaker across all achievements):`);
+      console.log(`      • Type: ${globalBestRecord.type === 'hizb' ? 'حزب' : 'جزء'}`);
+      console.log(`      • Number: ${globalBestRecord.type === 'hizb' ? globalBestRecord.hizbNumber : globalBestRecord.juzNumber}`);
+      console.log(`      • Attempts: ${globalBestRecord.attemptsCount}`);
+      console.log(`      • Duration: ${globalBestRecord.duration} days`);
+    }    
     // Create eligibility object for EACH nomination
     const results = [];
     
@@ -783,6 +813,12 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       
       console.log(`   🎯 ELIGIBLE! Month: ${eligibleMonth}, Type: ${studentType}, Total Score: ${totalScore}`);
       
+      // Calculate new carried over for THIS nomination
+      // After this nomination is honored, what will be the new carried over?
+      const nominationsProcessed = i + 1;
+      const recordsUsedSoFar = nominationsProcessed * requiredCount - carriedOverCount;
+      const nominationCarriedOver = Math.max(0, allRecords.length - recordsUsedSoFar);
+      
       results.push({
         eligible: true,
         studentId: studentId,
@@ -799,14 +835,17 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
         totalScore: totalScore,
         hasExamScore: hasExamScore,
         examDetails: examDetails,
-        bestAttempts: globalBestRecord.attemptsCount, // Use global best
-        bestDuration: globalBestRecord.duration, // Use global best
-        bestRecordType: globalBestRecord.type,
-        bestRecordNumber: globalBestRecord.type === 'hizb' ? globalBestRecord.hizbNumber : globalBestRecord.juzNumber,
-        lastNumber: completionRecord.hizbNumber || completionRecord.juzNumber || 0,
+        bestAttempts: globalBestRecord ? globalBestRecord.attemptsCount : 1,
+        bestDuration: globalBestRecord ? globalBestRecord.duration : 0,
+        bestRecordType: globalBestRecord ? globalBestRecord.type : studentType.includes('جزء') ? 'juz' : 'hizb',
+        bestRecordNumber: globalBestRecord ? (globalBestRecord.type === 'hizb' ? globalBestRecord.hizbNumber : globalBestRecord.juzNumber) : 0,
+        lastNumber: completionRecord ? (completionRecord.hizbNumber || completionRecord.juzNumber || 0) : 0,
         totalAchievements: allRecords.length,
         nominationIndex: i,
-        totalNominations: eligibleNominations.length
+        totalNominations: eligibleNominations.length,
+        carriedOverCount: nominationCarriedOver, // Will be saved to checkpoint
+        checkpointType: studentType.includes('جزء') ? 'juz' : 
+                        studentType.includes('الناس') ? 'hizb-nas' : 'hizb-yas'
       });
     }
     
@@ -1339,7 +1378,8 @@ window.selectTop30 = async function() {
         lastHonorDate: checkpointDate,
         lastHonorMonth: selectedMonth,
         lastCompletedNumber: winner.lastNumber,
-        checkpointType: winner.type,
+        checkpointType: winner.checkpointType || 'hizb-yas',
+        carriedOverCount: winner.carriedOverCount || 0,
         updatedAt: serverTimestamp()
       });
       
@@ -1389,7 +1429,8 @@ window.selectTop30 = async function() {
         lastHonorDate: checkpointDate,
         lastHonorMonth: selectedMonth,
         lastCompletedNumber: nominee.lastNumber,
-        checkpointType: nominee.type,
+        checkpointType: nominee.checkpointType || 'hizb-yas',
+        carriedOverCount: nominee.carriedOverCount || 0,
         updatedAt: serverTimestamp()
       });
       
