@@ -41,6 +41,123 @@ function addMonthsToHijri(hijriMonth, monthsToAdd) {
 }
 
 /**
+ * Show achievements popup for a nominee
+ * @param {Array} eligibleRecords - Array of achievement records
+ * @param {string} studentName - Student name
+ */
+window.showAchievementsPopup = function(eligibleRecords, studentName) {
+  // Create modal backdrop
+  const backdrop = document.createElement('div');
+  backdrop.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+  `;
+  
+  // Create modal content
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease;
+  `;
+  
+  // Build content HTML
+  let contentHTML = `
+    <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #667eea;">
+      <h3 style="margin: 0; color: #667eea; font-size: 18px; font-weight: bold;">الإنجازات</h3>
+      <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">${studentName}</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+  `;
+  
+  eligibleRecords.forEach((record, index) => {
+    const recordType = record.type === 'hizb' ? 'حزب' : 'جزء';
+    const recordNumber = record.hizbNumber || record.juzNumber;
+    const displayDate = record.displayDate; // Already in Hijri format
+    
+    contentHTML += `
+      <div style="
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 14px;
+        border-radius: 8px;
+        border-right: 3px solid #667eea;
+      ">
+        <div style="font-weight: bold; color: #333; font-size: 15px; margin-bottom: 6px;">
+          ${recordType} ${recordNumber}
+        </div>
+        <div style="color: #666; font-size: 13px;">
+          التاريخ: ${displayDate}
+        </div>
+      </div>
+    `;
+  });
+  
+  contentHTML += `
+    </div>
+    <button onclick="this.closest('[data-modal]').remove()" style="
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    " onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+      إغلاق
+    </button>
+  `;
+  
+  modal.innerHTML = contentHTML;
+  backdrop.appendChild(modal);
+  backdrop.setAttribute('data-modal', 'true');
+  
+  // Close on backdrop click
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) {
+      backdrop.remove();
+    }
+  });
+  
+  // Add CSS animations if not already added
+  if (!document.getElementById('achievements-popup-styles')) {
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'achievements-popup-styles';
+    styleSheet.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(styleSheet);
+  }
+  
+  document.body.appendChild(backdrop);
+}
+
+/**
  * Initialize Honor System
  */
 window.initHonorSystem = async function() {
@@ -845,7 +962,8 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
         totalNominations: eligibleNominations.length,
         carriedOverCount: nominationCarriedOver, // Will be saved to checkpoint
         checkpointType: studentType.includes('جزء') ? 'juz' : 
-                        studentType.includes('الناس') ? 'hizb-nas' : 'hizb-yas'
+                        studentType.includes('الناس') ? 'hizb-nas' : 'hizb-yas',
+        eligibleRecords: nomination.records // Add records for popup display
       });
     }
     
@@ -1238,8 +1356,15 @@ function displayNominees() {
     // Duration display
     const durationDisplay = `<span style="color: #764ba2; font-weight: bold;" title="المدة المستغرقة لأفضل إنجاز">${nominee.bestDuration} يوم</span>`;
     
+    // Prepare eligibleRecords for popup
+    const recordsJSON = JSON.stringify(nominee.eligibleRecords || []);
+    
     tableHTML += `
-      <tr style="background: ${bgColor}; ${rowStyle}" title="${!nominee.hasExamScore ? '⚠️ هذا الطالب لن يتم تكريمه حتى يتم رصد درجة الاختبار الشهري' : ''}">
+      <tr style="background: ${bgColor}; ${rowStyle} cursor: pointer; transition: background 0.2s ease;" 
+          title="${!nominee.hasExamScore ? '⚠️ هذا الطالب لن يتم تكريمه حتى يتم رصد درجة الاختبار الشهري' : 'اضغط لعرض الإنجازات التفصيلية'}" 
+          onmouseover="this.style.background='#e3f2fd'" 
+          onmouseout="this.style.background='${bgColor}'" 
+          onclick="showAchievementsPopup(${recordsJSON.replace(/"/g, '&quot;')}, '${nominee.studentName.replace(/'/g, '\\&#39;')}')">
         <td style="padding: 10px; border: 1px solid #dee2e6;">${nominee.studentName}${warningIcon}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${nominee.teacherName}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 13px;">${nominee.type}</td>
