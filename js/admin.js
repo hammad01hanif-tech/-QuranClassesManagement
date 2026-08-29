@@ -14469,6 +14469,12 @@ window.viewStaffAttendanceReport = async function() {
 
 // Show Penalty Action Sheet (for approving/pardoning penalties)
 window.showPenaltyActionSheet = function(staffId, date, type) {
+  // ✅ Don't show if bulk selection mode is active
+  if (window._bulkSelectionModeActive) {
+    console.log('⚠️ Bulk selection mode is active, ignoring penalty action sheet');
+    return;
+  }
+  
   // type: 'late', 'earlyLeave', 'absence'
   
   // Create overlay

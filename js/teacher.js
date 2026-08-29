@@ -8964,6 +8964,9 @@ window.openAttendanceRecordModal = function(monthName, year, month, overrideStaf
             <select id="attendance-month-selector" onchange="changeAttendanceMonth(this.value)">
               ${monthOptions}
             </select>
+            ${sessionStorage.getItem('loggedInAdmin') === 'true' ? 
+              '<button class="enable-selection-btn" onclick="toggleBulkSelectionMode()">تحديد متعدد</button>' 
+              : ''}
           </div>
         </div>
         <button class="modal-close-btn" onclick="closeAttendanceModal()">✕</button>
@@ -9022,6 +9025,11 @@ window.changeAttendanceMonth = function(value) {
   
   console.log('📅 Changing month to:', month, year, 'for staffId:', overrideStaffId);
   
+  // ✅ Exit selection mode if active
+  if (window._bulkSelectionModeActive) {
+    exitBulkSelectionMode();
+  }
+  
   // ✅ إيقاف الـ listeners القديمة قبل تحميل الشهر الجديد
   cleanupAttendanceModalListeners();
   
@@ -9047,6 +9055,24 @@ window.closeAttendanceModal = function() {
   
   // ✅ إيقاف جميع الـ listeners قبل إغلاق المودل
   cleanupAttendanceModalListeners();
+  
+  // ✅ Exit bulk selection mode if active
+  if (window._bulkSelectionModeActive) {
+    window._bulkSelectionModeActive = false;
+    window._bulkPenaltySelections.clear();
+    
+    // Remove floating bar
+    const floatingBar = document.getElementById('penalty-floating-bar');
+    if (floatingBar) {
+      floatingBar.remove();
+    }
+    
+    // Remove loading overlay if exists
+    const loadingOverlay = document.getElementById('bulk-action-loading');
+    if (loadingOverlay) {
+      loadingOverlay.remove();
+    }
+  }
   
   const modal = document.querySelector('.attendance-modal');
   if (modal) {
@@ -9379,16 +9405,16 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
               const earlyPenaltyClass = record.earlyLeaveApprovalStatus === 'pardoned' ? 'penalty-pardoned' : 
                                         record.earlyLeaveDeduction > 0 ? 'penalty-approved' : '';
               
-              // Onclick handlers for admin mode
-              const lateClick = isAdminMode && (record.lateDeduction > 0 || record.lateDeductionOriginal > 0) ? 
+              // Onclick handlers for admin mode - COMPLETELY DISABLED in selection mode
+              const lateClick = isAdminMode && !window._bulkSelectionModeActive && (record.lateDeduction > 0 || record.lateDeductionOriginal > 0) ? 
                 `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'late')" style="cursor: pointer;"` : '';
-              const earlyClick = isAdminMode && (record.earlyLeaveDeduction > 0 || record.earlyLeaveDeductionOriginal > 0) ? 
+              const earlyClick = isAdminMode && !window._bulkSelectionModeActive && (record.earlyLeaveDeduction > 0 || record.earlyLeaveDeductionOriginal > 0) ? 
                 `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'earlyLeave')" style="cursor: pointer;"` : '';
-              const absenceClick = isAdminMode && (record.status === 'absent' || record.absenceDeduction > 0 || record.absenceDeductionOriginal > 0) ? 
+              const absenceClick = isAdminMode && !window._bulkSelectionModeActive && (record.status === 'absent' || record.absenceDeduction > 0 || record.absenceDeductionOriginal > 0) ? 
                 `onclick="window.showPenaltyActionSheet('${teacherId}', '${record.date}', 'absence')" style="cursor: pointer;"` : '';
               
-              // onclick handler for editing (admin only)
-              const dateClickHandler = isAdminMode ? `onclick="window.openEditAttendanceModal('${teacherId}', '${record.date}', '${record.dayName}', ${JSON.stringify(record).replace(/"/g, '&quot;')})" style="cursor: pointer;" class="clickable-date"` : '';
+              // onclick handler for editing (admin only) - disabled in selection mode
+              const dateClickHandler = isAdminMode && !window._bulkSelectionModeActive ? `onclick="window.openEditAttendanceModal('${teacherId}', '${record.date}', '${record.dayName}', ${JSON.stringify(record).replace(/"/g, '&quot;')})" style="cursor: pointer;" class="clickable-date"` : '';
               
               // ✅ حساب خصمية الغياب للعرض (حتى لو كانت pardoned)
               let absenceDisplay = '—';
@@ -9407,41 +9433,75 @@ async function loadAttendanceData(year, month, overrideStaffId = null) {
               
               // ✅ عرض القيمة الأصلية في حالة السماح
               let lateDisplay = '—';
+              let lateCheckbox = '';
               if (record.lateDeductionOriginal > 0 && record.lateApprovalStatus === 'pardoned') {
                 lateDisplay = `<strike>${record.lateDeductionOriginal} ريال</strike> <span style="color: #f59e0b;">سماح</span>`;
+                lateCheckbox = isAdminMode ? `
+                  <label class="penalty-checkbox-wrapper">
+                    <input type="checkbox" class="penalty-checkbox" data-penalty-key="${teacherId}|${record.date}|late" onchange="handlePenaltyCheckboxChange(this)">
+                    <span class="penalty-checkbox-custom"></span>
+                  </label>` : '';
               } else if (record.lateDeduction > 0) {
                 lateDisplay = record.lateApprovalStatus === 'pardoned' ? 
                   `<strike>${record.lateDeduction} ريال</strike> <span style="color: #f59e0b;">سماح</span>` : 
                   `${record.lateDeduction} ريال`;
+                lateCheckbox = isAdminMode ? `
+                  <label class="penalty-checkbox-wrapper">
+                    <input type="checkbox" class="penalty-checkbox" data-penalty-key="${teacherId}|${record.date}|late" onchange="handlePenaltyCheckboxChange(this)">
+                    <span class="penalty-checkbox-custom"></span>
+                  </label>` : '';
               }
               
               let earlyDisplay = '—';
+              let earlyCheckbox = '';
               if (record.earlyLeaveDeductionOriginal > 0 && record.earlyLeaveApprovalStatus === 'pardoned') {
                 earlyDisplay = `<strike>${record.earlyLeaveDeductionOriginal} ريال</strike> <span style="color: #f59e0b;">سماح</span>`;
+                earlyCheckbox = isAdminMode ? `
+                  <label class="penalty-checkbox-wrapper">
+                    <input type="checkbox" class="penalty-checkbox" data-penalty-key="${teacherId}|${record.date}|earlyLeave" onchange="handlePenaltyCheckboxChange(this)">
+                    <span class="penalty-checkbox-custom"></span>
+                  </label>` : '';
               } else if (record.earlyLeaveDeduction > 0) {
                 earlyDisplay = record.earlyLeaveApprovalStatus === 'pardoned' ? 
                   `<strike>${record.earlyLeaveDeduction} ريال</strike> <span style="color: #f59e0b;">سماح</span>` : 
                   `${record.earlyLeaveDeduction} ريال`;
+                earlyCheckbox = isAdminMode ? `
+                  <label class="penalty-checkbox-wrapper">
+                    <input type="checkbox" class="penalty-checkbox" data-penalty-key="${teacherId}|${record.date}|earlyLeave" onchange="handlePenaltyCheckboxChange(this)">
+                    <span class="penalty-checkbox-custom"></span>
+                  </label>` : '';
+              }
+              
+              // Handle absence penalty display and checkbox
+              let absenceCheckbox = '';
+              if (record.status === 'absent' && !record.isAnnualVacation && (record.absenceDeduction > 0 || record.absenceDeductionOriginal > 0)) {
+                absenceCheckbox = isAdminMode ? `
+                  <label class="penalty-checkbox-wrapper">
+                    <input type="checkbox" class="penalty-checkbox" data-penalty-key="${teacherId}|${record.date}|absence" onchange="handlePenaltyCheckboxChange(this)">
+                    <span class="penalty-checkbox-custom"></span>
+                  </label>` : '';
               }
               
               return `
-                <tr class="${rowClass}" ${record.status === 'absent' ? absenceClick : ''}>
+                <tr class="${rowClass}" ${record.status === 'absent' && !window._bulkSelectionModeActive ? absenceClick : ''}>
                   <td class="date-cell" ${dateClickHandler}>
-                    <div class="date-day">${record.dayName}${isAdminMode ? ' <span style="font-size:12px">✏️</span>' : ''}</div>
+                    <div class="date-day">${record.dayName}${isAdminMode && !window._bulkSelectionModeActive ? ' <span style="font-size:12px">✏️</span>' : ''}</div>
                     <div class="date-gregorian">${formatGregorianDate(record.date)}</div>
                   </td>
                   <td class="time-cell">${record.shiftStart}</td>
                   <td class="time-cell ${arrivalClass}">
                     ${record.status === 'annual-vacation' ? '<span class="vacation-badge">🏖 إجازة</span>' : 
-                      record.status === 'absent' ? `<span class="absent-badge">غائب 🔴</span>${absenceDisplay !== '—' ? '<br><span style="font-size:12px;color:#ef4444;">' + absenceDisplay + '</span>' : ''}` : 
+                      record.status === 'absent' ? `<span class="absent-badge">غائب 🔴</span>${absenceDisplay !== '—' ? '<br><span style="font-size:12px;color:#ef4444;">' + absenceDisplay + '</span>' : ''}${absenceCheckbox ? '<br>' + absenceCheckbox : ''}` : 
                       record.actualArrival}
                   </td>
                   <td class="deduction-cell ${latePenaltyClass}" ${lateClick}>
+                    ${lateCheckbox}
                     ${lateDisplay}
                   </td>
                   <td class="time-cell">${record.shiftEnd}</td>
                   <td class="time-cell ${leaveClass}">${record.actualLeave}</td>
                   <td class="deduction-cell ${earlyPenaltyClass}" ${earlyClick}>
+                    ${earlyCheckbox}
                     ${earlyDisplay}
                   </td>
                   <td class="notes-cell">${record.notes || '—'}</td>
@@ -11560,6 +11620,434 @@ function showSuccessMessage(message) {
     toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+// ============================================
+// Bulk Penalty Selection Mode Functions
+// ============================================
+
+// Store for selected penalties
+window._bulkPenaltySelections = new Set();
+window._bulkSelectionModeActive = false;
+
+/**
+ * Toggle bulk selection mode on/off
+ */
+window.toggleBulkSelectionMode = function() {
+  const modalBody = document.querySelector('.attendance-modal-body');
+  
+  if (window._bulkSelectionModeActive) {
+    // Exit selection mode
+    exitBulkSelectionMode();
+  } else {
+    // Enter selection mode
+    window._bulkSelectionModeActive = true;
+    window._bulkPenaltySelections.clear();
+    
+    // Add selection mode class to modal body
+    if (modalBody) {
+      modalBody.classList.add('selection-mode-active');
+    }
+    
+    // Show selection header
+    showSelectionModeHeader();
+    
+    // ✅ لا نُظهر floating bar إلا عند التحديد الأول
+    
+    console.log('✅ Bulk selection mode activated');
+  }
+};
+
+/**
+ * Show selection mode header bar
+ */
+function showSelectionModeHeader() {
+  const tableWrapper = document.querySelector('.table-wrapper');
+  
+  if (!tableWrapper) return;
+  
+  // Check if header already exists
+  if (document.getElementById('penalty-selection-header')) return;
+  
+  const header = document.createElement('div');
+  header.id = 'penalty-selection-header';
+  header.className = 'penalty-selection-header';
+  header.innerHTML = `
+    <div class="selection-mode-label">
+      <span class="selection-mode-badge">نشط</span>
+      <span>وضع التحديد المتعدد</span>
+    </div>
+    <div class="selection-controls">
+      <button class="selection-control-btn select-all" onclick="selectAllPenalties()">تحديد الكل</button>
+      <button class="selection-control-btn clear-all" onclick="clearAllSelections()">إلغاء التحديد</button>
+      <button class="selection-control-btn exit-mode" onclick="exitBulkSelectionMode()">إنهاء</button>
+    </div>
+  `;
+  
+  tableWrapper.parentNode.insertBefore(header, tableWrapper);
+}
+
+/**
+ * Select all penalties in the table
+ */
+window.selectAllPenalties = function() {
+  const checkboxes = document.querySelectorAll('.penalty-checkbox');
+  window._bulkPenaltySelections.clear();
+  
+  checkboxes.forEach(checkbox => {
+    checkbox.checked = true;
+    const penaltyKey = checkbox.getAttribute('data-penalty-key');
+    if (penaltyKey) {
+      window._bulkPenaltySelections.add(penaltyKey);
+      highlightSelectedRow(checkbox);
+    }
+  });
+  
+  updateFloatingBarCount();
+  console.log(`✅ Selected all penalties: ${window._bulkPenaltySelections.size} total`);
+};
+
+/**
+ * Clear all selections
+ */
+window.clearAllSelections = function() {
+  const checkboxes = document.querySelectorAll('.penalty-checkbox:checked');
+  
+  checkboxes.forEach(checkbox => {
+    checkbox.checked = false;
+    unhighlightSelectedRow(checkbox);
+  });
+  
+  window._bulkPenaltySelections.clear();
+  updateFloatingBarCount();
+  console.log('✅ Cleared all selections');
+};
+
+/**
+ * Exit bulk selection mode
+ */
+window.exitBulkSelectionMode = function() {
+  const modalBody = document.querySelector('.attendance-modal-body');
+  const header = document.getElementById('penalty-selection-header');
+  const floatingBar = document.getElementById('penalty-floating-bar');
+  
+  // Remove selection mode class
+  if (modalBody) {
+    modalBody.classList.remove('selection-mode-active');
+  }
+  
+  // Remove header
+  if (header) {
+    header.remove();
+  }
+  
+  // ✅ حذف floating bar تماماً من DOM
+  if (floatingBar) {
+    floatingBar.classList.remove('show');
+    setTimeout(() => {
+      floatingBar.remove();
+    }, 300); // انتظر انتهاء animation
+  }
+  
+  // Clear selections
+  window._bulkPenaltySelections.clear();
+  window._bulkSelectionModeActive = false;
+  
+  // Uncheck all checkboxes and remove highlights
+  document.querySelectorAll('.penalty-checkbox:checked').forEach(cb => {
+    cb.checked = false;
+    unhighlightSelectedRow(cb);
+  });
+  
+  console.log('✅ Exited bulk selection mode');
+};
+
+/**
+ * Handle individual penalty checkbox change
+ */
+window.handlePenaltyCheckboxChange = function(checkbox) {
+  const penaltyKey = checkbox.getAttribute('data-penalty-key');
+  
+  if (!penaltyKey) return;
+  
+  if (checkbox.checked) {
+    window._bulkPenaltySelections.add(penaltyKey);
+    highlightSelectedRow(checkbox);
+    console.log('✅ Penalty selected:', penaltyKey, 'Total:', window._bulkPenaltySelections.size);
+  } else {
+    window._bulkPenaltySelections.delete(penaltyKey);
+    unhighlightSelectedRow(checkbox);
+    console.log('❌ Penalty deselected:', penaltyKey, 'Total:', window._bulkPenaltySelections.size);
+  }
+  
+  updateFloatingBarCount();
+};
+
+/**
+ * Highlight row when penalty is selected
+ */
+function highlightSelectedRow(checkbox) {
+  const row = checkbox.closest('tr');
+  if (row) {
+    row.classList.add('penalty-row-selected');
+    console.log('✅ Row highlighted:', row);
+  }
+}
+
+/**
+ * Remove highlight from row
+ */
+function unhighlightSelectedRow(checkbox) {
+  const row = checkbox.closest('tr');
+  if (row) {
+    row.classList.remove('penalty-row-selected');
+  }
+}
+
+/**
+ * Update floating bar with selected count
+ */
+function updateFloatingBarCount() {
+  const count = window._bulkPenaltySelections.size;
+  let floatingBar = document.getElementById('penalty-floating-bar');
+  
+  // ✅ إنشاء floating bar فقط عند وجود تحديد
+  if (count > 0) {
+    if (!floatingBar) {
+      floatingBar = document.createElement('div');
+      floatingBar.id = 'penalty-floating-bar';
+      floatingBar.className = 'penalty-floating-action-bar';
+      floatingBar.innerHTML = `
+        <div class="floating-bar-info">
+          <span class="floating-bar-count" id="penalty-count-badge">0</span>
+          <span class="floating-bar-label">خصمية محددة</span>
+        </div>
+        <div class="floating-bar-actions">
+          <button class="floating-action-button approve-btn" onclick="bulkApprovePenalties()">اعتماد الكل</button>
+          <button class="floating-action-button pardon-btn" onclick="bulkPardonPenalties()">سماح للكل</button>
+          <button class="floating-action-button cancel-btn" onclick="clearAllSelections()">إلغاء</button>
+        </div>
+      `;
+      document.body.appendChild(floatingBar);
+      
+      // إظهاره بـ animation
+      setTimeout(() => {
+        floatingBar.classList.add('show');
+      }, 10);
+    } else {
+      floatingBar.classList.add('show');
+    }
+    
+    const countBadge = document.getElementById('penalty-count-badge');
+    if (countBadge) {
+      countBadge.textContent = count;
+      // ✅ تأثير pulse عند التغيير
+      countBadge.style.transform = 'scale(1.2)';
+      setTimeout(() => {
+        countBadge.style.transform = 'scale(1)';
+      }, 150);
+    }
+  } else {
+    // ✅ إخفاء وحذف floating bar عند عدم وجود تحديد
+    if (floatingBar) {
+      floatingBar.classList.remove('show');
+      setTimeout(() => {
+        floatingBar.remove();
+      }, 300);
+    }
+  }
+}
+
+/**
+ * Bulk approve selected penalties
+ */
+window.bulkApprovePenalties = async function() {
+  if (window._bulkPenaltySelections.size === 0) {
+    alert('⚠️ الرجاء تحديد خصميات أولاً');
+    return;
+  }
+  
+  const confirmMsg = `هل أنت متأكد من اعتماد ${window._bulkPenaltySelections.size} خصمية؟`;
+  if (!confirm(confirmMsg)) return;
+  
+  // Show loading
+  showBulkActionLoading('جاري اعتماد الخصميات...', window._bulkPenaltySelections.size);
+  
+  try {
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Process each penalty
+    for (const penaltyKey of window._bulkPenaltySelections) {
+      const [staffId, date, type] = penaltyKey.split('|');
+      
+      try {
+        await updatePenaltyStatusSilent(staffId, date, type, 'approved');
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to approve penalty ${penaltyKey}:`, error);
+        failCount++;
+      }
+    }
+    
+    // Hide loading
+    hideBulkActionLoading();
+    
+    // Show result
+    alert(`✅ تم اعتماد ${successCount} خصمية بنجاح${failCount > 0 ? `\n❌ فشل ${failCount}` : ''}`);
+    
+    // ✅ Exit selection mode BEFORE refresh (so table rebuilds with onclick handlers)
+    exitBulkSelectionMode();
+    
+    // Refresh modal data
+    await window.refreshAttendanceModal();
+    
+  } catch (error) {
+    console.error('Error in bulk approve:', error);
+    hideBulkActionLoading();
+    alert('❌ حدث خطأ أثناء العملية');
+  }
+};
+
+/**
+ * Bulk pardon selected penalties
+ */
+window.bulkPardonPenalties = async function() {
+  if (window._bulkPenaltySelections.size === 0) {
+    alert('⚠️ الرجاء تحديد خصميات أولاً');
+    return;
+  }
+  
+  const confirmMsg = `هل أنت متأكد من السماح لـ ${window._bulkPenaltySelections.size} خصمية؟\n(سيتم إلغاء الخصميات)`;
+  if (!confirm(confirmMsg)) return;
+  
+  // Show loading
+  showBulkActionLoading('جاري السماح للخصميات...', window._bulkPenaltySelections.size);
+  
+  try {
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Process each penalty
+    for (const penaltyKey of window._bulkPenaltySelections) {
+      const [staffId, date, type] = penaltyKey.split('|');
+      
+      try {
+        await updatePenaltyStatusSilent(staffId, date, type, 'pardoned');
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to pardon penalty ${penaltyKey}:`, error);
+        failCount++;
+      }
+    }
+    
+    // Hide loading
+    hideBulkActionLoading();
+    
+    // Show result
+    alert(`✅ تم السماح لـ ${successCount} خصمية بنجاح${failCount > 0 ? `\n❌ فشل ${failCount}` : ''}`);
+    
+    // ✅ Exit selection mode BEFORE refresh (so table rebuilds with onclick handlers)
+    exitBulkSelectionMode();
+    
+    // Refresh modal data
+    await window.refreshAttendanceModal();
+    
+  } catch (error) {
+    console.error('Error in bulk pardon:', error);
+    hideBulkActionLoading();
+    alert('❌ حدث خطأ أثناء العملية');
+  }
+};
+
+/**
+ * Update penalty status silently (without UI feedback)
+ */
+async function updatePenaltyStatusSilent(staffId, date, type, status) {
+  const docRef = doc(db, 'teacherAttendance', `${staffId}_${date}`);
+  
+  const docSnap = await getDoc(docRef);
+  if (!docSnap.exists()) {
+    throw new Error('Record not found');
+  }
+  
+  const currentData = docSnap.data();
+  const updateData = {};
+  
+  if (type === 'late') {
+    updateData.lateApprovalStatus = status;
+    if (status === 'pardoned') {
+      if (!currentData.lateDeductionOriginal && currentData.lateDeduction > 0) {
+        updateData.lateDeductionOriginal = currentData.lateDeduction;
+      }
+      updateData.lateDeduction = 0;
+    } else if (status === 'approved' && currentData.lateDeductionOriginal) {
+      updateData.lateDeduction = currentData.lateDeductionOriginal;
+      updateData.lateDeductionOriginal = null;
+    }
+  } else if (type === 'earlyLeave') {
+    updateData.earlyLeaveApprovalStatus = status;
+    if (status === 'pardoned') {
+      if (!currentData.earlyLeaveDeductionOriginal && currentData.earlyLeaveDeduction > 0) {
+        updateData.earlyLeaveDeductionOriginal = currentData.earlyLeaveDeduction;
+      }
+      updateData.earlyLeaveDeduction = 0;
+    } else if (status === 'approved' && currentData.earlyLeaveDeductionOriginal) {
+      updateData.earlyLeaveDeduction = currentData.earlyLeaveDeductionOriginal;
+      updateData.earlyLeaveDeductionOriginal = null;
+    }
+  } else if (type === 'absence') {
+    updateData.absenceApprovalStatus = status;
+    if (status === 'pardoned') {
+      if (!currentData.absenceDeductionOriginal && currentData.absenceDeduction > 0) {
+        updateData.absenceDeductionOriginal = currentData.absenceDeduction;
+      }
+      updateData.absenceDeduction = 0;
+    } else if (status === 'approved' && currentData.absenceDeductionOriginal) {
+      updateData.absenceDeduction = currentData.absenceDeductionOriginal;
+      updateData.absenceDeductionOriginal = null;
+    }
+  }
+  
+  updateData.updatedAt = serverTimestamp();
+  updateData.updatedBy = 'admin_bulk';
+  
+  await updateDoc(docRef, updateData);
+}
+
+/**
+ * Show bulk action loading overlay
+ */
+function showBulkActionLoading(message, count) {
+  let loadingOverlay = document.getElementById('bulk-action-loading');
+  
+  if (!loadingOverlay) {
+    loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'bulk-action-loading';
+    loadingOverlay.className = 'bulk-action-loading';
+    loadingOverlay.innerHTML = `
+      <div class="bulk-loading-content">
+        <div class="bulk-loading-spinner"></div>
+        <div class="bulk-loading-text" id="bulk-loading-text"></div>
+        <div class="bulk-loading-subtext" id="bulk-loading-subtext"></div>
+      </div>
+    `;
+    document.body.appendChild(loadingOverlay);
+  }
+  
+  document.getElementById('bulk-loading-text').textContent = message;
+  document.getElementById('bulk-loading-subtext').textContent = `معالجة ${count} خصمية`;
+  loadingOverlay.classList.add('show');
+}
+
+/**
+ * Hide bulk action loading overlay
+ */
+function hideBulkActionLoading() {
+  const loadingOverlay = document.getElementById('bulk-action-loading');
+  if (loadingOverlay) {
+    loadingOverlay.classList.remove('show');
+  }
 }
 
 console.log('✅ New teacher design functions loaded');
