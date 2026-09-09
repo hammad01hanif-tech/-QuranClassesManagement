@@ -25,6 +25,7 @@ import {
 import { calculateRevisionPages } from './quran-juz-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getHijriWeekAgo, getHijriMonthAgo, getStudyDaysInCurrentHijriMonth, getStudyDaysForHijriMonth, getTodayForStorage, getCurrentHijriDate, gregorianToHijri, hijriToGregorian as convertHijriToGregorian } from './hijri-date.js';
 import { accurateHijriDates, getTodayAccurateHijri, formatAccurateHijriDate } from './accurate-hijri-dates.js';
+import { getNooraniPath } from '../config/learning-paths.js';
 
 // ==========================================
 // TEACHER UTILITIES
@@ -1157,6 +1158,8 @@ window.addStudent = async function() {
       age: age,
       guardianPhone: guardianPhone,
       level: level,
+      learningProgram: level === 'noorani' ? 'noorani' : null,
+      learningPath: level === 'noorani' ? 'noorani' : null,
       createdAt: serverTimestamp(),
       registrationDateHijri: registrationDateHijri,
       monthlyScore: 0,
@@ -1496,12 +1499,21 @@ async function showEditStudentDialog(studentId, studentData) {
           
           <div>
             <label style="display: block; margin-bottom: 8px; color: #555; font-weight: bold; font-size: 14px;">
-              <span style="color: #ff6b6b;">*</span> المستوى
+              المسار التعليمي
             </label>
+            <select id="editLearningPath" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; font-family: inherit; background: white;">
+              <option value="notebook" ${getNooraniPath(studentData) === 'notebook' ? 'selected' : ''}>الدفتر</option>
+              <option value="noorani" ${getNooraniPath(studentData) === 'noorani' ? 'selected' : ''}>القاعدة النورانية</option>
+              <option value="quran" ${getNooraniPath(studentData) === 'quran' ? 'selected' : ''}>القرآن الكريم</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display: block; margin-bottom: 8px; color: #555; font-weight: bold; font-size: 14px;">المستوى القديم للتوافق</label>
             <select id="editLevel" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; font-family: inherit; background: white;">
-              <option value="hifz" ${studentData.level === 'hifz' ? 'selected' : ''}>📚 حفظ</option>
-              <option value="dabt" ${studentData.level === 'dabt' ? 'selected' : ''}>✨ ضبط</option>
-              <option value="noorani" ${studentData.level === 'noorani' ? 'selected' : ''}>🌟 القاعدة النورانية</option>
+              <option value="hifz" ${studentData.level === 'hifz' ? 'selected' : ''}>حفظ</option>
+              <option value="dabt" ${studentData.level === 'dabt' ? 'selected' : ''}>ضبط</option>
+              <option value="noorani" ${studentData.level === 'noorani' ? 'selected' : ''}>القاعدة النورانية</option>
             </select>
           </div>
         </div>
@@ -1533,6 +1545,7 @@ window.saveStudentEdit = async function(studentId) {
   const studentPhone = document.getElementById('editStudentPhone').value.trim();
   const guardianPhone = document.getElementById('editGuardianPhone').value.trim();
   const level = document.getElementById('editLevel').value;
+  const learningPath = document.getElementById('editLearningPath').value;
   const result = document.getElementById('editStudentResult');
   
   // Validation
@@ -1574,6 +1587,8 @@ window.saveStudentEdit = async function(studentId) {
       age: age,
       guardianPhone: guardianPhone,
       level: level,
+      learningProgram: level === 'noorani' ? 'noorani' : null,
+      learningPath: level === 'noorani' ? learningPath : null,
       lastModified: serverTimestamp()
     };
     
@@ -7679,6 +7694,8 @@ window.addStudentNew = async function() {
       age: age,
       guardianPhone: guardianPhone,
       level: level,
+      learningProgram: level === 'noorani' ? 'noorani' : null,
+      learningPath: level === 'noorani' ? 'noorani' : null,
       createdAt: serverTimestamp(),
       registrationDateHijri: registrationDateHijri,
       monthlyScore: 0,

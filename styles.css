@@ -6823,6 +6823,99 @@ details[open] > summary {
   animation: fadeIn 0.3s ease;
 }
 
+.teacher-assessment-hub, .teacher-assessment-screen { max-width: 900px; margin: 0 auto; color: #1f2937; animation: slideUp .35s ease-out; }
+.teacher-assessment-screen { height: calc(100vh - 190px); min-height: 0; overflow: visible; display: flex; flex-direction: column; }
+.teacher-form-topbar { display: flex; align-items: center; gap: 12px; height: 24px; margin-bottom: 8px; }
+.teacher-form-topbar .teacher-eyebrow { margin: 0 !important; }
+.teacher-form-date { margin-right: auto; color: #64748b; font-size: 12px; }
+.teacher-assessment-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+.teacher-assessment-heading.compact { margin-bottom: 8px; }
+.teacher-assessment-heading h2 { margin: 0 0 3px; font-size: 22px; color: #173b35; }
+.teacher-assessment-heading p { margin: 0; color: #64748b; line-height: 1.7; }
+.teacher-form-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 8px 0 10px; padding: 4px; border: 1px solid #d9e4e1; border-radius: 9px; background: #f1f7f5; }
+.teacher-form-tab { border: 0; border-radius: 7px; padding: 8px 6px; background: transparent; color: #64748b; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; transition: background .2s, color .2s; }
+.teacher-form-tab.active { background: #fff; color: #16806d; box-shadow: 0 2px 7px rgba(23, 59, 53, .08); }
+.teacher-form-tab-panel[hidden] { display: none; }
+.teacher-form-tab-panel { min-height: 0; animation: fadeIn .2s ease; }
+.teacher-form-tab-panel#previewCurrentPanel { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; padding: 0 2px 6px; }
+.teacher-form-tab-panel#previewCurrentPanel[hidden] { display: none; }
+.teacher-eyebrow { color: #16806d !important; font-size: 12px; font-weight: 700; margin-bottom: 5px !important; }
+.teacher-date-chip { min-width: 160px; padding: 12px 15px; border: 1px solid #d8e5e1; border-radius: 10px; background: #f7fbfa; }
+.teacher-date-chip span, .teacher-date-chip strong { display: block; }
+.teacher-date-chip span { color: #64748b; font-size: 11px; margin-bottom: 4px; }
+.teacher-date-chip strong { color: #173b35; font-size: 13px; }
+.teacher-assessment-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.teacher-assessment-card { text-align: right; border: 1px solid #d9e4e1; border-radius: 12px; padding: 22px; background: #fff; color: #1f2937; cursor: pointer; display: flex; flex-direction: column; gap: 9px; transition: transform .2s, box-shadow .2s, border-color .2s; }
+.teacher-assessment-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(23,59,53,.1); border-color: #2a9d8f; }
+.teacher-assessment-card.primary { background: #effaf6; border-color: #9bd6c7; }
+.teacher-assessment-card strong { font-size: 20px; color: #173b35; }
+.teacher-assessment-card span { color: #64748b; font-size: 13px; }
+.teacher-assessment-card .card-kicker, .teacher-assessment-card .card-action { color: #16806d; font-weight: 700; font-size: 11px; }
+.teacher-assessment-card .card-action { margin-top: 8px; }
+.teacher-assessment-note, .teacher-previous-score { display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; margin-top: 8px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 12px; }
+.teacher-assessment-note span, .teacher-previous-score p { color: #64748b; margin: 0; }
+.teacher-inline-back { border: 0; background: transparent; color: #16806d; padding: 0; cursor: pointer; font-weight: 700; margin-bottom: 18px; }
+.teacher-assessment-selector-grid, .teacher-course-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+.teacher-track-selectors, .teacher-track-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.teacher-assessment-selector-grid label, .teacher-course-fields label { display: flex; flex-direction: column; gap: 7px; color: #334155; font-size: 13px; font-weight: 700; }
+.teacher-assessment-selector-grid select, .teacher-course-fields input { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px 10px; background: #fff; color: #1f2937; font: inherit; }
+.teacher-inline-field { position: relative; display: block !important; }
+.teacher-inline-field span { position: absolute; right: 10px; top: 50%; z-index: 1; transform: translateY(-50%); color: #64748b; font-size: 11px; font-weight: 700; pointer-events: none; }
+.teacher-inline-field select, .teacher-inline-field input { padding-right: 62px; }
+.teacher-curriculum-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+.teacher-path-range { min-width: 0; padding: 10px; border: 1px solid #d9e4e1; border-radius: 8px; background: #f8fbfa; }
+.teacher-path-range > strong { display: block; margin-bottom: 7px; color: #173b35; font-size: 12px; }
+.teacher-range-row, .teacher-lines-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.teacher-lines-row { margin-top: 6px; }
+.teacher-range-row select, .teacher-range-row input, .teacher-lines-row input, .teacher-free-text { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 7px; background: #fff; color: #1f2937; font: inherit; font-size: 12px; }
+.teacher-free-text { display: block; }
+.teacher-amount-sheet { margin-top: 7px; border: 1px solid #cfe3dd; border-radius: 7px; background: #fff; }
+.teacher-amount-sheet summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; color: #475569; cursor: pointer; font-size: 11px; list-style: none; }
+.teacher-amount-sheet summary::-webkit-details-marker { display: none; }
+.teacher-amount-sheet summary::after { content: '⌄'; color: #16806d; font-size: 15px; }
+.teacher-amount-sheet:not([open]) summary::after { content: '⌃'; }
+.teacher-amount-sheet summary strong { margin-right: auto; color: #16806d; font-size: 11px; }
+.teacher-amount-sheet select { display: block; width: calc(100% - 12px); margin: 0 6px 6px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px; background: #f8fbfa; color: #1f2937; font: inherit; font-size: 12px; }
+.teacher-amount-sheet .teacher-lines-row { padding: 0 6px 6px; }
+.teacher-outline-action { align-self: end; border: 1px solid #2a9d8f; border-radius: 8px; padding: 11px 14px; background: #fff; color: #16806d; cursor: pointer; font: inherit; font-weight: 700; }
+.teacher-score-sheet { margin-bottom: 8px; border: 1px solid #cfe3dd; border-radius: 9px; background: #f7fbfa; }
+.teacher-score-sheet summary { display: flex; align-items: center; justify-content: space-between; padding: 8px 11px; color: #173b35; cursor: pointer; font-size: 12px; font-weight: 700; list-style: none; }
+.teacher-score-sheet summary::-webkit-details-marker { display: none; }
+.teacher-score-sheet summary::after { content: '⌄'; color: #16806d; font-size: 16px; }
+.teacher-score-sheet:not([open]) summary::after { content: '⌃'; }
+.teacher-score-sheet summary strong { margin-right: auto; margin-left: 10px; color: #16806d; font-size: 13px; }
+.teacher-score-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 0 7px 7px; }
+.teacher-score-field { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; padding: 6px 7px; border: 1px solid #d9e4e1; border-radius: 7px; background: #fff; font-size: 11px; }
+.teacher-score-control { display: inline-flex; align-items: center; gap: 8px; }
+.teacher-score-control button { width: 22px; height: 22px; border: 1px solid #b8d8d0; border-radius: 5px; background: #effaf6; color: #16806d; cursor: pointer; font-size: 15px; line-height: 1; }
+.teacher-score-control output { min-width: 15px; text-align: center; font-size: 14px; font-weight: 700; color: #173b35; }
+.teacher-form-footer { position: sticky; bottom: 0; z-index: 5; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; flex: 0 0 auto; min-height: 48px; padding: 8px 0 4px; background: #f8f9fa; }
+.teacher-total-row { display: flex !important; justify-content: space-between; align-items: center; min-height: 42px; box-sizing: border-box; padding: 8px 12px; border: 1px solid #173b35; border-radius: 8px; background: #173b35 !important; color: #fff !important; margin: 0; visibility: visible !important; opacity: 1 !important; }
+.teacher-total-row span { color: #fff !important; font-size: 12px; }
+.teacher-total-row strong { color: #fff !important; font-size: 19px; }
+.teacher-save-preview { display: block !important; width: 100%; min-height: 42px; box-sizing: border-box; border: 0; border-radius: 8px; padding: 8px; background: #16806d !important; color: #fff !important; cursor: pointer; font: inherit; font-weight: 700; visibility: visible !important; opacity: 1 !important; }
+.teacher-save-preview:disabled { opacity: .7; cursor: wait; }
+.teacher-preview-notice { min-height: 20px; color: #b45309; text-align: center; font-size: 13px; }
+.teacher-previous-table-wrap { max-height: 250px; overflow: auto; border: 1px solid #d9e4e1; border-radius: 8px; background: #fff; -webkit-overflow-scrolling: touch; }
+.teacher-previous-table { width: 100%; min-width: 520px; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+.teacher-previous-table th, .teacher-previous-table td { padding: 7px 8px; border-bottom: 1px solid #edf2f1; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.teacher-previous-table th { position: sticky; top: 0; z-index: 1; background: #effaf6; color: #173b35; font-weight: 700; }
+.teacher-previous-table td { color: #475569; }
+.teacher-previous-table tr:last-child td { border-bottom: 0; }
+.teacher-save-toast { position: fixed; right: 50%; bottom: 92px; z-index: 10001; transform: translate(50%, 12px); opacity: 0; padding: 11px 18px; border: 1px solid #a7d9c9; border-radius: 9px; background: #effaf6; color: #146c5b; box-shadow: 0 8px 24px rgba(20, 108, 91, .18); font-size: 13px; font-weight: 700; transition: opacity .22s ease, transform .22s ease; }
+.teacher-save-toast.visible { opacity: 1; transform: translate(50%, 0); }
+.teacher-track-list { display: grid; gap: 10px; }
+.teacher-track-list article { display: flex; align-items: center; gap: 14px; padding: 16px; background: #fff; border: 1px solid #d9e4e1; border-radius: 10px; }
+.teacher-track-list article strong { min-width: 130px; color: #173b35; }
+.teacher-track-list article span { flex: 1; color: #64748b; font-size: 13px; }
+.teacher-track-list article button { border: 1px solid #b8d8d0; border-radius: 7px; background: #effaf6; color: #16806d; padding: 8px 12px; cursor: pointer; }
+.teacher-selected-track { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #b8d8d0; border-radius: 8px; background: #effaf6; }
+.teacher-selected-track span { color: #64748b; font-size: 12px; }
+.teacher-selected-track strong { color: #173b35; font-size: 15px; }
+.teacher-track-editor { align-items: end; }
+.teacher-track-editor .teacher-save-preview { grid-column: 1 / -1; }
+@media (max-width: 640px) { .teacher-assessment-heading, .teacher-assessment-note, .teacher-previous-score { flex-direction: column; } .teacher-date-chip { width: 100%; box-sizing: border-box; } .teacher-assessment-cards, .teacher-assessment-selector-grid, .teacher-course-fields, .teacher-curriculum-grid { grid-template-columns: 1fr; } .teacher-score-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .teacher-form-footer { grid-template-columns: 1fr 1fr; } .teacher-track-list article { align-items: stretch; flex-direction: column; gap: 8px; } .teacher-track-list article strong { min-width: 0; } }
+
 /* Teacher Home Section Styles */
 .teacher-home-container {
   max-width: 600px;

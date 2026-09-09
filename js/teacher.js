@@ -26,6 +26,7 @@ import { accurateHijriDates } from './accurate-hijri-dates.js';
 import { getMonthlyReport, countStudyDays, getAllWorkingDaysInMonth, getDayInfo, isWeekend, isOfficialHoliday } from './study-days-calendar.js';
 import { getTodayPrayerTimes, getPrayerTimesLocal } from './prayer-times-local.js';
 import { calculateAbsencePenalty } from './attendance-calculator.js';
+import { getLearningPath, LESSON_AMOUNT_OPTIONS, getVerseOptions, getSurah, isValidVerseRange, getNooraniPath } from '../config/learning-paths.js';
 
 // ✅ نظام Cache بسيط لتقليل القراءات من Firestore
 const firestoreCache = {
@@ -3204,6 +3205,17 @@ window.saveTeacherAssessment = async function(skipWeekendCheck = false) {
     readingScore: scores.reading,
     behaviorScore: scores.behavior
   };
+
+  // Keep the new path model alongside the legacy fields for backward compatibility.
+  data.learningProgram = currentTeacherStudentData?.level === 'noorani' ? 'noorani' : null;
+  data.learningPath = getNooraniPath(currentTeacherStudentData || {});
+  if (data.learningPath) {
+    data.curriculum = {
+      pathId: data.learningPath,
+      lesson: { type: data.learningPath === 'quran' ? 'quranRange' : data.learningPath, legacyFrom: data.lessonFrom, legacyTo: data.lessonTo },
+      revision: { type: data.learningPath === 'quran' ? 'quranRange' : 'freeText', legacyFrom: data.revisionFrom, legacyTo: data.revisionTo }
+    };
+  }
   
   // Get extra lesson data (if enabled)
   const extraLessonData = getExtraLessonData();
@@ -8265,9 +8277,12 @@ window.showTeacherDashboard = function() {
 // NEW MOBILE-FIRST DESIGN FUNCTIONS
 // ==========================================
 
+let teacherSectionRenderId = 0;
+
 // Switch between teacher sections
 window.switchTeacherSection = function(sectionName) {
   console.log('Switching to teacher section:', sectionName);
+  const renderId = ++teacherSectionRenderId;
   
   // Update active state in nav
   const navItems = document.querySelectorAll('.new-teacher-design .nav-item');
@@ -8286,7 +8301,7 @@ window.switchTeacherSection = function(sectionName) {
   // Load section content
   switch(sectionName) {
     case 'home':
-      loadTeacherHomeSection(contentContainer);
+      loadTeacherHomeSection(contentContainer, renderId);
       break;
     case 'reports':
       loadTeacherReportsSection(contentContainer);
@@ -8294,8 +8309,8 @@ window.switchTeacherSection = function(sectionName) {
     case 'attendance':
       loadTeacherAttendanceSection(contentContainer);
       break;
-    case 'tasks':
-      loadTeacherTasksSection(contentContainer);
+    case 'assessments':
+      loadTeacherAssessmentsSection(contentContainer);
       break;
     case 'more':
       loadTeacherMoreSection(contentContainer);
@@ -8305,8 +8320,483 @@ window.switchTeacherSection = function(sectionName) {
   }
 };
 
+const nooraniTeachers = [
+  { id: 'FSL01', name: 'أ/ فيصل جاويد' },
+  { id: 'OSM01', name: 'أ/ أسامة حبيب' },
+  { id: 'JHD01', name: 'أ/ جهاد راشد' }
+];
+let nooraniStudentsByTeacher = {};
+
+function escapeTeacherMarkup(value = '') {
+  return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
+}
+
+async function getNooraniStudents(teacherId) {
+  if (nooraniStudentsByTeacher[teacherId]) return nooraniStudentsByTeacher[teacherId];
+  const studentsSnapshot = await getDocs(query(
+    collection(db, 'users'),
+    where('role', '==', 'student'),
+    where('classId', '==', teacherId)
+  ));
+  const students = studentsSnapshot.docs
+    .map(studentDoc => ({ id: studentDoc.id, ...studentDoc.data() }))
+    .filter(student => student.level === 'noorani')
+    .sort((first, second) => (first.name || '').localeCompare(second.name || '', 'ar'));
+  nooraniStudentsByTeacher[teacherId] = students;
+  return students;
+}
+
+function teacherOptions(selectedId = 'FSL01') {
+  return nooraniTeachers.map(teacher => `<option value="${teacher.id}" ${teacher.id === selectedId ? 'selected' : ''}>${teacher.name} · ${teacher.id}</option>`).join('');
+}
+
+async function renderNooraniStudentOptions(selectId, teacherId, selectedStudentId = '') {
+  const select = document.getElementById(selectId);
+  if (!select) return [];
+  select.innerHTML = '<option value="">جاري تحميل الطلاب...</option>';
+  const students = await getNooraniStudents(teacherId);
+  select.innerHTML = students.length
+    ? `<option value="">اختر الطالب</option>${students.map(student => `<option value="${student.id}" ${student.id === selectedStudentId ? 'selected' : ''}>${escapeTeacherMarkup(student.name || student.id)}</option>`).join('')}`
+    : '<option value="">لا يوجد طلاب قاعدة في هذه الحلقة</option>';
+  return students;
+}
+
+async function loadTeacherAssessmentsSection(container) {
+  container.innerHTML = `
+    <section class="teacher-assessment-hub" aria-labelledby="teacherAssessmentTitle">
+      <div class="teacher-assessment-heading"><div><p class="teacher-eyebrow">القاعدة النورانية</p><h2 id="teacherAssessmentTitle">التقييم اليومي</h2><p>اختر المعلم ثم الطالب لبدء التقييم أو إدارة المسار.</p></div><div class="teacher-date-chip"><span>الحلقات المفعلة</span><strong>FSL01 · OSM01 · JHD01</strong></div></div>
+      <div class="teacher-assessment-cards">
+        <button class="teacher-assessment-card primary" type="button" onclick="window.openNooraniAssessmentPreview()"><span class="card-kicker">الحلقة اليومية</span><strong>تقييم الطلاب</strong><span>اختيار المعلم والطالب وإدخال درجات اليوم</span><span class="card-action">فتح النموذج</span></button>
+        <button class="teacher-assessment-card" type="button" onclick="window.openNooraniTracksPreview()"><span class="card-kicker">الإعداد والتنظيم</span><strong>مسارات الطلاب</strong><span>تحديد مسار كل طالب من طلاب القاعدة</span><span class="card-action">إدارة المسارات</span></button>
+      </div>
+      <div class="teacher-assessment-note"><strong>مصدر البيانات</strong><span>يتم جلب طلاب المستوى العام «القاعدة النورانية» مباشرة من بيانات الحلقات الثلاث.</span></div>
+    </section>`;
+}
+
+window.updateStudentLearningPath = async function(studentId, pathId, reason = '') {
+  const path = getLearningPath(pathId);
+  const studentRef = doc(db, 'users', studentId);
+  const studentSnapshot = await getDoc(studentRef);
+  if (!studentSnapshot.exists()) throw new Error('لم يتم العثور على الطالب');
+
+  const previousPath = getNooraniPath(studentSnapshot.data());
+  if (studentSnapshot.data().level !== 'noorani') {
+    throw new Error('المسارات الجديدة متاحة فقط لطلاب القاعدة النورانية');
+  }
+  if (previousPath === path.id) return { changed: false, pathId: path.id };
+
+  await updateDoc(studentRef, {
+    learningPath: path.id,
+    learningPathName: path.name,
+    learningPathUpdatedAt: serverTimestamp()
+  });
+
+  const historyId = `${Date.now()}_${path.id}`;
+  await setDoc(doc(db, 'studentProgress', studentId, 'learningPathHistory', historyId), {
+    studentId,
+    previousPath,
+    newPath: path.id,
+    newPathName: path.name,
+    reason,
+    changedBy: sessionStorage.getItem('loggedInTeacher') || 'teacher',
+    changedAt: serverTimestamp()
+  });
+
+  return { changed: true, previousPath, pathId: path.id };
+};
+
+window.openNooraniAssessmentPreview = function() {
+  const container = document.getElementById('teacherMainContent');
+  if (!container) return;
+  container.innerHTML = `
+    <section class="teacher-assessment-screen" aria-labelledby="nooraniAssessmentTitle">
+      <div class="teacher-form-topbar"><button class="teacher-inline-back" type="button" onclick="window.switchTeacherSection('assessments')">العودة</button><span class="teacher-eyebrow">تقييم الطلاب</span><span class="teacher-form-date">٨ ربيع الأول ١٤٤٨</span></div>
+      <div class="teacher-assessment-heading compact"><div><h2 id="nooraniAssessmentTitle">نموذج التقييم اليومي</h2><p>طلاب المستوى العام: القاعدة النورانية</p></div></div>
+      <div class="teacher-form-tabs" role="tablist" aria-label="أقسام التقييم">
+        <button class="teacher-form-tab active" type="button" role="tab" aria-selected="true" data-tab="current" onclick="window.switchPreviewAssessmentTab('current')">التقييم الحالي</button>
+        <button class="teacher-form-tab" type="button" role="tab" aria-selected="false" data-tab="previous" onclick="window.switchPreviewAssessmentTab('previous')">التقييمات السابقة</button>
+        <button class="teacher-form-tab" type="button" role="tab" aria-selected="false" data-tab="absence" onclick="window.switchPreviewAssessmentTab('absence')">الغياب</button>
+      </div>
+      <div id="previewCurrentPanel" class="teacher-form-tab-panel active" role="tabpanel">
+      <div class="teacher-assessment-selector-grid">
+        <label class="teacher-inline-field"><span>المعلم</span><select id="assessmentTeacherSelect" onchange="window.changeAssessmentTeacher(this.value)">${teacherOptions()}</select></label>
+        <label class="teacher-inline-field"><span>الطالب</span><select id="assessmentStudentSelect" onchange="window.changeAssessmentStudent(this.value)"><option value="">جاري تحميل الطلاب...</option></select></label>
+        <label class="teacher-inline-field"><span>المسار</span><select id="previewLearningPath" disabled><option value="">اختر الطالب</option></select></label>
+        <button class="teacher-outline-action" type="button" onclick="window.openNooraniTracksPreview()">تعديل المسارات والخطط</button>
+      </div>
+      <div class="teacher-previous-score" id="previewPreviousScore"><span>السابق</span><strong>--</strong><p>اختر طالبا لعرض آخر تقييم</p></div>
+      <details class="teacher-score-sheet">
+        <summary><span>نقاط التقييم</span><strong id="previewScoreSummary">30 / 30</strong></summary>
+        <div class="teacher-score-grid">
+          ${[['صلاة العصر','asr'],['الدرس','lesson'],['المراجعة','revision'],['التلاوة في البيت','homeRecitation'],['القراءة في البيت','homeReading'],['السلوك','behavior']].map(([label, id]) => `<label class="teacher-score-field">${label}<span class="teacher-score-control"><button type="button" onclick="window.previewScore('${id}', -1)">−</button><output id="preview-${id}">5</output><button type="button" onclick="window.previewScore('${id}', 1)">+</button></span></label>`).join('')}
+        </div>
+      </details>
+      <div id="previewCurriculumFields"></div>
+      <div class="teacher-form-footer"><div class="teacher-total-row"><span>المجموع الحالي</span><strong id="previewTotalScore">30 / 30</strong></div><button id="previewSaveButton" class="teacher-save-preview" type="button" onclick="window.savePreviewAssessment()">حفظ التقييم</button></div><p id="teacherPreviewNotice" class="teacher-preview-notice" role="status"></p>
+      </div>
+      <div id="previewPreviousPanel" class="teacher-form-tab-panel" role="tabpanel" hidden>
+        <div class="teacher-previous-table-wrap"><table class="teacher-previous-table"><thead><tr><th>اليوم/التاريخ</th><th>الدرس</th><th>مقدار الدرس</th><th>المراجعة</th><th>مجموع الدرجات</th></tr></thead><tbody id="previewPreviousTableBody"><tr><td colspan="5">اختر طالبا لعرض التقييمات</td></tr></tbody></table></div>
+      </div>
+      <div id="previewAbsencePanel" class="teacher-form-tab-panel" role="tabpanel" hidden></div>
+    </section>`;
+  window.changeAssessmentTeacher('FSL01');
+};
+
+window.changeAssessmentTeacher = async function(teacherId) {
+  const students = await renderNooraniStudentOptions('assessmentStudentSelect', teacherId);
+  const firstStudent = students[0];
+  if (firstStudent) {
+    document.getElementById('assessmentStudentSelect').value = firstStudent.id;
+    await window.changeAssessmentStudent(firstStudent.id);
+  } else {
+    window.renderPreviewCurriculumFields('noorani');
+  }
+};
+
+window.changeAssessmentStudent = async function(studentId) {
+  const teacherSelect = document.getElementById('assessmentTeacherSelect');
+  const student = (nooraniStudentsByTeacher[teacherSelect?.value] || []).find(item => item.id === studentId);
+  if (!student) return;
+  const pathId = getNooraniPath(student) || 'noorani';
+  const pathSelect = document.getElementById('previewLearningPath');
+  if (pathSelect) {
+    pathSelect.innerHTML = `<option value="${pathId}">${getLearningPath(pathId).name}</option>`;
+    pathSelect.value = pathId;
+    pathSelect.disabled = true;
+  }
+  window.renderPreviewCurriculumFields(pathId);
+  const previousScore = document.getElementById('previewPreviousScore');
+  if (previousScore) await loadPreviousNooraniAssessment(student.id, previousScore);
+  await loadPreviewPreviousReports(student.id);
+};
+
+window.switchPreviewAssessmentTab = function(tabName) {
+  document.querySelectorAll('.teacher-form-tab').forEach(tab => {
+    const active = tab.dataset.tab === tabName;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+  document.querySelectorAll('.teacher-form-tab-panel').forEach(panel => {
+    const active = panel.id === `preview${tabName[0].toUpperCase()}${tabName.slice(1)}Panel`;
+    panel.classList.toggle('active', active);
+    panel.hidden = !active;
+  });
+};
+
+async function loadPreviewPreviousReports(studentId) {
+  const body = document.getElementById('previewPreviousTableBody');
+  if (!body) return;
+  body.innerHTML = '<tr><td colspan="5">جاري تحميل التقييمات...</td></tr>';
+  try {
+    const reportsSnapshot = await getDocs(collection(db, 'studentProgress', studentId, 'dailyReports'));
+    const reports = reportsSnapshot.docs
+      .map(report => ({ id: report.id, ...report.data() }))
+      .sort((first, second) => String(second.id).localeCompare(String(first.id)));
+    if (!reports.length) {
+      body.innerHTML = '<tr><td colspan="5">لا توجد تقييمات سابقة</td></tr>';
+      return;
+    }
+    body.innerHTML = reports.map(report => {
+      const curriculum = report.curriculum || {};
+      const lesson = curriculum.lesson || {};
+      const revision = curriculum.revision || {};
+      const lessonSurah = lesson.surahName || getSurah(lesson.surahNumber)?.name;
+      const revisionSurah = revision.surahName || getSurah(revision.surahNumber)?.name;
+      const lessonText = lesson.type === 'quranRange'
+        ? lessonSurah ? `${lessonSurah} ${lesson.fromVerse || ''}-${lesson.toVerse || ''}` : '—'
+        : lesson.lessonNumber ? `الدرس ${lesson.lessonNumber}${lesson.pageNumber ? ` · ص${lesson.pageNumber}` : ''}` : (report.lessonFrom || '—');
+      const amountText = lesson.type === 'quranRange' ? '—' : lesson.amountLabel || lesson.amount || '—';
+      const revisionText = revision.type === 'quranRange'
+        ? revisionSurah ? `${revisionSurah} ${revision.fromVerse || ''}-${revision.toVerse || ''}` : '—'
+        : revision.text || report.revisionFrom || '—';
+      return `<tr><td>${escapeTeacherMarkup(report.id)}</td><td>${escapeTeacherMarkup(lessonText)}</td><td>${escapeTeacherMarkup(amountText)}</td><td>${escapeTeacherMarkup(revisionText)}</td><td>${report.totalScore ?? '—'} / ${report.maxTotalScore ?? 30}</td></tr>`;
+    }).join('');
+  } catch (error) {
+    console.error('Error loading previous preview reports:', error);
+    body.innerHTML = '<tr><td colspan="5">تعذر تحميل التقييمات</td></tr>';
+  }
+}
+
+async function loadPreviousNooraniAssessment(studentId, target) {
+  try {
+    const reportsSnapshot = await getDocs(collection(db, 'studentProgress', studentId, 'dailyReports'));
+    const reports = reportsSnapshot.docs.map(report => ({ id: report.id, ...report.data() })).sort((first, second) => String(second.id).localeCompare(String(first.id)));
+    const report = reports[0];
+    if (!report) {
+      target.innerHTML = '<span>السابق</span><strong>--</strong><p>لا يوجد تقييم سابق</p>';
+      return;
+    }
+    const curriculum = report.curriculum || {};
+    const lesson = curriculum.lesson || {};
+    const lessonSummary = lesson.type === 'quranRange'
+      ? `${lesson.surahName || 'سورة'} ${lesson.fromVerse || ''}-${lesson.toVerse || ''}`
+      : lesson.lessonNumber
+        ? `الدرس ${lesson.lessonNumber}${lesson.pageNumber ? ` · الصفحة ${lesson.pageNumber}` : ''}`
+        : report.lessonFrom || 'بدون مقرر';
+    target.innerHTML = `<span>السابق</span><strong>${report.totalScore ?? '--'} / ${report.maxTotalScore ?? 30}</strong><p>${escapeTeacherMarkup(report.id)} · ${escapeTeacherMarkup(lessonSummary)}</p>`;
+  } catch (error) {
+    console.error('Error loading previous Noorani assessment:', error);
+  }
+}
+
+window.renderPreviewCurriculumFields = function(pathId) {
+  const container = document.getElementById('previewCurriculumFields');
+  if (!container) return;
+  const path = getLearningPath(pathId);
+  const amountOptions = LESSON_AMOUNT_OPTIONS.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
+  const quranFields = (prefix, label) => `<div class="teacher-path-range"><strong>${label}</strong><div class="teacher-range-row"><select id="preview-${prefix}-surah" onchange="window.updatePreviewVerseOptions('${prefix}')"><option value="">السورة</option>${quranSurahs.map(surah => `<option value="${surah.number}">${surah.name}</option>`).join('')}</select><select id="preview-${prefix}-from"><option value="">من آية</option></select><select id="preview-${prefix}-to"><option value="">إلى آية</option></select></div></div>`;
+  let lessonFields;
+  let revisionFields;
+  if (pathId === 'quran') {
+    lessonFields = quranFields('lesson', 'الدرس الجديد');
+    revisionFields = quranFields('revision', 'المراجعة');
+  } else {
+    const page = path.lesson.requiresPage ? '<input id="previewLessonPage" type="number" min="1" placeholder="رقم الصفحة">' : '';
+    lessonFields = `<div class="teacher-path-range"><strong>الدرس الجديد</strong><div class="teacher-range-row"><input id="previewLessonNumber" type="number" min="1" placeholder="رقم الدرس">${page}</div><details class="teacher-amount-sheet"><summary><span>مقدار الدرس</span><strong>درس كامل</strong></summary><select id="previewLessonAmount" onchange="window.updatePreviewLessonAmount(this)">${amountOptions}</select><div class="teacher-lines-row" hidden><input id="previewLessonLineFrom" type="number" min="1" placeholder="من سطر"><input id="previewLessonLineTo" type="number" min="1" placeholder="إلى سطر"></div></details></div>`;
+    revisionFields = `<div class="teacher-path-range"><strong>المراجعة</strong><input class="teacher-free-text" type="text" placeholder="اكتب مقرر المراجعة"></div>`;
+  }
+  container.innerHTML = `<div class="teacher-curriculum-grid">${lessonFields}${revisionFields}</div>`;
+};
+
+window.updatePreviewLessonAmount = function(select) {
+  const sheet = select.closest('.teacher-amount-sheet');
+  const summary = sheet?.querySelector('summary strong');
+  const lines = sheet?.querySelector('.teacher-lines-row');
+  const selectedOption = select.options[select.selectedIndex];
+  if (summary) summary.textContent = selectedOption?.textContent || 'درس كامل';
+  if (lines) lines.hidden = select.value !== 'lines';
+};
+
+window.updatePreviewVerseOptions = function(prefix) {
+  const surahSelect = document.getElementById(`preview-${prefix}-surah`);
+  const fromSelect = document.getElementById(`preview-${prefix}-from`);
+  const toSelect = document.getElementById(`preview-${prefix}-to`);
+  if (!surahSelect || !fromSelect || !toSelect) return;
+  const options = getVerseOptions(surahSelect.value).map(verse => `<option value="${verse}">${verse}</option>`).join('');
+  fromSelect.innerHTML = `<option value="">من آية</option>${options}`;
+  toSelect.innerHTML = `<option value="">إلى آية</option>${options}`;
+};
+
+window.previewScore = function(id, delta) {
+  const output = document.getElementById(`preview-${id}`);
+  if (!output) return;
+  output.value = Math.max(0, Math.min(5, Number(output.value || output.textContent) + delta));
+  output.textContent = output.value;
+  const total = [...document.querySelectorAll('.teacher-score-field output')].reduce((sum, item) => sum + Number(item.value || item.textContent), 0);
+  const totalOutput = document.getElementById('previewTotalScore');
+  if (totalOutput) totalOutput.textContent = `${total} / 30`;
+  const summaryOutput = document.getElementById('previewScoreSummary');
+  if (summaryOutput) summaryOutput.textContent = `${total} / 30`;
+};
+
+window.savePreviewAssessment = async function() {
+  const saveButton = document.getElementById('previewSaveButton');
+  const notice = document.getElementById('teacherPreviewNotice');
+  const teacherId = document.getElementById('assessmentTeacherSelect')?.value;
+  const studentId = document.getElementById('assessmentStudentSelect')?.value;
+  const student = (nooraniStudentsByTeacher[teacherId] || []).find(item => item.id === studentId);
+  const pathId = document.getElementById('previewLearningPath')?.value;
+
+  if (!student || !pathId) {
+    if (notice) notice.textContent = 'اختر المعلم والطالب أولا.';
+    return;
+  }
+
+  const readScore = id => Number(document.getElementById(`preview-${id}`)?.value || document.getElementById(`preview-${id}`)?.textContent || 0);
+  const lessonPathBox = document.querySelector('#previewCurriculumFields .teacher-path-range');
+  const revisionPathBox = document.querySelectorAll('#previewCurriculumFields .teacher-path-range')[1];
+  const todayHijri = getCurrentHijriDate();
+  const dateId = todayHijri?.hijri || getTodayForStorage();
+  const lessonAmount = document.getElementById('previewLessonAmount');
+  const lessonData = pathId === 'quran'
+    ? {
+        type: 'quranRange',
+        surahNumber: document.getElementById('preview-lesson-surah')?.value || '',
+        surahName: getSurah(document.getElementById('preview-lesson-surah')?.value)?.name || '',
+        fromVerse: document.getElementById('preview-lesson-from')?.value || '',
+        toVerse: document.getElementById('preview-lesson-to')?.value || ''
+      }
+    : {
+        type: pathId,
+        lessonNumber: document.getElementById('previewLessonNumber')?.value || '',
+        pageNumber: document.getElementById('previewLessonPage')?.value || '',
+        amount: lessonAmount?.value || 'full_lesson',
+        amountLabel: lessonAmount?.selectedOptions[0]?.textContent || 'درس كامل',
+        lineFrom: document.getElementById('previewLessonLineFrom')?.value || '',
+        lineTo: document.getElementById('previewLessonLineTo')?.value || ''
+      };
+  const revisionData = pathId === 'quran'
+    ? {
+        type: 'quranRange',
+        surahNumber: document.getElementById('preview-revision-surah')?.value || '',
+        surahName: getSurah(document.getElementById('preview-revision-surah')?.value)?.name || '',
+        fromVerse: document.getElementById('preview-revision-from')?.value || '',
+        toVerse: document.getElementById('preview-revision-to')?.value || ''
+      }
+    : {
+        type: 'freeText',
+        text: revisionPathBox?.querySelector('.teacher-free-text')?.value.trim() || ''
+      };
+  const scoreData = {
+    asrPrayer: readScore('asr'),
+    lesson: readScore('lesson'),
+    revision: readScore('revision'),
+    homeRecitation: readScore('homeRecitation'),
+    homeReading: readScore('homeReading'),
+    behavior: readScore('behavior')
+  };
+  const totalScore = Object.values(scoreData).reduce((total, score) => total + score, 0);
+  const reportData = {
+    studentId,
+    studentName: student.name || studentId,
+    teacherId,
+    learningProgram: 'noorani',
+    learningPath: pathId,
+    learningPathName: getLearningPath(pathId).name,
+    curriculum: { pathId, pathName: getLearningPath(pathId).name, lesson: lessonData, revision: revisionData },
+    asrPrayerScore: scoreData.asrPrayer,
+    lessonScore: scoreData.lesson,
+    revisionScore: scoreData.revision,
+    homeRecitationScore: scoreData.homeRecitation,
+    homeReadingScore: scoreData.homeReading,
+    readingScore: scoreData.homeReading,
+    behaviorScore: scoreData.behavior,
+    totalScore,
+    maxTotalScore: 30,
+    percentage: Math.round((totalScore / 30) * 100),
+    status: 'present',
+    dateId,
+    date: serverTimestamp(),
+    createdBy: sessionStorage.getItem('loggedInTeacher') || teacherId
+  };
+
+  try {
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.textContent = 'جاري الحفظ...';
+    }
+    await setDoc(doc(db, 'studentProgress', studentId, 'dailyReports', dateId), reportData);
+    resetPreviewAssessmentFields(pathId);
+    const previousScore = document.getElementById('previewPreviousScore');
+    if (previousScore) await loadPreviousNooraniAssessment(studentId, previousScore);
+    await loadPreviewPreviousReports(studentId);
+    if (notice) notice.textContent = 'تم حفظ التقييم بنجاح';
+    showPreviewSaveToast('تم حفظ التقييم بنجاح');
+  } catch (error) {
+    console.error('Error saving preview assessment:', error);
+    if (notice) notice.textContent = 'تعذر حفظ التقييم، حاول مرة أخرى.';
+  } finally {
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.textContent = 'حفظ التقييم';
+    }
+  }
+};
+
+function resetPreviewAssessmentFields(pathId) {
+  document.querySelectorAll('.teacher-score-field output').forEach(output => {
+    output.value = 5;
+    output.textContent = '5';
+  });
+  const totalOutput = document.getElementById('previewTotalScore');
+  const summaryOutput = document.getElementById('previewScoreSummary');
+  if (totalOutput) totalOutput.textContent = '30 / 30';
+  if (summaryOutput) summaryOutput.textContent = '30 / 30';
+  window.renderPreviewCurriculumFields(pathId);
+}
+
+function showPreviewSaveToast(message) {
+  const existingToast = document.querySelector('.teacher-save-toast');
+  if (existingToast) existingToast.remove();
+  const toast = document.createElement('div');
+  toast.className = 'teacher-save-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('visible'));
+  setTimeout(() => {
+    toast.classList.remove('visible');
+    setTimeout(() => toast.remove(), 220);
+  }, 2600);
+}
+
+window.openNooraniTracksPreview = function() {
+  const container = document.getElementById('teacherMainContent');
+  if (!container) return;
+  container.innerHTML = `
+    <section class="teacher-assessment-screen" aria-labelledby="tracksPreviewTitle">
+      <button class="teacher-inline-back" type="button" onclick="window.switchTeacherSection('assessments')">العودة إلى التقييم</button>
+      <div class="teacher-assessment-heading compact"><div><p class="teacher-eyebrow">الإعداد والتنظيم</p><h2 id="tracksPreviewTitle">مسارات الطلاب</h2><p>اختر الحلقة ثم الطالب لتعديل مساره الفرعي.</p></div></div>
+      <div class="teacher-track-selectors">
+        <label class="teacher-inline-field"><span>المعلم</span><select id="tracksTeacherSelect" onchange="window.changeTracksTeacher(this.value)">${teacherOptions()}</select></label>
+        <label class="teacher-inline-field"><span>الطالب</span><select id="tracksStudentSelect" onchange="window.changeTracksStudent(this.value)"><option value="">جاري تحميل الطلاب...</option></select></label>
+      </div>
+      <div id="selectedTrackPanel" class="teacher-selected-track"><span>المسار الحالي</span><strong>جاري تحميل البيانات...</strong></div>
+      <div class="teacher-track-editor">
+        <label class="teacher-inline-field"><span>المسار الجديد</span><select id="tracksPathSelect"><option value="notebook">الدفتر</option><option value="noorani">القاعدة النورانية</option><option value="quran">القرآن الكريم</option></select></label>
+        <label class="teacher-inline-field"><span>سبب التعديل</span><input id="tracksChangeReason" type="text" placeholder="اختياري"></label>
+        <button class="teacher-save-preview" type="button" onclick="window.saveSelectedNooraniPath()">حفظ المسار</button>
+      </div>
+      <p id="teacherPreviewNotice" class="teacher-preview-notice" role="status"></p>
+    </section>`;
+  window.changeTracksTeacher('FSL01');
+};
+
+window.changeTracksTeacher = async function(teacherId) {
+  const students = await renderNooraniStudentOptions('tracksStudentSelect', teacherId);
+  if (students[0]) {
+    document.getElementById('tracksStudentSelect').value = students[0].id;
+    window.changeTracksStudent(students[0].id);
+  } else {
+    const panel = document.getElementById('selectedTrackPanel');
+    if (panel) panel.innerHTML = '<span>المسار الحالي</span><strong>لا يوجد طلاب</strong>';
+  }
+};
+
+window.changeTracksStudent = function(studentId) {
+  const teacherId = document.getElementById('tracksTeacherSelect')?.value;
+  const student = (nooraniStudentsByTeacher[teacherId] || []).find(item => item.id === studentId);
+  if (!student) return;
+  const pathId = getNooraniPath(student) || 'noorani';
+  const path = getLearningPath(pathId);
+  const panel = document.getElementById('selectedTrackPanel');
+  const pathSelect = document.getElementById('tracksPathSelect');
+  if (panel) panel.innerHTML = `<span>${escapeTeacherMarkup(student.name || student.id)}</span><strong>${path.name}</strong>`;
+  if (pathSelect) pathSelect.value = pathId;
+};
+
+window.saveSelectedNooraniPath = async function() {
+  const studentId = document.getElementById('tracksStudentSelect')?.value;
+  const pathId = document.getElementById('tracksPathSelect')?.value;
+  const reason = document.getElementById('tracksChangeReason')?.value.trim() || '';
+  const notice = document.getElementById('teacherPreviewNotice');
+  if (!studentId || !pathId) {
+    if (notice) notice.textContent = 'اختر الطالب والمسار أولا.';
+    return;
+  }
+  try {
+    if (notice) notice.textContent = 'جاري حفظ المسار...';
+    const result = await window.updateStudentLearningPath(studentId, pathId, reason);
+    const teacherId = document.getElementById('tracksTeacherSelect')?.value;
+    const student = (nooraniStudentsByTeacher[teacherId] || []).find(item => item.id === studentId);
+    if (student) {
+      student.learningPath = pathId;
+      student.learningPathName = getLearningPath(pathId).name;
+    }
+    window.changeTracksStudent(studentId);
+    if (notice) notice.textContent = result.changed ? 'تم حفظ المسار وتسجيل التغيير.' : 'المسار المحدد هو المسار الحالي بالفعل.';
+  } catch (error) {
+    console.error('Error saving Noorani path:', error);
+    if (notice) notice.textContent = error.message || 'تعذر حفظ المسار.';
+  }
+};
+
+window.showPreviewNotice = function() {
+  const notice = document.getElementById('teacherPreviewNotice');
+  if (notice) notice.textContent = 'هذه معاينة واجهة فقط، وسيتم تفعيل الحفظ بعد اعتماد بنية المسارات.';
+};
+
 // Load Home Section
-async function loadTeacherHomeSection(container) {
+async function loadTeacherHomeSection(container, renderId = teacherSectionRenderId) {
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
@@ -8409,6 +8899,10 @@ async function loadTeacherHomeSection(container) {
       </div>
     </div>
   `;
+
+  if (renderId !== teacherSectionRenderId) {
+    return;
+  }
   
   container.innerHTML = `
     <div class="teacher-home-container">
