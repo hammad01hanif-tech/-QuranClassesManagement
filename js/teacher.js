@@ -8450,8 +8450,35 @@ window.openNooraniAssessmentPreview = function() {
       </div>
       <div id="previewAbsencePanel" class="teacher-form-tab-panel" role="tabpanel" hidden></div>
     </section>`;
+  applyPreviewStudyDayState();
   window.changeAssessmentTeacher(getDefaultNooraniTeacherId());
 };
+
+function applyPreviewStudyDayState() {
+  const currentPanel = document.getElementById('previewCurrentPanel');
+  if (!currentPanel) return;
+  const isStudyDay = isTodayAStudyDay();
+  currentPanel.classList.toggle('teacher-weekend-disabled', !isStudyDay);
+  currentPanel.querySelectorAll('input, select, button').forEach(control => {
+    control.disabled = !isStudyDay;
+    control.setAttribute('aria-disabled', String(!isStudyDay));
+  });
+  ['assessmentTeacherSelect', 'assessmentStudentSelect', 'previewLearningPath'].forEach(id => {
+    const selector = document.getElementById(id);
+    if (selector) {
+      selector.disabled = false;
+      selector.setAttribute('aria-disabled', 'false');
+    }
+  });
+  const notice = document.getElementById('teacherPreviewNotice');
+  if (!isStudyDay && notice) {
+    notice.textContent = 'التقييم متاح من الأحد إلى الخميس فقط. الجمعة والسبت إجازة.';
+    notice.classList.add('teacher-weekend-notice');
+  } else if (notice) {
+    notice.textContent = '';
+    notice.classList.remove('teacher-weekend-notice');
+  }
+}
 
 window.changeAssessmentTeacher = async function(teacherId) {
   const students = await renderNooraniStudentOptions('assessmentStudentSelect', teacherId);
@@ -8462,6 +8489,7 @@ window.changeAssessmentTeacher = async function(teacherId) {
   } else {
     window.renderPreviewCurriculumFields('noorani');
   }
+  applyPreviewStudyDayState();
 };
 
 window.changeAssessmentStudent = async function(studentId) {
@@ -8479,6 +8507,7 @@ window.changeAssessmentStudent = async function(studentId) {
   const previousScore = document.getElementById('previewPreviousScore');
   if (previousScore) await loadPreviousNooraniAssessment(student.id, previousScore);
   await loadPreviewPreviousReports(student.id);
+  applyPreviewStudyDayState();
 };
 
 window.switchPreviewAssessmentTab = function(tabName) {

@@ -6896,6 +6896,10 @@ details[open] > summary {
 .teacher-save-preview { display: block !important; width: 100%; min-height: 42px; box-sizing: border-box; border: 0; border-radius: 8px; padding: 8px; background: #16806d !important; color: #fff !important; cursor: pointer; font: inherit; font-weight: 700; visibility: visible !important; opacity: 1 !important; }
 .teacher-save-preview:disabled { opacity: .7; cursor: wait; }
 .teacher-preview-notice { min-height: 20px; color: #b45309; text-align: center; font-size: 13px; }
+.teacher-weekend-disabled { position: relative; }
+.teacher-weekend-disabled input:disabled, .teacher-weekend-disabled select:disabled, .teacher-weekend-disabled button:disabled { opacity: .55; cursor: not-allowed; }
+.teacher-weekend-disabled .teacher-score-sheet { opacity: .65; }
+.teacher-weekend-notice { display: block; margin: 4px 0 0; padding: 8px 10px; border: 1px solid #f2c97d; border-radius: 7px; background: #fff8e8; color: #8a5a00; font-size: 12px; }
 .teacher-previous-table-wrap { max-height: 250px; overflow: auto; border: 1px solid #d9e4e1; border-radius: 8px; background: #fff; -webkit-overflow-scrolling: touch; }
 .teacher-previous-table { width: 100%; min-width: 520px; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
 .teacher-previous-table th, .teacher-previous-table td { padding: 7px 8px; border-bottom: 1px solid #edf2f1; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
