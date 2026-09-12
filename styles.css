@@ -7,6 +7,109 @@ body {
   margin: 0;
 }
 
+/* Student pledges */
+.pledge-admin-section { background: #f7f9fc; min-height: 100vh; }
+.pledge-page-header { background: #ffffff; border-bottom: 1px solid #e4e9f0; }
+.student-pledges-menu-card { border-right: 3px solid #1f6f78; }
+.pledge-menu-icon { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 10px; background: #e5f3f3; color: #1f6f78; font-size: 13px; font-weight: 700; }
+.pledge-page-content { max-width: 900px; margin: 0 auto; padding: 24px 16px 100px; }
+.pledge-tabs { display: flex; gap: 6px; margin-bottom: 18px; padding: 5px; background: #e8edf3; border-radius: 10px; }
+.pledge-tab { flex: 1; border: 0; border-radius: 7px; background: transparent; color: #536170; padding: 12px 16px; cursor: pointer; font: inherit; font-weight: 700; transition: background .2s ease, color .2s ease; }
+.pledge-tab.is-active { background: #ffffff; color: #1f6f78; box-shadow: 0 2px 8px rgba(22, 42, 62, .08); }
+.pledge-tab-panel { display: none; animation: pledgePanelIn .22s ease both; }
+.pledge-tab-panel.is-active { display: block; }
+@keyframes pledgePanelIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.pledge-form-card, .pledge-history-card { background: #ffffff; border: 1px solid #e1e8ef; border-radius: 10px; padding: 24px; box-shadow: 0 8px 24px rgba(26, 47, 68, .05); }
+.pledge-card-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.pledge-card-heading h3, .pledge-history-heading h3 { margin: 0 0 4px; color: #203243; font-size: 18px; }
+.pledge-card-heading p, .pledge-history-heading p { margin: 0; color: #718092; font-size: 13px; }
+.pledge-step-number { flex: 0 0 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #1f6f78; color: #ffffff; font-weight: 700; }
+.pledge-field-label { display: block; margin: 0 0 7px; color: #3b4b5c; font-size: 14px; font-weight: 700; }
+.pledge-select { width: 100%; min-height: 46px; border: 1px solid #ccd6e0; border-radius: 7px; padding: 0 13px; background: #ffffff; color: #253746; font: inherit; outline: none; transition: border-color .2s ease, box-shadow .2s ease; }
+.pledge-select:focus { border-color: #1f6f78; box-shadow: 0 0 0 3px rgba(31, 111, 120, .12); }
+.pledge-select:disabled { background: #f1f4f7; color: #84909d; cursor: not-allowed; }
+.pledge-progressive-field { display: none; margin-top: 26px; animation: pledgeFieldIn .24s ease both; }
+.pledge-progressive-field.is-visible { display: block; }
+@keyframes pledgeFieldIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+.pledge-form-actions { display: flex; gap: 10px; align-items: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid #edf0f3; }
+.pledge-primary-button, .pledge-secondary-button { min-height: 42px; border-radius: 7px; padding: 0 18px; border: 1px solid transparent; font: inherit; font-weight: 700; cursor: pointer; transition: transform .2s ease, background .2s ease, opacity .2s ease; }
+.pledge-primary-button { background: #1f6f78; color: #ffffff; }
+.pledge-primary-button:hover:not(:disabled), .pledge-secondary-button:hover { transform: translateY(-1px); }
+.pledge-primary-button:disabled { opacity: .45; cursor: not-allowed; }
+.pledge-secondary-button { background: #ffffff; color: #1f6f78; border-color: #b8cbd0; }
+.pledge-status-message { min-height: 22px; margin: 0 0 12px; color: #1f6f78; font-size: 14px; }
+.pledge-status-message.error { color: #a13c3c; }
+.pledge-status-message.success { color: #217348; }
+.pledge-status-message.loading { color: #596c7f; }
+.pledge-loading-state { margin-bottom: 12px; color: #647589; font-size: 14px; }
+.pledge-history-heading { margin-bottom: 15px; }
+.pledge-history-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid #edf0f3; }
+.pledge-filter-field .pledge-field-label { font-size: 13px; }
+.pledge-history-list { display: grid; gap: 8px; }
+.pledge-history-table-wrap { overflow-x: auto; }
+.pledge-history-table { width: 100%; border-collapse: collapse; min-width: 650px; color: #334858; font-size: 13px; }
+.pledge-history-table th { padding: 10px 8px; background: #f4f7f9; color: #617181; font-size: 12px; font-weight: 700; text-align: right; white-space: nowrap; }
+.pledge-history-table td { padding: 11px 8px; border-bottom: 1px solid #edf0f3; vertical-align: middle; }
+.pledge-history-table tbody tr { cursor: pointer; transition: background .18s ease; }
+.pledge-history-table tbody tr:hover { background: #f8fafb; }
+.pledge-row-actions { white-space: nowrap; }
+.pledge-table-button { min-height: 30px; border: 1px solid #b8cbd0; border-radius: 5px; padding: 0 9px; background: #fff; color: #1f6f78; font: inherit; font-size: 12px; cursor: pointer; }
+.pledge-table-danger { border-color: #d8aaaa; color: #a13c3c; }
+.pledge-history-item { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(170px, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #edf0f3; }
+.pledge-history-item:last-child { border-bottom: 0; }
+.pledge-history-main, .pledge-history-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pledge-history-main strong { color: #243746; font-size: 14px; }
+.pledge-history-main span, .pledge-history-meta span, .pledge-history-meta time { color: #718092; font-size: 12px; }
+.pledge-empty-state { padding: 28px 10px; text-align: center; color: #778797; }
+.pledge-load-more { display: block; margin: 14px auto 0; }
+.pledge-history-item { cursor: pointer; }
+.pledge-history-item:hover { background: #f8fafb; }
+.pledge-danger-button { min-height: 42px; border: 1px solid #b84c4c; border-radius: 7px; padding: 0 18px; background: #b84c4c; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.pledge-modal[hidden] { display: none; }
+.pledge-modal { position: fixed; inset: 0; z-index: 10050; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.pledge-modal-backdrop { position: absolute; inset: 0; background: rgba(21, 35, 48, .42); }
+.pledge-modal-dialog { position: relative; width: min(620px, 100%); max-height: min(720px, 90vh); overflow-y: auto; padding: 22px; border-radius: 10px; background: #fff; box-shadow: 0 18px 55px rgba(13, 31, 47, .2); animation: pledgeModalIn .2s ease both; }
+@keyframes pledgeModalIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.pledge-modal-close { position: absolute; top: 10px; left: 12px; width: 32px; height: 32px; border: 0; border-radius: 6px; background: #eef2f4; color: #526372; font-size: 22px; cursor: pointer; }
+.pledge-modal-dialog h3 { margin: 0 0 18px; color: #233746; }
+.pledge-details-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.pledge-detail-cell { padding: 10px; border: 1px solid #e5ebef; border-radius: 7px; }
+.pledge-detail-cell span { display: block; margin-bottom: 3px; color: #748393; font-size: 12px; }
+.pledge-detail-cell strong { color: #263b4c; font-size: 14px; }
+.pledge-detail-body { padding: 14px; border-radius: 7px; background: #f7f9fb; color: #374a5b; line-height: 1.9; white-space: pre-line; }
+.pledge-detail-body ol { margin: 10px 0 0; padding-right: 24px; }
+.pledge-modal-actions { display: flex; gap: 8px; justify-content: flex-start; margin-top: 20px; }
+.pledge-confirm-dialog { max-width: 390px; }
+.pledge-confirm-dialog p { margin: 0; color: #596b7b; }
+.pledge-pdf-document { width: 794px; min-height: 1123px; box-sizing: border-box; padding: 62px 70px; background: #ffffff; color: #202b36; font-family: "Noto Naskh Arabic", "Tahoma", sans-serif; line-height: 2; direction: rtl; }
+.pledge-pdf-topline { color: #1f6f78; font-size: 18px; font-weight: 700; text-align: center; }
+.pledge-pdf-brand { width: fit-content; margin: 28px auto 12px; padding: 5px 20px; border: 1px solid #b9cdd1; color: #1f6f78; font-size: 15px; }
+.pledge-pdf-document h1 { margin: 0; color: #1e3445; font-size: 27px; text-align: center; line-height: 1.6; }
+.pledge-pdf-rule { width: 90px; height: 3px; margin: 18px auto 28px; background: #1f6f78; }
+.pledge-pdf-document p { margin: 0 0 20px; font-size: 19px; }
+.pledge-pdf-greeting { font-weight: 700; }
+.pledge-pdf-intro { margin-top: 24px !important; font-weight: 700; }
+.pledge-pdf-document ol { margin: 0 0 30px; padding-right: 28px; font-size: 18px; }
+.pledge-pdf-document li { padding-right: 7px; margin-bottom: 7px; }
+.pledge-pdf-closing { margin-top: 24px !important; }
+.pledge-pdf-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 48px; padding-top: 20px; border-top: 1px solid #d8e0e5; }
+.pledge-pdf-footer div { display: flex; flex-direction: column; gap: 3px; font-size: 16px; }
+.pledge-pdf-footer span { color: #718092; }
+.pledge-pdf-footer strong { color: #263b4c; }
+.pledge-pdf-signature { margin-top: 62px; color: #1f6f78; font-size: 17px; font-weight: 700; text-align: center; }
+@media (max-width: 600px) {
+  .pledge-page-content { padding: 16px 12px 90px; }
+  .pledge-form-card, .pledge-history-card { padding: 16px; }
+  .pledge-history-item { grid-template-columns: 1fr auto; }
+  .pledge-history-meta { grid-column: 1; }
+  .pledge-history-item .pledge-secondary-button { grid-column: 2; grid-row: 1 / span 2; }
+  .pledge-form-actions { flex-direction: column; align-items: stretch; }
+  .pledge-primary-button, .pledge-secondary-button { width: 100%; }
+  .pledge-history-filters { grid-template-columns: 1fr; }
+  .pledge-details-grid { grid-template-columns: 1fr; }
+  .pledge-modal-actions { flex-direction: column; align-items: stretch; }
+}
+
 /* Ensure sections are visible when display is set to block */
 #adminSection,
 #teacherSection,

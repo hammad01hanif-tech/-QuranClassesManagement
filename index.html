@@ -1045,6 +1045,16 @@
 
           <!-- More Menu Grid -->
           <div class="more-menu-grid">
+
+            <!-- Student Pledges Card -->
+            <div class="more-menu-card student-pledges-menu-card" onclick="window.openStudentPledgesSection()">
+              <div class="more-card-icon pledge-menu-icon">تعهد</div>
+              <div class="more-card-content">
+                <h4 class="more-card-title">تعهدات الطلاب</h4>
+                <p class="more-card-desc">إنشاء تعهد رسمي وحفظه في سجل الطالب</p>
+              </div>
+              <div class="more-card-arrow">←</div>
+            </div>
             
             <!-- Staff Attendance Card -->
             <div class="more-menu-card" onclick="window.openStaffAttendanceSection()">
@@ -1107,6 +1117,127 @@
               <div class="more-card-arrow">←</div>
             </div>
 
+          </div>
+        </div>
+
+        <!-- Student Pledges Section -->
+        <div id="studentPledgesSection" class="admin-full-page-section pledge-admin-section" style="display: none;">
+          <div class="full-page-header pledge-page-header">
+            <button class="back-btn" type="button" onclick="window.closeStudentPledgesSection()" aria-label="العودة إلى المزيد">
+              <span class="back-arrow">→</span>
+            </button>
+            <h2 class="full-page-title">تعهدات الطلاب</h2>
+            <div class="header-spacer"></div>
+          </div>
+
+          <div class="pledge-page-content">
+            <div class="pledge-tabs" role="tablist" aria-label="تعهدات الطلاب">
+              <button class="pledge-tab is-active" type="button" data-pledge-tab="pledgeCreatePanel" role="tab">إنشاء تعهد</button>
+              <button class="pledge-tab" type="button" data-pledge-tab="pledgeHistoryPanel" role="tab">سجل التعهدات</button>
+            </div>
+
+            <div id="pledgeLoadingState" class="pledge-loading-state" hidden>جاري تحميل بيانات الحلقات والطلاب...</div>
+            <div id="pledgeStatusMessage" class="pledge-status-message" role="status" aria-live="polite"></div>
+
+            <section id="pledgeCreatePanel" class="pledge-tab-panel is-active" role="tabpanel">
+              <div class="pledge-form-card">
+                <div class="pledge-card-heading">
+                  <span class="pledge-step-number">1</span>
+                  <div><h3>اختيار المعلم</h3><p>سيتم عرض الطلاب المرتبطين بحلقته فقط.</p></div>
+                </div>
+                <label class="pledge-field-label" for="pledgeTeacherSelect">المعلم</label>
+                <select class="pledge-select" id="pledgeTeacherSelect">
+                  <option value="">اختر المعلم</option>
+                </select>
+
+                <div id="pledgeStudentField" class="pledge-progressive-field">
+                  <div class="pledge-card-heading">
+                    <span class="pledge-step-number">2</span>
+                    <div><h3>اختيار الطالب</h3><p>اختر الطالب المطلوب إنشاء التعهد له.</p></div>
+                  </div>
+                  <label class="pledge-field-label" for="pledgeStudentSelect">الطالب</label>
+                  <select class="pledge-select" id="pledgeStudentSelect" disabled>
+                    <option value="">اختر الطالب</option>
+                  </select>
+                </div>
+
+                <div id="pledgeTypeField" class="pledge-progressive-field">
+                  <div class="pledge-card-heading">
+                    <span class="pledge-step-number">3</span>
+                    <div><h3>نوع التعهد</h3><p>سيتم توليد الصياغة الرسمية تلقائيًا.</p></div>
+                  </div>
+                  <label class="pledge-field-label" for="pledgeTypeSelect">نوع التعهد</label>
+                  <select class="pledge-select" id="pledgeTypeSelect">
+                    <option value="">اختر نوع التعهد</option>
+                    <option value="absences">الغيابات</option>
+                    <option value="lateness">التأخيرات</option>
+                    <option value="phone">اصطحاب الجوال للحلقات</option>
+                    <option value="behavior">الأخلاقيات والسلوكيات</option>
+                    <option value="leaving">الخروج من الحلقة من غير إذن المعلم</option>
+                    <option value="disruption">المشاغبة داخل الحلقة</option>
+                    <option value="cheating">الغش أثناء التسميع</option>
+                    <option value="educational">ضعف المستوى التعليمي</option>
+                  </select>
+                </div>
+
+                <div class="pledge-form-actions">
+                  <button id="createPledgeButton" class="pledge-primary-button" type="button" disabled>إنشاء التعهد</button>
+                  <button id="resetPledgeButton" class="pledge-secondary-button" type="button">إعادة الاختيار</button>
+                </div>
+              </div>
+            </section>
+
+            <section id="pledgeHistoryPanel" class="pledge-tab-panel" role="tabpanel">
+              <div class="pledge-history-card">
+                <div class="pledge-history-heading"><h3>سجل التعهدات</h3><p>الأحدث يظهر أولًا، ويمكن فتح أي ملف PDF مباشرة.</p></div>
+                <div class="pledge-history-filters">
+                  <div class="pledge-filter-field">
+                    <label class="pledge-field-label" for="pledgeHistoryTeacherSelect">اختر المعلم</label>
+                    <select class="pledge-select" id="pledgeHistoryTeacherSelect">
+                      <option value="">اختر المعلم لعرض سجل التعهدات</option>
+                    </select>
+                  </div>
+                  <div class="pledge-filter-field">
+                    <label class="pledge-field-label" for="pledgeHistoryClassSelect">الحلقة</label>
+                    <select class="pledge-select" id="pledgeHistoryClassSelect" disabled>
+                      <option value="">اختر المعلم أولًا</option>
+                    </select>
+                  </div>
+                  <div class="pledge-filter-field">
+                    <label class="pledge-field-label" for="pledgeHistoryStudentSelect">الطالب</label>
+                    <select class="pledge-select" id="pledgeHistoryStudentSelect" disabled>
+                      <option value="">اختر المعلم أولًا</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="pledgeHistoryList" class="pledge-history-list"></div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div id="pledgeDetailsModal" class="pledge-modal" hidden>
+          <div class="pledge-modal-backdrop" data-close-pledge-modal></div>
+          <div class="pledge-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="pledgeDetailsTitle">
+            <button class="pledge-modal-close" type="button" data-close-pledge-modal aria-label="إغلاق">×</button>
+            <h3 id="pledgeDetailsTitle">تفاصيل التعهد</h3>
+            <div id="pledgeDetailsContent" class="pledge-details-content"></div>
+            <div class="pledge-modal-actions">
+              <button id="pledgeDetailsPdfButton" class="pledge-primary-button" type="button">فتح PDF</button>
+              <button id="pledgeDetailsDeleteButton" class="pledge-danger-button" type="button">حذف التعهد</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="pledgeDeleteModal" class="pledge-modal" hidden>
+          <div class="pledge-modal-backdrop" data-close-pledge-modal></div>
+          <div class="pledge-modal-dialog pledge-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="pledgeDeleteTitle">
+            <h3 id="pledgeDeleteTitle">حذف التعهد</h3>
+            <p>هل أنت متأكد من حذف هذا التعهد؟</p>
+            <div class="pledge-modal-actions">
+              <button id="confirmPledgeDeleteButton" class="pledge-danger-button" type="button">حذف التعهد</button>
+              <button class="pledge-secondary-button" type="button" data-close-pledge-modal>إلغاء</button>
+            </div>
           </div>
         </div>
 
