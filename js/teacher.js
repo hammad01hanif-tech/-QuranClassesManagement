@@ -8346,8 +8346,19 @@ async function getNooraniStudents(teacherId) {
   return students;
 }
 
-function teacherOptions(selectedId = 'FSL01') {
-  return nooraniTeachers.map(teacher => `<option value="${teacher.id}" ${teacher.id === selectedId ? 'selected' : ''}>${teacher.name} · ${teacher.id}</option>`).join('');
+function getAvailableNooraniTeachers() {
+  const loggedInTeacherId = sessionStorage.getItem('loggedInTeacher');
+  if (loggedInTeacherId === 'OSM01') return nooraniTeachers;
+  const currentTeacher = nooraniTeachers.find(teacher => teacher.id === loggedInTeacherId);
+  return currentTeacher ? [currentTeacher] : nooraniTeachers;
+}
+
+function getDefaultNooraniTeacherId() {
+  return getAvailableNooraniTeachers()[0]?.id || nooraniTeachers[0].id;
+}
+
+function teacherOptions(selectedId = getDefaultNooraniTeacherId()) {
+  return getAvailableNooraniTeachers().map(teacher => `<option value="${teacher.id}" ${teacher.id === selectedId ? 'selected' : ''}>${teacher.name} · ${teacher.id}</option>`).join('');
 }
 
 async function renderNooraniStudentOptions(selectId, teacherId, selectedStudentId = '') {
@@ -8439,7 +8450,7 @@ window.openNooraniAssessmentPreview = function() {
       </div>
       <div id="previewAbsencePanel" class="teacher-form-tab-panel" role="tabpanel" hidden></div>
     </section>`;
-  window.changeAssessmentTeacher('FSL01');
+  window.changeAssessmentTeacher(getDefaultNooraniTeacherId());
 };
 
 window.changeAssessmentTeacher = async function(teacherId) {
@@ -8738,7 +8749,7 @@ window.openNooraniTracksPreview = function() {
       </div>
       <p id="teacherPreviewNotice" class="teacher-preview-notice" role="status"></p>
     </section>`;
-  window.changeTracksTeacher('FSL01');
+  window.changeTracksTeacher(getDefaultNooraniTeacherId());
 };
 
 window.changeTracksTeacher = async function(teacherId) {
