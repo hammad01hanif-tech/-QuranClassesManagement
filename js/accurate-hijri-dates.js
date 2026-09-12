@@ -1,7 +1,7 @@
 // Accurate Hijri Calendar Data
 // Based on official Saudi Umm Al-Qura calendar
 //
-// Current Coverage: 11 months (294 days total)
+// Current Coverage: 14 months (383 days total)
 // - Jumada Al-Akhir 1447: 29 days (2025-11-22 to 2025-12-20)
 // - Rajab 1447: 30 days (2025-12-21 to 2026-01-19)
 // - Sha'ban 1447: 29 days (2026-01-20 to 2026-02-17)
@@ -12,6 +12,9 @@
 // - Muharram 1448: 29 days (2026-06-16 to 2026-07-14)
 // - Safar 1448: 30 days (2026-07-15 to 2026-08-13)
 // - Rabi' al-Awwal 1448: 29 days (2026-08-14 to 2026-09-11)
+// - Rabi' al-Thani 1448: 30 days (2026-09-12 to 2026-10-11)
+// - Jumada al-Ula 1448: 30 days (2026-10-12 to 2026-11-10)
+// - Jumada al-Akhirah 1448: 29 days (2026-11-11 to 2026-12-09)
 //
 // STUDY DAYS SYSTEM (أيام الدراسة):
 // This system automatically recognizes study days for ALL months (current and future)
@@ -2380,6 +2383,718 @@ export const accurateHijriDates = [
     "hijriMonth": 3,
     "hijriYear": 1448,
     "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-09-12",
+    "hijri": "1448-04-01",
+    "hijriDay": 1,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-09-13",
+    "hijri": "1448-04-02",
+    "hijriDay": 2,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-09-14",
+    "hijri": "1448-04-03",
+    "hijriDay": 3,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-09-15",
+    "hijri": "1448-04-04",
+    "hijriDay": 4,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-09-16",
+    "hijri": "1448-04-05",
+    "hijriDay": 5,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-09-17",
+    "hijri": "1448-04-06",
+    "hijriDay": 6,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-09-18",
+    "hijri": "1448-04-07",
+    "hijriDay": 7,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-09-19",
+    "hijri": "1448-04-08",
+    "hijriDay": 8,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-09-20",
+    "hijri": "1448-04-09",
+    "hijriDay": 9,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-09-21",
+    "hijri": "1448-04-10",
+    "hijriDay": 10,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-09-22",
+    "hijri": "1448-04-11",
+    "hijriDay": 11,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-09-23",
+    "hijri": "1448-04-12",
+    "hijriDay": 12,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-09-24",
+    "hijri": "1448-04-13",
+    "hijriDay": 13,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-09-25",
+    "hijri": "1448-04-14",
+    "hijriDay": 14,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-09-26",
+    "hijri": "1448-04-15",
+    "hijriDay": 15,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-09-27",
+    "hijri": "1448-04-16",
+    "hijriDay": 16,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-09-28",
+    "hijri": "1448-04-17",
+    "hijriDay": 17,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-09-29",
+    "hijri": "1448-04-18",
+    "hijriDay": 18,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-09-30",
+    "hijri": "1448-04-19",
+    "hijriDay": 19,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-10-01",
+    "hijri": "1448-04-20",
+    "hijriDay": 20,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-10-02",
+    "hijri": "1448-04-21",
+    "hijriDay": 21,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-10-03",
+    "hijri": "1448-04-22",
+    "hijriDay": 22,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-10-04",
+    "hijri": "1448-04-23",
+    "hijriDay": 23,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-10-05",
+    "hijri": "1448-04-24",
+    "hijriDay": 24,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-10-06",
+    "hijri": "1448-04-25",
+    "hijriDay": 25,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-10-07",
+    "hijri": "1448-04-26",
+    "hijriDay": 26,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-10-08",
+    "hijri": "1448-04-27",
+    "hijriDay": 27,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-10-09",
+    "hijri": "1448-04-28",
+    "hijriDay": 28,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-10-10",
+    "hijri": "1448-04-29",
+    "hijriDay": 29,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-10-11",
+    "hijri": "1448-04-30",
+    "hijriDay": 30,
+    "hijriMonth": 4,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-10-12",
+    "hijri": "1448-05-01",
+    "hijriDay": 1,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-10-13",
+    "hijri": "1448-05-02",
+    "hijriDay": 2,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-10-14",
+    "hijri": "1448-05-03",
+    "hijriDay": 3,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-10-15",
+    "hijri": "1448-05-04",
+    "hijriDay": 4,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-10-16",
+    "hijri": "1448-05-05",
+    "hijriDay": 5,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-10-17",
+    "hijri": "1448-05-06",
+    "hijriDay": 6,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-10-18",
+    "hijri": "1448-05-07",
+    "hijriDay": 7,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-10-19",
+    "hijri": "1448-05-08",
+    "hijriDay": 8,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-10-20",
+    "hijri": "1448-05-09",
+    "hijriDay": 9,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-10-21",
+    "hijri": "1448-05-10",
+    "hijriDay": 10,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-10-22",
+    "hijri": "1448-05-11",
+    "hijriDay": 11,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-10-23",
+    "hijri": "1448-05-12",
+    "hijriDay": 12,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-10-24",
+    "hijri": "1448-05-13",
+    "hijriDay": 13,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-10-25",
+    "hijri": "1448-05-14",
+    "hijriDay": 14,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-10-26",
+    "hijri": "1448-05-15",
+    "hijriDay": 15,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-10-27",
+    "hijri": "1448-05-16",
+    "hijriDay": 16,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-10-28",
+    "hijri": "1448-05-17",
+    "hijriDay": 17,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-10-29",
+    "hijri": "1448-05-18",
+    "hijriDay": 18,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-10-30",
+    "hijri": "1448-05-19",
+    "hijriDay": 19,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-10-31",
+    "hijri": "1448-05-20",
+    "hijriDay": 20,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-11-01",
+    "hijri": "1448-05-21",
+    "hijriDay": 21,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-11-02",
+    "hijri": "1448-05-22",
+    "hijriDay": 22,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-11-03",
+    "hijri": "1448-05-23",
+    "hijriDay": 23,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-11-04",
+    "hijri": "1448-05-24",
+    "hijriDay": 24,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-11-05",
+    "hijri": "1448-05-25",
+    "hijriDay": 25,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-11-06",
+    "hijri": "1448-05-26",
+    "hijriDay": 26,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-11-07",
+    "hijri": "1448-05-27",
+    "hijriDay": 27,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-11-08",
+    "hijri": "1448-05-28",
+    "hijriDay": 28,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-11-09",
+    "hijri": "1448-05-29",
+    "hijriDay": 29,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-11-10",
+    "hijri": "1448-05-30",
+    "hijriDay": 30,
+    "hijriMonth": 5,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-11-11",
+    "hijri": "1448-06-01",
+    "hijriDay": 1,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-11-12",
+    "hijri": "1448-06-02",
+    "hijriDay": 2,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-11-13",
+    "hijri": "1448-06-03",
+    "hijriDay": 3,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-11-14",
+    "hijri": "1448-06-04",
+    "hijriDay": 4,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-11-15",
+    "hijri": "1448-06-05",
+    "hijriDay": 5,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-11-16",
+    "hijri": "1448-06-06",
+    "hijriDay": 6,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-11-17",
+    "hijri": "1448-06-07",
+    "hijriDay": 7,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-11-18",
+    "hijri": "1448-06-08",
+    "hijriDay": 8,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-11-19",
+    "hijri": "1448-06-09",
+    "hijriDay": 9,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-11-20",
+    "hijri": "1448-06-10",
+    "hijriDay": 10,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-11-21",
+    "hijri": "1448-06-11",
+    "hijriDay": 11,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-11-22",
+    "hijri": "1448-06-12",
+    "hijriDay": 12,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-11-23",
+    "hijri": "1448-06-13",
+    "hijriDay": 13,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-11-24",
+    "hijri": "1448-06-14",
+    "hijriDay": 14,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-11-25",
+    "hijri": "1448-06-15",
+    "hijriDay": 15,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-11-26",
+    "hijri": "1448-06-16",
+    "hijriDay": 16,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-11-27",
+    "hijri": "1448-06-17",
+    "hijriDay": 17,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-11-28",
+    "hijri": "1448-06-18",
+    "hijriDay": 18,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-11-29",
+    "hijri": "1448-06-19",
+    "hijriDay": 19,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-11-30",
+    "hijri": "1448-06-20",
+    "hijriDay": 20,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-12-01",
+    "hijri": "1448-06-21",
+    "hijriDay": 21,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-12-02",
+    "hijri": "1448-06-22",
+    "hijriDay": 22,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
+  },
+  {
+    "gregorian": "2026-12-03",
+    "hijri": "1448-06-23",
+    "hijriDay": 23,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الخميس"
+  },
+  {
+    "gregorian": "2026-12-04",
+    "hijri": "1448-06-24",
+    "hijriDay": 24,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الجمعة"
+  },
+  {
+    "gregorian": "2026-12-05",
+    "hijri": "1448-06-25",
+    "hijriDay": 25,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "السبت"
+  },
+  {
+    "gregorian": "2026-12-06",
+    "hijri": "1448-06-26",
+    "hijriDay": 26,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الأحد"
+  },
+  {
+    "gregorian": "2026-12-07",
+    "hijri": "1448-06-27",
+    "hijriDay": 27,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الإثنين"
+  },
+  {
+    "gregorian": "2026-12-08",
+    "hijri": "1448-06-28",
+    "hijriDay": 28,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الثلاثاء"
+  },
+  {
+    "gregorian": "2026-12-09",
+    "hijri": "1448-06-29",
+    "hijriDay": 29,
+    "hijriMonth": 6,
+    "hijriYear": 1448,
+    "dayName": "الأربعاء"
   }
 ];
 
@@ -2392,6 +3107,89 @@ accurateHijriDates.forEach(entry => {
   hijriToGregorianMap.set(entry.hijri, entry);
 });
 
+// Algorithmic Fallback calculations (Kuwaiti / Umm Al-Qura approximation)
+function calculateHijriFallback(date) {
+  try {
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) {
+      throw new Error('Invalid Date');
+    }
+    const day = d.getDate();
+    const month = d.getMonth();
+    const year = d.getFullYear();
+
+    let m = month + 1;
+    let y = year;
+    if (m < 3) {
+      y -= 1;
+      m += 12;
+    }
+
+    let a = Math.floor(y / 100);
+    let b = 2 - a + Math.floor(a / 4);
+    if (y < 1583) b = 0;
+    if (y === 1582) {
+      if (m > 10) b = -10;
+      if (m === 10) {
+        b = 0;
+        if (day > 4) b = -10;
+      }
+    }
+
+    let jd = Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day + b - 1524;
+    let z = jd - 1948440 + 10632;
+    let n = Math.floor((z - 1) / 10631);
+    z = z - 10631 * n + 354;
+    let j = (Math.floor((10985 - z) / 5316)) * (Math.floor((50 * z) / 17719)) + (Math.floor(z / 5670)) * (Math.floor((43 * z) / 15238));
+    z = z - (Math.floor((30 - j) / 15)) * (Math.floor((17719 * j) / 50)) - (Math.floor(j / 16)) * (Math.floor((15238 * j) / 43)) + 29;
+    let hijriMonth = Math.floor((24 * z) / 709);
+    let hijriDay = z - Math.floor((709 * hijriMonth) / 24);
+    let hijriYear = 30 * n + j - 30;
+
+    const arabicDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const dayName = arabicDays[d.getDay()] || 'اليوم';
+
+    return {
+      gregorian: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      hijri: `${hijriYear}-${String(hijriMonth).padStart(2, '0')}-${String(hijriDay).padStart(2, '0')}`,
+      hijriDay: parseInt(hijriDay),
+      hijriMonth: parseInt(hijriMonth),
+      hijriYear: parseInt(hijriYear),
+      dayName: dayName
+    };
+  } catch (e) {
+    const today = new Date();
+    return {
+      gregorian: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
+      hijri: '1448-01-01',
+      hijriDay: 1,
+      hijriMonth: 1,
+      hijriYear: 1448,
+      dayName: 'اليوم'
+    };
+  }
+}
+
+function calculateGregorianFallback(hy, hm, hd) {
+  try {
+    let jd = Math.floor((11 * hy + 3) / 30) + 354 * hy + 30 * hm - Math.floor((hm - 1) / 2) + hd + 1948440 - 385;
+    let l = jd + 68569;
+    let n = Math.floor((4 * l) / 146097);
+    l = l - Math.floor((146097 * n + 3) / 4);
+    let i = Math.floor((4000 * (l + 1)) / 1461001);
+    l = l - Math.floor((1461 * i) / 4) + 31;
+    let j = Math.floor((80 * l) / 2447);
+    let d = l - Math.floor((2447 * j) / 80);
+    l = Math.floor(j / 11);
+    let m = j + 2 - 12 * l;
+    let y = 100 * (n - 49) + i + l;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  } catch (e) {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  }
+}
+
 /**
  * Convert Gregorian date to accurate Hijri date
  * @param {Date|string} gregorianDate - Date object or YYYY-MM-DD string
@@ -2399,46 +3197,73 @@ accurateHijriDates.forEach(entry => {
  */
 export function gregorianToAccurateHijri(gregorianDate) {
   let dateStr;
+  let dateObj;
   
   if (gregorianDate instanceof Date) {
+    dateObj = gregorianDate;
     const year = gregorianDate.getFullYear();
     const month = String(gregorianDate.getMonth() + 1).padStart(2, '0');
     const day = String(gregorianDate.getDate()).padStart(2, '0');
     dateStr = `${year}-${month}-${day}`;
+  } else if (typeof gregorianDate === 'string' && gregorianDate.trim() !== '') {
+    dateStr = gregorianDate.trim();
+    dateObj = new Date(dateStr + (dateStr.includes('T') ? '' : 'T12:00:00'));
   } else {
-    dateStr = gregorianDate;
+    dateObj = new Date();
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    dateStr = `${year}-${month}-${day}`;
   }
   
+  // 1. Tier 1: Look up in exact manual mapping map
   const hijriData = gregorianToHijriMap.get(dateStr);
-  
   if (hijriData) {
     return hijriData;
   }
   
-  // Fallback: Use Intl if date not in our data
-  console.warn(`Date ${dateStr} not found in accurate Hijri calendar, using fallback`);
-  const date = typeof gregorianDate === 'string' ? new Date(gregorianDate + 'T12:00:00') : gregorianDate;
+  // 2. Tier 2: Automatic Fallback via Intl.DateTimeFormat (Umm Al-Qura / Islamic calendar)
+  try {
+    const formatter = new Intl.DateTimeFormat('en-SA-u-ca-islamic-umalqura', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: 'Asia/Riyadh'
+    });
+    
+    const parts = formatter.formatToParts(dateObj);
+    const yearPart = parts.find(p => p.type === 'year');
+    const monthPart = parts.find(p => p.type === 'month');
+    const dayPart = parts.find(p => p.type === 'day');
+    
+    if (yearPart && monthPart && dayPart) {
+      const year = parseInt(yearPart.value);
+      const month = parseInt(monthPart.value);
+      const day = parseInt(dayPart.value);
+      
+      let dayName = 'اليوم';
+      try {
+        dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(dateObj);
+      } catch (e) {
+        const arabicDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        dayName = arabicDays[dateObj.getDay()] || 'اليوم';
+      }
+      
+      return {
+        gregorian: dateStr,
+        hijri: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        hijriDay: day,
+        hijriMonth: month,
+        hijriYear: year,
+        dayName: dayName
+      };
+    }
+  } catch (err) {
+    console.warn(`Intl Hijri formatting fallback failed for ${dateStr}, using algorithmic fallback:`, err);
+  }
   
-  const formatter = new Intl.DateTimeFormat('en-SA-u-ca-islamic', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Asia/Riyadh'
-  });
-  
-  const parts = formatter.formatToParts(date);
-  const year = parts.find(p => p.type === 'year').value;
-  const month = parts.find(p => p.type === 'month').value;
-  const day = parts.find(p => p.type === 'day').value;
-  
-  return {
-    gregorian: dateStr,
-    hijri: `${year}-${month}-${day}`,
-    hijriDay: parseInt(day),
-    hijriMonth: parseInt(month),
-    hijriYear: parseInt(year),
-    dayName: new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(date)
-  };
+  // 3. Tier 3: Mathematical algorithmic fallback
+  return calculateHijriFallback(dateObj);
 }
 
 /**
@@ -2447,13 +3272,24 @@ export function gregorianToAccurateHijri(gregorianDate) {
  * @returns {Object} Gregorian date object
  */
 export function accurateHijriToGregorian(hijriDate) {
-  const hijriData = hijriToGregorianMap.get(hijriDate);
+  if (!hijriDate) return new Date();
   
+  const hijriData = hijriToGregorianMap.get(hijriDate);
   if (hijriData) {
     return new Date(hijriData.gregorian + 'T12:00:00');
   }
   
-  console.warn(`Hijri date ${hijriDate} not found in accurate calendar`);
+  // Fallback calculation for dates not in accurate table
+  try {
+    const [hy, hm, hd] = hijriDate.split('-').map(Number);
+    if (hy && hm && hd) {
+      const gregStr = calculateGregorianFallback(hy, hm, hd);
+      return new Date(gregStr + 'T12:00:00');
+    }
+  } catch (e) {
+    console.warn(`Error converting Hijri ${hijriDate} to Gregorian:`, e);
+  }
+  
   return new Date();
 }
 
@@ -2499,7 +3335,7 @@ export function isTodayStudyDay() {
 
 /**
  * Format accurate Hijri date in Arabic
- * @param {string|Date|Object} input - Hijri date string (YYYY-MM-DD), Date object, or Hijri object
+ * @param {string|Date|Object} input - Hijri date string (YYYY-MM-DD), Gregorian date string, Date object, or Hijri object
  * @returns {string} Formatted Arabic date
  */
 export function formatAccurateHijriDate(input) {
@@ -2512,22 +3348,35 @@ export function formatAccurateHijriDate(input) {
   let hijriDate;
   
   // Handle different input types
-  if (typeof input === 'string') {
-    hijriDate = input;
+  if (typeof input === 'string' && input.includes('-')) {
+    const firstPart = parseInt(input.split('-')[0]);
+    if (firstPart > 1600) {
+      // It's a Gregorian string (e.g. "2026-09-12") -> convert to Hijri
+      const hijriObj = gregorianToAccurateHijri(input);
+      hijriDate = hijriObj.hijri;
+    } else {
+      // It's already a Hijri string (e.g. "1448-04-01")
+      hijriDate = input;
+    }
   } else if (input instanceof Date) {
     const hijriObj = gregorianToAccurateHijri(input);
     hijriDate = hijriObj.hijri;
   } else if (input && typeof input === 'object' && input.hijri) {
     hijriDate = input.hijri;
   } else {
-    console.error('Invalid input for formatAccurateHijriDate:', input);
-    return 'تاريخ غير صحيح';
+    // Fallback: format today's date
+    const hijriObj = gregorianToAccurateHijri(new Date());
+    hijriDate = hijriObj.hijri;
   }
   
-  const [year, month, day] = hijriDate.split('-').map(Number);
-  const monthName = hijriMonths[month - 1];
-  
-  return `${day} ${monthName} ${year} هـ`;
+  try {
+    const [year, month, day] = hijriDate.split('-').map(Number);
+    const monthName = hijriMonths[month - 1] || `شهر ${month}`;
+    return `${day} ${monthName} ${year} هـ`;
+  } catch (err) {
+    const todayHijri = gregorianToAccurateHijri(new Date());
+    return `${todayHijri.hijriDay} ${hijriMonths[todayHijri.hijriMonth - 1] || ''} ${todayHijri.hijriYear} هـ`;
+  }
 }
 
 /**

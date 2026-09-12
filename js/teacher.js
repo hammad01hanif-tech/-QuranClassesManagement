@@ -22,7 +22,7 @@ import {
 import { quranSurahs } from './quran-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, gregorianToHijri, isTodayAStudyDay } from './hijri-date.js';
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
-import { accurateHijriDates } from './accurate-hijri-dates.js';
+import { accurateHijriDates, getTodayAccurateHijri, formatAccurateHijriDate, gregorianToAccurateHijri } from './accurate-hijri-dates.js';
 import { getMonthlyReport, countStudyDays, getAllWorkingDaysInMonth, getDayInfo, isWeekend, isOfficialHoliday } from './study-days-calendar.js';
 import { getTodayPrayerTimes, getPrayerTimesLocal } from './prayer-times-local.js';
 import { calculateAbsencePenalty } from './attendance-calculator.js';
@@ -11584,22 +11584,41 @@ function updateTeacherDateTime() {
   
   const now = new Date();
   
-  // Accurate Hijri date from internal file
-  const hijriData = accurateHijriDates.find(entry => {
-    const entryDate = new Date(entry.gregorian);
-    return entryDate.toDateString() === now.toDateString();
-  });
-  
-  if (hijriData) {
+  // Accurate Hijri date from internal file or automatic fallback
+  try {
+    const hijriData = getTodayAccurateHijri();
     const hijriMonths = [
       'المحرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 
       'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 
       'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
     ];
-    const monthName = hijriMonths[hijriData.hijriMonth - 1];
-    hijriDateEl.textContent = `${hijriData.dayName} ${hijriData.hijriDay} ${monthName} ${hijriData.hijriYear}هـ`;
-  } else {
-    hijriDateEl.textContent = 'التاريخ الهجري غير متوفر';
+    const monthName = (hijriData && hijriData.hijriMonth) ? (hijriMonths[hijriData.hijriMonth - 1] || `شهر ${hijriData.hijriMonth}`) : '';
+    const dayName = (hijriData && hijriData.dayName) ? hijriData.dayName : new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
+    
+    if (hijriData && hijriData.hijriDay && monthName && hijriData.hijriYear) {
+      hijriDateEl.textContent = `${dayName} ${hijriData.hijriDay} ${monthName} ${hijriData.hijriYear}هـ`;
+    } else {
+      // Direct browser Intl fallback
+      const formatter = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      hijriDateEl.textContent = `${dayName} ${formatter.format(now)}`;
+    }
+  } catch (err) {
+    console.warn('Error displaying Hijri date in teacher header, using direct format:', err);
+    try {
+      const dayName = new Intl.DateTimeFormat('ar-SA', { weekday: 'long' }).format(now);
+      const fallbackFormatter = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      hijriDateEl.textContent = `${dayName} ${fallbackFormatter.format(now)}`;
+    } catch (finalErr) {
+      hijriDateEl.textContent = formatAccurateHijriDate(now);
+    }
   }
   
   // Gregorian date and time
