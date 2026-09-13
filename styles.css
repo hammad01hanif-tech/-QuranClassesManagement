@@ -6997,16 +6997,14 @@ details[open] > summary {
 .teacher-weekend-disabled .teacher-score-sheet { opacity: .65; }
 .teacher-weekend-notice { display: block; margin: 4px 0 0; padding: 8px 10px; border: 1px solid #f2c97d; border-radius: 7px; background: #fff8e8; color: #8a5a00; font-size: 12px; }
 .teacher-previous-table-wrap { max-height: 250px; overflow: auto; border: 1px solid #d9e4e1; border-radius: 8px; background: #fff; -webkit-overflow-scrolling: touch; }
-.teacher-previous-table { width: 100%; min-width: 520px; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
-.teacher-previous-table.keep-table, .teacher-previous-table.keep-table thead, .teacher-previous-table.keep-table tbody { display: table; width: 100%; }
-.teacher-previous-table.keep-table thead { table-layout: fixed; }
-.teacher-previous-table.keep-table tbody { display: table-row-group; }
-.teacher-previous-table.keep-table tr { display: table-row; }
-.teacher-previous-table.keep-table th, .teacher-previous-table.keep-table td { display: table-cell; }
-.teacher-previous-table th, .teacher-previous-table td { padding: 7px 8px; border-bottom: 1px solid #edf2f1; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.teacher-previous-table th { position: sticky; top: 0; z-index: 1; background: #effaf6; color: #173b35; font-weight: 700; }
-.teacher-previous-table td { color: #475569; }
-.teacher-previous-table tr:last-child td { border-bottom: 0; }
+.teacher-previous-table.keep-table { display: table !important; width: 100% !important; min-width: 560px; border-collapse: collapse; table-layout: auto; font-size: 12px; }
+.teacher-previous-table.keep-table thead { display: table-header-group !important; }
+.teacher-previous-table.keep-table tbody { display: table-row-group !important; }
+.teacher-previous-table.keep-table tr { display: table-row !important; }
+.teacher-previous-table.keep-table th, .teacher-previous-table.keep-table td { display: table-cell !important; padding: 9px 10px; border-bottom: 1px solid #edf2f1; text-align: right; white-space: nowrap; vertical-align: middle; }
+.teacher-previous-table.keep-table th { position: sticky; top: 0; z-index: 1; background: #effaf6; color: #173b35; font-weight: 700; }
+.teacher-previous-table.keep-table td { color: #475569; }
+.teacher-previous-table.keep-table tr:last-child td { border-bottom: 0; }
 .teacher-save-toast { position: fixed; right: 50%; bottom: 92px; z-index: 10001; transform: translate(50%, 12px); opacity: 0; padding: 11px 18px; border: 1px solid #a7d9c9; border-radius: 9px; background: #effaf6; color: #146c5b; box-shadow: 0 8px 24px rgba(20, 108, 91, .18); font-size: 13px; font-weight: 700; transition: opacity .22s ease, transform .22s ease; }
 .teacher-save-toast.visible { opacity: 1; transform: translate(50%, 0); }
 .teacher-track-list { display: grid; gap: 10px; }
