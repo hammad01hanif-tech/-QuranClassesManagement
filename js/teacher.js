@@ -8446,7 +8446,7 @@ window.openNooraniAssessmentPreview = function() {
       <div class="teacher-form-footer"><div class="teacher-total-row"><span>المجموع الحالي</span><strong id="previewTotalScore">30 / 30</strong></div><button id="previewSaveButton" class="teacher-save-preview" type="button" onclick="window.savePreviewAssessment()">حفظ التقييم</button></div><p id="teacherPreviewNotice" class="teacher-preview-notice" role="status"></p>
       </div>
       <div id="previewPreviousPanel" class="teacher-form-tab-panel" role="tabpanel" hidden>
-        <div class="teacher-previous-table-wrap"><table class="teacher-previous-table"><thead><tr><th>اليوم/التاريخ</th><th>الدرس</th><th>مقدار الدرس</th><th>المراجعة</th><th>مجموع الدرجات</th></tr></thead><tbody id="previewPreviousTableBody"><tr><td colspan="5">اختر طالبا لعرض التقييمات</td></tr></tbody></table></div>
+        <div class="teacher-previous-table-wrap"><table class="teacher-previous-table keep-table"><thead><tr><th>اليوم/التاريخ</th><th>الدرس</th><th>مقدار الدرس</th><th>المراجعة</th><th>مجموع الدرجات</th></tr></thead><tbody id="previewPreviousTableBody"><tr><td colspan="5">اختر طالبا لعرض التقييمات</td></tr></tbody></table></div>
       </div>
       <div id="previewAbsencePanel" class="teacher-form-tab-panel" role="tabpanel" hidden></div>
     </section>`;
