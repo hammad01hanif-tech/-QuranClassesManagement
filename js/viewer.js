@@ -11360,4 +11360,126 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+/**
+ * Show Hizb Reference Guide Modal - مرجع تقسيم الأحزاب الستين لسهولة الرجوع إليه
+ */
+window.showHizbReferenceModal = function() {
+  if (document.getElementById('hizbReferenceOverlay')) return;
+
+  const cardsHTML = quranHizbData.map(hizb => {
+    const surahsList = hizb.surahs
+      .map(s => s.verses === 'كاملة' ? s.name : `${s.name} (${s.verses})`)
+      .join('، ');
+    const pagesText = hizb.pages > 0 ? `${hizb.pages} صفحة` : 'غير محدد';
+
+    return `
+      <div class="hizb-ref-card">
+        <div class="hizb-ref-card-top">
+          <span class="hizb-ref-number">${hizb.number}</span>
+          <span class="hizb-ref-pages">${pagesText}</span>
+        </div>
+        <div class="hizb-ref-name">${hizb.name}</div>
+        <div class="hizb-ref-surahs">${surahsList}</div>
+      </div>
+    `;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'hizbReferenceOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10005;
+    backdrop-filter: blur(6px);
+    animation: hizbRefFadeIn 0.25s ease;
+    padding: 20px;
+    box-sizing: border-box;
+  `;
+
+  overlay.innerHTML = `
+    <style>
+      @keyframes hizbRefFadeIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes hizbRefScaleIn { from { transform: scale(0.96) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+      #hizbReferenceOverlay .hizb-ref-modal { animation: hizbRefScaleIn 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
+      #hizbReferenceOverlay .hizb-ref-grid::-webkit-scrollbar { width: 8px; }
+      #hizbReferenceOverlay .hizb-ref-grid::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      #hizbReferenceOverlay .hizb-ref-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; transition: border-color 0.2s ease, transform 0.2s ease; }
+      #hizbReferenceOverlay .hizb-ref-card:hover { border-color: #94a3b8; transform: translateY(-2px); }
+      #hizbReferenceOverlay .hizb-ref-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+      #hizbReferenceOverlay .hizb-ref-number { background: #334155; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; }
+      #hizbReferenceOverlay .hizb-ref-pages { font-size: 11px; color: #64748b; }
+      #hizbReferenceOverlay .hizb-ref-name { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 3px; }
+      #hizbReferenceOverlay .hizb-ref-surahs { font-size: 11.5px; color: #64748b; line-height: 1.5; }
+    </style>
+    <div class="hizb-ref-modal" style="
+      background: #ffffff;
+      width: 100%;
+      max-width: 980px;
+      max-height: 88vh;
+      border-radius: 18px;
+      box-shadow: 0 25px 70px rgba(0,0,0,0.35);
+      direction: rtl;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+        <div>
+          <h2 style="margin: 0; font-size: 17px; color: #1e293b; font-weight: 700;">دليل تقسيم الأحزاب</h2>
+          <p style="margin: 3px 0 0 0; font-size: 12.5px; color: #64748b;">مرجع سريع لجميع الأحزاب الستين من الأول إلى الأخير</p>
+        </div>
+        <button onclick="window.closeHizbReferenceModal()" style="
+          background: #f1f5f9;
+          border: none;
+          color: #475569;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          font-size: 15px;
+          line-height: 1;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.2s ease;
+        " onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">×</button>
+      </div>
+      <div class="hizb-ref-grid" style="
+        padding: 18px 22px;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 10px;
+      ">
+        ${cardsHTML}
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      window.closeHizbReferenceModal();
+    }
+  });
+};
+
+/**
+ * Close Hizb Reference Guide Modal with a smooth fade-out
+ */
+window.closeHizbReferenceModal = function() {
+  const overlay = document.getElementById('hizbReferenceOverlay');
+  if (!overlay) return;
+  overlay.style.animation = 'fadeOut 0.2s ease forwards';
+  setTimeout(() => overlay.remove(), 200);
+};
+
 

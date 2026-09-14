@@ -6632,6 +6632,28 @@ details[open] > summary {
 
 
 /* ============================================================
+   HIZB REFERENCE GUIDE - TRIGGER BUTTON
+   ============================================================ */
+
+.hizb-reference-trigger-btn {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hizb-reference-trigger-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #1e293b;
+}
+
+/* ============================================================
    QUEUE TYPE SELECTOR (Similar to Registration Type Selector)
    ============================================================ */
 
