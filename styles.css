@@ -7,6 +7,10 @@ body {
   margin: 0;
 }
 
+@keyframes attendanceLoadingSpin {
+  to { transform: rotate(360deg); }
+}
+
 /* Student pledges */
 .pledge-admin-section { background: #f7f9fc; min-height: 100vh; }
 .pledge-page-header { background: #ffffff; border-bottom: 1px solid #e4e9f0; }

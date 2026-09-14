@@ -5,6 +5,7 @@ import {
   collectionGroup,
   getDocs,
   getDoc,
+  writeBatch,
   doc,
   doc as firestoreDoc, 
   query, 
@@ -3149,6 +3150,54 @@ window.loadDailyAttendance = async function() {
   }
 };
 
+function setDailyAttendanceState(state, message = '') {
+  const modal = document.getElementById('dailyAttendanceModal');
+  if (!modal) return;
+  modal.dataset.attendanceState = state;
+  modal.dataset.attendanceLoading = state === 'loading' ? 'true' : 'false';
+
+  const studentsList = document.getElementById('dailyAttendanceStudentsList');
+  const saveButton = document.getElementById('saveDailyAttendanceBtn');
+  const isReady = state === 'ready';
+  const isSaving = state === 'saving';
+  const isError = state === 'error';
+
+  studentsList?.setAttribute('aria-busy', state === 'loading' || state === 'saving' ? 'true' : 'false');
+  studentsList?.querySelector('table')?.style.setProperty('opacity', isReady ? '1' : '0.55');
+  studentsList?.querySelector('table')?.style.setProperty('pointer-events', isReady ? 'auto' : 'none');
+  document.querySelectorAll('#dailyAttendanceModal .attendance-buttons button').forEach(button => {
+    button.disabled = !isReady;
+  });
+
+  if (saveButton) {
+    saveButton.disabled = !isReady;
+    if (state === 'loading') saveButton.textContent = 'جاري تحميل التحضير...';
+    if (state === 'saving') saveButton.textContent = 'جاري حفظ التحضير...';
+    if (state === 'saved') saveButton.textContent = 'تم حفظ التحضير';
+    if (isError) saveButton.textContent = 'إعادة المحاولة بعد التحقق';
+    if (isReady) saveButton.textContent = saveButton.dataset.originalText || '💾 حفظ التحضير';
+  }
+
+  const dateButton = modal.querySelector('[onclick="window.showDatePicker()"]');
+  if (dateButton) {
+    dateButton.style.pointerEvents = isReady ? 'auto' : 'none';
+    dateButton.style.opacity = isReady ? '1' : '0.6';
+  }
+
+  document.getElementById('dailyAttendanceLoadingState')?.remove();
+  document.getElementById('dailyAttendanceErrorState')?.remove();
+  if (state === 'loading') {
+    studentsList?.insertAdjacentHTML('afterbegin', `
+      <div id="dailyAttendanceLoadingState" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; padding: 12px; border: 1px solid #dbe3eb; border-radius: 8px; background: #f7f9fb; color: #526372; font-size: 14px;">
+        <span style="width: 16px; height: 16px; border: 2px solid #c9d4df; border-top-color: #667eea; border-radius: 50%; animation: attendanceLoadingSpin .8s linear infinite;"></span>
+        <span>جاري تحميل تحضير اليوم...</span>
+      </div>
+    `);
+  } else if (isError) {
+    studentsList?.insertAdjacentHTML('afterbegin', `<div id="dailyAttendanceErrorState" style="margin-bottom: 12px; padding: 10px; border-radius: 8px; background: #fff3cd; color: #856404; text-align: center; font-size: 13px;">${message || 'تعذر تحميل حالات التحضير. لا يمكن الحفظ قبل التحقق من البيانات.'}</div>`);
+  }
+}
+
 // Show daily attendance modal
 window.showDailyAttendanceModal = function(classId, teacherName, students, selectedDate = null, teacherId = null) {
   const modal = document.getElementById('dailyAttendanceModal');
@@ -3189,6 +3238,7 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
   
   // Check if it's Friday or Saturday (weekend)
   const isWeekend = todayEntry && (todayEntry.dayName === 'الجمعة' || todayEntry.dayName === 'السبت');
+  modal.dataset.attendanceState = isWeekend ? 'ready' : 'loading';
   
   // If it's weekend, show holiday message instead of students list
   if (isWeekend) {
@@ -3217,6 +3267,7 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
     }
     
     // Show modal and return early (skip loading saved attendance)
+    setDailyAttendanceState('ready');
     modal.style.display = 'flex';
     return;
   }
@@ -3314,6 +3365,11 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
   `;
   
   studentsList.innerHTML = html;
+  const saveButton = document.getElementById('saveDailyAttendanceBtn');
+  if (saveButton) {
+    saveButton.dataset.originalText = saveButton.textContent;
+  }
+  setDailyAttendanceState('loading');
   
   // Show modal
   modal.style.display = 'flex';
@@ -3330,6 +3386,9 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
 // Show date picker for selecting different days
 window.showDatePicker = async function(selectedMonth = null) {
   const modal = document.getElementById('dailyAttendanceModal');
+  if (modal.dataset.attendanceState !== 'ready') {
+    return;
+  }
   const currentDate = modal.dataset.currentDate || getTodayForStorage();
   const classId = modal.dataset.classId;
   
@@ -3477,53 +3536,50 @@ window.switchToDate = function(hijriDate) {
 
 // Load saved attendance data for students
 window.loadSavedAttendance = async function(students, targetDate = null) {
+  const modal = document.getElementById('dailyAttendanceModal');
+  const studentsList = document.getElementById('dailyAttendanceStudentsList');
+  const saveButton = document.getElementById('saveDailyAttendanceBtn');
   try {
     const dateToLoad = targetDate || getTodayForStorage(); // YYYY-MM-DD
     
     if (!students || students.length === 0) {
       console.log('⚠️ No students to load attendance for');
+      setDailyAttendanceState('ready');
       window.updateAttendanceStats();
       return;
     }
-    
-    for (const student of students) {
+    // Read all student reports in parallel, then update the UI in one pass.
+    const reports = await Promise.all(students.map(async student => {
       const reportRef = firestoreDoc(db, 'studentProgress', student.id, 'dailyReports', dateToLoad);
       const reportSnap = await getDoc(reportRef);
-      
-      if (reportSnap.exists()) {
-        const data = reportSnap.data();
-        let uiStatus = 'present'; // default
-        
-        // Convert saved data to UI status
-        if (data.status === 'present' && data.late === true) {
-          uiStatus = 'late';
-        } else if (data.status === 'absent' && data.excuseType === 'withExcuse') {
-          uiStatus = 'absent-excuse';
-        } else if (data.status === 'absent' && data.excuseType === 'withoutExcuse') {
-          uiStatus = 'absent-no-excuse';
-        } else if (data.status === 'distracted') {
-          uiStatus = 'distracted';
-        } else if (data.status === 'present') {
-          uiStatus = 'present';
-        }
-        
-        // Apply the saved status (will be skipped if element not found)
-        window.selectAttendanceStatus(student.id, uiStatus);
-      }
-    }
-    
-    // Update stats after loading all data
+      return { studentId: student.id, data: reportSnap.exists() ? reportSnap.data() : null };
+    }));
+
+    setDailyAttendanceState('ready');
+
+    reports.forEach(({ studentId, data }) => {
+      if (!data) return;
+      let uiStatus = 'present';
+      if (data.status === 'present' && data.late === true) uiStatus = 'late';
+      else if (data.status === 'absent' && data.excuseType === 'withExcuse') uiStatus = 'absent-excuse';
+      else if (data.status === 'absent' && data.excuseType === 'withoutExcuse') uiStatus = 'absent-no-excuse';
+      else if (data.status === 'distracted') uiStatus = 'distracted';
+      window.selectAttendanceStatus(studentId, uiStatus);
+    });
+
     window.updateAttendanceStats();
     
   } catch (error) {
     console.error('❌ Error loading saved attendance:', error);
-    // If error, just show default (all present) and update stats
+    setDailyAttendanceState('error', 'تعذر تحميل حالات التحضير. لا يمكن الحفظ قبل التحقق من البيانات.');
     window.updateAttendanceStats();
   }
 };
 
 // Select attendance status for a student
 window.selectAttendanceStatus = function(studentId, status) {
+  const modal = document.getElementById('dailyAttendanceModal');
+  if (modal?.dataset.attendanceState !== 'ready') return;
   const container = document.querySelector(`.attendance-buttons[data-student-id="${studentId}"]`);
   
   // Check if container exists
@@ -3608,6 +3664,10 @@ window.saveDailyAttendance = async function() {
   const classId = modal.dataset.classId;
   const currentDate = modal.dataset.currentDate || getTodayForStorage();
   const saveBtn = document.getElementById('saveDailyAttendanceBtn');
+
+  if (modal.dataset.attendanceState !== 'ready') {
+    return;
+  }
   
   if (!classId) {
     alert('❌ خطأ: لم يتم اختيار الحلقة');
@@ -3615,6 +3675,7 @@ window.saveDailyAttendance = async function() {
   }
   
   // Disable button
+  setDailyAttendanceState('saving');
   saveBtn.disabled = true;
   saveBtn.textContent = '⏳ جاري الحفظ...';
   
@@ -3659,62 +3720,53 @@ window.saveDailyAttendance = async function() {
     console.log(`📅 Date: ${currentDate}`);
     console.log(`👥 Students: ${attendanceData.length}`);
     
-    for (const record of attendanceData) {
+    // Read all existing reports in parallel before writing anything.
+    const existingReports = await Promise.all(attendanceData.map(async record => {
       const reportRef = firestoreDoc(db, 'studentProgress', record.studentId, 'dailyReports', currentDate);
-      
-      // 1. Check if this date already has a saved report
       const existingReportSnap = await getDoc(reportRef);
-      const existingReport = existingReportSnap.exists() ? existingReportSnap.data() : null;
-      
-      const reportData = {
+      return {
+        record,
+        existingReport: existingReportSnap.exists() ? existingReportSnap.data() : null
+      };
+    }));
+
+    // Save the complete day's attendance atomically in one Firestore batch.
+    const attendanceBatch = writeBatch(db);
+    existingReports.forEach(({ record }) => {
+      const reportRef = firestoreDoc(db, 'studentProgress', record.studentId, 'dailyReports', currentDate);
+      attendanceBatch.set(reportRef, {
         status: record.status,
         date: currentDate,
         timestamp: serverTimestamp(),
-        late: record.originalStatus === 'late',  // true or false صراحة
-        distracted: record.originalStatus === 'distracted',  // true or false صراحة
-        excuseType: record.excuseType || null  // null لمسح القيم القديمة
-      };
-      
-      // 2. Save the daily report
-      await setDoc(reportRef, reportData, { merge: true });
-      
-      // 3. Handle absence tracking logic
-      // Only increment if:
-      // - Current status is "absent without excuse"
-      // - AND (no existing report OR existing report was NOT "absent without excuse")
-      const wasAbsentWithoutExcuse = existingReport && 
-                                     existingReport.status === 'absent' && 
-                                     existingReport.excuseType === 'withoutExcuse';
-      
-      const isNowAbsentWithoutExcuse = record.status === 'absent' && 
-                                       record.excuseType === 'withoutExcuse';
-      
-      if (isNowAbsentWithoutExcuse && !wasAbsentWithoutExcuse) {
-        // NEW absence without excuse - increment counter
-        const studentInfo = studentsData.find(s => s.id === record.studentId);
-        const studentName = studentInfo ? studentInfo.name : 'اسم غير معروف';
-        
-        console.log(`📈 NEW absence without excuse: ${studentName} on ${currentDate}`);
+        late: record.originalStatus === 'late',
+        distracted: record.originalStatus === 'distracted',
+        excuseType: record.excuseType || null
+      }, { merge: true });
+    });
+    await attendanceBatch.commit();
+
+    // Only changed absence states need counter maintenance.
+    const absenceChanges = existingReports.filter(({ record, existingReport }) => {
+      const wasAbsentWithoutExcuse = existingReport?.status === 'absent' && existingReport.excuseType === 'withoutExcuse';
+      const isNowAbsentWithoutExcuse = record.status === 'absent' && record.excuseType === 'withoutExcuse';
+      return isNowAbsentWithoutExcuse !== wasAbsentWithoutExcuse;
+    });
+
+    await Promise.all(absenceChanges.map(async ({ record, existingReport }) => {
+      const wasAbsentWithoutExcuse = existingReport?.status === 'absent' && existingReport.excuseType === 'withoutExcuse';
+      const studentInfo = studentsData.find(student => student.id === record.studentId);
+      const studentName = studentInfo ? studentInfo.name : 'اسم غير معروف';
+      if (!wasAbsentWithoutExcuse) {
         await incrementStudentAbsenceCount(record.studentId, studentName);
-        
-      } else if (!isNowAbsentWithoutExcuse && wasAbsentWithoutExcuse) {
-        // Changed FROM "absent without excuse" TO something else
-        // We need to DECREMENT the counter (remove this date from absenceRecords)
-        const studentInfo = studentsData.find(s => s.id === record.studentId);
-        const studentName = studentInfo ? studentInfo.name : 'اسم غير معروف';
-        
-        console.log(`📉 REMOVED absence without excuse: ${studentName} on ${currentDate}`);
+      } else {
         await decrementStudentAbsenceCount(record.studentId, studentName, currentDate);
-        
-      } else if (isNowAbsentWithoutExcuse && wasAbsentWithoutExcuse) {
-        // Status unchanged - already marked as absent without excuse
-        console.log(`ℹ️  Absence status unchanged (already counted): ${record.studentId} on ${currentDate}`);
       }
-    }
+    }));
     
     console.log(`✅ Attendance saved successfully\n`);
     
     // Success
+    setDailyAttendanceState('saved');
     saveBtn.textContent = '✅ تم الحفظ بنجاح';
     saveBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
     
@@ -3743,8 +3795,7 @@ window.saveDailyAttendance = async function() {
   } catch (error) {
     console.error('❌ Error saving attendance:', error);
     alert('حدث خطأ في حفظ التحضير');
-    saveBtn.disabled = false;
-    saveBtn.textContent = '💾 حفظ التحضير';
+    setDailyAttendanceState('error', 'حدث خطأ أثناء الحفظ. لم يتم اعتماد العملية، راجع الاتصال وحاول مرة أخرى.');
   }
 };
 
@@ -3752,6 +3803,8 @@ window.saveDailyAttendance = async function() {
 window.closeDailyAttendanceModal = function() {
   const modal = document.getElementById('dailyAttendanceModal');
   modal.style.display = 'none';
+  modal.dataset.attendanceState = 'idle';
+  modal.dataset.attendanceLoading = 'false';
   
   // Reset save button
   const saveBtn = document.getElementById('saveDailyAttendanceBtn');
@@ -4957,14 +5010,9 @@ function calculateSearchScore(name, searchTerm) {
     }
   }
   if (allWordsMatch) return 80;
-  
-  // Any single word starts with search term
   if (words.some(word => word.startsWith(searchLower))) return 70;
-  
-  // Name contains search term as substring
   if (nameLower.includes(searchLower)) return 50;
-  
-  // Calculate similarity based on matching characters in order
+
   let matchCount = 0;
   let searchIndex = 0;
   for (let i = 0; i < nameLower.length && searchIndex < searchLower.length; i++) {
@@ -4973,13 +5021,9 @@ function calculateSearchScore(name, searchTerm) {
       searchIndex++;
     }
   }
-  
   if (matchCount === searchLower.length) {
-    // All search characters found in order
     return 30 + (matchCount / nameLower.length) * 20;
   }
-  
-  // No meaningful match
   return 0;
 }
 
@@ -4987,19 +5031,16 @@ function calculateSearchScore(name, searchTerm) {
 window.performStudentSearch = async function() {
   const searchInput = document.getElementById('studentSearchInput').value.trim().toLowerCase();
   const resultsContainer = document.getElementById('searchResultsContainer');
-  
-  // If search is empty, show placeholder
+
   if (searchInput.length === 0) {
     resultsContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 40px;">اكتب اسم الطالب للبحث...</p>';
     return;
   }
-  
-  // If search is less than 2 characters, ask for more
   if (searchInput.length < 2) {
     resultsContainer.innerHTML = '<p style="text-align: center; color: #ff6b6b; padding: 40px;">الرجاء إدخال حرفين على الأقل</p>';
     return;
   }
-  
+
   try {
     resultsContainer.innerHTML = '<p style="text-align: center; color: #667eea; padding: 40px;">🔍 جاري البحث...</p>';
     
