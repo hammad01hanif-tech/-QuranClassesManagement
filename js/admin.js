@@ -3283,26 +3283,11 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
     <!-- Legend -->
     <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 2px solid #e9ecef;">
       <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; font-size: 12px;">
-        <div style="display: flex; align-items: center; gap: 5px;">
-          <div style="width: 16px; height: 16px; background: #28a745; border-radius: 50%;"></div>
-          <span>حاضر</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 5px;">
-          <div style="width: 16px; height: 16px; background: #ffc107; border-radius: 50%;"></div>
-          <span>متأخر</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 5px;">
-          <div style="width: 16px; height: 16px; background: #667eea; border-radius: 50%;"></div>
-          <span>غائب بعذر</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 5px;">
-          <div style="width: 16px; height: 16px; background: #dc3545; border-radius: 50%;"></div>
-          <span>غائب بدون عذر</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 5px;">
-          <div style="width: 16px; height: 16px; background: #ff9800; border-radius: 50%;"></div>
-          <span>شارد</span>
-        </div>
+        <div class="attendance-legend-item"><span class="attendance-legend-swatch status-present"></span><span>حاضر</span></div>
+        <div class="attendance-legend-item"><span class="attendance-legend-swatch status-late"></span><span>متأخر</span></div>
+        <div class="attendance-legend-item"><span class="attendance-legend-swatch status-excused"></span><span>بعذر</span></div>
+        <div class="attendance-legend-item"><span class="attendance-legend-swatch status-unexcused"></span><span>بدون عذر</span></div>
+        <div class="attendance-legend-item"><span class="attendance-legend-swatch status-distracted"></span><span>شارد</span></div>
       </div>
     </div>
     
@@ -3312,7 +3297,7 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
         <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
           <th style="padding: 10px 8px; text-align: right; font-size: 13px; font-weight: bold; width: 40px;">#</th>
           <th style="padding: 10px 12px; text-align: right; font-size: 13px; font-weight: bold;">اسم الطالب</th>
-          <th style="padding: 10px 8px; text-align: center; font-size: 13px; font-weight: bold; width: 180px;">الحالة</th>
+          <th style="padding: 10px 8px; text-align: right; font-size: 13px; font-weight: bold;">الطالب والحالة</th>
         </tr>
       </thead>
       <tbody>
@@ -3324,14 +3309,16 @@ window.showDailyAttendanceModal = function(classId, teacherName, students, selec
     html += `
       <tr id="row-${student.id}" style="background: ${rowColor}; border-bottom: 1px solid #e9ecef; transition: background 0.3s;">
         <td style="padding: 8px; font-size: 12px; color: #666;">${index + 1}</td>
-        <td onclick="window.showWhatsAppModal('${student.name.replace(/'/g, "\\'")}', '${student.guardianPhone || ''}', '${teacherName.replace(/'/g, "\\'")}', '${student.id}', '${studentTeacherId}')" style="padding: 8px 12px; font-size: 13px; font-weight: 600; color: #333; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.color='#667eea'; this.style.textDecoration='underline'" onmouseout="this.style.color='#333'; this.style.textDecoration='none'" title="اضغط للتواصل مع ولي الأمر">${student.name}</td>
-        <td style="padding: 6px 8px;">
-          <div class="attendance-buttons" data-student-id="${student.id}" style="display: flex; gap: 6px; justify-content: center; align-items: center;">
-            <button onclick="window.selectAttendanceStatus('${student.id}', 'present')" data-status="present" title="حاضر" style="width: 26px; height: 26px; background: #28a745; border: 2px solid #28a745; border-radius: 50%; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(40,167,69,0.3); padding: 0;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></button>
-            <button onclick="window.selectAttendanceStatus('${student.id}', 'late')" data-status="late" title="متأخر" style="width: 26px; height: 26px; background: #ffc107; border: 2px solid #ddd; border-radius: 50%; cursor: pointer; transition: all 0.2s; opacity: 0.4; padding: 0;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="if(!this.classList.contains('selected')) this.style.transform='scale(1)'"></button>
-            <button onclick="window.selectAttendanceStatus('${student.id}', 'absent-excuse')" data-status="absent-excuse" title="غائب بعذر" style="width: 26px; height: 26px; background: #667eea; border: 2px solid #ddd; border-radius: 50%; cursor: pointer; transition: all 0.2s; opacity: 0.4; padding: 0;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="if(!this.classList.contains('selected')) this.style.transform='scale(1)'"></button>
-            <button onclick="window.selectAttendanceStatus('${student.id}', 'absent-no-excuse')" data-status="absent-no-excuse" title="غائب بدون عذر" style="width: 26px; height: 26px; background: #dc3545; border: 2px solid #ddd; border-radius: 50%; cursor: pointer; transition: all 0.2s; opacity: 0.4; padding: 0;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="if(!this.classList.contains('selected')) this.style.transform='scale(1)'"></button>
-            <button onclick="window.selectAttendanceStatus('${student.id}', 'distracted')" data-status="distracted" title="شارد" style="width: 26px; height: 26px; background: #ff9800; border: 2px solid #ddd; border-radius: 50%; cursor: pointer; transition: all 0.2s; opacity: 0.4; padding: 0;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="if(!this.classList.contains('selected')) this.style.transform='scale(1)'"></button>
+        <td colspan="2" style="padding: 6px 8px 7px;">
+          <div class="attendance-student-cell">
+            <div class="attendance-student-name" onclick="window.showWhatsAppModal('${student.name.replace(/'/g, "\\'")}', '${student.guardianPhone || ''}', '${teacherName.replace(/'/g, "\\'")}', '${student.id}', '${studentTeacherId}')" title="اضغط للتواصل مع ولي الأمر">${student.name}</div>
+            <div class="attendance-buttons" data-student-id="${student.id}">
+            <button class="attendance-status-button status-present selected" onclick="window.selectAttendanceStatus('${student.id}', 'present')" data-status="present" title="تسجيل الطالب حاضر" aria-label="حاضر">حاضر</button>
+            <button class="attendance-status-button status-late" onclick="window.selectAttendanceStatus('${student.id}', 'late')" data-status="late" title="تسجيل الطالب متأخر" aria-label="متأخر">متأخر</button>
+            <button class="attendance-status-button status-excused" onclick="window.selectAttendanceStatus('${student.id}', 'absent-excuse')" data-status="absent-excuse" title="تسجيل غياب بعذر" aria-label="غائب بعذر">غ بعذر</button>
+            <button class="attendance-status-button status-unexcused" onclick="window.selectAttendanceStatus('${student.id}', 'absent-no-excuse')" data-status="absent-no-excuse" title="تسجيل غياب بدون عذر" aria-label="غائب بدون عذر">غ بدون عذر</button>
+            <button class="attendance-status-button status-distracted" onclick="window.selectAttendanceStatus('${student.id}', 'distracted')" data-status="distracted" title="تسجيل الطالب شاردًا" aria-label="شارد">شارد</button>
+            </div>
           </div>
         </td>
       </tr>
@@ -3593,9 +3580,6 @@ window.selectAttendanceStatus = function(studentId, status) {
   // Remove selected class from all buttons
   buttons.forEach(btn => {
     btn.classList.remove('selected');
-    btn.style.opacity = '0.4';
-    btn.style.border = '2px solid #ddd';
-    btn.style.boxShadow = 'none';
   });
   
   // Add selected class to clicked button
@@ -3607,13 +3591,6 @@ window.selectAttendanceStatus = function(studentId, status) {
   }
   
   selectedBtn.classList.add('selected');
-  selectedBtn.style.opacity = '1';
-  selectedBtn.style.border = `2px solid ${selectedBtn.style.background}`;
-  selectedBtn.style.boxShadow = `0 2px 8px ${selectedBtn.style.background}80`;
-  selectedBtn.style.transform = 'scale(1.1)';
-  setTimeout(() => {
-    selectedBtn.style.transform = 'scale(1)';
-  }, 200);
   
   // Change row color if absent without excuse
   const row = document.getElementById(`row-${studentId}`);

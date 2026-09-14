@@ -11,6 +11,74 @@ body {
   to { transform: rotate(360deg); }
 }
 
+.attendance-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-start;
+}
+.attendance-student-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+.attendance-student-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: #334858;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attendance-student-name:hover {
+  color: #1f6f78;
+  text-decoration: underline;
+}
+.attendance-status-button {
+  min-width: 38px;
+  min-height: 27px;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: #f4f6f8;
+  color: #536170;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  opacity: .72;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, opacity .16s ease, transform .16s ease;
+}
+.attendance-status-button:hover:not(:disabled) { transform: translateY(-1px); opacity: 1; }
+.attendance-status-button:focus-visible { outline: 2px solid #1f6f78; outline-offset: 2px; }
+.attendance-status-button.selected { opacity: 1; color: #203243; background: #e8edf1; border-color: #526372; box-shadow: inset 0 0 0 1px rgba(32, 50, 67, .08); }
+.attendance-status-button.status-present.selected { background: #e5f3e9; border-color: #5b9b6d; color: #256238; }
+.attendance-status-button.status-late.selected { background: #fff4d6; border-color: #c69428; color: #765400; }
+.attendance-status-button.status-excused.selected { background: #e9edfb; border-color: #7183c5; color: #34477e; }
+.attendance-status-button.status-unexcused.selected { background: #fbe8e8; border-color: #c56b6b; color: #8b3030; }
+.attendance-status-button.status-distracted.selected { background: #fff0df; border-color: #c8894b; color: #82501e; }
+.attendance-status-button:disabled { cursor: wait; opacity: .35; transform: none; }
+.attendance-legend-item { display: inline-flex; align-items: center; gap: 5px; color: #647281; font-size: 11px; }
+.attendance-legend-swatch { width: 8px; height: 8px; border-radius: 50%; background: #b8c2cc; }
+.attendance-legend-swatch.status-present { background: #5b9b6d; }
+.attendance-legend-swatch.status-late { background: #c69428; }
+.attendance-legend-swatch.status-excused { background: #7183c5; }
+.attendance-legend-swatch.status-unexcused { background: #c56b6b; }
+.attendance-legend-swatch.status-distracted { background: #c8894b; }
+@media (max-width: 600px) {
+  .attendance-buttons { gap: 3px; }
+  .attendance-student-name { font-size: 11px; }
+  .attendance-status-button { min-width: 35px; min-height: 26px; padding: 2px 4px; font-size: 9px; }
+  .attendance-status-button[data-status="absent-no-excuse"] { min-width: 62px; }
+}
+
 /* Student pledges */
 .pledge-admin-section { background: #f7f9fc; min-height: 100vh; }
 .pledge-page-header { background: #ffffff; border-bottom: 1px solid #e4e9f0; }
