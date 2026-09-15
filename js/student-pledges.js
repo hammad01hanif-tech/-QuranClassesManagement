@@ -2,6 +2,7 @@ import {
   db,
   collection,
   doc,
+  deleteDoc,
   getDocs,
   query,
   where,
