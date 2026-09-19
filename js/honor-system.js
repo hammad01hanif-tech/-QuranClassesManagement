@@ -777,6 +777,15 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
     let recordIndex = 0;
     
     while (recordIndex < allRecords.length || currentCarriedOver >= requiredCount) {
+      // Self-heal legacy/stale carriedOverCount: if carry-over alone would satisfy the
+      // requirement while real unconsumed records still remain, the stored carry-over
+      // is stale (from the pre-fix double-counting bug). Cap it so at least 1 real
+      // record is always required whenever real records are available.
+      if (currentCarriedOver >= requiredCount && recordIndex < allRecords.length) {
+        console.log(`   🩹 Self-heal: carried over (${currentCarriedOver}) covers requirement but ${allRecords.length - recordIndex} real record(s) remain — capping to force real record usage`);
+        currentCarriedOver = requiredCount - 1;
+      }
+
       // Calculate how many new records needed for this nomination
       const neededFromNew = Math.max(0, requiredCount - currentCarriedOver);
       
@@ -930,11 +939,12 @@ function calculateStudentEligibilityOptimized(studentId, studentName, teacherId,
       
       console.log(`   🎯 ELIGIBLE! Month: ${eligibleMonth}, Type: ${studentType}, Total Score: ${totalScore}`);
       
-      // Calculate new carried over for THIS nomination
-      // After this nomination is honored, what will be the new carried over?
-      const nominationsProcessed = i + 1;
-      const recordsUsedSoFar = nominationsProcessed * requiredCount - carriedOverCount;
-      const nominationCarriedOver = Math.max(0, allRecords.length - recordsUsedSoFar);
+      // Only the LAST nomination in this batch can have a real carry-over.
+      // Earlier nominations are immediately followed by another nomination in the
+      // same batch that consumes the remaining records, so their carry-over is 0 —
+      // otherwise those already-assigned records get double counted next cycle.
+      const isLastNomination = (i === eligibleNominations.length - 1);
+      const nominationCarriedOver = isLastNomination ? newCarriedOver : 0;
       
       results.push({
         eligible: true,

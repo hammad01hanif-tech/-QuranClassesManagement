@@ -30,6 +30,12 @@ export const LESSON_AMOUNT_OPTIONS = Object.freeze([
   { value: 'lines', label: 'أسطر محددة' }
 ]);
 
+// Fixed, language-independent lesson completion states used for storage and future reporting.
+export const LESSON_STATUS = Object.freeze({
+  COMPLETED: 'completed',
+  NOT_COMPLETED: 'not_completed'
+});
+
 export function getLearningPath(pathId) {
   return LEARNING_PATHS[pathId] || LEARNING_PATHS.noorani;
 }

@@ -26,7 +26,7 @@ import { accurateHijriDates, getTodayAccurateHijri, formatAccurateHijriDate, gre
 import { getMonthlyReport, countStudyDays, getAllWorkingDaysInMonth, getDayInfo, isWeekend, isOfficialHoliday } from './study-days-calendar.js';
 import { getTodayPrayerTimes, getPrayerTimesLocal } from './prayer-times-local.js';
 import { calculateAbsencePenalty } from './attendance-calculator.js';
-import { getLearningPath, LESSON_AMOUNT_OPTIONS, getVerseOptions, getSurah, isValidVerseRange, getNooraniPath } from '../config/learning-paths.js';
+import { getLearningPath, LESSON_AMOUNT_OPTIONS, LESSON_STATUS, getVerseOptions, getSurah, isValidVerseRange, getNooraniPath } from '../config/learning-paths.js';
 
 // ✅ نظام Cache بسيط لتقليل القراءات من Firestore
 const firestoreCache = {
@@ -8326,6 +8326,7 @@ const nooraniTeachers = [
   { id: 'JHD01', name: 'أ/ جهاد راشد' }
 ];
 let nooraniStudentsByTeacher = {};
+let previewPreviousReportsCache = {};
 
 function escapeTeacherMarkup(value = '') {
   return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
@@ -8443,6 +8444,8 @@ window.openNooraniAssessmentPreview = function() {
         </div>
       </details>
       <div id="previewCurriculumFields"></div>
+      <div id="previewAdditionalLessons" class="teacher-additional-lessons"></div>
+      <button type="button" id="previewAddLessonBtn" class="teacher-add-lesson-btn" onclick="window.addAdditionalLessonBlock('previewAdditionalLessons','previewAddLesson', document.getElementById('previewLearningPath')?.value, 'previewAddLessonBtn')">+ إضافة درس إضافي</button>
       <div class="teacher-form-footer"><div class="teacher-total-row"><span>المجموع الحالي</span><strong id="previewTotalScore">30 / 30</strong></div><button id="previewSaveButton" class="teacher-save-preview" type="button" onclick="window.savePreviewAssessment()">حفظ التقييم</button></div><p id="teacherPreviewNotice" class="teacher-preview-notice" role="status"></p>
       </div>
       <div id="previewPreviousPanel" class="teacher-form-tab-panel" role="tabpanel" hidden>
@@ -8532,6 +8535,7 @@ async function loadPreviewPreviousReports(studentId) {
     const reports = reportsSnapshot.docs
       .map(report => ({ id: report.id, ...report.data() }))
       .sort((first, second) => String(second.id).localeCompare(String(first.id)));
+    previewPreviousReportsCache[studentId] = reports;
     if (!reports.length) {
       body.innerHTML = '<tr><td colspan="5">لا توجد تقييمات سابقة</td></tr>';
       return;
@@ -8549,7 +8553,9 @@ async function loadPreviewPreviousReports(studentId) {
       const revisionText = revision.type === 'quranRange'
         ? revisionSurah ? `${revisionSurah} ${revision.fromVerse || ''}-${revision.toVerse || ''}` : '—'
         : revision.text || report.revisionFrom || '—';
-      return `<tr><td>${escapeTeacherMarkup(report.id)}</td><td>${escapeTeacherMarkup(lessonText)}</td><td>${escapeTeacherMarkup(amountText)}</td><td>${escapeTeacherMarkup(revisionText)}</td><td>${report.totalScore ?? '—'} / ${report.maxTotalScore ?? 30}</td></tr>`;
+      const additionalCount = curriculum.additionalLessons?.length || 0;
+      const additionalSuffix = additionalCount ? ` + ${additionalCount} إضافي` : '';
+      return `<tr><td><button type="button" class="teacher-previous-date-link" onclick="window.openPreviousAssessmentEditor('${studentId}', '${report.id}')">${escapeTeacherMarkup(report.id)}</button></td><td>${escapeTeacherMarkup(lessonText)}${additionalSuffix} ${lessonStatusBadge(lesson.lessonStatus)}</td><td>${escapeTeacherMarkup(amountText)}</td><td>${escapeTeacherMarkup(revisionText)}</td><td>${report.totalScore ?? '—'} / ${report.maxTotalScore ?? 30}</td></tr>`;
     }).join('');
   } catch (error) {
     console.error('Error loading previous preview reports:', error);
@@ -8568,34 +8574,400 @@ async function loadPreviousNooraniAssessment(studentId, target) {
     }
     const curriculum = report.curriculum || {};
     const lesson = curriculum.lesson || {};
+    const revision = curriculum.revision || {};
     const lessonSummary = lesson.type === 'quranRange'
       ? `${lesson.surahName || 'سورة'} ${lesson.fromVerse || ''}-${lesson.toVerse || ''}`
       : lesson.lessonNumber
         ? `الدرس ${lesson.lessonNumber}${lesson.pageNumber ? ` · الصفحة ${lesson.pageNumber}` : ''}`
         : report.lessonFrom || 'بدون مقرر';
-    target.innerHTML = `<span>السابق</span><strong>${report.totalScore ?? '--'} / ${report.maxTotalScore ?? 30}</strong><p>${escapeTeacherMarkup(report.id)} · ${escapeTeacherMarkup(lessonSummary)}</p>`;
+    const revisionSurah = revision.surahName || getSurah(revision.surahNumber)?.name;
+    const revisionSummary = revision.type === 'quranRange'
+      ? (revisionSurah ? `${revisionSurah} ${revision.fromVerse || ''}-${revision.toVerse || ''}` : 'بدون مراجعة')
+      : (revision.text || report.revisionFrom || 'بدون مراجعة');
+    const additionalSuffix = report.curriculum?.additionalLessons?.length ? ` + ${report.curriculum.additionalLessons.length} إضافي` : '';
+    target.innerHTML = `<span>السابق</span><strong>${report.totalScore ?? '--'} / ${report.maxTotalScore ?? 30}</strong><p>${escapeTeacherMarkup(report.id)} · ${escapeTeacherMarkup(lessonSummary)}${additionalSuffix} ${lessonStatusBadge(lesson.lessonStatus)} · مراجعة: ${escapeTeacherMarkup(revisionSummary)}</p>`;
   } catch (error) {
     console.error('Error loading previous Noorani assessment:', error);
   }
 }
+
+function buildLessonStatusToggle() {
+  return `<div class="teacher-status-toggle" role="group" aria-label="حالة الدرس">
+    <button type="button" class="teacher-status-btn is-active" data-status="${LESSON_STATUS.COMPLETED}" onclick="window.setPreviewLessonStatus(this)">أنجز</button>
+    <button type="button" class="teacher-status-btn" data-status="${LESSON_STATUS.NOT_COMPLETED}" onclick="window.setPreviewLessonStatus(this)">لم ينجز</button>
+  </div>`;
+}
+
+function buildLessonScoreControl(scoreId) {
+  return `<label class="teacher-score-field teacher-lesson-score-field">درجة الدرس<span class="teacher-score-control"><button type="button" onclick="window.previewScore('${scoreId}', -1)">−</button><output id="preview-${scoreId}">5</output><button type="button" onclick="window.previewScore('${scoreId}', 1)">+</button></span></label>`;
+}
+
+function buildQuranRangeMarkup(prefix) {
+  return `<div class="teacher-range-row"><select id="preview-${prefix}-surah" onchange="window.updatePreviewVerseOptions('${prefix}')"><option value="">السورة</option>${quranSurahs.map(surah => `<option value="${surah.number}">${surah.name}</option>`).join('')}</select><select id="preview-${prefix}-from"><option value="">من آية</option></select><select id="preview-${prefix}-to"><option value="">إلى آية</option></select></div>`;
+}
+
+function buildNonQuranLessonMarkup(prefix, path, amountOptions) {
+  const page = path.lesson.requiresPage ? `<input id="${prefix}Page" type="number" min="1" placeholder="رقم الصفحة">` : '';
+  return `<div class="teacher-range-row"><input id="${prefix}Number" type="number" min="1" placeholder="رقم الدرس">${page}</div><details class="teacher-amount-sheet"><summary><span>مقدار الدرس</span><strong>درس كامل</strong></summary><select id="${prefix}Amount" onchange="window.updatePreviewLessonAmount(this)">${amountOptions}</select><div class="teacher-lines-row" hidden><input id="${prefix}LineFrom" type="number" min="1" placeholder="من سطر"><input id="${prefix}LineTo" type="number" min="1" placeholder="إلى سطر"></div></details>`;
+}
+
+function buildLessonBoxWrapper(boxId, label, fieldsHtml, scoreControlHtml = '') {
+  return `<div class="teacher-path-range" id="${boxId}" data-lesson-status="${LESSON_STATUS.COMPLETED}"><div class="teacher-lesson-box-head"><strong>${label}</strong>${buildLessonStatusToggle()}</div>${fieldsHtml}${scoreControlHtml}</div>`;
+}
+
+function updateAddLessonButtonLabel(buttonId, count) {
+  const button = document.getElementById(buttonId);
+  if (button) button.textContent = count > 0 ? '+ إضافة درس آخر' : '+ إضافة درس إضافي';
+}
+
+function updatePreviewTotals({ root, additionalSelector, totalId, summaryId }) {
+  if (!root) return { total: 0, maxScore: 30 };
+  const additionalCount = additionalSelector ? root.querySelectorAll(additionalSelector).length : 0;
+  const maxScore = 30 + additionalCount * 5;
+  const total = [...root.querySelectorAll('.teacher-score-field output')].reduce((sum, item) => sum + Number(item.value || item.textContent || 0), 0);
+  const totalOutput = totalId ? document.getElementById(totalId) : null;
+  const summaryOutput = summaryId ? document.getElementById(summaryId) : null;
+  if (totalOutput) totalOutput.textContent = `${total} / ${maxScore}`;
+  if (summaryOutput) summaryOutput.textContent = `${total} / ${maxScore}`;
+  return { total, maxScore };
+}
+
+function refreshTotalsForContainer(containerId) {
+  if (containerId === 'previewAdditionalLessons') {
+    const root = document.getElementById('previewCurrentPanel');
+    if (root) updatePreviewTotals({ root, additionalSelector: '#previewAdditionalLessons .teacher-additional-lesson-block', totalId: 'previewTotalScore', summaryId: 'previewScoreSummary' });
+  } else {
+    const root = document.getElementById('previewEditModalBody');
+    if (root) updatePreviewTotals({ root, additionalSelector: `#${containerId} .teacher-additional-lesson-block`, totalId: 'editTotalScore', summaryId: 'editScoreSummary' });
+  }
+}
+
+function lessonStatusBadge(status) {
+  if (status === LESSON_STATUS.COMPLETED) return '<span class="teacher-lesson-status is-completed" title="أنجز الدرس">● أنجز</span>';
+  if (status === LESSON_STATUS.NOT_COMPLETED) return '<span class="teacher-lesson-status is-not-completed" title="لم ينجز الدرس">● لم ينجز</span>';
+  return '';
+}
+
+function collectAdditionalLessonsFromContainer(containerId, pathId) {
+  const container = document.getElementById(containerId);
+  if (!container) return [];
+  return [...container.querySelectorAll('.teacher-additional-lesson-block')].map((block, index) => {
+    const prefix = block.dataset.prefix;
+    const blockPathId = block.dataset.pathId || pathId;
+    const scoreOutput = document.getElementById(`preview-${prefix}Score`);
+    const lesson = blockPathId === 'quran'
+      ? {
+          type: 'quranRange',
+          surahNumber: document.getElementById(`preview-${prefix}-surah`)?.value || '',
+          surahName: getSurah(document.getElementById(`preview-${prefix}-surah`)?.value)?.name || '',
+          fromVerse: document.getElementById(`preview-${prefix}-from`)?.value || '',
+          toVerse: document.getElementById(`preview-${prefix}-to`)?.value || ''
+        }
+      : {
+          type: blockPathId,
+          lessonNumber: document.getElementById(`${prefix}Number`)?.value || '',
+          pageNumber: document.getElementById(`${prefix}Page`)?.value || '',
+          amount: document.getElementById(`${prefix}Amount`)?.value || 'full_lesson',
+          amountLabel: document.getElementById(`${prefix}Amount`)?.selectedOptions?.[0]?.textContent || 'درس كامل',
+          lineFrom: document.getElementById(`${prefix}LineFrom`)?.value || '',
+          lineTo: document.getElementById(`${prefix}LineTo`)?.value || ''
+        };
+    lesson.lessonStatus = block.dataset.lessonStatus === LESSON_STATUS.NOT_COMPLETED ? LESSON_STATUS.NOT_COMPLETED : LESSON_STATUS.COMPLETED;
+    lesson.score = Number(scoreOutput?.value || scoreOutput?.textContent || 0);
+    lesson.order = index;
+    return lesson;
+  });
+}
+
+window.setPreviewLessonStatus = function(button) {
+  const group = button.parentElement;
+  group.querySelectorAll('.teacher-status-btn').forEach(btn => btn.classList.toggle('is-active', btn === button));
+  const box = button.closest('[data-lesson-status]');
+  if (box) box.dataset.lessonStatus = button.dataset.status;
+};
+
+window.addAdditionalLessonBlock = function(containerId, prefixBase, pathId, buttonId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const effectivePathId = pathId || 'noorani';
+  const path = getLearningPath(effectivePathId);
+  const amountOptions = LESSON_AMOUNT_OPTIONS.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
+  const index = container.childElementCount;
+  const fieldPrefix = `${prefixBase}${index}`;
+  const scoreId = `${fieldPrefix}Score`;
+  const body = effectivePathId === 'quran' ? buildQuranRangeMarkup(fieldPrefix) : buildNonQuranLessonMarkup(fieldPrefix, path, amountOptions);
+  const block = document.createElement('div');
+  block.className = 'teacher-additional-lesson-block';
+  block.id = `${fieldPrefix}Box`;
+  block.dataset.lessonStatus = LESSON_STATUS.COMPLETED;
+  block.dataset.prefix = fieldPrefix;
+  block.dataset.pathId = effectivePathId;
+  block.innerHTML = `<div class="teacher-lesson-box-head"><strong>درس إضافي</strong>${buildLessonStatusToggle()}<button type="button" class="teacher-remove-lesson-btn" onclick="window.removeAdditionalLessonBlock('${block.id}', '${containerId}', '${buttonId}')">حذف</button></div>${body}${buildLessonScoreControl(scoreId)}`;
+  container.appendChild(block);
+  updateAddLessonButtonLabel(buttonId, container.children.length);
+  refreshTotalsForContainer(containerId);
+};
+
+window.removeAdditionalLessonBlock = function(blockId, containerId, buttonId) {
+  document.getElementById(blockId)?.remove();
+  const container = document.getElementById(containerId);
+  updateAddLessonButtonLabel(buttonId, container ? container.children.length : 0);
+  refreshTotalsForContainer(containerId);
+};
 
 window.renderPreviewCurriculumFields = function(pathId) {
   const container = document.getElementById('previewCurriculumFields');
   if (!container) return;
   const path = getLearningPath(pathId);
   const amountOptions = LESSON_AMOUNT_OPTIONS.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
-  const quranFields = (prefix, label) => `<div class="teacher-path-range"><strong>${label}</strong><div class="teacher-range-row"><select id="preview-${prefix}-surah" onchange="window.updatePreviewVerseOptions('${prefix}')"><option value="">السورة</option>${quranSurahs.map(surah => `<option value="${surah.number}">${surah.name}</option>`).join('')}</select><select id="preview-${prefix}-from"><option value="">من آية</option></select><select id="preview-${prefix}-to"><option value="">إلى آية</option></select></div></div>`;
-  let lessonFields;
-  let revisionFields;
-  if (pathId === 'quran') {
-    lessonFields = quranFields('lesson', 'الدرس الجديد');
-    revisionFields = quranFields('revision', 'المراجعة');
-  } else {
-    const page = path.lesson.requiresPage ? '<input id="previewLessonPage" type="number" min="1" placeholder="رقم الصفحة">' : '';
-    lessonFields = `<div class="teacher-path-range"><strong>الدرس الجديد</strong><div class="teacher-range-row"><input id="previewLessonNumber" type="number" min="1" placeholder="رقم الدرس">${page}</div><details class="teacher-amount-sheet"><summary><span>مقدار الدرس</span><strong>درس كامل</strong></summary><select id="previewLessonAmount" onchange="window.updatePreviewLessonAmount(this)">${amountOptions}</select><div class="teacher-lines-row" hidden><input id="previewLessonLineFrom" type="number" min="1" placeholder="من سطر"><input id="previewLessonLineTo" type="number" min="1" placeholder="إلى سطر"></div></details></div>`;
-    revisionFields = `<div class="teacher-path-range"><strong>المراجعة</strong><input class="teacher-free-text" type="text" placeholder="اكتب مقرر المراجعة"></div>`;
-  }
+  const lessonBody = pathId === 'quran' ? buildQuranRangeMarkup('lesson') : buildNonQuranLessonMarkup('previewLesson', path, amountOptions);
+  const lessonFields = buildLessonBoxWrapper('previewLessonBox', 'الدرس الجديد', lessonBody);
+  const revisionFields = pathId === 'quran'
+    ? `<div class="teacher-path-range"><strong>المراجعة</strong>${buildQuranRangeMarkup('revision')}</div>`
+    : `<div class="teacher-path-range"><strong>المراجعة</strong><input class="teacher-free-text" type="text" placeholder="اكتب مقرر المراجعة"></div>`;
   container.innerHTML = `<div class="teacher-curriculum-grid">${lessonFields}${revisionFields}</div>`;
+
+  const additionalContainer = document.getElementById('previewAdditionalLessons');
+  if (additionalContainer) additionalContainer.innerHTML = '';
+  updateAddLessonButtonLabel('previewAddLessonBtn', 0);
+  refreshTotalsForContainer('previewAdditionalLessons');
+};
+
+function setInputValue(id, value) {
+  const el = document.getElementById(id);
+  if (el && value !== undefined && value !== null && value !== '') el.value = value;
+}
+
+function setSelectValue(id, value) {
+  const el = document.getElementById(id);
+  if (el && value !== undefined && value !== null && value !== '') el.value = String(value);
+}
+
+function buildEditScoreSheetMarkup(report) {
+  const fields = [
+    ['صلاة العصر', 'editAsr', report.asrPrayerScore],
+    ['الدرس', 'editLessonScore', report.lessonScore],
+    ['المراجعة', 'editRevisionScore', report.revisionScore],
+    ['التلاوة في البيت', 'editHomeRecitation', report.homeRecitationScore],
+    ['القراءة في البيت', 'editHomeReading', report.homeReadingScore ?? report.readingScore],
+    ['السلوك', 'editBehavior', report.behaviorScore]
+  ];
+  return fields.map(([label, id, value]) => `<label class="teacher-score-field">${label}<span class="teacher-score-control"><button type="button" onclick="window.previewScore('${id}', -1)">−</button><output id="preview-${id}">${Number.isFinite(value) ? value : 5}</output><button type="button" onclick="window.previewScore('${id}', 1)">+</button></span></label>`).join('');
+}
+
+function prefillAdditionalLessonBlock(block, existingLesson, pathId) {
+  if (!block) return;
+  const status = existingLesson.lessonStatus === LESSON_STATUS.NOT_COMPLETED ? LESSON_STATUS.NOT_COMPLETED : LESSON_STATUS.COMPLETED;
+  block.dataset.lessonStatus = status;
+  block.querySelectorAll('.teacher-status-btn').forEach(btn => btn.classList.toggle('is-active', btn.dataset.status === status));
+  const prefix = block.dataset.prefix;
+  if (pathId === 'quran') {
+    setSelectValue(`preview-${prefix}-surah`, existingLesson.surahNumber);
+    window.updatePreviewVerseOptions(prefix);
+    setSelectValue(`preview-${prefix}-from`, existingLesson.fromVerse);
+    setSelectValue(`preview-${prefix}-to`, existingLesson.toVerse);
+  } else {
+    setInputValue(`${prefix}Number`, existingLesson.lessonNumber);
+    setInputValue(`${prefix}Page`, existingLesson.pageNumber);
+    setSelectValue(`${prefix}Amount`, existingLesson.amount || 'full_lesson');
+    window.updatePreviewLessonAmount(document.getElementById(`${prefix}Amount`));
+    setInputValue(`${prefix}LineFrom`, existingLesson.lineFrom);
+    setInputValue(`${prefix}LineTo`, existingLesson.lineTo);
+  }
+  const scoreOutput = document.getElementById(`preview-${prefix}Score`);
+  if (scoreOutput && Number.isFinite(existingLesson.score)) {
+    scoreOutput.value = existingLesson.score;
+    scoreOutput.textContent = existingLesson.score;
+  }
+}
+
+window.closePreviousAssessmentEditor = function() {
+  document.getElementById('previewEditModal')?.remove();
+};
+
+window.openPreviousAssessmentEditor = async function(studentId, reportId) {
+  const cached = (previewPreviousReportsCache[studentId] || []).find(report => report.id === reportId);
+  let report = cached;
+  if (!report) {
+    try {
+      const snapshot = await getDoc(doc(db, 'studentProgress', studentId, 'dailyReports', reportId));
+      if (!snapshot.exists()) return;
+      report = { id: snapshot.id, ...snapshot.data() };
+    } catch (error) {
+      console.error('Error loading assessment for edit:', error);
+      return;
+    }
+  }
+  renderPreviousAssessmentEditorModal(studentId, report);
+};
+
+function renderPreviousAssessmentEditorModal(studentId, report) {
+  window.closePreviousAssessmentEditor();
+  const pathId = report.curriculum?.pathId || report.learningPath || 'noorani';
+  const path = getLearningPath(pathId);
+  const amountOptions = LESSON_AMOUNT_OPTIONS.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
+  const lesson = report.curriculum?.lesson || {};
+  const revision = report.curriculum?.revision || {};
+  const lessonStatus = lesson.lessonStatus === LESSON_STATUS.NOT_COMPLETED ? LESSON_STATUS.NOT_COMPLETED : LESSON_STATUS.COMPLETED;
+
+  const lessonBody = pathId === 'quran' ? buildQuranRangeMarkup('editLesson') : buildNonQuranLessonMarkup('editLesson', path, amountOptions);
+  const revisionBody = pathId === 'quran' ? buildQuranRangeMarkup('editRevision') : `<input id="editRevisionText" class="teacher-free-text" type="text" placeholder="اكتب مقرر المراجعة">`;
+
+  const modal = document.createElement('div');
+  modal.id = 'previewEditModal';
+  modal.className = 'teacher-edit-modal';
+  modal.dataset.pathId = pathId;
+  modal.innerHTML = `
+    <div class="teacher-edit-modal-backdrop" onclick="window.closePreviousAssessmentEditor()"></div>
+    <div class="teacher-edit-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <div class="teacher-edit-modal-head">
+        <h3 id="editModalTitle">تعديل تقييم ${escapeTeacherMarkup(report.id)}</h3>
+        <button type="button" class="teacher-inline-back" onclick="window.closePreviousAssessmentEditor()">إغلاق</button>
+      </div>
+      <div id="previewEditModalBody" class="teacher-edit-modal-body">
+        <div class="teacher-path-range" id="editLessonBox" data-lesson-status="${lessonStatus}">
+          <div class="teacher-lesson-box-head"><strong>الدرس الجديد</strong>${buildLessonStatusToggle()}</div>
+          ${lessonBody}
+        </div>
+        <div class="teacher-path-range"><strong>المراجعة</strong>${revisionBody}</div>
+        <details class="teacher-score-sheet" open>
+          <summary><span>نقاط التقييم</span><strong id="editScoreSummary">-- / --</strong></summary>
+          <div class="teacher-score-grid">${buildEditScoreSheetMarkup(report)}</div>
+        </details>
+        <div id="editAdditionalLessons" class="teacher-additional-lessons"></div>
+        <button type="button" id="editAddLessonBtn" class="teacher-add-lesson-btn" onclick="window.addAdditionalLessonBlock('editAdditionalLessons','editAddLesson', '${pathId}', 'editAddLessonBtn')">+ إضافة درس</button>
+        <div class="teacher-total-row"><span>المجموع</span><strong id="editTotalScore">-- / --</strong></div>
+        <p id="editModalNotice" class="teacher-preview-notice" role="status"></p>
+      </div>
+      <div class="teacher-edit-modal-actions">
+        <button type="button" class="teacher-outline-action" onclick="window.closePreviousAssessmentEditor()">إلغاء</button>
+        <button type="button" id="editSaveButton" class="teacher-save-preview" onclick="window.saveEditedPreviousAssessment('${studentId}', '${report.id}')">حفظ التعديلات</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const statusGroup = document.querySelector('#editLessonBox .teacher-status-toggle');
+  if (statusGroup) {
+    statusGroup.querySelectorAll('.teacher-status-btn').forEach(btn => btn.classList.toggle('is-active', btn.dataset.status === lessonStatus));
+  }
+
+  if (pathId === 'quran') {
+    setSelectValue('preview-editLesson-surah', lesson.surahNumber);
+    window.updatePreviewVerseOptions('editLesson');
+    setSelectValue('preview-editLesson-from', lesson.fromVerse);
+    setSelectValue('preview-editLesson-to', lesson.toVerse);
+    setSelectValue('preview-editRevision-surah', revision.surahNumber);
+    window.updatePreviewVerseOptions('editRevision');
+    setSelectValue('preview-editRevision-from', revision.fromVerse);
+    setSelectValue('preview-editRevision-to', revision.toVerse);
+  } else {
+    setInputValue('editLessonNumber', lesson.lessonNumber);
+    setInputValue('editLessonPage', lesson.pageNumber);
+    setSelectValue('editLessonAmount', lesson.amount || 'full_lesson');
+    window.updatePreviewLessonAmount(document.getElementById('editLessonAmount'));
+    setInputValue('editLessonLineFrom', lesson.lineFrom);
+    setInputValue('editLessonLineTo', lesson.lineTo);
+    setInputValue('editRevisionText', revision.text);
+  }
+
+  (report.curriculum?.additionalLessons || []).forEach(existingLesson => {
+    window.addAdditionalLessonBlock('editAdditionalLessons', 'editAddLesson', pathId, 'editAddLessonBtn');
+    const container = document.getElementById('editAdditionalLessons');
+    prefillAdditionalLessonBlock(container?.lastElementChild, existingLesson, pathId);
+  });
+
+  refreshTotalsForContainer('editAdditionalLessons');
+}
+
+window.saveEditedPreviousAssessment = async function(studentId, reportId) {
+  const modal = document.getElementById('previewEditModal');
+  const pathId = modal?.dataset.pathId || 'noorani';
+  const saveButton = document.getElementById('editSaveButton');
+  const notice = document.getElementById('editModalNotice');
+
+  const lessonData = pathId === 'quran'
+    ? {
+        type: 'quranRange',
+        surahNumber: document.getElementById('preview-editLesson-surah')?.value || '',
+        surahName: getSurah(document.getElementById('preview-editLesson-surah')?.value)?.name || '',
+        fromVerse: document.getElementById('preview-editLesson-from')?.value || '',
+        toVerse: document.getElementById('preview-editLesson-to')?.value || ''
+      }
+    : {
+        type: pathId,
+        lessonNumber: document.getElementById('editLessonNumber')?.value || '',
+        pageNumber: document.getElementById('editLessonPage')?.value || '',
+        amount: document.getElementById('editLessonAmount')?.value || 'full_lesson',
+        amountLabel: document.getElementById('editLessonAmount')?.selectedOptions?.[0]?.textContent || 'درس كامل',
+        lineFrom: document.getElementById('editLessonLineFrom')?.value || '',
+        lineTo: document.getElementById('editLessonLineTo')?.value || ''
+      };
+  lessonData.lessonStatus = document.getElementById('editLessonBox')?.dataset.lessonStatus === LESSON_STATUS.NOT_COMPLETED ? LESSON_STATUS.NOT_COMPLETED : LESSON_STATUS.COMPLETED;
+
+  const revisionData = pathId === 'quran'
+    ? {
+        type: 'quranRange',
+        surahNumber: document.getElementById('preview-editRevision-surah')?.value || '',
+        surahName: getSurah(document.getElementById('preview-editRevision-surah')?.value)?.name || '',
+        fromVerse: document.getElementById('preview-editRevision-from')?.value || '',
+        toVerse: document.getElementById('preview-editRevision-to')?.value || ''
+      }
+    : {
+        type: 'freeText',
+        text: document.getElementById('editRevisionText')?.value.trim() || ''
+      };
+
+  const additionalLessons = collectAdditionalLessonsFromContainer('editAdditionalLessons', pathId);
+  const readEditScore = id => Number(document.getElementById(`preview-${id}`)?.value || document.getElementById(`preview-${id}`)?.textContent || 0);
+  const scoreData = {
+    asrPrayer: readEditScore('editAsr'),
+    lesson: readEditScore('editLessonScore'),
+    revision: readEditScore('editRevisionScore'),
+    homeRecitation: readEditScore('editHomeRecitation'),
+    homeReading: readEditScore('editHomeReading'),
+    behavior: readEditScore('editBehavior')
+  };
+  const baseTotal = Object.values(scoreData).reduce((total, score) => total + score, 0);
+  const additionalLessonsScore = additionalLessons.reduce((sum, lesson) => sum + (lesson.score || 0), 0);
+  const totalScore = baseTotal + additionalLessonsScore;
+  const maxTotalScore = 30 + additionalLessons.length * 5;
+
+  try {
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.textContent = 'جاري الحفظ...';
+    }
+    await updateDoc(doc(db, 'studentProgress', studentId, 'dailyReports', reportId), {
+      curriculum: { pathId, pathName: getLearningPath(pathId).name, lesson: lessonData, revision: revisionData, additionalLessons },
+      asrPrayerScore: scoreData.asrPrayer,
+      lessonScore: scoreData.lesson,
+      revisionScore: scoreData.revision,
+      homeRecitationScore: scoreData.homeRecitation,
+      homeReadingScore: scoreData.homeReading,
+      readingScore: scoreData.homeReading,
+      behaviorScore: scoreData.behavior,
+      additionalLessonsCount: additionalLessons.length,
+      totalScore,
+      maxTotalScore,
+      percentage: Math.round((totalScore / maxTotalScore) * 100),
+      lastEditedBy: sessionStorage.getItem('loggedInTeacher') || 'teacher',
+      lastEditedAt: serverTimestamp()
+    });
+    window.closePreviousAssessmentEditor();
+    await loadPreviewPreviousReports(studentId);
+    const previousScoreCard = document.getElementById('previewPreviousScore');
+    if (previousScoreCard) await loadPreviousNooraniAssessment(studentId, previousScoreCard);
+    showPreviewSaveToast('تم تحديث التقييم بنجاح');
+  } catch (error) {
+    console.error('Error saving edited assessment:', error);
+    if (notice) notice.textContent = 'تعذر حفظ التعديلات، حاول مرة أخرى.';
+  } finally {
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.textContent = 'حفظ التعديلات';
+    }
+  }
 };
 
 window.updatePreviewLessonAmount = function(select) {
@@ -8622,11 +8994,15 @@ window.previewScore = function(id, delta) {
   if (!output) return;
   output.value = Math.max(0, Math.min(5, Number(output.value || output.textContent) + delta));
   output.textContent = output.value;
-  const total = [...document.querySelectorAll('.teacher-score-field output')].reduce((sum, item) => sum + Number(item.value || item.textContent), 0);
-  const totalOutput = document.getElementById('previewTotalScore');
-  if (totalOutput) totalOutput.textContent = `${total} / 30`;
-  const summaryOutput = document.getElementById('previewScoreSummary');
-  if (summaryOutput) summaryOutput.textContent = `${total} / 30`;
+  const modalRoot = document.getElementById('previewEditModalBody');
+  if (modalRoot && modalRoot.contains(output)) {
+    updatePreviewTotals({ root: modalRoot, additionalSelector: '#editAdditionalLessons .teacher-additional-lesson-block', totalId: 'editTotalScore', summaryId: 'editScoreSummary' });
+    return;
+  }
+  const mainRoot = document.getElementById('previewCurrentPanel');
+  if (mainRoot) {
+    updatePreviewTotals({ root: mainRoot, additionalSelector: '#previewAdditionalLessons .teacher-additional-lesson-block', totalId: 'previewTotalScore', summaryId: 'previewScoreSummary' });
+  }
 };
 
 window.savePreviewAssessment = async function() {
@@ -8643,7 +9019,6 @@ window.savePreviewAssessment = async function() {
   }
 
   const readScore = id => Number(document.getElementById(`preview-${id}`)?.value || document.getElementById(`preview-${id}`)?.textContent || 0);
-  const lessonPathBox = document.querySelector('#previewCurriculumFields .teacher-path-range');
   const revisionPathBox = document.querySelectorAll('#previewCurriculumFields .teacher-path-range')[1];
   const todayHijri = getCurrentHijriDate();
   const dateId = todayHijri?.hijri || getTodayForStorage();
@@ -8665,6 +9040,7 @@ window.savePreviewAssessment = async function() {
         lineFrom: document.getElementById('previewLessonLineFrom')?.value || '',
         lineTo: document.getElementById('previewLessonLineTo')?.value || ''
       };
+  lessonData.lessonStatus = document.getElementById('previewLessonBox')?.dataset.lessonStatus === LESSON_STATUS.NOT_COMPLETED ? LESSON_STATUS.NOT_COMPLETED : LESSON_STATUS.COMPLETED;
   const revisionData = pathId === 'quran'
     ? {
         type: 'quranRange',
@@ -8677,6 +9053,7 @@ window.savePreviewAssessment = async function() {
         type: 'freeText',
         text: revisionPathBox?.querySelector('.teacher-free-text')?.value.trim() || ''
       };
+  const additionalLessons = collectAdditionalLessonsFromContainer('previewAdditionalLessons', pathId);
   const scoreData = {
     asrPrayer: readScore('asr'),
     lesson: readScore('lesson'),
@@ -8685,7 +9062,10 @@ window.savePreviewAssessment = async function() {
     homeReading: readScore('homeReading'),
     behavior: readScore('behavior')
   };
-  const totalScore = Object.values(scoreData).reduce((total, score) => total + score, 0);
+  const baseTotal = Object.values(scoreData).reduce((total, score) => total + score, 0);
+  const additionalLessonsScore = additionalLessons.reduce((sum, lesson) => sum + (lesson.score || 0), 0);
+  const totalScore = baseTotal + additionalLessonsScore;
+  const maxTotalScore = 30 + additionalLessons.length * 5;
   const reportData = {
     studentId,
     studentName: student.name || studentId,
@@ -8693,7 +9073,7 @@ window.savePreviewAssessment = async function() {
     learningProgram: 'noorani',
     learningPath: pathId,
     learningPathName: getLearningPath(pathId).name,
-    curriculum: { pathId, pathName: getLearningPath(pathId).name, lesson: lessonData, revision: revisionData },
+    curriculum: { pathId, pathName: getLearningPath(pathId).name, lesson: lessonData, revision: revisionData, additionalLessons },
     asrPrayerScore: scoreData.asrPrayer,
     lessonScore: scoreData.lesson,
     revisionScore: scoreData.revision,
@@ -8701,9 +9081,10 @@ window.savePreviewAssessment = async function() {
     homeReadingScore: scoreData.homeReading,
     readingScore: scoreData.homeReading,
     behaviorScore: scoreData.behavior,
+    additionalLessonsCount: additionalLessons.length,
     totalScore,
-    maxTotalScore: 30,
-    percentage: Math.round((totalScore / 30) * 100),
+    maxTotalScore,
+    percentage: Math.round((totalScore / maxTotalScore) * 100),
     status: 'present',
     dateId,
     date: serverTimestamp(),
@@ -8734,14 +9115,10 @@ window.savePreviewAssessment = async function() {
 };
 
 function resetPreviewAssessmentFields(pathId) {
-  document.querySelectorAll('.teacher-score-field output').forEach(output => {
+  document.querySelectorAll('#previewCurrentPanel .teacher-score-field output').forEach(output => {
     output.value = 5;
     output.textContent = '5';
   });
-  const totalOutput = document.getElementById('previewTotalScore');
-  const summaryOutput = document.getElementById('previewScoreSummary');
-  if (totalOutput) totalOutput.textContent = '30 / 30';
-  if (summaryOutput) summaryOutput.textContent = '30 / 30';
   window.renderPreviewCurriculumFields(pathId);
 }
 

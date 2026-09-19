@@ -6632,28 +6632,6 @@ details[open] > summary {
 
 
 /* ============================================================
-   HIZB REFERENCE GUIDE - TRIGGER BUTTON
-   ============================================================ */
-
-.hizb-reference-trigger-btn {
-  background: transparent;
-  border: 1px solid #cbd5e1;
-  color: #475569;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 20px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.hizb-reference-trigger-btn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: #1e293b;
-}
-
-/* ============================================================
    QUEUE TYPE SELECTOR (Similar to Registration Type Selector)
    ============================================================ */
 
@@ -7101,6 +7079,37 @@ details[open] > summary {
 .teacher-previous-table.keep-table tr:last-child td { border-bottom: 0; }
 .teacher-save-toast { position: fixed; right: 50%; bottom: 92px; z-index: 10001; transform: translate(50%, 12px); opacity: 0; padding: 11px 18px; border: 1px solid #a7d9c9; border-radius: 9px; background: #effaf6; color: #146c5b; box-shadow: 0 8px 24px rgba(20, 108, 91, .18); font-size: 13px; font-weight: 700; transition: opacity .22s ease, transform .22s ease; }
 .teacher-save-toast.visible { opacity: 1; transform: translate(50%, 0); }
+
+/* Lesson status toggle + additional lessons */
+.teacher-lesson-box-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; flex-wrap: wrap; }
+.teacher-lesson-box-head strong { font-size: 12px; color: #173b35; }
+.teacher-status-toggle { display: inline-flex; gap: 3px; padding: 2px; border: 1px solid #cfe3dd; border-radius: 7px; background: #f7fbfa; }
+.teacher-status-btn { border: 0; border-radius: 5px; padding: 4px 9px; background: transparent; color: #64748b; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
+.teacher-status-btn.is-active[data-status="completed"] { background: #16806d; color: #fff; }
+.teacher-status-btn.is-active[data-status="not_completed"] { background: #c2410c; color: #fff; }
+.teacher-lesson-score-field { margin-top: 7px; }
+.teacher-additional-lessons { display: grid; gap: 8px; margin-bottom: 8px; }
+.teacher-additional-lesson-block { padding: 10px; border: 1px dashed #b8d8d0; border-radius: 8px; background: #fbfdfc; }
+.teacher-add-lesson-btn { width: 100%; margin-bottom: 10px; border: 1px dashed #2a9d8f; border-radius: 8px; padding: 9px; background: #fff; color: #16806d; cursor: pointer; font: inherit; font-weight: 700; font-size: 12px; }
+.teacher-remove-lesson-btn { border: 1px solid #e3b6b6; border-radius: 6px; background: #fff5f5; color: #b3261e; padding: 4px 9px; font-size: 11px; cursor: pointer; }
+.teacher-previous-date-link { border: 0; background: transparent; color: #16806d; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
+.teacher-lesson-status { font-size: 10px; margin-right: 4px; font-weight: 700; }
+.teacher-lesson-status.is-completed { color: #1a9c6b; }
+.teacher-lesson-status.is-not-completed { color: #c2410c; }
+
+/* Previous assessment edit modal */
+.teacher-edit-modal { position: fixed; inset: 0; z-index: 10020; display: flex; align-items: flex-end; justify-content: center; }
+.teacher-edit-modal-backdrop { position: absolute; inset: 0; background: rgba(15, 30, 27, .45); }
+.teacher-edit-modal-sheet { position: relative; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; background: #fff; border-radius: 16px 16px 0 0; padding: 16px; box-shadow: 0 -10px 30px rgba(0,0,0,.2); animation: slideUp .25s ease-out; box-sizing: border-box; }
+.teacher-edit-modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.teacher-edit-modal-head h3 { margin: 0; font-size: 15px; color: #173b35; }
+.teacher-edit-modal-body { display: flex; flex-direction: column; gap: 10px; }
+.teacher-edit-modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+@media (min-width: 640px) {
+  .teacher-edit-modal { align-items: center; }
+  .teacher-edit-modal-sheet { border-radius: 14px; max-height: 82vh; }
+}
+
 .teacher-track-list { display: grid; gap: 10px; }
 .teacher-track-list article { display: flex; align-items: center; gap: 14px; padding: 16px; background: #fff; border: 1px solid #d9e4e1; border-radius: 10px; }
 .teacher-track-list article strong { min-width: 130px; color: #173b35; }
