@@ -85,6 +85,11 @@ body {
 .student-pledges-menu-card { border-right: 3px solid #1f6f78; }
 .pledge-menu-icon { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 10px; background: #e5f3f3; color: #1f6f78; font-size: 13px; font-weight: 700; }
 .pledge-page-content { max-width: 900px; margin: 0 auto; padding: 24px 16px 100px; }
+.pledge-primary-view { display: none; animation: pledgePanelIn .22s ease both; }
+.pledge-primary-view.is-active { display: block; }
+.pledge-primary-tabs { display: flex; gap: 6px; margin-bottom: 18px; padding: 5px; border: 1px solid #dbe4e9; border-radius: 10px; background: #eef3f5; }
+.pledge-primary-tab { flex: 1; min-height: 44px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #536170; cursor: pointer; font: inherit; font-weight: 700; transition: background .2s ease, color .2s ease, border-color .2s ease; }
+.pledge-primary-tab.is-active { border-color: #b7cbd0; background: #ffffff; color: #1f6f78; box-shadow: 0 2px 8px rgba(22, 42, 62, .08); }
 .pledge-tabs { display: flex; gap: 6px; margin-bottom: 18px; padding: 5px; background: #e8edf3; border-radius: 10px; }
 .pledge-tab { flex: 1; border: 0; border-radius: 7px; background: transparent; color: #536170; padding: 12px 16px; cursor: pointer; font: inherit; font-weight: 700; transition: background .2s ease, color .2s ease; }
 .pledge-tab.is-active { background: #ffffff; color: #1f6f78; box-shadow: 0 2px 8px rgba(22, 42, 62, .08); }
@@ -114,6 +119,7 @@ body {
 .pledge-status-message.success { color: #217348; }
 .pledge-status-message.loading { color: #596c7f; }
 .pledge-loading-state { margin-bottom: 12px; color: #647589; font-size: 14px; }
+.pledge-inline-notice { margin-top: 14px; padding: 10px 12px; border: 1px solid #d9c58a; border-radius: 7px; background: #fff8df; color: #765c13; font-size: 13px; line-height: 1.6; }
 .pledge-history-heading { margin-bottom: 15px; }
 .pledge-history-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid #edf0f3; }
 .pledge-filter-field .pledge-field-label { font-size: 13px; }
@@ -173,6 +179,7 @@ body {
   .pledge-history-filters { grid-template-columns: 1fr; }
   .pledge-details-grid { grid-template-columns: 1fr; }
   .pledge-modal-actions { flex-direction: column; align-items: stretch; }
+  .pledge-primary-tab { min-height: 40px; font-size: 13px; }
 }
 
 /* Ensure sections are visible when display is set to block */

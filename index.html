@@ -1048,10 +1048,10 @@
 
             <!-- Student Pledges Card -->
             <div class="more-menu-card student-pledges-menu-card" onclick="window.openStudentPledgesSection()">
-              <div class="more-card-icon pledge-menu-icon">تعهد</div>
+              <div class="more-card-icon pledge-menu-icon">إنذار</div>
               <div class="more-card-content">
-                <h4 class="more-card-title">تعهدات الطلاب</h4>
-                <p class="more-card-desc">إنشاء تعهد رسمي وحفظه في سجل الطالب</p>
+                <h4 class="more-card-title">الإنذارات والتعهدات</h4>
+                <p class="more-card-desc">توثيق الإنذارات الشفهية والتعهدات الرسمية</p>
               </div>
               <div class="more-card-arrow">←</div>
             </div>
@@ -1126,12 +1126,58 @@
             <button class="back-btn" type="button" onclick="window.closeStudentPledgesSection()" aria-label="العودة إلى المزيد">
               <span class="back-arrow">→</span>
             </button>
-            <h2 class="full-page-title">تعهدات الطلاب</h2>
+              <h2 class="full-page-title">الإنذارات والتعهدات</h2>
             <div class="header-spacer"></div>
           </div>
 
           <div class="pledge-page-content">
-            <div class="pledge-tabs" role="tablist" aria-label="تعهدات الطلاب">
+            <div class="pledge-primary-tabs" role="tablist" aria-label="الإنذارات والتعهدات">
+              <button class="pledge-primary-tab is-active" type="button" data-pledge-primary-tab="warningPrimaryView" role="tab">الإنذارات الشفهية</button>
+              <button class="pledge-primary-tab" type="button" data-pledge-primary-tab="pledgePrimaryView" role="tab">التعهدات</button>
+            </div>
+
+            <section id="warningPrimaryView" class="pledge-primary-view is-active">
+              <div class="pledge-tabs" role="tablist" aria-label="الإنذارات الشفهية">
+                <button class="pledge-tab is-active" type="button" data-pledge-tab="warningCreatePanel" role="tab">إضافة إنذار</button>
+                <button class="pledge-tab" type="button" data-pledge-tab="warningHistoryPanel" role="tab">سجل الإنذارات</button>
+              </div>
+              <div id="warningStatusMessage" class="pledge-status-message" role="status" aria-live="polite"></div>
+              <section id="warningCreatePanel" class="pledge-tab-panel is-active" role="tabpanel">
+                <div class="pledge-form-card">
+                  <div class="pledge-card-heading"><span class="pledge-step-number">1</span><div><h3>اختيار المعلم</h3><p>سيتم عرض طلاب حلقاته فقط.</p></div></div>
+                  <label class="pledge-field-label" for="warningTeacherSelect">المعلم</label>
+                  <select class="pledge-select" id="warningTeacherSelect"><option value="">اختر المعلم</option></select>
+                  <div id="warningStudentField" class="pledge-progressive-field">
+                    <div class="pledge-card-heading"><span class="pledge-step-number">2</span><div><h3>اختيار الطالب</h3><p>اختر الطالب المراد تسجيل الإنذار له.</p></div></div>
+                    <label class="pledge-field-label" for="warningStudentSelect">الطالب</label>
+                    <select class="pledge-select" id="warningStudentSelect" disabled><option value="">اختر الطالب</option></select>
+                  </div>
+                  <div id="warningTypeField" class="pledge-progressive-field">
+                    <div class="pledge-card-heading"><span class="pledge-step-number">3</span><div><h3>نوع الملاحظة</h3><p>سيتم إعداد رسالة واتساب رسمية تلقائيًا.</p></div></div>
+                    <label class="pledge-field-label" for="warningTypeSelect">نوع الملاحظة</label>
+                    <select class="pledge-select" id="warningTypeSelect">
+                      <option value="">اختر نوع الملاحظة</option>
+                      <option value="absences">الغيابات</option><option value="lateness">التأخيرات</option>
+                      <option value="phone">اصطحاب الجوال للحلقات</option><option value="behavior">الأخلاقيات والسلوكيات</option>
+                      <option value="leaving">الخروج من الحلقة من غير إذن المعلم</option><option value="disruption">المشاغبة داخل الحلقة</option>
+                      <option value="cheating">الغش أثناء التسميع</option><option value="educational">ضعف المستوى التعليمي</option>
+                    </select>
+                  </div>
+                  <div id="warningPreviousNotice" class="pledge-inline-notice" hidden></div>
+                  <div class="pledge-form-actions"><button id="createWarningButton" class="pledge-primary-button" type="button" disabled>تسجيل الإنذار وإعداد رسالة واتساب</button><button id="resetWarningButton" class="pledge-secondary-button" type="button">إعادة الاختيار</button></div>
+                </div>
+              </section>
+              <section id="warningHistoryPanel" class="pledge-tab-panel" role="tabpanel">
+                <div class="pledge-history-card">
+                  <div class="pledge-history-heading"><h3>سجل الإنذارات</h3><p>الأحدث يظهر أولًا.</p></div>
+                  <div class="pledge-history-filters"><div class="pledge-filter-field"><label class="pledge-field-label" for="warningHistoryTeacherSelect">اختر المعلم</label><select class="pledge-select" id="warningHistoryTeacherSelect"><option value="">اختر المعلم لعرض السجل</option></select></div><div class="pledge-filter-field"><label class="pledge-field-label" for="warningHistoryClassSelect">الحلقة</label><select class="pledge-select" id="warningHistoryClassSelect" disabled><option value="">اختر المعلم أولًا</option></select></div><div class="pledge-filter-field"><label class="pledge-field-label" for="warningHistoryStudentSelect">الطالب</label><select class="pledge-select" id="warningHistoryStudentSelect" disabled><option value="">اختر المعلم أولًا</option></select></div></div>
+                  <div id="warningHistoryList" class="pledge-history-list"></div>
+                </div>
+              </section>
+            </section>
+
+            <section id="pledgePrimaryView" class="pledge-primary-view">
+            <div id="pledgeOfficialNavigation" class="pledge-tabs" role="tablist" aria-label="تعهدات الطلاب">
               <button class="pledge-tab is-active" type="button" data-pledge-tab="pledgeCreatePanel" role="tab">إنشاء تعهد</button>
               <button class="pledge-tab" type="button" data-pledge-tab="pledgeHistoryPanel" role="tab">سجل التعهدات</button>
             </div>
@@ -1184,6 +1230,7 @@
                 <div id="pledgeHistoryList" class="pledge-history-list"></div>
               </div>
             </section>
+            </section>
           </div>
         </div>
 
@@ -1202,6 +1249,24 @@
           <div class="pledge-modal-dialog pledge-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="pledgeDeleteTitle">
             <h3 id="pledgeDeleteTitle">حذف التعهد</h3><p>هل أنت متأكد من حذف هذا التعهد؟</p>
             <div class="pledge-modal-actions"><button id="confirmPledgeDeleteButton" class="pledge-danger-button" type="button">حذف التعهد</button><button class="pledge-secondary-button" type="button" data-close-pledge-modal>إلغاء</button></div>
+          </div>
+        </div>
+
+        <div id="warningDetailsModal" class="pledge-modal" hidden>
+          <div class="pledge-modal-backdrop" data-close-pledge-modal></div>
+          <div class="pledge-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="warningDetailsTitle">
+            <button class="pledge-modal-close" type="button" data-close-pledge-modal aria-label="إغلاق">×</button>
+            <h3 id="warningDetailsTitle">تفاصيل الإنذار الشفهي</h3>
+            <div id="warningDetailsContent" class="pledge-details-content"></div>
+            <div class="pledge-modal-actions"><button id="warningDetailsWhatsappButton" class="pledge-primary-button" type="button">إرسال واتساب</button><button id="warningDetailsDeleteButton" class="pledge-danger-button" type="button">حذف الإنذار</button></div>
+          </div>
+        </div>
+
+        <div id="warningDeleteModal" class="pledge-modal" hidden>
+          <div class="pledge-modal-backdrop" data-close-pledge-modal></div>
+          <div class="pledge-modal-dialog pledge-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="warningDeleteTitle">
+            <h3 id="warningDeleteTitle">حذف الإنذار</h3><p>هل أنت متأكد من حذف هذا الإنذار؟</p>
+            <div class="pledge-modal-actions"><button id="confirmWarningDeleteButton" class="pledge-danger-button" type="button">حذف الإنذار</button><button class="pledge-secondary-button" type="button" data-close-pledge-modal>إلغاء</button></div>
           </div>
         </div>
 

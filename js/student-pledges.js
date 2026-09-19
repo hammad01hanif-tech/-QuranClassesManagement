@@ -15,6 +15,7 @@ import {
 import { getTodayAccurateHijri, formatAccurateHijriDate } from './accurate-hijri-dates.js';
 
 const PLEDGE_COLLECTION = 'studentPledges';
+const WARNING_COLLECTION = 'verbalWarnings';
 const PLEDGE_TYPES = {
   absences: {
     label: 'الغيابات',
@@ -79,6 +80,20 @@ const PLEDGE_TYPES = {
   }
 };
 
+const WARNING_TYPES = Object.fromEntries(Object.entries(PLEDGE_TYPES).map(([key, template]) => [key, {
+  label: template.label,
+  notice: {
+    absences: 'تكرار الغياب وعدم الانتظام في الحضور',
+    lateness: 'تكرار التأخر عن بداية الحلقة',
+    phone: 'اصطحاب الجوال إلى الحلقة بالمخالفة للتعليمات',
+    behavior: 'ملاحظة تتعلق بالأخلاقيات والسلوكيات داخل الحلقة',
+    leaving: 'الخروج من الحلقة من غير إذن المعلم',
+    disruption: 'المشاغبة أو التشويش داخل الحلقة',
+    cheating: 'ملاحظة تتعلق بالغش أثناء التسميع',
+    educational: 'ضعف المستوى التعليمي أو التأخر في الحفظ والمراجعة'
+  }[key]
+}]));
+
 let teacherRecords = [];
 let currentStudents = [];
 let historyRecords = [];
@@ -89,6 +104,13 @@ let historyTeacherId = '';
 let historyClassId = '';
 let historyStudentId = '';
 let selectedPledgeRecord = null;
+let warningHistoryRecords = [];
+let warningHistoryCursor = null;
+let warningHistoryHasMore = false;
+let warningTeacherId = '';
+let warningClassId = '';
+let warningStudentId = '';
+let selectedWarningRecord = null;
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -100,6 +122,20 @@ function getAdminName() {
 
 function getHijriDate() {
   return formatAccurateHijriDate(getTodayAccurateHijri()).replace(' هـ', ' هـ');
+}
+
+function buildWarningMessage(studentName, warningType, hijriDate) {
+  const template = WARNING_TYPES[warningType];
+  return `السلام عليكم ورحمة الله وبركاته،\n\nنحيطكم علمًا بأنه تم تسجيل إنذار شفهي للطالب:\n${studentName}\n\nوذلك بسبب:\n${template.notice}\n\nنأمل منكم متابعة الطالب والتعاون مع إدارة الحلقات لتجنب تكرار الملاحظة، لما لذلك من أثر على مستوى الطالب وانتظامه وسلوكه.\n\nوفي حال تكرار الملاحظة قد يتم اتخاذ الإجراء التالي وفق النظام المتبع.\n\nشاكرين لكم تعاونكم.\n\nإدارة حلقات جامع حمدة آل ثاني\n\nالتاريخ الهجري: ${hijriDate}`;
+}
+
+function openWarningWhatsApp(record) {
+  const phone = String(record.guardianPhone || '').replace(/\D/g, '').replace(/^0/, '966');
+  if (!phone) {
+    setStatus('لا يوجد رقم ولي أمر مسجل لهذا الطالب.', 'error');
+    return;
+  }
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(record.messageContent)}`, '_blank');
 }
 
 function setStatus(message = '', type = '') {
@@ -145,6 +181,218 @@ function renderStudentOptions(teacherId) {
   document.getElementById('pledgeTypeField')?.classList.remove('is-visible');
   document.getElementById('pledgeTypeSelect').value = '';
   updateCreateButton();
+}
+
+function setWarningStatus(message = '', type = '') {
+  const status = document.getElementById('warningStatusMessage');
+  if (!status) return;
+  status.textContent = message;
+  status.className = `pledge-status-message${type ? ` ${type}` : ''}`;
+}
+
+function updateWarningCreateButton() {
+  const button = document.getElementById('createWarningButton');
+  const hasSelection = document.getElementById('warningStudentSelect')?.value && document.getElementById('warningTypeSelect')?.value;
+  if (button) button.disabled = !hasSelection || button.dataset.loading === 'true';
+}
+
+function renderWarningTeacherOptions() {
+  const selects = [document.getElementById('warningTeacherSelect'), document.getElementById('warningHistoryTeacherSelect')];
+  selects.forEach(select => {
+    if (!select) return;
+    select.innerHTML = '<option value="">اختر المعلم</option>';
+    teacherRecords.forEach(teacher => {
+      const option = document.createElement('option');
+      option.value = teacher.teacherId;
+      option.textContent = teacher.teacherName;
+      select.appendChild(option);
+    });
+  });
+}
+
+function renderWarningStudents(teacherId) {
+  const select = document.getElementById('warningStudentSelect');
+  const teacher = teacherRecords.find(item => item.teacherId === teacherId);
+  if (!select) return;
+  select.innerHTML = '<option value="">اختر الطالب</option>';
+  (teacher?.students || []).slice().sort((a, b) => a.name.localeCompare(b.name, 'ar')).forEach(student => {
+    const option = document.createElement('option');
+    option.value = student.id;
+    option.textContent = student.name;
+    select.appendChild(option);
+  });
+  select.disabled = !(teacher?.students?.length);
+  document.getElementById('warningStudentField')?.classList.toggle('is-visible', Boolean(teacherId));
+  document.getElementById('warningTypeField')?.classList.remove('is-visible');
+  document.getElementById('warningPreviousNotice')?.setAttribute('hidden', '');
+  updateWarningCreateButton();
+}
+
+function renderWarningHistoryLinkedOptions() {
+  const teacher = teacherRecords.find(item => item.teacherId === warningTeacherId);
+  const classSelect = document.getElementById('warningHistoryClassSelect');
+  const studentSelect = document.getElementById('warningHistoryStudentSelect');
+  if (!teacher || !classSelect || !studentSelect) return;
+  classSelect.disabled = false;
+  classSelect.innerHTML = '<option value="">جميع الحلقات</option>';
+  teacher.classes.forEach(classRecord => {
+    const option = document.createElement('option');
+    option.value = classRecord.classId;
+    option.textContent = classRecord.className;
+    classSelect.appendChild(option);
+  });
+  studentSelect.disabled = false;
+  studentSelect.innerHTML = '<option value="">جميع الطلاب</option>';
+  const students = warningClassId ? teacher.classes.find(item => item.classId === warningClassId)?.students || [] : teacher.students;
+  students.slice().sort((a, b) => a.name.localeCompare(b.name, 'ar')).forEach(student => {
+    const option = document.createElement('option');
+    option.value = student.id;
+    option.textContent = student.name;
+    studentSelect.appendChild(option);
+  });
+}
+
+function renderWarningHistory() {
+  const list = document.getElementById('warningHistoryList');
+  if (!list) return;
+  if (!warningHistoryRecords.length) {
+    list.innerHTML = warningTeacherId ? '<div class="pledge-empty-state">لا توجد إنذارات لهذا الاختيار.</div>' : '<div class="pledge-empty-state">اختر المعلم لعرض سجل الإنذارات.</div>';
+    return;
+  }
+  list.innerHTML = `<div class="pledge-history-table-wrap"><table class="pledge-history-table"><thead><tr><th>الطالب</th><th>المعلم</th><th>نوع الإنذار</th><th>التاريخ الهجري</th><th>الإجراء</th></tr></thead><tbody>${warningHistoryRecords.map(record => `<tr data-warning-row="${escapeHtml(record.id)}"><td>${escapeHtml(record.studentName)}</td><td>${escapeHtml(record.teacherName)}</td><td>${escapeHtml(WARNING_TYPES[record.violationType]?.label || record.violationType)}</td><td>${escapeHtml(record.hijriDate)}</td><td class="pledge-row-actions"><button class="pledge-table-button" type="button" data-warning-details="${escapeHtml(record.id)}">عرض</button><button class="pledge-table-button" type="button" data-warning-whatsapp="${escapeHtml(record.id)}">واتساب</button><button class="pledge-table-button pledge-table-danger" type="button" data-warning-delete="${escapeHtml(record.id)}">حذف</button></td></tr>`).join('')}</tbody></table></div>`;
+  list.querySelectorAll('[data-warning-details]').forEach(button => button.addEventListener('click', () => showWarningDetails(warningHistoryRecords.find(record => record.id === button.dataset.warningDetails))));
+  list.querySelectorAll('[data-warning-whatsapp]').forEach(button => button.addEventListener('click', () => openWarningWhatsApp(warningHistoryRecords.find(record => record.id === button.dataset.warningWhatsapp))));
+  list.querySelectorAll('[data-warning-delete]').forEach(button => button.addEventListener('click', () => openWarningDeleteConfirmation(warningHistoryRecords.find(record => record.id === button.dataset.warningDelete))));
+  const loadMoreButton = document.createElement('button');
+  loadMoreButton.type = 'button';
+  loadMoreButton.className = 'pledge-secondary-button pledge-load-more';
+  loadMoreButton.textContent = warningHistoryHasMore ? 'تحميل المزيد' : '';
+  loadMoreButton.hidden = !warningHistoryHasMore;
+  loadMoreButton.addEventListener('click', () => loadWarningHistory(false));
+  list.appendChild(loadMoreButton);
+}
+
+async function loadWarningHistory(reset = true) {
+  if (!warningTeacherId) {
+    warningHistoryRecords = [];
+    renderWarningHistory();
+    return;
+  }
+  if (reset) {
+    warningHistoryRecords = [];
+    warningHistoryCursor = null;
+    warningHistoryHasMore = false;
+  }
+  const filters = [where('teacherId', '==', warningTeacherId)];
+  if (warningClassId) filters.push(where('classId', '==', warningClassId));
+  if (warningStudentId) filters.push(where('studentId', '==', warningStudentId));
+  filters.push(orderBy('createdAt', 'desc'), limit(25));
+  if (warningHistoryCursor) filters.push(startAfter(warningHistoryCursor));
+  let snapshot;
+  let fallback = false;
+  try {
+    snapshot = await getDocs(query(collection(db, WARNING_COLLECTION), ...filters));
+  } catch (error) {
+    if (error.code !== 'failed-precondition') throw error;
+    const fallbackFilters = [where('teacherId', '==', warningTeacherId)];
+    if (warningClassId) fallbackFilters.push(where('classId', '==', warningClassId));
+    if (warningStudentId) fallbackFilters.push(where('studentId', '==', warningStudentId));
+    fallbackFilters.push(limit(100));
+    snapshot = await getDocs(query(collection(db, WARNING_COLLECTION), ...fallbackFilters));
+    fallback = true;
+  }
+  const records = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+  records.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  warningHistoryRecords = [...warningHistoryRecords, ...records];
+  warningHistoryCursor = snapshot.docs.at(-1) || null;
+  warningHistoryHasMore = !fallback && snapshot.docs.length === 25;
+  renderWarningHistory();
+}
+
+function showWarningDetails(record) {
+  if (!record) return;
+  selectedWarningRecord = record;
+  const details = document.getElementById('warningDetailsContent');
+  if (details) details.innerHTML = `<div class="pledge-details-grid"><div class="pledge-detail-cell"><span>الطالب</span><strong>${escapeHtml(record.studentName)}</strong></div><div class="pledge-detail-cell"><span>المعلم</span><strong>${escapeHtml(record.teacherName)}</strong></div><div class="pledge-detail-cell"><span>نوع الإنذار</span><strong>${escapeHtml(WARNING_TYPES[record.violationType]?.label || record.violationType)}</strong></div><div class="pledge-detail-cell"><span>التاريخ الهجري</span><strong>${escapeHtml(record.hijriDate)}</strong></div></div><div class="pledge-detail-body">${escapeHtml(record.messageContent)}</div>`;
+  document.getElementById('warningDetailsModal')?.removeAttribute('hidden');
+}
+
+function openWarningDeleteConfirmation(record) {
+  if (!record) return;
+  selectedWarningRecord = record;
+  document.getElementById('warningDetailsModal')?.setAttribute('hidden', '');
+  document.getElementById('warningDeleteModal')?.removeAttribute('hidden');
+}
+
+async function showPreviousWarningNotice(studentId, violationType) {
+  const notice = document.getElementById('warningPreviousNotice');
+  if (!notice || !studentId || !violationType) return;
+  try {
+    let snapshot;
+    try {
+      snapshot = await getDocs(query(collection(db, WARNING_COLLECTION), where('studentId', '==', studentId), where('violationType', '==', violationType), limit(20)));
+    } catch (error) {
+      snapshot = await getDocs(query(collection(db, WARNING_COLLECTION), where('studentId', '==', studentId), limit(50)));
+    }
+    const records = snapshot.docs.map(item => ({ id: item.id, ...item.data() })).filter(record => record.violationType === violationType).sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+    if (!records.length) {
+      notice.hidden = true;
+      return;
+    }
+    notice.textContent = `يوجد إنذار شفهي سابق لهذا الطالب بنفس الملاحظة بتاريخ ${records[0].hijriDate}.`;
+    notice.hidden = false;
+  } catch (error) {
+    console.warn('Unable to check previous warning:', error);
+    notice.hidden = true;
+  }
+}
+
+async function deleteSelectedWarning() {
+  if (!selectedWarningRecord) return;
+  const button = document.getElementById('confirmWarningDeleteButton');
+  button.disabled = true;
+  try {
+    await deleteDoc(doc(db, WARNING_COLLECTION, selectedWarningRecord.id));
+    warningHistoryRecords = warningHistoryRecords.filter(record => record.id !== selectedWarningRecord.id);
+    closePledgeModals();
+    selectedWarningRecord = null;
+    renderWarningHistory();
+    setWarningStatus('تم حذف الإنذار بنجاح.', 'success');
+  } catch (error) {
+    console.error('Error deleting warning:', error);
+    setWarningStatus('تعذر حذف الإنذار. حاول مرة أخرى.', 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function createWarning() {
+  const teacherId = document.getElementById('warningTeacherSelect')?.value;
+  const studentId = document.getElementById('warningStudentSelect')?.value;
+  const violationType = document.getElementById('warningTypeSelect')?.value;
+  const teacher = teacherRecords.find(item => item.teacherId === teacherId);
+  const student = teacher?.students.find(item => item.id === studentId);
+  if (!teacher || !student || !WARNING_TYPES[violationType]) {
+    setWarningStatus('أكمل اختيار المعلم والطالب ونوع الملاحظة أولًا.', 'error');
+    return;
+  }
+  const button = document.getElementById('createWarningButton');
+  button.dataset.loading = 'true';
+  button.disabled = true;
+  const hijriDate = getHijriDate();
+  const record = { studentId, studentName: student.name, teacherId, teacherName: teacher.teacherName, classId: student.classId, actionType: 'verbal_warning', violationType, hijriDate, messageContent: buildWarningMessage(student.name, violationType, hijriDate), guardianPhone: student.guardianPhone || '', createdAt: serverTimestamp(), createdBy: getAdminName() };
+  try {
+    await addDoc(collection(db, WARNING_COLLECTION), record);
+    setWarningStatus('تم تسجيل الإنذار وتجهيز الرسالة.', 'success');
+    openWarningWhatsApp(record);
+    await loadWarningHistory(true);
+  } catch (error) {
+    console.error('Error creating warning:', error);
+    setWarningStatus('تعذر حفظ الإنذار. حاول مرة أخرى.', 'error');
+  } finally {
+    button.dataset.loading = 'false';
+    updateWarningCreateButton();
+  }
 }
 
 function renderHistory() {
@@ -220,7 +468,7 @@ async function loadPledgeData() {
         const classStudents = [];
         studentsSnapshot.forEach(studentDoc => {
           const data = studentDoc.data();
-          const student = { id: studentDoc.id, name: data.name || 'طالب بدون اسم', classId, fullData: data };
+          const student = { id: studentDoc.id, name: data.name || 'طالب بدون اسم', guardianPhone: data.guardianPhone || '', classId, fullData: data };
           studentsById.set(studentDoc.id, student);
           classStudents.push(student);
         });
@@ -231,7 +479,9 @@ async function loadPledgeData() {
     teacherRecords = teacherRecords.sort((a, b) => a.teacherName.localeCompare(b.teacherName, 'ar'));
     renderTeacherOptions();
     renderHistoryTeacherOptions();
+    renderWarningTeacherOptions();
     renderHistory();
+    renderWarningHistory();
   } catch (error) {
     console.error('Error loading pledge data:', error);
     setStatus('تعذر تحميل المعلمين والطلاب. تحقق من الاتصال والصلاحيات.', 'error');
@@ -475,6 +725,7 @@ async function createPledge() {
       teacherId,
       teacherName: teacher.teacherName,
       classId: student.classId,
+      actionType: 'pledge',
       type,
       title: template.title,
       generatedContent,
@@ -518,7 +769,54 @@ function bindEvents() {
     document.getElementById('pledgeTypeField')?.classList.toggle('is-visible', Boolean(event.target.value));
     updateCreateButton();
   });
-  document.getElementById('pledgeTypeSelect')?.addEventListener('change', updateCreateButton);
+  document.getElementById('pledgeTypeSelect')?.addEventListener('change', async event => {
+    updateCreateButton();
+    await showPreviousWarningNotice(document.getElementById('pledgeStudentSelect')?.value, event.target.value);
+  });
+  document.getElementById('warningTeacherSelect')?.addEventListener('change', event => renderWarningStudents(event.target.value));
+  document.getElementById('warningStudentSelect')?.addEventListener('change', event => {
+    document.getElementById('warningTypeField')?.classList.toggle('is-visible', Boolean(event.target.value));
+    updateWarningCreateButton();
+  });
+  document.getElementById('warningTypeSelect')?.addEventListener('change', updateWarningCreateButton);
+  document.getElementById('createWarningButton')?.addEventListener('click', createWarning);
+  document.getElementById('resetWarningButton')?.addEventListener('click', () => {
+    document.getElementById('warningTeacherSelect').value = '';
+    document.getElementById('warningStudentSelect').innerHTML = '<option value="">اختر الطالب</option>';
+    document.getElementById('warningStudentSelect').disabled = true;
+    document.getElementById('warningStudentField')?.classList.remove('is-visible');
+    document.getElementById('warningTypeField')?.classList.remove('is-visible');
+    document.getElementById('warningPreviousNotice')?.setAttribute('hidden', '');
+    document.getElementById('warningTypeSelect').value = '';
+    updateWarningCreateButton();
+    setWarningStatus('');
+  });
+  document.getElementById('warningHistoryTeacherSelect')?.addEventListener('change', async event => {
+    warningTeacherId = event.target.value;
+    warningClassId = '';
+    warningStudentId = '';
+    renderWarningHistoryLinkedOptions();
+    await loadWarningHistory(true);
+  });
+  document.getElementById('warningHistoryClassSelect')?.addEventListener('change', async event => {
+    warningClassId = event.target.value;
+    warningStudentId = '';
+    renderWarningHistoryLinkedOptions();
+    await loadWarningHistory(true);
+  });
+  document.getElementById('warningHistoryStudentSelect')?.addEventListener('change', async event => {
+    warningStudentId = event.target.value;
+    await loadWarningHistory(true);
+  });
+  document.getElementById('warningDetailsWhatsappButton')?.addEventListener('click', () => openWarningWhatsApp(selectedWarningRecord));
+  document.getElementById('warningDetailsDeleteButton')?.addEventListener('click', () => openWarningDeleteConfirmation(selectedWarningRecord));
+  document.getElementById('confirmWarningDeleteButton')?.addEventListener('click', deleteSelectedWarning);
+  document.querySelectorAll('[data-pledge-primary-tab]').forEach(tab => tab.addEventListener('click', () => {
+    document.querySelectorAll('[data-pledge-primary-tab]').forEach(item => item.classList.remove('is-active'));
+    document.querySelectorAll('.pledge-primary-view').forEach(panel => panel.classList.remove('is-active'));
+    tab.classList.add('is-active');
+    document.getElementById(tab.dataset.pledgePrimaryTab)?.classList.add('is-active');
+  }));
   document.getElementById('createPledgeButton')?.addEventListener('click', createPledge);
   document.getElementById('resetPledgeButton')?.addEventListener('click', resetPledgeForm);
   document.getElementById('pledgeHistoryTeacherSelect')?.addEventListener('change', async event => {
@@ -548,6 +846,7 @@ function bindEvents() {
     tab.classList.add('is-active');
     document.getElementById(tab.dataset.pledgeTab)?.classList.add('is-active');
     if (tab.dataset.pledgeTab === 'pledgeHistoryPanel') loadPledgeHistory(true).catch(error => setStatus('تعذر تحديث سجل التعهدات.', 'error'));
+    if (tab.dataset.pledgeTab === 'warningHistoryPanel') loadWarningHistory(true).catch(error => setWarningStatus('تعذر تحديث سجل الإنذارات.', 'error'));
   }));
 }
 
