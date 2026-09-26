@@ -8380,6 +8380,7 @@ async function loadTeacherAssessmentsSection(container) {
       <div class="teacher-assessment-cards">
         <button class="teacher-assessment-card primary" type="button" onclick="window.openNooraniAssessmentPreview()"><span class="card-kicker">الحلقة اليومية</span><strong>تقييم الطلاب</strong><span>اختيار المعلم والطالب وإدخال درجات اليوم</span><span class="card-action">فتح النموذج</span></button>
         <button class="teacher-assessment-card" type="button" onclick="window.openNooraniTracksPreview()"><span class="card-kicker">الإعداد والتنظيم</span><strong>مسارات الطلاب</strong><span>تحديد مسار كل طالب من طلاب القاعدة</span><span class="card-action">إدارة المسارات</span></button>
+        <button class="teacher-assessment-card" type="button" onclick="window.openNooraniReportsPreview()"><span class="card-kicker">المتابعة والإحصاء</span><strong>التقارير</strong><span>عرض تقارير الطالب حسب المعلم والحلقة</span><span class="card-action">فتح التقارير</span></button>
       </div>
       <div class="teacher-assessment-note"><strong>مصدر البيانات</strong><span>يتم جلب طلاب المستوى العام «القاعدة النورانية» مباشرة من بيانات الحلقات الثلاث.</span></div>
     </section>`;
@@ -8611,8 +8612,8 @@ function buildNonQuranLessonMarkup(prefix, path, amountOptions) {
   return `<div class="teacher-range-row"><input id="${prefix}Number" type="number" min="1" placeholder="رقم الدرس">${page}</div><details class="teacher-amount-sheet"><summary><span>مقدار الدرس</span><strong>درس كامل</strong></summary><select id="${prefix}Amount" onchange="window.updatePreviewLessonAmount(this)">${amountOptions}</select><div class="teacher-lines-row" hidden><input id="${prefix}LineFrom" type="number" min="1" placeholder="من سطر"><input id="${prefix}LineTo" type="number" min="1" placeholder="إلى سطر"></div></details>`;
 }
 
-function buildLessonBoxWrapper(boxId, label, fieldsHtml, scoreControlHtml = '') {
-  return `<div class="teacher-path-range" id="${boxId}" data-lesson-status="${LESSON_STATUS.COMPLETED}"><div class="teacher-lesson-box-head"><strong>${label}</strong>${buildLessonStatusToggle()}</div>${fieldsHtml}${scoreControlHtml}</div>`;
+function buildLessonBoxWrapper(boxId, label, fieldsHtml, scoreId, scoreControlHtml = '') {
+  return `<div class="teacher-path-range" id="${boxId}" data-lesson-status="${LESSON_STATUS.COMPLETED}" data-score-id="${scoreId}"><div class="teacher-lesson-box-head"><strong>${label}</strong>${buildLessonStatusToggle()}</div>${fieldsHtml}${scoreControlHtml}</div>`;
 }
 
 function updateAddLessonButtonLabel(buttonId, count) {
@@ -8646,6 +8647,13 @@ function lessonStatusBadge(status) {
   if (status === LESSON_STATUS.COMPLETED) return '<span class="teacher-lesson-status is-completed" title="أنجز الدرس">● أنجز</span>';
   if (status === LESSON_STATUS.NOT_COMPLETED) return '<span class="teacher-lesson-status is-not-completed" title="لم ينجز الدرس">● لم ينجز</span>';
   return '';
+}
+
+// Disables/enables a score's +/- controls without touching its current value (used for prefilling saved data).
+function applyScoreLockState(scoreId, isLocked) {
+  const output = document.getElementById(`preview-${scoreId}`);
+  const scoreControl = output?.closest('.teacher-score-field');
+  scoreControl?.querySelectorAll('button').forEach(btn => { btn.disabled = isLocked; });
 }
 
 function collectAdditionalLessonsFromContainer(containerId, pathId) {
@@ -8683,7 +8691,24 @@ window.setPreviewLessonStatus = function(button) {
   const group = button.parentElement;
   group.querySelectorAll('.teacher-status-btn').forEach(btn => btn.classList.toggle('is-active', btn === button));
   const box = button.closest('[data-lesson-status]');
-  if (box) box.dataset.lessonStatus = button.dataset.status;
+  if (!box) return;
+  const notCompleted = button.dataset.status === LESSON_STATUS.NOT_COMPLETED;
+  box.dataset.lessonStatus = button.dataset.status;
+  const scoreId = box.dataset.scoreId;
+  if (!scoreId) return;
+  const output = document.getElementById(`preview-${scoreId}`);
+  if (output) {
+    output.value = notCompleted ? 0 : 5;
+    output.textContent = notCompleted ? '0' : '5';
+  }
+  applyScoreLockState(scoreId, notCompleted);
+  const modalRoot = document.getElementById('previewEditModalBody');
+  if (modalRoot && output && modalRoot.contains(output)) {
+    updatePreviewTotals({ root: modalRoot, additionalSelector: '#editAdditionalLessons .teacher-additional-lesson-block', totalId: 'editTotalScore', summaryId: 'editScoreSummary' });
+  } else {
+    const mainRoot = document.getElementById('previewCurrentPanel');
+    if (mainRoot) updatePreviewTotals({ root: mainRoot, additionalSelector: '#previewAdditionalLessons .teacher-additional-lesson-block', totalId: 'previewTotalScore', summaryId: 'previewScoreSummary' });
+  }
 };
 
 window.addAdditionalLessonBlock = function(containerId, prefixBase, pathId, buttonId) {
@@ -8702,6 +8727,7 @@ window.addAdditionalLessonBlock = function(containerId, prefixBase, pathId, butt
   block.dataset.lessonStatus = LESSON_STATUS.COMPLETED;
   block.dataset.prefix = fieldPrefix;
   block.dataset.pathId = effectivePathId;
+  block.dataset.scoreId = scoreId;
   block.innerHTML = `<div class="teacher-lesson-box-head"><strong>درس إضافي</strong>${buildLessonStatusToggle()}<button type="button" class="teacher-remove-lesson-btn" onclick="window.removeAdditionalLessonBlock('${block.id}', '${containerId}', '${buttonId}')">حذف</button></div>${body}${buildLessonScoreControl(scoreId)}`;
   container.appendChild(block);
   updateAddLessonButtonLabel(buttonId, container.children.length);
@@ -8721,7 +8747,7 @@ window.renderPreviewCurriculumFields = function(pathId) {
   const path = getLearningPath(pathId);
   const amountOptions = LESSON_AMOUNT_OPTIONS.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
   const lessonBody = pathId === 'quran' ? buildQuranRangeMarkup('lesson') : buildNonQuranLessonMarkup('previewLesson', path, amountOptions);
-  const lessonFields = buildLessonBoxWrapper('previewLessonBox', 'الدرس الجديد', lessonBody);
+  const lessonFields = buildLessonBoxWrapper('previewLessonBox', 'الدرس الجديد', lessonBody, 'lesson');
   const revisionFields = pathId === 'quran'
     ? `<div class="teacher-path-range"><strong>المراجعة</strong>${buildQuranRangeMarkup('revision')}</div>`
     : `<div class="teacher-path-range"><strong>المراجعة</strong><input class="teacher-free-text" type="text" placeholder="اكتب مقرر المراجعة"></div>`;
@@ -8760,6 +8786,7 @@ function prefillAdditionalLessonBlock(block, existingLesson, pathId) {
   const status = existingLesson.lessonStatus === LESSON_STATUS.NOT_COMPLETED ? LESSON_STATUS.NOT_COMPLETED : LESSON_STATUS.COMPLETED;
   block.dataset.lessonStatus = status;
   block.querySelectorAll('.teacher-status-btn').forEach(btn => btn.classList.toggle('is-active', btn.dataset.status === status));
+  applyScoreLockState(block.dataset.scoreId, status === LESSON_STATUS.NOT_COMPLETED);
   const prefix = block.dataset.prefix;
   if (pathId === 'quran') {
     setSelectValue(`preview-${prefix}-surah`, existingLesson.surahNumber);
@@ -8825,7 +8852,7 @@ function renderPreviousAssessmentEditorModal(studentId, report) {
         <button type="button" class="teacher-inline-back" onclick="window.closePreviousAssessmentEditor()">إغلاق</button>
       </div>
       <div id="previewEditModalBody" class="teacher-edit-modal-body">
-        <div class="teacher-path-range" id="editLessonBox" data-lesson-status="${lessonStatus}">
+        <div class="teacher-path-range" id="editLessonBox" data-lesson-status="${lessonStatus}" data-score-id="editLessonScore">
           <div class="teacher-lesson-box-head"><strong>الدرس الجديد</strong>${buildLessonStatusToggle()}</div>
           ${lessonBody}
         </div>
@@ -8851,6 +8878,7 @@ function renderPreviousAssessmentEditorModal(studentId, report) {
   if (statusGroup) {
     statusGroup.querySelectorAll('.teacher-status-btn').forEach(btn => btn.classList.toggle('is-active', btn.dataset.status === lessonStatus));
   }
+  applyScoreLockState('editLessonScore', lessonStatus === LESSON_STATUS.NOT_COMPLETED);
 
   if (pathId === 'quran') {
     setSelectValue('preview-editLesson-surah', lesson.surahNumber);
@@ -9096,7 +9124,8 @@ window.savePreviewAssessment = async function() {
       saveButton.disabled = true;
       saveButton.textContent = 'جاري الحفظ...';
     }
-    await setDoc(doc(db, 'studentProgress', studentId, 'dailyReports', dateId), reportData);
+    // merge:true preserves attendance fields (status/excuseType/late/distracted) written separately by the daily attendance tool.
+    await setDoc(doc(db, 'studentProgress', studentId, 'dailyReports', dateId), reportData, { merge: true });
     resetPreviewAssessmentFields(pathId);
     const previousScore = document.getElementById('previewPreviousScore');
     if (previousScore) await loadPreviousNooraniAssessment(studentId, previousScore);
@@ -9179,6 +9208,39 @@ window.changeTracksStudent = function(studentId) {
   const pathSelect = document.getElementById('tracksPathSelect');
   if (panel) panel.innerHTML = `<span>${escapeTeacherMarkup(student.name || student.id)}</span><strong>${path.name}</strong>`;
   if (pathSelect) pathSelect.value = pathId;
+};
+
+window.openNooraniReportsPreview = function() {
+  const container = document.getElementById('teacherMainContent');
+  if (!container) return;
+  container.innerHTML = `
+    <section class="teacher-assessment-screen" aria-labelledby="reportsPreviewTitle">
+      <button class="teacher-inline-back" type="button" onclick="window.switchTeacherSection('assessments')">العودة إلى التقييم</button>
+      <div class="teacher-assessment-heading compact"><div><p class="teacher-eyebrow">المتابعة والإحصاء</p><h2 id="reportsPreviewTitle">التقارير</h2><p>اختر المعلم ثم الطالب لعرض تقاريره.</p></div></div>
+      <div class="teacher-track-selectors">
+        <label class="teacher-inline-field"><span>المعلم</span><select id="reportsTeacherSelect" onchange="window.changeReportsTeacher(this.value)">${teacherOptions()}</select></label>
+        <label class="teacher-inline-field"><span>الطالب</span><select id="reportsStudentSelect" onchange="window.changeReportsStudent(this.value)"><option value="">جاري تحميل الطلاب...</option></select></label>
+      </div>
+      <div id="reportsContentPanel" class="teacher-assessment-note"><strong>قريبا</strong><span>سيتم إضافة محتوى التقارير لاحقا بعد تحديد الطالب.</span></div>
+    </section>`;
+  window.changeReportsTeacher(getDefaultNooraniTeacherId());
+};
+
+window.changeReportsTeacher = async function(teacherId) {
+  const students = await renderNooraniStudentOptions('reportsStudentSelect', teacherId);
+  if (students[0]) {
+    document.getElementById('reportsStudentSelect').value = students[0].id;
+    window.changeReportsStudent(students[0].id);
+  }
+};
+
+window.changeReportsStudent = function(studentId) {
+  const teacherId = document.getElementById('reportsTeacherSelect')?.value;
+  const student = (nooraniStudentsByTeacher[teacherId] || []).find(item => item.id === studentId);
+  const panel = document.getElementById('reportsContentPanel');
+  if (panel && student) {
+    panel.innerHTML = `<strong>${escapeTeacherMarkup(student.name || student.id)}</strong><span>سيتم إضافة محتوى التقارير لاحقا.</span>`;
+  }
 };
 
 window.saveSelectedNooraniPath = async function() {

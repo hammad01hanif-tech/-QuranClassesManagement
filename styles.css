@@ -7056,6 +7056,7 @@ details[open] > summary {
 .teacher-score-sheet { margin-bottom: 8px; border: 1px solid #cfe3dd; border-radius: 9px; background: #f7fbfa; }
 .teacher-score-sheet summary { display: flex; align-items: center; justify-content: space-between; padding: 8px 11px; color: #173b35; cursor: pointer; font-size: 12px; font-weight: 700; list-style: none; }
 .teacher-score-sheet summary::-webkit-details-marker { display: none; }
+.teacher-score-control button:disabled { opacity: .4; cursor: not-allowed; }
 .teacher-score-sheet summary::after { content: '⌄'; color: #16806d; font-size: 16px; }
 .teacher-score-sheet:not([open]) summary::after { content: '⌃'; }
 .teacher-score-sheet summary strong { margin-right: auto; margin-left: 10px; color: #16806d; font-size: 13px; }
