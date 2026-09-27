@@ -8428,7 +8428,7 @@ window.openNooraniAssessmentPreview = function() {
       <div class="teacher-form-tabs" role="tablist" aria-label="أقسام التقييم">
         <button class="teacher-form-tab active" type="button" role="tab" aria-selected="true" data-tab="current" onclick="window.switchPreviewAssessmentTab('current')">التقييم الحالي</button>
         <button class="teacher-form-tab" type="button" role="tab" aria-selected="false" data-tab="previous" onclick="window.switchPreviewAssessmentTab('previous')">التقييمات السابقة</button>
-        <button class="teacher-form-tab" type="button" role="tab" aria-selected="false" data-tab="absence" onclick="window.switchPreviewAssessmentTab('absence')">الغياب</button>
+        <button class="teacher-form-tab" type="button" role="tab" aria-selected="false" data-tab="classSummary" onclick="window.switchPreviewAssessmentTab('classSummary')">ملخص الحلقة</button>
       </div>
       <div id="previewCurrentPanel" class="teacher-form-tab-panel active" role="tabpanel">
       <div class="teacher-assessment-selector-grid">
@@ -8452,7 +8452,9 @@ window.openNooraniAssessmentPreview = function() {
       <div id="previewPreviousPanel" class="teacher-form-tab-panel" role="tabpanel" hidden>
         <div class="teacher-previous-table-wrap"><table class="teacher-previous-table keep-table"><thead><tr><th>اليوم/التاريخ</th><th>الدرس</th><th>مقدار الدرس</th><th>المراجعة</th><th>مجموع الدرجات</th></tr></thead><tbody id="previewPreviousTableBody"><tr><td colspan="5">اختر طالبا لعرض التقييمات</td></tr></tbody></table></div>
       </div>
-      <div id="previewAbsencePanel" class="teacher-form-tab-panel" role="tabpanel" hidden></div>
+      <div id="previewClassSummaryPanel" class="teacher-form-tab-panel" role="tabpanel" hidden>
+        <div id="assessmentClassSummaryContent" class="teacher-reports-content"></div>
+      </div>
     </section>`;
   applyPreviewStudyDayState();
   window.changeAssessmentTeacher(getDefaultNooraniTeacherId());
@@ -8494,6 +8496,9 @@ window.changeAssessmentTeacher = async function(teacherId) {
     window.renderPreviewCurriculumFields('noorani');
   }
   applyPreviewStudyDayState();
+  if (!document.getElementById('previewClassSummaryPanel')?.hidden) {
+    loadTodayClassSummaryForAssessmentForm();
+  }
 };
 
 window.changeAssessmentStudent = async function(studentId) {
@@ -8525,7 +8530,19 @@ window.switchPreviewAssessmentTab = function(tabName) {
     panel.classList.toggle('active', active);
     panel.hidden = !active;
   });
+  if (tabName === 'classSummary') {
+    loadTodayClassSummaryForAssessmentForm();
+  }
 };
+
+// Whole-class, today-only progress glance embedded in the assessment form (independent of the selected student).
+function loadTodayClassSummaryForAssessmentForm() {
+  const teacherId = document.getElementById('assessmentTeacherSelect')?.value;
+  if (!teacherId) return;
+  const todayHijri = getCurrentHijriDate();
+  const dateId = todayHijri?.hijri || getTodayForStorage();
+  loadNooraniDailyClassSummary(teacherId, dateId, 'assessmentClassSummaryContent');
+}
 
 async function loadPreviewPreviousReports(studentId) {
   const body = document.getElementById('previewPreviousTableBody');
@@ -9210,37 +9227,148 @@ window.changeTracksStudent = function(studentId) {
   if (pathSelect) pathSelect.value = pathId;
 };
 
+const STRUGGLE_THRESHOLD_PERCENT = 70;
+
+function describeLessonCurriculum(lesson = {}) {
+  const surahName = lesson.surahName || getSurah(lesson.surahNumber)?.name;
+  if (lesson.type === 'quranRange') {
+    return surahName ? `${surahName} ${lesson.fromVerse || ''}-${lesson.toVerse || ''}` : '';
+  }
+  if (lesson.lessonNumber) {
+    return `الدرس ${lesson.lessonNumber}${lesson.pageNumber ? ` - الصفحة ${lesson.pageNumber}` : ''}`;
+  }
+  return '';
+}
+
+function describeRevisionCurriculum(revision = {}) {
+  const surahName = revision.surahName || getSurah(revision.surahNumber)?.name;
+  if (revision.type === 'quranRange') {
+    return surahName ? `${surahName} ${revision.fromVerse || ''}-${revision.toVerse || ''}` : '';
+  }
+  return revision.text || '';
+}
+
+function buildStatusPill(type, label) {
+  return `<span class="teacher-status-pill is-${type}">${label}</span>`;
+}
+
+function renderDailySummaryRow(student, report) {
+  const name = escapeTeacherMarkup(student.name || student.id);
+  if (!report || report.status === undefined || (report.status !== 'absent' && !report.curriculum)) {
+    return `<div class="teacher-daily-row"><div class="teacher-daily-name">${name}</div>${buildStatusPill('pending', 'لم يُقيَّم بعد')}</div>`;
+  }
+  if (report.status === 'absent') {
+    const excuseLabel = report.excuseType === 'withExcuse' ? 'غياب بعذر' : report.excuseType === 'withoutExcuse' ? 'غياب بدون عذر' : 'غائب';
+    return `<div class="teacher-daily-row"><div class="teacher-daily-name">${name}</div>${buildStatusPill('absent', excuseLabel)}</div>`;
+  }
+  const lesson = report.curriculum.lesson || {};
+  const revision = report.curriculum.revision || {};
+  const lessonText = describeLessonCurriculum(lesson) || 'بدون مقرر';
+  const revisionText = describeRevisionCurriculum(revision);
+  const total = report.totalScore ?? 0;
+  const max = report.maxTotalScore ?? 30;
+  const percentage = max ? Math.round((total / max) * 100) : 0;
+  const isFullScore = max > 0 && total === max;
+  const isStruggling = lesson.lessonStatus === LESSON_STATUS.NOT_COMPLETED || percentage < STRUGGLE_THRESHOLD_PERCENT;
+  const statusPill = lesson.lessonStatus === LESSON_STATUS.NOT_COMPLETED
+    ? buildStatusPill('not-completed', 'لم ينجز الدرس')
+    : buildStatusPill('completed', 'أنجز الدرس');
+  const extraPills = [
+    isFullScore ? buildStatusPill('full-score', 'الدرجة كاملة') : '',
+    isStruggling ? buildStatusPill('struggling', 'متعثر') : ''
+  ].filter(Boolean).join('');
+  const additionalCount = report.curriculum.additionalLessons?.length || 0;
+  const additionalNote = additionalCount ? ` + ${additionalCount} إضافي` : '';
+  return `<div class="teacher-daily-row is-assessed">
+    <div class="teacher-daily-row-top"><div class="teacher-daily-name">${name}</div><div class="teacher-daily-score">${total} / ${max}</div></div>
+    <div class="teacher-daily-row-meta">${escapeTeacherMarkup(lessonText)}${additionalNote}${revisionText ? ` · مراجعة: ${escapeTeacherMarkup(revisionText)}` : ''}</div>
+    <div class="teacher-daily-row-pills">${statusPill}${extraPills}</div>
+  </div>`;
+}
+
+async function loadNooraniDailyClassSummary(teacherId, dateId, containerId = 'reportsContentPanel') {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '<p class="teacher-reports-loading">جاري تحميل ملخص اليوم...</p>';
+  try {
+    const students = await getNooraniStudents(teacherId);
+    if (!students.length) {
+      container.innerHTML = '<p class="teacher-reports-empty">لا يوجد طلاب قاعدة في هذه الحلقة.</p>';
+      return;
+    }
+    const rows = await Promise.all(students.map(async student => {
+      const snapshot = await getDoc(doc(db, 'studentProgress', student.id, 'dailyReports', dateId));
+      return { student, report: snapshot.exists() ? snapshot.data() : null };
+    }));
+    const totalCount = rows.length;
+    const absentCount = rows.filter(item => item.report?.status === 'absent').length;
+    const assessedCount = rows.filter(item => item.report?.curriculum).length;
+    const pendingCount = totalCount - absentCount - assessedCount;
+    container.innerHTML = `
+      <div class="teacher-daily-summary-stats">
+        <div class="teacher-daily-stat"><strong>${totalCount}</strong><span>إجمالي الطلاب</span></div>
+        <div class="teacher-daily-stat"><strong>${assessedCount}</strong><span>تم تقييمهم</span></div>
+        <div class="teacher-daily-stat"><strong>${absentCount}</strong><span>غائب</span></div>
+        <div class="teacher-daily-stat"><strong>${pendingCount}</strong><span>لم يُقيَّم</span></div>
+      </div>
+      <div class="teacher-daily-summary-list">${rows.map(({ student, report }) => renderDailySummaryRow(student, report)).join('')}</div>
+    `;
+  } catch (error) {
+    console.error('Error loading daily class summary:', error);
+    container.innerHTML = '<p class="teacher-reports-empty">تعذر تحميل ملخص اليوم.</p>';
+  }
+}
+
+function populateReportsDatePickers() {
+  const daySelect = document.getElementById('reportsDaySelect');
+  const monthSelect = document.getElementById('reportsMonthSelect');
+  const yearSelect = document.getElementById('reportsYearSelect');
+  if (!daySelect || !monthSelect || !yearSelect) return;
+  const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  const today = getCurrentHijriDate();
+  daySelect.innerHTML = Array.from({ length: 30 }, (_, index) => index + 1).map(day => `<option value="${day}">${day}</option>`).join('');
+  monthSelect.innerHTML = hijriMonths.map((name, index) => `<option value="${index + 1}">${name}</option>`).join('');
+  yearSelect.innerHTML = [today.hijriYear - 1, today.hijriYear, today.hijriYear + 1].map(year => `<option value="${year}">${year}</option>`).join('');
+  daySelect.value = today.hijriDay;
+  monthSelect.value = today.hijriMonth;
+  yearSelect.value = today.hijriYear;
+}
+
 window.openNooraniReportsPreview = function() {
   const container = document.getElementById('teacherMainContent');
   if (!container) return;
   container.innerHTML = `
     <section class="teacher-assessment-screen" aria-labelledby="reportsPreviewTitle">
       <button class="teacher-inline-back" type="button" onclick="window.switchTeacherSection('assessments')">العودة إلى التقييم</button>
-      <div class="teacher-assessment-heading compact"><div><p class="teacher-eyebrow">المتابعة والإحصاء</p><h2 id="reportsPreviewTitle">التقارير</h2><p>اختر المعلم ثم الطالب لعرض تقاريره.</p></div></div>
-      <div class="teacher-track-selectors">
+      <div class="teacher-assessment-heading compact"><div><p class="teacher-eyebrow">المتابعة والإحصاء</p><h2 id="reportsPreviewTitle">ملخص الحلقة اليومي</h2><p>اختر المعلم والتاريخ الهجري لعرض ملخص تقييم طلابه لذلك اليوم.</p></div></div>
+      <div class="teacher-reports-controls">
         <label class="teacher-inline-field"><span>المعلم</span><select id="reportsTeacherSelect" onchange="window.changeReportsTeacher(this.value)">${teacherOptions()}</select></label>
-        <label class="teacher-inline-field"><span>الطالب</span><select id="reportsStudentSelect" onchange="window.changeReportsStudent(this.value)"><option value="">جاري تحميل الطلاب...</option></select></label>
+        <div class="teacher-hijri-picker">
+          <select id="reportsDaySelect" onchange="window.changeReportsDate()" aria-label="اليوم"></select>
+          <select id="reportsMonthSelect" onchange="window.changeReportsDate()" aria-label="الشهر"></select>
+          <select id="reportsYearSelect" onchange="window.changeReportsDate()" aria-label="السنة"></select>
+        </div>
       </div>
-      <div id="reportsContentPanel" class="teacher-assessment-note"><strong>قريبا</strong><span>سيتم إضافة محتوى التقارير لاحقا بعد تحديد الطالب.</span></div>
+      <div id="reportsContentPanel" class="teacher-reports-content"></div>
     </section>`;
+  populateReportsDatePickers();
   window.changeReportsTeacher(getDefaultNooraniTeacherId());
 };
 
-window.changeReportsTeacher = async function(teacherId) {
-  const students = await renderNooraniStudentOptions('reportsStudentSelect', teacherId);
-  if (students[0]) {
-    document.getElementById('reportsStudentSelect').value = students[0].id;
-    window.changeReportsStudent(students[0].id);
-  }
+window.changeReportsTeacher = function(teacherId) {
+  const select = document.getElementById('reportsTeacherSelect');
+  if (select) select.value = teacherId;
+  window.changeReportsDate();
 };
 
-window.changeReportsStudent = function(studentId) {
+window.changeReportsDate = function() {
   const teacherId = document.getElementById('reportsTeacherSelect')?.value;
-  const student = (nooraniStudentsByTeacher[teacherId] || []).find(item => item.id === studentId);
-  const panel = document.getElementById('reportsContentPanel');
-  if (panel && student) {
-    panel.innerHTML = `<strong>${escapeTeacherMarkup(student.name || student.id)}</strong><span>سيتم إضافة محتوى التقارير لاحقا.</span>`;
-  }
+  const day = document.getElementById('reportsDaySelect')?.value;
+  const month = document.getElementById('reportsMonthSelect')?.value;
+  const year = document.getElementById('reportsYearSelect')?.value;
+  if (!teacherId || !day || !month || !year) return;
+  const dateId = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  loadNooraniDailyClassSummary(teacherId, dateId);
 };
 
 window.saveSelectedNooraniPath = async function() {

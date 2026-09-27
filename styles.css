@@ -7128,7 +7128,38 @@ details[open] > summary {
 .teacher-selected-track strong { color: #173b35; font-size: 15px; }
 .teacher-track-editor { align-items: end; }
 .teacher-track-editor .teacher-save-preview { grid-column: 1 / -1; }
-@media (max-width: 640px) { .teacher-assessment-heading, .teacher-assessment-note, .teacher-previous-score { flex-direction: column; } .teacher-date-chip { width: 100%; box-sizing: border-box; } .teacher-assessment-cards, .teacher-assessment-selector-grid, .teacher-course-fields, .teacher-curriculum-grid { grid-template-columns: 1fr; } .teacher-score-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .teacher-form-footer { grid-template-columns: 1fr 1fr; } .teacher-track-list article { align-items: stretch; flex-direction: column; gap: 8px; } .teacher-track-list article strong { min-width: 0; } }
+
+/* Daily class summary report */
+.teacher-reports-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.teacher-reports-controls .teacher-inline-field { flex: 1; min-width: 140px; }
+.teacher-hijri-picker { display: flex; gap: 2px; }
+.teacher-hijri-picker select { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 4px; background: #fff; color: #1f2937; font: inherit; font-size: 11px; text-align: center; }
+.teacher-hijri-picker select:first-child { width: 46px; }
+.teacher-hijri-picker select:nth-child(2) { width: 90px; }
+.teacher-hijri-picker select:last-child { width: 62px; }
+.teacher-reports-content { display: flex; flex-direction: column; gap: 10px; }
+.teacher-reports-loading, .teacher-reports-empty { padding: 14px; text-align: center; color: #64748b; font-size: 13px; }
+.teacher-daily-summary-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.teacher-daily-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border: 1px solid #d9e4e1; border-radius: 8px; background: #f7fbfa; }
+.teacher-daily-stat strong { font-size: 16px; color: #173b35; }
+.teacher-daily-stat span { font-size: 10px; color: #64748b; }
+.teacher-daily-summary-list { display: flex; flex-direction: column; gap: 7px; }
+.teacher-daily-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+.teacher-daily-row.is-assessed { flex-direction: column; align-items: stretch; gap: 5px; }
+.teacher-daily-row-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.teacher-daily-name { font-size: 13px; font-weight: 700; color: #1f2937; }
+.teacher-daily-score { font-size: 13px; font-weight: 700; color: #16806d; }
+.teacher-daily-row-meta { font-size: 11px; color: #64748b; }
+.teacher-daily-row-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.teacher-status-pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+.teacher-status-pill.is-pending { background: #f1f5f9; color: #64748b; }
+.teacher-status-pill.is-absent { background: #fef2f2; color: #b91c1c; }
+.teacher-status-pill.is-completed { background: #ecfdf5; color: #15803d; }
+.teacher-status-pill.is-not-completed { background: #fff7ed; color: #c2410c; }
+.teacher-status-pill.is-full-score { background: #eff6ff; color: #1d4ed8; }
+.teacher-status-pill.is-struggling { background: #fef2f2; color: #b91c1c; }
+
+@media (max-width: 640px) { .teacher-assessment-heading, .teacher-assessment-note, .teacher-previous-score { flex-direction: column; } .teacher-date-chip { width: 100%; box-sizing: border-box; } .teacher-assessment-cards, .teacher-assessment-selector-grid, .teacher-course-fields, .teacher-curriculum-grid { grid-template-columns: 1fr; } .teacher-score-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .teacher-form-footer { grid-template-columns: 1fr 1fr; } .teacher-track-list article { align-items: stretch; flex-direction: column; gap: 8px; } .teacher-track-list article strong { min-width: 0; } .teacher-reports-controls { flex-direction: column; align-items: stretch; } .teacher-daily-summary-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* Teacher Home Section Styles */
 .teacher-home-container {
