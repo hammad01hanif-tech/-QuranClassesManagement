@@ -7012,8 +7012,8 @@ details[open] > summary {
 .teacher-form-tab.active { background: #fff; color: #16806d; box-shadow: 0 2px 7px rgba(23, 59, 53, .08); }
 .teacher-form-tab-panel[hidden] { display: none; }
 .teacher-form-tab-panel { min-height: 0; animation: fadeIn .2s ease; }
-.teacher-form-tab-panel#previewCurrentPanel { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; padding: 0 2px 6px; }
-.teacher-form-tab-panel#previewCurrentPanel[hidden] { display: none; }
+.teacher-form-tab-panel.active { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; padding: 0 2px 6px; }
+.teacher-form-tab-panel.active[hidden] { display: none; }
 .teacher-eyebrow { color: #16806d !important; font-size: 12px; font-weight: 700; margin-bottom: 5px !important; }
 .teacher-date-chip { min-width: 160px; padding: 12px 15px; border: 1px solid #d8e5e1; border-radius: 10px; background: #f7fbfa; }
 .teacher-date-chip span, .teacher-date-chip strong { display: block; }
