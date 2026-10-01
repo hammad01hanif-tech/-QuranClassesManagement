@@ -166,14 +166,15 @@ function updateCreateButton() {
 }
 
 function renderTeacherOptions() {
-  const select = document.getElementById('pledgeTeacherSelect');
-  if (!select) return;
-  select.innerHTML = '<option value="">اختر المعلم</option>';
-  teacherRecords.forEach(teacher => {
-    const option = document.createElement('option');
-    option.value = teacher.teacherId;
-    option.textContent = teacher.teacherName;
-    select.appendChild(option);
+  [document.getElementById('pledgeTeacherSelect'), document.getElementById('teacherAlertTeacherSelect')].forEach(select => {
+    if (!select) return;
+    select.innerHTML = '<option value="">اختر المعلم</option>';
+    teacherRecords.forEach(teacher => {
+      const option = document.createElement('option');
+      option.value = teacher.teacherId;
+      option.textContent = teacher.teacherName;
+      select.appendChild(option);
+    });
   });
 }
 
@@ -824,11 +825,25 @@ function bindEvents() {
   document.getElementById('warningDetailsWhatsappButton')?.addEventListener('click', () => openWarningWhatsApp(selectedWarningRecord));
   document.getElementById('warningDetailsDeleteButton')?.addEventListener('click', () => openWarningDeleteConfirmation(selectedWarningRecord));
   document.getElementById('confirmWarningDeleteButton')?.addEventListener('click', deleteSelectedWarning);
-  document.querySelectorAll('[data-pledge-primary-tab]').forEach(tab => tab.addEventListener('click', () => {
-    document.querySelectorAll('[data-pledge-primary-tab]').forEach(item => item.classList.remove('is-active'));
-    document.querySelectorAll('.pledge-primary-view').forEach(panel => panel.classList.remove('is-active'));
+  document.querySelectorAll('[data-pledge-audience-tab]').forEach(tab => tab.addEventListener('click', () => {
+    document.querySelectorAll('[data-pledge-audience-tab]').forEach(item => {
+      item.classList.remove('is-active');
+      item.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.pledge-audience-view').forEach(panel => panel.classList.remove('is-active'));
     tab.classList.add('is-active');
-    document.getElementById(tab.dataset.pledgePrimaryTab)?.classList.add('is-active');
+    tab.setAttribute('aria-selected', 'true');
+    document.getElementById(tab.dataset.pledgeAudienceTab)?.classList.add('is-active');
+  }));
+  document.querySelectorAll('[data-pledge-student-tab]').forEach(tab => tab.addEventListener('click', () => {
+    document.querySelectorAll('[data-pledge-student-tab]').forEach(item => {
+      item.classList.remove('is-active');
+      item.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.pledge-student-view').forEach(panel => panel.classList.remove('is-active'));
+    tab.classList.add('is-active');
+    tab.setAttribute('aria-selected', 'true');
+    document.getElementById(tab.dataset.pledgeStudentTab)?.classList.add('is-active');
   }));
   document.getElementById('createPledgeButton')?.addEventListener('click', createPledge);
   document.getElementById('resetPledgeButton')?.addEventListener('click', resetPledgeForm);

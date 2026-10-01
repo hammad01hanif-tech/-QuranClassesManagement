@@ -1131,12 +1131,45 @@
           </div>
 
           <div class="pledge-page-content">
-            <div class="pledge-primary-tabs" role="tablist" aria-label="الإنذارات والتعهدات">
-              <button class="pledge-primary-tab is-active" type="button" data-pledge-primary-tab="warningPrimaryView" role="tab">الإنذارات الشفهية</button>
-              <button class="pledge-primary-tab" type="button" data-pledge-primary-tab="pledgePrimaryView" role="tab">التعهدات</button>
+            <div class="pledge-primary-tabs" role="tablist" aria-label="الفئة">
+              <button class="pledge-primary-tab" type="button" data-pledge-audience-tab="teacherAudienceView" role="tab" aria-selected="false">المعلمين</button>
+              <button class="pledge-primary-tab is-active" type="button" data-pledge-audience-tab="studentAudienceView" role="tab" aria-selected="true">الطلاب</button>
             </div>
 
-            <section id="warningPrimaryView" class="pledge-primary-view is-active">
+            <section id="teacherAudienceView" class="pledge-audience-view">
+              <div class="pledge-history-heading"><h3>تنبيهات المعلمين</h3><p>اختر المعلم ونوع الملاحظة. تسجيل التنبيه وإعداده سيتم تفعيله لاحقًا.</p></div>
+              <div class="pledge-form-card">
+                <div class="pledge-card-heading"><span class="pledge-step-number">1</span><div><h3>اختيار المعلم</h3><p>اختر المعلم المراد تسجيل التنبيه له.</p></div></div>
+                <label class="pledge-field-label" for="teacherAlertTeacherSelect">المعلم</label>
+                <select class="pledge-select" id="teacherAlertTeacherSelect"><option value="">اختر المعلم</option></select>
+                <div class="pledge-progressive-field is-visible teacher-alert-type-field">
+                  <div class="pledge-card-heading"><span class="pledge-step-number">2</span><div><h3>نوع الملاحظة</h3><p>اختر الملاحظة المتعلقة بالمعلم.</p></div></div>
+                  <label class="pledge-field-label" for="teacherAlertTypeSelect">نوع الملاحظة</label>
+                  <select class="pledge-select" id="teacherAlertTypeSelect">
+                    <option value="">اختر نوع الملاحظة</option>
+                    <option value="official_uniform">الزي الرسمي</option>
+                    <option value="unauthorized_leave">الخروج من الحلقة من غير إذن الإدارة</option>
+                    <option value="late_excuse_notice">عدم إرسال اعتذار الغياب/التأخير قبل بداية الدوام</option>
+                    <option value="prayer_supervision">عدم الإشراف في أوقات الصلوات</option>
+                    <option value="unauthorized_activity">إقامة أنشطة خارجية من غير إذن الإدارة</option>
+                    <option value="unauthorized_plan_change">تغيير برنامج/خطة الطالب التعليمية من غير الرجوع للإدارة</option>
+                    <option value="missing_daily_reports">عدم الالتزام بإرسال التقارير اليومية/التسجيل في الكشوفات والتطبيق</option>
+                  </select>
+                </div>
+                <div class="pledge-form-actions">
+                  <button id="createTeacherAlertButton" class="pledge-primary-button" type="button" disabled aria-describedby="teacherAlertDisabledNote">تسجيل التنبيه وإعداده</button>
+                  <span id="teacherAlertDisabledNote" class="teacher-alert-disabled-note">سيتم تفعيل التسجيل والإرسال لاحقًا.</span>
+                </div>
+              </div>
+            </section>
+
+            <section id="studentAudienceView" class="pledge-audience-view is-active">
+            <div class="pledge-primary-tabs pledge-student-tabs" role="tablist" aria-label="قسم الطلاب">
+              <button class="pledge-primary-tab is-active" type="button" data-pledge-student-tab="warningPrimaryView" role="tab" aria-selected="true">الإنذارات الشفهية</button>
+              <button class="pledge-primary-tab" type="button" data-pledge-student-tab="pledgePrimaryView" role="tab" aria-selected="false">التعهدات</button>
+            </div>
+
+            <section id="warningPrimaryView" class="pledge-student-view is-active">
               <div class="pledge-tabs" role="tablist" aria-label="الإنذارات الشفهية">
                 <button class="pledge-tab is-active" type="button" data-pledge-tab="warningCreatePanel" role="tab">إضافة إنذار</button>
                 <button class="pledge-tab" type="button" data-pledge-tab="warningHistoryPanel" role="tab">سجل الإنذارات</button>
@@ -1177,7 +1210,7 @@
               </section>
             </section>
 
-            <section id="pledgePrimaryView" class="pledge-primary-view">
+            <section id="pledgePrimaryView" class="pledge-student-view">
             <div id="pledgeOfficialNavigation" class="pledge-tabs" role="tablist" aria-label="تعهدات الطلاب">
               <button class="pledge-tab is-active" type="button" data-pledge-tab="pledgeCreatePanel" role="tab">إنشاء تعهد</button>
               <button class="pledge-tab" type="button" data-pledge-tab="pledgeHistoryPanel" role="tab">سجل التعهدات</button>
@@ -1231,6 +1264,7 @@
                 </div>
                 <div id="pledgeHistoryList" class="pledge-history-list"></div>
               </div>
+            </section>
             </section>
             </section>
           </div>
