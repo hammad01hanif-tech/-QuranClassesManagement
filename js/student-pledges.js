@@ -4,6 +4,7 @@ import {
   doc,
   deleteDoc,
   getDocs,
+  getCountFromServer,
   query,
   where,
   addDoc,
@@ -16,6 +17,37 @@ import { getTodayAccurateHijri, formatAccurateHijriDate } from './accurate-hijri
 
 const PLEDGE_COLLECTION = 'studentPledges';
 const WARNING_COLLECTION = 'verbalWarnings';
+const TEACHER_ALERT_COLLECTION = 'teacherAlerts';
+const TEACHER_ALERT_TYPES = {
+  official_uniform: {
+    label: 'الزي الرسمي',
+    note: 'الالتزام بالزي الرسمي المعتمد.'
+  },
+  unauthorized_leave: {
+    label: 'الخروج من الحلقة من غير إذن الإدارة',
+    note: 'عدم مغادرة الحلقة أو مقر العمل دون إذن الإدارة.'
+  },
+  late_excuse_notice: {
+    label: 'عدم إرسال اعتذار الغياب/التأخير قبل بداية الدوام',
+    note: 'إرسال اعتذار الغياب أو التأخير قبل بداية الدوام.'
+  },
+  prayer_supervision: {
+    label: 'عدم الإشراف في أوقات الصلوات',
+    note: 'القيام بمهام الإشراف المكلف بها في أوقات الصلوات.'
+  },
+  unauthorized_activity: {
+    label: 'إقامة أنشطة خارجية من غير إذن الإدارة',
+    note: 'الحصول على إذن الإدارة قبل إقامة أي نشاط خارجي.'
+  },
+  unauthorized_plan_change: {
+    label: 'تغيير برنامج/خطة الطالب التعليمية من غير الرجوع للإدارة',
+    note: 'الرجوع إلى الإدارة قبل تعديل البرنامج أو الخطة التعليمية للطالب.'
+  },
+  missing_daily_reports: {
+    label: 'عدم الالتزام بإرسال التقارير اليومية/التسجيل في الكشوفات والتطبيق',
+    note: 'الالتزام بإرسال التقارير اليومية وتسجيل البيانات في الكشوفات والتطبيق.'
+  }
+};
 const PLEDGE_TYPES = {
   absences: {
     label: 'الغيابات',
@@ -108,6 +140,13 @@ const WARNING_TYPES = Object.fromEntries(Object.entries(PLEDGE_TYPES).map(([key,
 }]));
 
 let teacherRecords = [];
+let teacherAlertHistoryRecords = [];
+let teacherAlertHistoryCursor = null;
+let teacherAlertHistoryHasMore = false;
+let teacherAlertHistoryTeacherId = '';
+let teacherAlertHistoryTotalCount = 0;
+let teacherAlertHistoryRequestId = 0;
+let selectedTeacherAlertRecord = null;
 let currentStudents = [];
 let historyRecords = [];
 let eventsBound = false;
@@ -151,6 +190,199 @@ function openWarningWhatsApp(record) {
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(record.messageContent)}`, '_blank');
 }
 
+function buildTeacherAlertMessage(teacherName, type, hijriDate) {
+  const note = TEACHER_ALERT_TYPES[type]?.note;
+  return `أستاذنا الفاضل ${teacherName}\n\nتحية طيبة ملؤها التقدير لجهودكم وعطائكم المستمر.\n\nمن باب الحرص المتبادل على سير العمل بأفضل صورة، نود لفت انتباهكم الكريم إلى تسجيل ملاحظة بسيطة بخصوص: ${note}\n\nكلي ثقة بحرصكم الدائم وتفهمكم.\n\nشاكرين لكم سعة صدركم وتقبلكم، ودمتم بعطاء.\n\nإدارة حلقات جامع حمدة آل ثاني\nالتاريخ الهجري: ${hijriDate}`;
+}
+
+function normalizeSaudiPhone(phone) {
+  let digits = String(phone || '').replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (digits.startsWith('966')) return digits;
+  if (digits.startsWith('0')) digits = digits.slice(1);
+  return digits ? `966${digits}` : '';
+}
+
+async function openTeacherAlertWhatsApp(record, popupWindow = null, statusTarget = setTeacherAlertStatus) {
+  let teacherPhone = typeof window.getTeacherPhone === 'function'
+    ? await window.getTeacherPhone(record.teacherId)
+    : null;
+  if (!teacherPhone && typeof window.getTeacherPhone === 'function') {
+    teacherPhone = await window.getTeacherPhone(record.teacherName);
+  }
+  const normalizedPhone = normalizeSaudiPhone(teacherPhone);
+  if (!normalizedPhone) {
+    popupWindow?.close();
+    statusTarget('لا يوجد رقم جوال مسجل لهذا المعلم.', 'error');
+    return false;
+  }
+
+  const whatsappUrl = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(record.messageContent)}`;
+  const opened = popupWindow
+    ? (popupWindow.location.href = whatsappUrl, true)
+    : Boolean(window.open(whatsappUrl, '_blank'));
+  statusTarget(
+    opened ? 'تم فتح واتساب برسالة التنبيه.' : 'تعذر فتح واتساب. تحقق من سماح المتصفح بالنوافذ المنبثقة.',
+    opened ? 'success' : 'error'
+  );
+  return opened;
+}
+
+function setTeacherAlertStatus(message = '', type = '') {
+  const status = document.getElementById('teacherAlertStatusMessage');
+  if (!status) return;
+  status.textContent = message;
+  status.className = `pledge-status-message${type ? ` ${type}` : ''}`;
+}
+
+function setTeacherAlertHistoryStatus(message = '', type = '') {
+  const status = document.getElementById('teacherAlertHistoryStatus');
+  if (!status) return;
+  status.textContent = message;
+  status.className = `pledge-status-message${type ? ` ${type}` : ''}`;
+}
+
+function updateTeacherAlertButton() {
+  const button = document.getElementById('createTeacherAlertButton');
+  const hasSelection = document.getElementById('teacherAlertTeacherSelect')?.value && document.getElementById('teacherAlertTypeSelect')?.value;
+  if (button) button.disabled = !hasSelection || button.dataset.loading === 'true';
+}
+
+function renderTeacherAlertHistory() {
+  const list = document.getElementById('teacherAlertHistoryList');
+  const countSummary = document.getElementById('teacherAlertCountSummary');
+  if (countSummary) {
+    countSummary.hidden = !teacherAlertHistoryTeacherId;
+    countSummary.textContent = teacherAlertHistoryTeacherId ? `إجمالي التنبيهات: ${teacherAlertHistoryTotalCount}` : '';
+  }
+  if (!list) return;
+  if (!teacherAlertHistoryTeacherId) {
+    list.innerHTML = '<div class="pledge-empty-state">اختر المعلم لعرض سجل تنبيهاته.</div>';
+    return;
+  }
+  if (!teacherAlertHistoryRecords.length) {
+    list.innerHTML = '<div class="pledge-empty-state">لا توجد تنبيهات مسجلة لهذا المعلم.</div>';
+    return;
+  }
+
+  list.innerHTML = `<div class="pledge-history-table-wrap"><table class="pledge-history-table"><thead><tr><th>المعلم</th><th>نوع الملاحظة</th><th>التاريخ الهجري</th><th>الإجراء</th></tr></thead><tbody>${teacherAlertHistoryRecords.map(record => `<tr data-teacher-alert-row="${escapeHtml(record.id)}"><td>${escapeHtml(record.teacherName)}</td><td>${escapeHtml(record.violationLabel || TEACHER_ALERT_TYPES[record.violationType]?.label || record.violationType)}</td><td>${escapeHtml(record.hijriDate)}</td><td class="pledge-row-actions"><button class="pledge-table-button" type="button" data-teacher-alert-details="${escapeHtml(record.id)}">عرض</button><button class="pledge-table-button" type="button" data-teacher-alert-whatsapp="${escapeHtml(record.id)}">واتساب</button><button class="pledge-table-button pledge-table-danger" type="button" data-teacher-alert-delete="${escapeHtml(record.id)}">حذف</button></td></tr>`).join('')}</tbody></table></div>`;
+  list.querySelectorAll('[data-teacher-alert-details]').forEach(button => button.addEventListener('click', () => showTeacherAlertDetails(teacherAlertHistoryRecords.find(record => record.id === button.dataset.teacherAlertDetails))));
+  list.querySelectorAll('[data-teacher-alert-whatsapp]').forEach(button => button.addEventListener('click', () => openTeacherAlertWhatsApp(teacherAlertHistoryRecords.find(record => record.id === button.dataset.teacherAlertWhatsapp), null, setTeacherAlertHistoryStatus)));
+  list.querySelectorAll('[data-teacher-alert-delete]').forEach(button => button.addEventListener('click', () => openTeacherAlertDeleteConfirmation(teacherAlertHistoryRecords.find(record => record.id === button.dataset.teacherAlertDelete))));
+  list.querySelectorAll('[data-teacher-alert-row]').forEach(row => row.addEventListener('click', event => {
+    if (event.target.closest('button')) return;
+    showTeacherAlertDetails(teacherAlertHistoryRecords.find(record => record.id === row.dataset.teacherAlertRow));
+  }));
+
+  const loadMoreButton = document.createElement('button');
+  loadMoreButton.type = 'button';
+  loadMoreButton.className = 'pledge-secondary-button pledge-load-more';
+  loadMoreButton.textContent = teacherAlertHistoryHasMore ? 'تحميل المزيد' : '';
+  loadMoreButton.hidden = !teacherAlertHistoryHasMore;
+  loadMoreButton.addEventListener('click', () => loadTeacherAlertHistory(false));
+  list.appendChild(loadMoreButton);
+}
+
+async function loadTeacherAlertHistory(reset = true) {
+  const requestId = ++teacherAlertHistoryRequestId;
+  const requestedTeacherId = teacherAlertHistoryTeacherId;
+  if (!teacherAlertHistoryTeacherId) {
+    teacherAlertHistoryRecords = [];
+    teacherAlertHistoryTotalCount = 0;
+    renderTeacherAlertHistory();
+    return;
+  }
+  if (reset) {
+    teacherAlertHistoryRecords = [];
+    teacherAlertHistoryCursor = null;
+    teacherAlertHistoryHasMore = false;
+    teacherAlertHistoryTotalCount = 0;
+    renderTeacherAlertHistory();
+  }
+  setTeacherAlertHistoryStatus('جاري تحميل سجل التنبيهات...', 'loading');
+  const collectionRef = collection(db, TEACHER_ALERT_COLLECTION);
+  const countQuery = query(collectionRef, where('teacherId', '==', teacherAlertHistoryTeacherId));
+  const filters = [where('teacherId', '==', teacherAlertHistoryTeacherId), orderBy('createdAt', 'desc'), limit(25)];
+  if (teacherAlertHistoryCursor) filters.push(startAfter(teacherAlertHistoryCursor));
+
+  let snapshot;
+  let usedFallback = false;
+  try {
+    [snapshot, teacherAlertHistoryTotalCount] = await Promise.all([
+      getDocs(query(collectionRef, ...filters)),
+      getCountFromServer(countQuery).then(result => result.data().count)
+    ]);
+  } catch (error) {
+    if (requestId !== teacherAlertHistoryRequestId) return;
+    if (error.code !== 'failed-precondition') {
+      setTeacherAlertHistoryStatus('تعذر تحميل سجل التنبيهات لهذا المعلم.', 'error');
+      console.error('Error loading teacher alert history:', error);
+      return;
+    }
+    try {
+      const [fallbackSnapshot, totalCount] = await Promise.all([
+        getDocs(query(collectionRef, where('teacherId', '==', teacherAlertHistoryTeacherId), limit(100))),
+        getCountFromServer(countQuery).then(result => result.data().count)
+      ]);
+      snapshot = fallbackSnapshot;
+      teacherAlertHistoryTotalCount = totalCount;
+      usedFallback = true;
+    } catch (fallbackError) {
+      if (requestId !== teacherAlertHistoryRequestId) return;
+      setTeacherAlertHistoryStatus('تعذر تحميل سجل التنبيهات لهذا المعلم.', 'error');
+      console.error('Error loading teacher alert history fallback:', fallbackError);
+      return;
+    }
+  }
+
+  if (requestId !== teacherAlertHistoryRequestId || requestedTeacherId !== teacherAlertHistoryTeacherId) return;
+
+  const records = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+  records.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  teacherAlertHistoryRecords = [...teacherAlertHistoryRecords, ...records];
+  teacherAlertHistoryCursor = snapshot.docs.at(-1) || null;
+  teacherAlertHistoryHasMore = !usedFallback && snapshot.docs.length === 25;
+  setTeacherAlertHistoryStatus('');
+  renderTeacherAlertHistory();
+}
+
+function showTeacherAlertDetails(record) {
+  if (!record) return;
+  selectedTeacherAlertRecord = record;
+  const details = document.getElementById('teacherAlertDetailsContent');
+  if (details) {
+    details.innerHTML = `<div class="pledge-details-grid"><div class="pledge-detail-cell"><span>المعلم</span><strong>${escapeHtml(record.teacherName)}</strong></div><div class="pledge-detail-cell"><span>نوع الملاحظة</span><strong>${escapeHtml(record.violationLabel || TEACHER_ALERT_TYPES[record.violationType]?.label || record.violationType)}</strong></div><div class="pledge-detail-cell"><span>التاريخ الهجري</span><strong>${escapeHtml(record.hijriDate)}</strong></div><div class="pledge-detail-cell"><span>الحلقات</span><strong>${escapeHtml((record.classIds || (record.classId ? [record.classId] : [])).join('، ') || 'غير محددة')}</strong></div></div><div class="pledge-detail-body">${escapeHtml(record.messageContent || '')}</div>`;
+  }
+  document.getElementById('teacherAlertDetailsModal')?.removeAttribute('hidden');
+}
+
+function openTeacherAlertDeleteConfirmation(record) {
+  if (!record) return;
+  selectedTeacherAlertRecord = record;
+  document.getElementById('teacherAlertDetailsModal')?.setAttribute('hidden', '');
+  document.getElementById('teacherAlertDeleteModal')?.removeAttribute('hidden');
+}
+
+async function deleteSelectedTeacherAlert() {
+  if (!selectedTeacherAlertRecord) return;
+  const button = document.getElementById('confirmTeacherAlertDeleteButton');
+  button.disabled = true;
+  try {
+    await deleteDoc(doc(db, TEACHER_ALERT_COLLECTION, selectedTeacherAlertRecord.id));
+    teacherAlertHistoryRecords = teacherAlertHistoryRecords.filter(record => record.id !== selectedTeacherAlertRecord.id);
+    teacherAlertHistoryTotalCount = Math.max(0, teacherAlertHistoryTotalCount - 1);
+    closePledgeModals();
+    selectedTeacherAlertRecord = null;
+    renderTeacherAlertHistory();
+    setTeacherAlertHistoryStatus('تم حذف التنبيه.', 'success');
+  } catch (error) {
+    console.error('Error deleting teacher alert:', error);
+    setTeacherAlertHistoryStatus('تعذر حذف التنبيه. حاول مرة أخرى.', 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function setStatus(message = '', type = '') {
   const status = document.getElementById('pledgeStatusMessage');
   if (!status) return;
@@ -166,7 +398,11 @@ function updateCreateButton() {
 }
 
 function renderTeacherOptions() {
-  [document.getElementById('pledgeTeacherSelect'), document.getElementById('teacherAlertTeacherSelect')].forEach(select => {
+  [
+    document.getElementById('pledgeTeacherSelect'),
+    document.getElementById('teacherAlertTeacherSelect'),
+    document.getElementById('teacherAlertHistoryTeacherSelect')
+  ].forEach(select => {
     if (!select) return;
     select.innerHTML = '<option value="">اختر المعلم</option>';
     teacherRecords.forEach(teacher => {
@@ -406,6 +642,74 @@ async function createWarning() {
   } finally {
     button.dataset.loading = 'false';
     updateWarningCreateButton();
+  }
+}
+
+async function createTeacherAlert() {
+  const teacherId = document.getElementById('teacherAlertTeacherSelect')?.value;
+  const type = document.getElementById('teacherAlertTypeSelect')?.value;
+  const teacher = teacherRecords.find(item => item.teacherId === teacherId);
+  if (!teacher || !TEACHER_ALERT_TYPES[type]) {
+    setTeacherAlertStatus('اختر المعلم ونوع الملاحظة أولًا.', 'error');
+    return;
+  }
+
+  const button = document.getElementById('createTeacherAlertButton');
+  button.dataset.loading = 'true';
+  updateTeacherAlertButton();
+  setTeacherAlertStatus('جاري تسجيل التنبيه...', 'loading');
+  const whatsappWindow = window.open('about:blank', '_blank');
+  const hijriDate = getHijriDate();
+  const messageContent = buildTeacherAlertMessage(teacher.teacherName, type, hijriDate);
+  const classIds = teacher.classes.map(classRecord => classRecord.classId);
+  const record = {
+    actionType: 'teacher_alert',
+    teacherId,
+    teacherName: teacher.teacherName,
+    classId: classIds.length === 1 ? classIds[0] : null,
+    classIds,
+    violationType: type,
+    violationLabel: TEACHER_ALERT_TYPES[type].label,
+    hijriDate,
+    messageContent,
+    createdAt: serverTimestamp(),
+    createdBy: getAdminName()
+  };
+
+  try {
+    await addDoc(collection(db, TEACHER_ALERT_COLLECTION), record);
+    if (teacherAlertHistoryTeacherId === teacherId) {
+      await loadTeacherAlertHistory(true);
+    }
+    let teacherPhone = typeof window.getTeacherPhone === 'function'
+      ? await window.getTeacherPhone(teacherId)
+      : null;
+    if (!teacherPhone && typeof window.getTeacherPhone === 'function') {
+      teacherPhone = await window.getTeacherPhone(teacher.teacherName);
+    }
+    const normalizedPhone = normalizeSaudiPhone(teacherPhone);
+
+    if (!normalizedPhone) {
+      whatsappWindow?.close();
+      setTeacherAlertStatus('تم حفظ التنبيه، لكن لا يوجد رقم جوال مسجل لهذا المعلم.', 'error');
+      return;
+    }
+
+    const whatsappUrl = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(messageContent)}`;
+    const whatsappOpened = whatsappWindow
+      ? (whatsappWindow.location.href = whatsappUrl, true)
+      : Boolean(window.open(whatsappUrl, '_blank'));
+    setTeacherAlertStatus(
+      whatsappOpened ? 'تم تسجيل التنبيه وفتح واتساب للمعلم.' : 'تم حفظ التنبيه، لكن المتصفح منع فتح واتساب. اسمح بالنوافذ المنبثقة ثم أعد المحاولة.',
+      whatsappOpened ? 'success' : 'error'
+    );
+  } catch (error) {
+    console.error('Error creating teacher alert:', error);
+    whatsappWindow?.close();
+    setTeacherAlertStatus('تعذر تسجيل التنبيه. لم يتم فتح واتساب، حاول مرة أخرى.', 'error');
+  } finally {
+    button.dataset.loading = 'false';
+    updateTeacherAlertButton();
   }
 }
 
@@ -825,6 +1129,36 @@ function bindEvents() {
   document.getElementById('warningDetailsWhatsappButton')?.addEventListener('click', () => openWarningWhatsApp(selectedWarningRecord));
   document.getElementById('warningDetailsDeleteButton')?.addEventListener('click', () => openWarningDeleteConfirmation(selectedWarningRecord));
   document.getElementById('confirmWarningDeleteButton')?.addEventListener('click', deleteSelectedWarning);
+  document.getElementById('teacherAlertTeacherSelect')?.addEventListener('change', event => {
+    const hasTeacher = Boolean(event.target.value);
+    const typeSelect = document.getElementById('teacherAlertTypeSelect');
+    if (typeSelect && !hasTeacher) typeSelect.value = '';
+    if (typeSelect) typeSelect.disabled = !hasTeacher;
+    document.getElementById('teacherAlertTypeField')?.classList.toggle('is-visible', hasTeacher);
+    updateTeacherAlertButton();
+  });
+  document.getElementById('teacherAlertTypeSelect')?.addEventListener('change', updateTeacherAlertButton);
+  document.getElementById('createTeacherAlertButton')?.addEventListener('click', createTeacherAlert);
+  document.getElementById('teacherAlertHistoryTeacherSelect')?.addEventListener('change', async event => {
+    teacherAlertHistoryTeacherId = event.target.value;
+    teacherAlertHistoryRecords = [];
+    teacherAlertHistoryCursor = null;
+    teacherAlertHistoryHasMore = false;
+    teacherAlertHistoryTotalCount = 0;
+    await loadTeacherAlertHistory(true);
+  });
+  document.querySelectorAll('[data-teacher-alert-tab]').forEach(tab => tab.addEventListener('click', () => {
+    document.querySelectorAll('[data-teacher-alert-tab]').forEach(item => item.classList.remove('is-active'));
+    document.querySelectorAll('.teacher-alert-panel').forEach(panel => panel.classList.remove('is-active'));
+    tab.classList.add('is-active');
+    document.getElementById(tab.dataset.teacherAlertTab)?.classList.add('is-active');
+    if (tab.dataset.teacherAlertTab === 'teacherAlertHistoryPanel' && teacherAlertHistoryTeacherId) {
+      loadTeacherAlertHistory(true);
+    }
+  }));
+  document.getElementById('teacherAlertDetailsWhatsappButton')?.addEventListener('click', () => openTeacherAlertWhatsApp(selectedTeacherAlertRecord, null, setTeacherAlertHistoryStatus));
+  document.getElementById('teacherAlertDetailsDeleteButton')?.addEventListener('click', () => openTeacherAlertDeleteConfirmation(selectedTeacherAlertRecord));
+  document.getElementById('confirmTeacherAlertDeleteButton')?.addEventListener('click', deleteSelectedTeacherAlert);
   document.querySelectorAll('[data-pledge-audience-tab]').forEach(tab => tab.addEventListener('click', () => {
     document.querySelectorAll('[data-pledge-audience-tab]').forEach(item => {
       item.classList.remove('is-active');

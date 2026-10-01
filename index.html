@@ -1137,30 +1137,44 @@
             </div>
 
             <section id="teacherAudienceView" class="pledge-audience-view">
-              <div class="pledge-history-heading"><h3>تنبيهات المعلمين</h3><p>اختر المعلم ونوع الملاحظة. تسجيل التنبيه وإعداده سيتم تفعيله لاحقًا.</p></div>
-              <div class="pledge-form-card">
-                <div class="pledge-card-heading"><span class="pledge-step-number">1</span><div><h3>اختيار المعلم</h3><p>اختر المعلم المراد تسجيل التنبيه له.</p></div></div>
-                <label class="pledge-field-label" for="teacherAlertTeacherSelect">المعلم</label>
-                <select class="pledge-select" id="teacherAlertTeacherSelect"><option value="">اختر المعلم</option></select>
-                <div class="pledge-progressive-field is-visible teacher-alert-type-field">
-                  <div class="pledge-card-heading"><span class="pledge-step-number">2</span><div><h3>نوع الملاحظة</h3><p>اختر الملاحظة المتعلقة بالمعلم.</p></div></div>
-                  <label class="pledge-field-label" for="teacherAlertTypeSelect">نوع الملاحظة</label>
-                  <select class="pledge-select" id="teacherAlertTypeSelect">
-                    <option value="">اختر نوع الملاحظة</option>
-                    <option value="official_uniform">الزي الرسمي</option>
-                    <option value="unauthorized_leave">الخروج من الحلقة من غير إذن الإدارة</option>
-                    <option value="late_excuse_notice">عدم إرسال اعتذار الغياب/التأخير قبل بداية الدوام</option>
-                    <option value="prayer_supervision">عدم الإشراف في أوقات الصلوات</option>
-                    <option value="unauthorized_activity">إقامة أنشطة خارجية من غير إذن الإدارة</option>
-                    <option value="unauthorized_plan_change">تغيير برنامج/خطة الطالب التعليمية من غير الرجوع للإدارة</option>
-                    <option value="missing_daily_reports">عدم الالتزام بإرسال التقارير اليومية/التسجيل في الكشوفات والتطبيق</option>
-                  </select>
-                </div>
-                <div class="pledge-form-actions">
-                  <button id="createTeacherAlertButton" class="pledge-primary-button" type="button" disabled aria-describedby="teacherAlertDisabledNote">تسجيل التنبيه وإعداده</button>
-                  <span id="teacherAlertDisabledNote" class="teacher-alert-disabled-note">سيتم تفعيل التسجيل والإرسال لاحقًا.</span>
-                </div>
+              <div class="pledge-tabs" role="tablist" aria-label="تنبيهات المعلمين">
+                <button class="pledge-tab is-active" type="button" data-teacher-alert-tab="teacherAlertCreatePanel" role="tab">إضافة تنبيه</button>
+                <button class="pledge-tab" type="button" data-teacher-alert-tab="teacherAlertHistoryPanel" role="tab">سجل التنبيهات</button>
               </div>
+              <div id="teacherAlertStatusMessage" class="pledge-status-message" role="status" aria-live="polite"></div>
+              <section id="teacherAlertCreatePanel" class="teacher-alert-panel is-active" role="tabpanel">
+                <div class="pledge-form-card">
+                  <div class="pledge-card-heading"><span class="pledge-step-number">1</span><div><h3>اختيار المعلم</h3><p>اختر المعلم المراد تسجيل التنبيه له.</p></div></div>
+                  <label class="pledge-field-label" for="teacherAlertTeacherSelect">المعلم</label>
+                  <select class="pledge-select" id="teacherAlertTeacherSelect"><option value="">اختر المعلم</option></select>
+                  <div id="teacherAlertTypeField" class="pledge-progressive-field">
+                    <div class="pledge-card-heading"><span class="pledge-step-number">2</span><div><h3>نوع الملاحظة</h3><p>اختر الملاحظة المتعلقة بالمعلم.</p></div></div>
+                    <label class="pledge-field-label" for="teacherAlertTypeSelect">نوع الملاحظة</label>
+                    <select class="pledge-select" id="teacherAlertTypeSelect" disabled>
+                      <option value="">اختر نوع الملاحظة</option>
+                      <option value="official_uniform">الزي الرسمي</option>
+                      <option value="unauthorized_leave">الخروج من الحلقة من غير إذن الإدارة</option>
+                      <option value="late_excuse_notice">عدم إرسال اعتذار الغياب/التأخير قبل بداية الدوام</option>
+                      <option value="prayer_supervision">عدم الإشراف في أوقات الصلوات</option>
+                      <option value="unauthorized_activity">إقامة أنشطة خارجية من غير إذن الإدارة</option>
+                      <option value="unauthorized_plan_change">تغيير برنامج/خطة الطالب التعليمية من غير الرجوع للإدارة</option>
+                      <option value="missing_daily_reports">عدم الالتزام بإرسال التقارير اليومية/التسجيل في الكشوفات والتطبيق</option>
+                    </select>
+                  </div>
+                  <div class="pledge-form-actions"><button id="createTeacherAlertButton" class="pledge-primary-button" type="button" disabled>تسجيل التنبيه وإرسال واتساب</button></div>
+                </div>
+              </section>
+              <section id="teacherAlertHistoryPanel" class="teacher-alert-panel" role="tabpanel">
+                <div class="pledge-history-card">
+                  <div class="pledge-history-heading"><h3>سجل تنبيهات المعلمين</h3><p>اختر معلمًا لمراجعة تنبيهاته المسجلة.</p></div>
+                  <div class="pledge-history-filters teacher-alert-history-filters">
+                    <div class="pledge-filter-field"><label class="pledge-field-label" for="teacherAlertHistoryTeacherSelect">المعلم</label><select class="pledge-select" id="teacherAlertHistoryTeacherSelect"><option value="">اختر المعلم</option></select></div>
+                    <div id="teacherAlertCountSummary" class="teacher-alert-count-summary" hidden></div>
+                  </div>
+                  <div id="teacherAlertHistoryStatus" class="pledge-status-message" role="status" aria-live="polite"></div>
+                  <div id="teacherAlertHistoryList" class="pledge-history-list"></div>
+                </div>
+              </section>
             </section>
 
             <section id="studentAudienceView" class="pledge-audience-view is-active">
@@ -1303,6 +1317,24 @@
           <div class="pledge-modal-dialog pledge-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="warningDeleteTitle">
             <h3 id="warningDeleteTitle">حذف الإنذار</h3><p>هل أنت متأكد من حذف هذا الإنذار؟</p>
             <div class="pledge-modal-actions"><button id="confirmWarningDeleteButton" class="pledge-danger-button" type="button">حذف الإنذار</button><button class="pledge-secondary-button" type="button" data-close-pledge-modal>إلغاء</button></div>
+          </div>
+        </div>
+
+        <div id="teacherAlertDetailsModal" class="pledge-modal" hidden>
+          <div class="pledge-modal-backdrop" data-close-pledge-modal></div>
+          <div class="pledge-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="teacherAlertDetailsTitle">
+            <button class="pledge-modal-close" type="button" data-close-pledge-modal aria-label="إغلاق">×</button>
+            <h3 id="teacherAlertDetailsTitle">تفاصيل التنبيه</h3>
+            <div id="teacherAlertDetailsContent" class="pledge-details-content"></div>
+            <div class="pledge-modal-actions"><button id="teacherAlertDetailsWhatsappButton" class="pledge-primary-button" type="button">إرسال واتساب</button><button id="teacherAlertDetailsDeleteButton" class="pledge-danger-button" type="button">حذف التنبيه</button></div>
+          </div>
+        </div>
+
+        <div id="teacherAlertDeleteModal" class="pledge-modal" hidden>
+          <div class="pledge-modal-backdrop" data-close-pledge-modal></div>
+          <div class="pledge-modal-dialog pledge-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="teacherAlertDeleteTitle">
+            <h3 id="teacherAlertDeleteTitle">حذف التنبيه</h3><p>هل أنت متأكد من حذف هذا التنبيه؟</p>
+            <div class="pledge-modal-actions"><button id="confirmTeacherAlertDeleteButton" class="pledge-danger-button" type="button">حذف التنبيه</button><button class="pledge-secondary-button" type="button" data-close-pledge-modal>إلغاء</button></div>
           </div>
         </div>
 

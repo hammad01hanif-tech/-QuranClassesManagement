@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "teacherAlerts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teacherId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "studentPledges",
       "queryScope": "COLLECTION",
       "fields": [
