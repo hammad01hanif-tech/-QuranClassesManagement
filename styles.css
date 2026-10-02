@@ -7147,6 +7147,8 @@ details[open] > summary {
 .teacher-hijri-picker select:nth-child(2) { width: 90px; }
 .teacher-hijri-picker select:last-child { width: 62px; }
 .teacher-reports-content { display: flex; flex-direction: column; gap: 10px; }
+.teacher-daily-summary-header { display: flex; justify-content: flex-end; }
+.teacher-copy-report-btn { padding: 6px 12px; font-size: 11px; font-weight: 700; align-self: auto; }
 .teacher-reports-loading, .teacher-reports-empty { padding: 14px; text-align: center; color: #64748b; font-size: 13px; }
 .teacher-daily-summary-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .teacher-daily-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border: 1px solid #d9e4e1; border-radius: 8px; background: #f7fbfa; }

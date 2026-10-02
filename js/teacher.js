@@ -20,7 +20,7 @@ import {
 } from '../firebase-config.js';
 
 import { quranSurahs } from './quran-data.js';
-import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, gregorianToHijri, isTodayAStudyDay } from './hijri-date.js';
+import { formatHijriDate, gregorianToHijriDisplay, getTodayForStorage, getStudyDaysInCurrentHijriMonth, getCurrentHijriDate, getStudyDaysForHijriMonth as getStudyDaysForHijriMonthFromCalendar, hijriToGregorian, gregorianToHijri, getHijriDayName, isTodayAStudyDay } from './hijri-date.js';
 import { isLastLessonInJuz, getJuzDetails, isLastLessonInJuzDabt, getJuzDetailsDabt } from './juz-data.js';
 import { accurateHijriDates, getTodayAccurateHijri, formatAccurateHijriDate, gregorianToAccurateHijri } from './accurate-hijri-dates.js';
 import { getMonthlyReport, countStudyDays, getAllWorkingDaysInMonth, getDayInfo, isWeekend, isOfficialHoliday } from './study-days-calendar.js';
@@ -8327,6 +8327,7 @@ const nooraniTeachers = [
 ];
 let nooraniStudentsByTeacher = {};
 let previewPreviousReportsCache = {};
+let classSummaryDataByContainer = {};
 
 function escapeTeacherMarkup(value = '') {
   return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[character]));
@@ -9300,11 +9301,13 @@ async function loadNooraniDailyClassSummary(teacherId, dateId, containerId = 're
       const snapshot = await getDoc(doc(db, 'studentProgress', student.id, 'dailyReports', dateId));
       return { student, report: snapshot.exists() ? snapshot.data() : null };
     }));
+    classSummaryDataByContainer[containerId] = { teacherId, dateId, rows };
     const totalCount = rows.length;
     const absentCount = rows.filter(item => item.report?.status === 'absent').length;
     const assessedCount = rows.filter(item => item.report?.curriculum).length;
     const pendingCount = totalCount - absentCount - assessedCount;
     container.innerHTML = `
+      <div class="teacher-daily-summary-header"><button type="button" id="${containerId}CopyBtn" class="teacher-outline-action teacher-copy-report-btn" onclick="window.copyClassSummaryReport('${containerId}')">نسخ التقرير</button></div>
       <div class="teacher-daily-summary-stats">
         <div class="teacher-daily-stat"><strong>${totalCount}</strong><span>إجمالي الطلاب</span></div>
         <div class="teacher-daily-stat"><strong>${assessedCount}</strong><span>تم تقييمهم</span></div>
@@ -9318,6 +9321,85 @@ async function loadNooraniDailyClassSummary(teacherId, dateId, containerId = 're
     container.innerHTML = '<p class="teacher-reports-empty">تعذر تحميل ملخص اليوم.</p>';
   }
 }
+
+function formatHijriDateForReport(dateId) {
+  const [year, month, day] = dateId.split('-').map(Number);
+  const hijriMonths = ['محرم', 'صفر', 'ربيع الأول', 'ربيع الآخر', 'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'];
+  const gregorianDate = hijriToGregorian(year, month, day);
+  const dayName = gregorianDate ? getHijriDayName(gregorianDate) : '';
+  return { dayName, formatted: `${day} ${hijriMonths[month - 1] || ''} ${year} هـ` };
+}
+
+function renderDailySummaryRowText(student, report) {
+  const name = student.name || student.id;
+  if (!report || report.status === undefined || (report.status !== 'absent' && !report.curriculum)) {
+    return `اسم الطالب: ${name}\nالحالة: لم يُقيَّم بعد`;
+  }
+  if (report.status === 'absent') {
+    const excuseLabel = report.excuseType === 'withExcuse' ? 'غياب بعذر' : report.excuseType === 'withoutExcuse' ? 'غياب بدون عذر' : 'غائب';
+    return `اسم الطالب: ${name}\nالحالة: ${excuseLabel}`;
+  }
+  const lesson = report.curriculum.lesson || {};
+  const revision = report.curriculum.revision || {};
+  const lessonText = describeLessonCurriculum(lesson) || 'بدون مقرر';
+  const revisionText = describeRevisionCurriculum(revision);
+  const total = report.totalScore ?? 0;
+  const max = report.maxTotalScore ?? 30;
+  const percentage = max ? Math.round((total / max) * 100) : 0;
+  const isFullScore = max > 0 && total === max;
+  const isStruggling = lesson.lessonStatus === LESSON_STATUS.NOT_COMPLETED || percentage < STRUGGLE_THRESHOLD_PERCENT;
+  const statusLabel = lesson.lessonStatus === LESSON_STATUS.NOT_COMPLETED ? 'لم ينجز الدرس' : 'أنجز الدرس';
+  const additionalCount = report.curriculum.additionalLessons?.length || 0;
+  const notes = [isFullScore ? 'الدرجة كاملة' : '', isStruggling ? 'متعثر' : ''].filter(Boolean).join(' ، ');
+  const lines = [
+    `اسم الطالب: ${name}`,
+    `الدرس: ${lessonText}${additionalCount ? ` + ${additionalCount} إضافي` : ''}`
+  ];
+  if (revisionText) lines.push(`المراجعة: ${revisionText}`);
+  lines.push(`حالة الدرس: ${statusLabel}`);
+  lines.push(`الدرجة: ${total} / ${max}`);
+  if (notes) lines.push(`ملاحظة: ${notes}`);
+  return lines.join('\n');
+}
+
+function buildClassSummaryReportText(teacherId, dateId, rows) {
+  const teacherName = nooraniTeachers.find(teacher => teacher.id === teacherId)?.name || teacherId;
+  const { dayName, formatted } = formatHijriDateForReport(dateId);
+  const totalCount = rows.length;
+  const absentCount = rows.filter(item => item.report?.status === 'absent').length;
+  const assessedCount = rows.filter(item => item.report?.curriculum).length;
+  const pendingCount = totalCount - absentCount - assessedCount;
+  const header = [
+    'الحصاد اليومي',
+    `المعلم: ${teacherName}`,
+    dayName ? `اليوم: ${dayName}` : '',
+    `التاريخ: ${formatted}`,
+    '',
+    `إجمالي الطلاب: ${totalCount}`,
+    `تم تقييمهم: ${assessedCount}`,
+    `غائب: ${absentCount}`,
+    `لم يُقيَّم: ${pendingCount}`
+  ].filter(line => line !== '').join('\n');
+  const studentsText = rows.map(({ student, report }) => renderDailySummaryRowText(student, report)).join('\n\n');
+  return `${header}\n\n${studentsText}`;
+}
+
+window.copyClassSummaryReport = async function(containerId) {
+  const data = classSummaryDataByContainer[containerId];
+  if (!data) return;
+  const button = document.getElementById(`${containerId}CopyBtn`);
+  const text = buildClassSummaryReportText(data.teacherId, data.dateId, data.rows);
+  try {
+    await navigator.clipboard.writeText(text);
+    if (button) {
+      const originalLabel = button.textContent;
+      button.textContent = 'تم النسخ';
+      setTimeout(() => { button.textContent = originalLabel; }, 1800);
+    }
+  } catch (error) {
+    console.error('Error copying class summary report:', error);
+  }
+};
 
 function populateReportsDatePickers() {
   const daySelect = document.getElementById('reportsDaySelect');
