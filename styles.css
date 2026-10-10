@@ -3780,14 +3780,44 @@ details[open] > summary {
   .bottom-nav-bar {
     display: none;
   }
-  
+
   .floating-action-btn {
     bottom: 30px;
     left: 30px;
   }
-  
+
   .new-admin-design {
-    padding-bottom: 0;
+    padding-bottom: 130px;
+  }
+
+  .new-admin-design .bottom-nav-bar {
+    display: flex;
+    left: 50%;
+    right: auto;
+    bottom: 20px;
+    width: min(900px, calc(100% - 48px));
+    padding: 8px 14px;
+    border: 1px solid #e9ecef;
+    border-radius: 14px;
+    transform: translateX(-50%);
+  }
+
+  .new-admin-design .nav-item {
+    gap: 6px;
+    padding: 10px 14px;
+  }
+
+  .new-admin-design .nav-icon {
+    font-size: 26px;
+  }
+
+  .new-admin-design .nav-label {
+    font-size: 13px;
+  }
+
+  .new-admin-design .floating-action-btn {
+    bottom: 110px;
+    left: 30px;
   }
 }
 
