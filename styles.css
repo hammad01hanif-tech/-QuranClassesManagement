@@ -10881,6 +10881,48 @@ details[open] > summary {
   }
 }
 
+@media (min-width: 769px) {
+  .attendance-report-modal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .attendance-report-modal .attendance-modal-content {
+    position: relative;
+    inset: auto;
+    margin: auto;
+    width: min(1440px, calc(100vw - 64px));
+    max-width: none;
+    max-height: calc(100vh - 48px);
+    transform: scale(0.9);
+  }
+
+  .attendance-report-modal.show .attendance-modal-content {
+    transform: scale(1);
+  }
+
+  .attendance-report-modal .attendance-modal-body {
+    min-width: 0;
+  }
+
+  .attendance-report-modal .attendance-table-container,
+  .attendance-report-modal .table-wrapper {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .attendance-report-modal .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .attendance-report-modal .attendance-table {
+    width: 100%;
+  }
+}
+
 /* ============================================
    زر إعدادات بيانات الحضور
    ============================================ */

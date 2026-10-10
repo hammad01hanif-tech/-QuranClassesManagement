@@ -10108,7 +10108,9 @@ window.openAttendanceRecordModal = function(monthName, year, month, overrideStaf
   
   // Show modal
   const modal = document.createElement('div');
-  modal.className = 'attendance-modal';
+  modal.className = overrideStaffId
+    ? 'attendance-modal attendance-report-modal'
+    : 'attendance-modal';
   
   // Store staffId for this modal session
   window._currentModalStaffId = overrideStaffId;
