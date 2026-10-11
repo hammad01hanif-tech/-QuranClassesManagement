@@ -6753,7 +6753,8 @@ async function loadAbsentReportForDate(hijriDate) {
       
       classesMap[classId] = {
         teacherName: classData.teacherName || classData.className || 'غير محدد',
-        absentStudents: []
+        absentWithoutExcuse: [],
+        absentWithExcuse: []
       };
     });
     
@@ -6772,9 +6773,13 @@ async function loadAbsentReportForDate(hijriDate) {
       if (reportSnap.exists()) {
         const reportData = reportSnap.data();
         
-        // Check if student is absent without excuse
-        if (reportData.status === 'absent' && reportData.excuseType === 'withoutExcuse') {
-          return { classId, studentName };
+        if (reportData.status === 'absent') {
+          if (reportData.excuseType === 'withoutExcuse') {
+            return { classId, studentName, excuseType: 'withoutExcuse' };
+          }
+          if (reportData.excuseType === 'withExcuse') {
+            return { classId, studentName, excuseType: 'withExcuse' };
+          }
         }
       }
       
@@ -6785,18 +6790,25 @@ async function loadAbsentReportForDate(hijriDate) {
     const results = (await Promise.all(reportPromises)).filter(r => r !== null);
     
     // Group by class
-    let totalAbsent = 0;
+    let totalAbsentWithoutExcuse = 0;
+    let totalAbsentWithExcuse = 0;
     results.forEach(result => {
       if (classesMap[result.classId]) {
-        classesMap[result.classId].absentStudents.push(result.studentName);
-        totalAbsent++;
+        if (result.excuseType === 'withoutExcuse') {
+          classesMap[result.classId].absentWithoutExcuse.push(result.studentName);
+          totalAbsentWithoutExcuse++;
+        } else {
+          classesMap[result.classId].absentWithExcuse.push(result.studentName);
+          totalAbsentWithExcuse++;
+        }
       }
     });
     
     // Convert to array and sort
     const classesData = Object.values(classesMap).map(classInfo => ({
       teacherName: classInfo.teacherName,
-      absentStudents: classInfo.absentStudents.sort((a, b) => a.localeCompare(b, 'ar'))
+      absentWithoutExcuse: classInfo.absentWithoutExcuse.sort((a, b) => a.localeCompare(b, 'ar')),
+      absentWithExcuse: classInfo.absentWithExcuse.sort((a, b) => a.localeCompare(b, 'ar'))
     })).sort((a, b) => a.teacherName.localeCompare(b.teacherName, 'ar'));
     
     // Build message
@@ -6805,17 +6817,28 @@ async function loadAbsentReportForDate(hijriDate) {
     classesData.forEach(classInfo => {
       message += `👨‍🏫 ${classInfo.teacherName}\n`;
       
-      if (classInfo.absentStudents.length === 0) {
-        message += `✅ لا يوجد طلاب غائبين بدون عذر\n\n`;
+      message += `🚫 الغائبون بدون عذر (${classInfo.absentWithoutExcuse.length}):\n`;
+      if (classInfo.absentWithoutExcuse.length === 0) {
+        message += `   لا يوجد\n`;
       } else {
-        classInfo.absentStudents.forEach((studentName, index) => {
+        classInfo.absentWithoutExcuse.forEach((studentName, index) => {
           message += `   ${index + 1}. ${studentName}\n`;
         });
-        message += `\n`;
       }
+
+      message += `✅ الغائبون بعذر (${classInfo.absentWithExcuse.length}):\n`;
+      if (classInfo.absentWithExcuse.length === 0) {
+        message += `   لا يوجد\n`;
+      } else {
+        classInfo.absentWithExcuse.forEach((studentName, index) => {
+          message += `   ${index + 1}. ${studentName}\n`;
+        });
+      }
+      message += `\n`;
     });
     
-    message += `━━━━━━━━━━━━━━━━\n📊 المجموع: ${totalAbsent} طالب غائب بدون عذر`;
+    const totalAbsent = totalAbsentWithoutExcuse + totalAbsentWithExcuse;
+    message += `━━━━━━━━━━━━━━━━\n📊 المجموع: ${totalAbsent} طالب غائب\n🚫 بدون عذر: ${totalAbsentWithoutExcuse}\n✅ بعذر: ${totalAbsentWithExcuse}`;
     
     // Encode message for WhatsApp
     const whatsappGroupLink = `https://chat.whatsapp.com/E9uZOmNEB2wElocpUYgBmb`;
@@ -6832,10 +6855,12 @@ async function loadAbsentReportForDate(hijriDate) {
 ${message.split('\n').map(line => {
   if (line.includes('👨‍🏫')) {
     return `<div style="background: #667eea; color: white; padding: 8px 12px; border-radius: 8px; margin: 8px 0; font-weight: bold;">${line}</div>`;
-  } else if (line.includes('✅')) {
-    return `<div style="color: #28a745; padding: 4px 12px; font-style: italic;">${line}</div>`;
   } else if (line.includes('📊')) {
     return `<div style="background: #dc3545; color: white; padding: 10px 12px; border-radius: 8px; margin-top: 12px; font-weight: bold; text-align: center;">${line}</div>`;
+  } else if (line.startsWith('🚫')) {
+    return `<div style="color: #dc3545; padding: 4px 12px; font-weight: bold;">${line}</div>`;
+  } else if (line.includes('✅')) {
+    return `<div style="color: #28a745; padding: 4px 12px; font-style: italic;">${line}</div>`;
   } else if (line.includes('━━━')) {
     return '<hr style="border: none; border-top: 2px dashed #ddd; margin: 10px 0;">';
   } else if (line.trim()) {
@@ -6877,7 +6902,7 @@ ${message.split('\n').map(line => {
   }
 }
 
-// Show Absent Without Excuse Modal with date selector
+// Show Absence Message Modal with date selector
 window.showAbsentWithoutExcuseModal = async function() {
   // Close the menu first
   window.closeReadyMessagesMenu();
@@ -6932,7 +6957,7 @@ window.showAbsentWithoutExcuseModal = async function() {
   content.innerHTML = `
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
       <div style="text-align: center; color: white; font-size: 14px; font-weight: bold; margin-bottom: 12px;">
-        📅 اختر التاريخ الهجري لعرض تقرير الغياب
+        📅 اختر التاريخ الهجري لعرض رسالة الغائبين
       </div>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -7002,7 +7027,7 @@ window.copyAbsentMessage = async function(message, event) {
   }
 };
 
-// Close absent without excuse modal
+// Close absence message modal
 window.closeAbsentWithoutExcuseModal = function() {
   const modal = document.getElementById('absentWithoutExcuseModal');
   if (modal) {
@@ -15587,4 +15612,3 @@ function getDefaultStaffSettings() {
 }
 
 console.log('✅ Staff Attendance functions loaded');
-
