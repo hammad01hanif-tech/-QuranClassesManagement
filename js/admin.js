@@ -6775,10 +6775,10 @@ async function loadAbsentReportForDate(hijriDate) {
         
         if (reportData.status === 'absent') {
           if (reportData.excuseType === 'withoutExcuse') {
-            return { classId, studentName, excuseType: 'withoutExcuse' };
+            return { studentId, classId, studentName, excuseType: 'withoutExcuse' };
           }
           if (reportData.excuseType === 'withExcuse') {
-            return { classId, studentName, excuseType: 'withExcuse' };
+            return { studentId, classId, studentName, excuseType: 'withExcuse' };
           }
         }
       }
@@ -6788,17 +6788,47 @@ async function loadAbsentReportForDate(hijriDate) {
     
     // Wait for all reports and filter nulls
     const results = (await Promise.all(reportPromises)).filter(r => r !== null);
+
+    // Count each absent student's absences from the start of the selected Hijri month.
+    const monthStartDate = `${hijriDate.substring(0, 7)}-01`;
+    const monthlyAbsenceResults = await Promise.all(results.map(async result => {
+      const reportsSnap = await getDocs(collection(db, 'studentProgress', result.studentId, 'dailyReports'));
+      const counts = { withoutExcuse: 0, withExcuse: 0 };
+
+      reportsSnap.forEach(reportDoc => {
+        const reportDate = reportDoc.id;
+        if (reportDate < monthStartDate || reportDate > hijriDate) return;
+
+        const reportData = reportDoc.data();
+        if (reportData.status !== 'absent') return;
+
+        if (reportData.excuseType === 'withoutExcuse') {
+          counts.withoutExcuse++;
+        } else if (reportData.excuseType === 'withExcuse') {
+          counts.withExcuse++;
+        }
+      });
+
+      return { studentId: result.studentId, counts };
+    }));
+    const monthlyAbsenceCounts = new Map(
+      monthlyAbsenceResults.map(result => [result.studentId, result.counts])
+    );
     
     // Group by class
     let totalAbsentWithoutExcuse = 0;
     let totalAbsentWithExcuse = 0;
     results.forEach(result => {
+      const student = {
+        name: result.studentName,
+        monthlyAbsence: monthlyAbsenceCounts.get(result.studentId)
+      };
       if (classesMap[result.classId]) {
         if (result.excuseType === 'withoutExcuse') {
-          classesMap[result.classId].absentWithoutExcuse.push(result.studentName);
+          classesMap[result.classId].absentWithoutExcuse.push(student);
           totalAbsentWithoutExcuse++;
         } else {
-          classesMap[result.classId].absentWithExcuse.push(result.studentName);
+          classesMap[result.classId].absentWithExcuse.push(student);
           totalAbsentWithExcuse++;
         }
       }
@@ -6807,12 +6837,13 @@ async function loadAbsentReportForDate(hijriDate) {
     // Convert to array and sort
     const classesData = Object.values(classesMap).map(classInfo => ({
       teacherName: classInfo.teacherName,
-      absentWithoutExcuse: classInfo.absentWithoutExcuse.sort((a, b) => a.localeCompare(b, 'ar')),
-      absentWithExcuse: classInfo.absentWithExcuse.sort((a, b) => a.localeCompare(b, 'ar'))
+      absentWithoutExcuse: classInfo.absentWithoutExcuse.sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+      absentWithExcuse: classInfo.absentWithExcuse.sort((a, b) => a.name.localeCompare(b.name, 'ar'))
     })).sort((a, b) => a.teacherName.localeCompare(b.teacherName, 'ar'));
     
     // Build message
     let message = `📋 تقرير الغياب اليومي\n${dateText}\n\n`;
+    const arabicNumberFormatter = new Intl.NumberFormat('ar');
     
     classesData.forEach(classInfo => {
       message += `👨‍🏫 ${classInfo.teacherName}\n`;
@@ -6821,8 +6852,11 @@ async function loadAbsentReportForDate(hijriDate) {
       if (classInfo.absentWithoutExcuse.length === 0) {
         message += `   لا يوجد\n`;
       } else {
-        classInfo.absentWithoutExcuse.forEach((studentName, index) => {
-          message += `   ${index + 1}. ${studentName}\n`;
+        classInfo.absentWithoutExcuse.forEach((student, index) => {
+          const counts = student.monthlyAbsence;
+          const formattedWithoutExcuse = arabicNumberFormatter.format(counts.withoutExcuse);
+          const formattedWithExcuse = arabicNumberFormatter.format(counts.withExcuse);
+          message += `   ${index + 1}. ${student.name} (هذا الشهر: بدون عذر ${formattedWithoutExcuse}، بعذر ${formattedWithExcuse})\n`;
         });
       }
 
@@ -6830,8 +6864,11 @@ async function loadAbsentReportForDate(hijriDate) {
       if (classInfo.absentWithExcuse.length === 0) {
         message += `   لا يوجد\n`;
       } else {
-        classInfo.absentWithExcuse.forEach((studentName, index) => {
-          message += `   ${index + 1}. ${studentName}\n`;
+        classInfo.absentWithExcuse.forEach((student, index) => {
+          const counts = student.monthlyAbsence;
+          const formattedWithoutExcuse = arabicNumberFormatter.format(counts.withoutExcuse);
+          const formattedWithExcuse = arabicNumberFormatter.format(counts.withExcuse);
+          message += `   ${index + 1}. ${student.name} (هذا الشهر: بدون عذر ${formattedWithoutExcuse}، بعذر ${formattedWithExcuse})\n`;
         });
       }
       message += `\n`;
