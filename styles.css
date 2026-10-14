@@ -3781,43 +3781,25 @@ details[open] > summary {
     display: none;
   }
 
-  .floating-action-btn {
-    bottom: 30px;
+  .new-admin-design > .bottom-nav-bar {
+    display: flex;
+    left: 50%;
+    right: auto;
+    bottom: 16px;
+    width: min(720px, calc(100% - 48px));
+    transform: translateX(-50%);
+    padding: 7px 10px;
+    border: 1px solid #e3e8ed;
+    border-radius: 12px;
+  }
+
+  .new-admin-design > .floating-action-btn {
+    bottom: 104px;
     left: 30px;
   }
 
   .new-admin-design {
-    padding-bottom: 130px;
-  }
-
-  .new-admin-design .bottom-nav-bar {
-    display: flex;
-    left: 50%;
-    right: auto;
-    bottom: 20px;
-    width: min(900px, calc(100% - 48px));
-    padding: 8px 14px;
-    border: 1px solid #e9ecef;
-    border-radius: 14px;
-    transform: translateX(-50%);
-  }
-
-  .new-admin-design .nav-item {
-    gap: 6px;
-    padding: 10px 14px;
-  }
-
-  .new-admin-design .nav-icon {
-    font-size: 26px;
-  }
-
-  .new-admin-design .nav-label {
-    font-size: 13px;
-  }
-
-  .new-admin-design .floating-action-btn {
-    bottom: 110px;
-    left: 30px;
+    padding-bottom: 104px;
   }
 }
 
@@ -10881,48 +10863,6 @@ details[open] > summary {
   }
 }
 
-@media (min-width: 769px) {
-  .attendance-report-modal {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-  }
-
-  .attendance-report-modal .attendance-modal-content {
-    position: relative;
-    inset: auto;
-    margin: auto;
-    width: min(1440px, calc(100vw - 64px));
-    max-width: none;
-    max-height: calc(100vh - 48px);
-    transform: scale(0.9);
-  }
-
-  .attendance-report-modal.show .attendance-modal-content {
-    transform: scale(1);
-  }
-
-  .attendance-report-modal .attendance-modal-body {
-    min-width: 0;
-  }
-
-  .attendance-report-modal .attendance-table-container,
-  .attendance-report-modal .table-wrapper {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .attendance-report-modal .table-wrapper {
-    overflow-x: auto;
-  }
-
-  .attendance-report-modal .attendance-table {
-    width: 100%;
-  }
-}
-
 /* ============================================
    زر إعدادات بيانات الحضور
    ============================================ */
@@ -17026,5 +16966,29 @@ details[open] > summary {
   
   .floating-action-button {
     width: 100%;
+  }
+}
+
+/* Keep the new admin navigation visible on desktop regardless of shared nav rules. */
+@media (min-width: 1024px) {
+  #newAdminDesign > .bottom-nav-bar {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: 16px !important;
+    width: min(720px, calc(100% - 48px)) !important;
+    transform: translateX(-50%) !important;
+    z-index: 1000 !important;
+  }
+
+  #newAdminDesign > .floating-action-btn {
+    bottom: 104px !important;
+  }
+
+  #newAdminDesign {
+    padding-bottom: 104px !important;
   }
 }
