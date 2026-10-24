@@ -458,6 +458,9 @@ window.loginTeacher = async function() {
     'MZN01': 'mzn@87',
     'MOT': 'mot123',
     'NBL01': 'nbl@00',
+    'FSL01': 'fsl50',
+    'ABM01': 'abm35',
+    'HMD01': 'hmd0104',
     // JWD01 (عبدالرحمن جاويد) - منقطع، لا يحتاج رقم سري
     // باقي الأعضاء - رقم سري افتراضي
     'default': 't12345'
