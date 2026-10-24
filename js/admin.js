@@ -14319,14 +14319,16 @@ async function loadStaffList() {
       Object.entries(window.staffMembersCache).forEach(([staffId, staffData]) => {
         const role = staffData.role;
         
-        // Only include teachers and viewers (not admins)
-        if (role === 'teacher' || role === 'viewer') {
+        // Include teachers, viewers, and admins
+        if (role === 'teacher' || role === 'viewer' || role === 'admin') {
           let roleIcon = '';
           
           if (role === 'teacher') {
             roleIcon = '👨‍🏫';
           } else if (role === 'viewer') {
             roleIcon = '📊';
+          } else if (role === 'admin') {
+            roleIcon = '⚙️';
           }
           
           staffList.push({ 
@@ -14350,8 +14352,8 @@ async function loadStaffList() {
         const staffId = doc.id;
         const role = data.role;
         
-        // Only include teachers and viewers (not admins)
-        if (role === 'teacher' || role === 'viewer') {
+        // Include teachers, viewers, and admins
+        if (role === 'teacher' || role === 'viewer' || role === 'admin') {
           // Use same logic as main.js for getting staff name
           const name = data.teacherName || data.presenterName || data.adminName || data.className || 'بدون اسم';
           let roleIcon = '';
@@ -14360,6 +14362,8 @@ async function loadStaffList() {
             roleIcon = '👨‍🏫';
           } else if (role === 'viewer') {
             roleIcon = '📊';
+          } else if (role === 'admin') {
+            roleIcon = '⚙️';
           }
           
           staffList.push({ id: staffId, name: name, role: role, roleIcon: roleIcon });
