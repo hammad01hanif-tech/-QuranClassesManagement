@@ -116,6 +116,9 @@ body {
 .pledge-select:disabled { background: #f1f4f7; color: #84909d; cursor: not-allowed; }
 .pledge-progressive-field { display: none; margin-top: 26px; animation: pledgeFieldIn .24s ease both; }
 .pledge-progressive-field.is-visible { display: block; }
+.pledge-custom-input, .pledge-custom-textarea { display: block; width: 100%; box-sizing: border-box; margin: 0 0 14px; padding: 10px 12px; border: 1px solid #ccd6e0; border-radius: 7px; background: #fff; color: #253746; font: inherit; font-size: 14px; line-height: 1.6; resize: vertical; }
+.pledge-custom-input:focus, .pledge-custom-textarea:focus { border-color: #1f6f78; outline: 0; box-shadow: 0 0 0 3px rgba(31, 111, 120, .12); }
+.pledge-custom-hint { display: block; margin: -7px 0 12px; color: #718092; font-size: 12px; }
 @keyframes pledgeFieldIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
 .pledge-form-actions { display: flex; gap: 10px; align-items: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid #edf0f3; }
 .pledge-primary-button, .pledge-secondary-button { min-height: 42px; border-radius: 7px; padding: 0 18px; border: 1px solid transparent; font: inherit; font-weight: 700; cursor: pointer; transition: transform .2s ease, background .2s ease, opacity .2s ease; }
@@ -3781,25 +3784,43 @@ details[open] > summary {
     display: none;
   }
 
-  .new-admin-design > .bottom-nav-bar {
-    display: flex;
-    left: 50%;
-    right: auto;
-    bottom: 16px;
-    width: min(720px, calc(100% - 48px));
-    transform: translateX(-50%);
-    padding: 7px 10px;
-    border: 1px solid #e3e8ed;
-    border-radius: 12px;
-  }
-
-  .new-admin-design > .floating-action-btn {
-    bottom: 104px;
+  .floating-action-btn {
+    bottom: 30px;
     left: 30px;
   }
 
   .new-admin-design {
-    padding-bottom: 104px;
+    padding-bottom: 130px;
+  }
+
+  .new-admin-design .bottom-nav-bar {
+    display: flex;
+    left: 50%;
+    right: auto;
+    bottom: 20px;
+    width: min(900px, calc(100% - 48px));
+    padding: 8px 14px;
+    border: 1px solid #e9ecef;
+    border-radius: 14px;
+    transform: translateX(-50%);
+  }
+
+  .new-admin-design .nav-item {
+    gap: 6px;
+    padding: 10px 14px;
+  }
+
+  .new-admin-design .nav-icon {
+    font-size: 26px;
+  }
+
+  .new-admin-design .nav-label {
+    font-size: 13px;
+  }
+
+  .new-admin-design .floating-action-btn {
+    bottom: 110px;
+    left: 30px;
   }
 }
 
@@ -17008,29 +17029,5 @@ details[open] > summary {
   
   .floating-action-button {
     width: 100%;
-  }
-}
-
-/* Keep the new admin navigation visible on desktop regardless of shared nav rules. */
-@media (min-width: 1024px) {
-  #newAdminDesign > .bottom-nav-bar {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: fixed !important;
-    left: 50% !important;
-    right: auto !important;
-    bottom: 16px !important;
-    width: min(720px, calc(100% - 48px)) !important;
-    transform: translateX(-50%) !important;
-    z-index: 1000 !important;
-  }
-
-  #newAdminDesign > .floating-action-btn {
-    bottom: 104px !important;
-  }
-
-  #newAdminDesign {
-    padding-bottom: 104px !important;
   }
 }

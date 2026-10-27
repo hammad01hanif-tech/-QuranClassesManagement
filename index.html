@@ -1210,7 +1210,13 @@
                       <option value="leaving">الخروج من الحلقة من غير إذن المعلم</option><option value="disruption">المشاغبة داخل الحلقة</option>
                       <option value="cheating">الغش أثناء التسميع</option><option value="educational">ضعف المستوى التعليمي</option>
                       <option value="uniform">الزي الرسمي</option>
+                      <option value="custom">ملاحظة يدوية</option>
                     </select>
+                  </div>
+                  <div id="warningCustomField" class="pledge-progressive-field">
+                    <label class="pledge-field-label" for="warningCustomObservation">وصف الملاحظة</label>
+                    <textarea id="warningCustomObservation" class="pledge-custom-textarea" maxlength="300" rows="3" placeholder="اكتب وصفًا مختصرًا وواضحًا للملاحظة"></textarea>
+                    <small class="pledge-custom-hint">سيُدرج النص نفسه في رسالة واتساب.</small>
                   </div>
                   <div id="warningPreviousNotice" class="pledge-inline-notice" hidden></div>
                   <div class="pledge-form-actions"><button id="createWarningButton" class="pledge-primary-button" type="button" disabled>تسجيل الإنذار وإعداد رسالة واتساب</button><button id="resetWarningButton" class="pledge-secondary-button" type="button">إعادة الاختيار</button></div>
@@ -1259,7 +1265,20 @@
                     <option value="leaving">الخروج من الحلقة من غير إذن المعلم</option><option value="disruption">المشاغبة داخل الحلقة</option>
                     <option value="cheating">الغش أثناء التسميع</option><option value="educational">ضعف المستوى التعليمي</option>
                     <option value="uniform">الزي الرسمي</option>
+                    <option value="custom">ملاحظة يدوية</option>
                   </select>
+                </div>
+
+                <div id="pledgeCustomFields" class="pledge-progressive-field">
+                  <label class="pledge-field-label" for="pledgeCustomTitle">عنوان التعهد</label>
+                  <input id="pledgeCustomTitle" class="pledge-custom-input" type="text" maxlength="100" placeholder="مثال: إقرار وتعهد بالالتزام بالتعليمات">
+                  <label class="pledge-field-label" for="pledgeCustomObservation">وصف الملاحظة</label>
+                  <textarea id="pledgeCustomObservation" class="pledge-custom-textarea" maxlength="400" rows="3" placeholder="اكتب الملاحظة وأثرها باختصار"></textarea>
+                  <label class="pledge-field-label" for="pledgeCustomImpact">الأثر على الطالب</label>
+                  <textarea id="pledgeCustomImpact" class="pledge-custom-textarea" maxlength="300" rows="2" placeholder="ما أثر الملاحظة على الطالب أو الحلقة؟"></textarea>
+                  <label class="pledge-field-label" for="pledgeCustomPoints">نقاط الالتزام</label>
+                  <textarea id="pledgeCustomPoints" class="pledge-custom-textarea" maxlength="600" rows="4" placeholder="اكتب كل نقطة في سطر مستقل"></textarea>
+                  <small class="pledge-custom-hint">اكتب نقطة واحدة في كل سطر؛ يلزم إدخال نقطة واحدة على الأقل.</small>
                 </div>
 
                 <div class="pledge-form-actions">

@@ -125,6 +125,9 @@ const PLEDGE_TYPES = {
       'التعاون مع إدارة الحلقات والالتزام بتعليماتها المتعلقة بالزي.',
       'الحرص على عدم تكرار الملاحظة مستقبلًا.'
     ]
+  },
+  custom: {
+    label: 'ملاحظة يدوية'
   }
 };
 
@@ -139,9 +142,11 @@ const WARNING_TYPES = Object.fromEntries(Object.entries(PLEDGE_TYPES).map(([key,
     disruption: 'المشاغبة أو التشويش داخل الحلقة',
     cheating: 'ملاحظة تتعلق بالغش أثناء التسميع',
     educational: 'ضعف المستوى التعليمي أو التأخر في الحفظ والمراجعة',
-    uniform: 'عدم ارتداء الطالب الزي الرسمي المعتمد للحلقات، وهو الكوفية أو الطاقية والشماغ'
+    uniform: 'عدم ارتداء الطالب الزي الرسمي المعتمد للحلقات، وهو الكوفية أو الطاقية والشماغ',
+    custom: ''
   }[key]
 }]));
+WARNING_TYPES.custom = { label: 'ملاحظة يدوية', notice: '' };
 
 let teacherRecords = [];
 let teacherAlertHistoryRecords = [];
@@ -180,9 +185,20 @@ function getHijriDate() {
   return formatAccurateHijriDate(getTodayAccurateHijri()).replace(' هـ', ' هـ');
 }
 
-function buildWarningMessage(studentName, warningType, hijriDate) {
+function buildWarningMessage(studentName, warningType, hijriDate, customObservation = '') {
   const template = WARNING_TYPES[warningType];
-  return `السلام عليكم ورحمة الله وبركاته،\n\nنحيطكم علمًا بأنه تم تسجيل إنذار شفهي للطالب:\n${studentName}\n\nوذلك بسبب:\n${template.notice}\n\nنأمل منكم متابعة الطالب والتعاون مع إدارة الحلقات لتجنب تكرار الملاحظة، لما لذلك من أثر على مستوى الطالب وانتظامه وسلوكه.\n\nوفي حال تكرار الملاحظة قد يتم اتخاذ الإجراء التالي وفق النظام المتبع.\n\nشاكرين لكم تعاونكم.\n\nإدارة حلقات جامع حمدة آل ثاني\n\nالتاريخ الهجري: ${hijriDate}`;
+  const notice = warningType === 'custom' ? customObservation : template.notice;
+  return `السلام عليكم ورحمة الله وبركاته،\n\nنحيطكم علمًا بأنه تم تسجيل إنذار شفهي للطالب:\n${studentName}\n\nوذلك بسبب:\n${notice}\n\nنأمل منكم متابعة الطالب والتعاون مع إدارة الحلقات لتجنب تكرار الملاحظة، لما لذلك من أثر على مستوى الطالب وانتظامه وسلوكه.\n\nوفي حال تكرار الملاحظة قد يتم اتخاذ الإجراء التالي وفق النظام المتبع.\n\nشاكرين لكم تعاونكم.\n\nإدارة حلقات جامع حمدة آل ثاني\n\nالتاريخ الهجري: ${hijriDate}`;
+}
+
+function getWarningTypeLabel(record) {
+  if (record.violationType === 'custom') return record.customObservation || 'ملاحظة يدوية';
+  return record.violationLabel || WARNING_TYPES[record.violationType]?.label || record.violationType;
+}
+
+function getPledgeTypeLabel(record) {
+  if (record.type === 'custom') return record.customTitle || 'تعهد بملاحظة يدوية';
+  return PLEDGE_TYPES[record.type]?.label || record.type;
 }
 
 function openWarningWhatsApp(record) {
@@ -398,7 +414,13 @@ function updateCreateButton() {
   const button = document.getElementById('createPledgeButton');
   const type = document.getElementById('pledgeTypeSelect')?.value;
   const student = document.getElementById('pledgeStudentSelect')?.value;
-  if (button) button.disabled = !(type && student) || button.dataset.loading === 'true';
+  const customReady = type !== 'custom' || (
+    document.getElementById('pledgeCustomTitle')?.value.trim() &&
+    document.getElementById('pledgeCustomObservation')?.value.trim() &&
+    document.getElementById('pledgeCustomImpact')?.value.trim() &&
+    document.getElementById('pledgeCustomPoints')?.value.split('\n').some(point => point.trim())
+  );
+  if (button) button.disabled = !(type && student && customReady) || button.dataset.loading === 'true';
 }
 
 function renderTeacherOptions() {
@@ -434,6 +456,11 @@ function renderStudentOptions(teacherId) {
   document.getElementById('pledgeStudentField')?.classList.toggle('is-visible', true);
   document.getElementById('pledgeTypeField')?.classList.remove('is-visible');
   document.getElementById('pledgeTypeSelect').value = '';
+  ['pledgeCustomTitle', 'pledgeCustomObservation', 'pledgeCustomImpact', 'pledgeCustomPoints'].forEach(id => {
+    const field = document.getElementById(id);
+    if (field) field.value = '';
+  });
+  updateCustomObservationFields();
   updateCreateButton();
 }
 
@@ -446,8 +473,19 @@ function setWarningStatus(message = '', type = '') {
 
 function updateWarningCreateButton() {
   const button = document.getElementById('createWarningButton');
-  const hasSelection = document.getElementById('warningStudentSelect')?.value && document.getElementById('warningTypeSelect')?.value;
+  const type = document.getElementById('warningTypeSelect')?.value;
+  const customReady = type !== 'custom' || document.getElementById('warningCustomObservation')?.value.trim();
+  const hasSelection = document.getElementById('warningStudentSelect')?.value && type && customReady;
   if (button) button.disabled = !hasSelection || button.dataset.loading === 'true';
+}
+
+function updateCustomObservationFields() {
+  const warningType = document.getElementById('warningTypeSelect')?.value;
+  const pledgeType = document.getElementById('pledgeTypeSelect')?.value;
+  document.getElementById('warningCustomField')?.classList.toggle('is-visible', warningType === 'custom');
+  document.getElementById('pledgeCustomFields')?.classList.toggle('is-visible', pledgeType === 'custom');
+  updateWarningCreateButton();
+  updateCreateButton();
 }
 
 function renderWarningTeacherOptions() {
@@ -478,7 +516,10 @@ function renderWarningStudents(teacherId) {
   select.disabled = !(teacher?.students?.length);
   document.getElementById('warningStudentField')?.classList.toggle('is-visible', Boolean(teacherId));
   document.getElementById('warningTypeField')?.classList.remove('is-visible');
+  document.getElementById('warningTypeSelect').value = '';
+  document.getElementById('warningCustomObservation').value = '';
   document.getElementById('warningPreviousNotice')?.setAttribute('hidden', '');
+  updateCustomObservationFields();
   updateWarningCreateButton();
 }
 
@@ -513,7 +554,7 @@ function renderWarningHistory() {
     list.innerHTML = warningTeacherId ? '<div class="pledge-empty-state">لا توجد إنذارات لهذا الاختيار.</div>' : '<div class="pledge-empty-state">اختر المعلم لعرض سجل الإنذارات.</div>';
     return;
   }
-  list.innerHTML = `<div class="pledge-history-table-wrap"><table class="pledge-history-table"><thead><tr><th>الطالب</th><th>المعلم</th><th>نوع الإنذار</th><th>التاريخ الهجري</th><th>الإجراء</th></tr></thead><tbody>${warningHistoryRecords.map(record => `<tr data-warning-row="${escapeHtml(record.id)}"><td>${escapeHtml(record.studentName)}</td><td>${escapeHtml(record.teacherName)}</td><td>${escapeHtml(WARNING_TYPES[record.violationType]?.label || record.violationType)}</td><td>${escapeHtml(record.hijriDate)}</td><td class="pledge-row-actions"><button class="pledge-table-button" type="button" data-warning-details="${escapeHtml(record.id)}">عرض</button><button class="pledge-table-button" type="button" data-warning-whatsapp="${escapeHtml(record.id)}">واتساب</button><button class="pledge-table-button pledge-table-danger" type="button" data-warning-delete="${escapeHtml(record.id)}">حذف</button></td></tr>`).join('')}</tbody></table></div>`;
+  list.innerHTML = `<div class="pledge-history-table-wrap"><table class="pledge-history-table"><thead><tr><th>الطالب</th><th>المعلم</th><th>نوع الإنذار</th><th>التاريخ الهجري</th><th>الإجراء</th></tr></thead><tbody>${warningHistoryRecords.map(record => `<tr data-warning-row="${escapeHtml(record.id)}"><td>${escapeHtml(record.studentName)}</td><td>${escapeHtml(record.teacherName)}</td><td>${escapeHtml(getWarningTypeLabel(record))}</td><td>${escapeHtml(record.hijriDate)}</td><td class="pledge-row-actions"><button class="pledge-table-button" type="button" data-warning-details="${escapeHtml(record.id)}">عرض</button><button class="pledge-table-button" type="button" data-warning-whatsapp="${escapeHtml(record.id)}">واتساب</button><button class="pledge-table-button pledge-table-danger" type="button" data-warning-delete="${escapeHtml(record.id)}">حذف</button></td></tr>`).join('')}</tbody></table></div>`;
   list.querySelectorAll('[data-warning-details]').forEach(button => button.addEventListener('click', () => showWarningDetails(warningHistoryRecords.find(record => record.id === button.dataset.warningDetails))));
   list.querySelectorAll('[data-warning-whatsapp]').forEach(button => button.addEventListener('click', () => openWarningWhatsApp(warningHistoryRecords.find(record => record.id === button.dataset.warningWhatsapp))));
   list.querySelectorAll('[data-warning-delete]').forEach(button => button.addEventListener('click', () => openWarningDeleteConfirmation(warningHistoryRecords.find(record => record.id === button.dataset.warningDelete))));
@@ -567,7 +608,7 @@ function showWarningDetails(record) {
   if (!record) return;
   selectedWarningRecord = record;
   const details = document.getElementById('warningDetailsContent');
-  if (details) details.innerHTML = `<div class="pledge-details-grid"><div class="pledge-detail-cell"><span>الطالب</span><strong>${escapeHtml(record.studentName)}</strong></div><div class="pledge-detail-cell"><span>المعلم</span><strong>${escapeHtml(record.teacherName)}</strong></div><div class="pledge-detail-cell"><span>نوع الإنذار</span><strong>${escapeHtml(WARNING_TYPES[record.violationType]?.label || record.violationType)}</strong></div><div class="pledge-detail-cell"><span>التاريخ الهجري</span><strong>${escapeHtml(record.hijriDate)}</strong></div></div><div class="pledge-detail-body">${escapeHtml(record.messageContent)}</div>`;
+  if (details) details.innerHTML = `<div class="pledge-details-grid"><div class="pledge-detail-cell"><span>الطالب</span><strong>${escapeHtml(record.studentName)}</strong></div><div class="pledge-detail-cell"><span>المعلم</span><strong>${escapeHtml(record.teacherName)}</strong></div><div class="pledge-detail-cell"><span>نوع الإنذار</span><strong>${escapeHtml(getWarningTypeLabel(record))}</strong></div><div class="pledge-detail-cell"><span>التاريخ الهجري</span><strong>${escapeHtml(record.hijriDate)}</strong></div></div><div class="pledge-detail-body">${escapeHtml(record.messageContent)}</div>`;
   document.getElementById('warningDetailsModal')?.removeAttribute('hidden');
 }
 
@@ -578,9 +619,13 @@ function openWarningDeleteConfirmation(record) {
   document.getElementById('warningDeleteModal')?.removeAttribute('hidden');
 }
 
-async function showPreviousWarningNotice(studentId, violationType) {
+async function showPreviousWarningNotice(studentId, violationType, customObservation = '') {
   const notice = document.getElementById('warningPreviousNotice');
   if (!notice || !studentId || !violationType) return;
+  if (violationType === 'custom' && !customObservation.trim()) {
+    notice.hidden = true;
+    return;
+  }
   try {
     let snapshot;
     try {
@@ -588,7 +633,11 @@ async function showPreviousWarningNotice(studentId, violationType) {
     } catch (error) {
       snapshot = await getDocs(query(collection(db, WARNING_COLLECTION), where('studentId', '==', studentId), limit(50)));
     }
-    const records = snapshot.docs.map(item => ({ id: item.id, ...item.data() })).filter(record => record.violationType === violationType).sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+    const records = snapshot.docs.map(item => ({ id: item.id, ...item.data() })).filter(record => {
+      if (record.violationType !== violationType) return false;
+      if (violationType !== 'custom') return true;
+      return String(record.customObservation || '').trim() === customObservation.trim();
+    }).sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
     if (!records.length) {
       notice.hidden = true;
       return;
@@ -624,9 +673,10 @@ async function createWarning() {
   const teacherId = document.getElementById('warningTeacherSelect')?.value;
   const studentId = document.getElementById('warningStudentSelect')?.value;
   const violationType = document.getElementById('warningTypeSelect')?.value;
+  const customObservation = document.getElementById('warningCustomObservation')?.value.trim() || '';
   const teacher = teacherRecords.find(item => item.teacherId === teacherId);
   const student = teacher?.students.find(item => item.id === studentId);
-  if (!teacher || !student || !WARNING_TYPES[violationType]) {
+  if (!teacher || !student || !WARNING_TYPES[violationType] || (violationType === 'custom' && !customObservation)) {
     setWarningStatus('أكمل اختيار المعلم والطالب ونوع الملاحظة أولًا.', 'error');
     return;
   }
@@ -634,7 +684,7 @@ async function createWarning() {
   button.dataset.loading = 'true';
   button.disabled = true;
   const hijriDate = getHijriDate();
-  const record = { studentId, studentName: student.name, teacherId, teacherName: teacher.teacherName, classId: student.classId, actionType: 'verbal_warning', violationType, hijriDate, messageContent: buildWarningMessage(student.name, violationType, hijriDate), guardianPhone: student.guardianPhone || '', createdAt: serverTimestamp(), createdBy: getAdminName() };
+  const record = { studentId, studentName: student.name, teacherId, teacherName: teacher.teacherName, classId: student.classId, actionType: 'verbal_warning', violationType, ...(violationType === 'custom' ? { customObservation, violationLabel: customObservation } : {}), hijriDate, messageContent: buildWarningMessage(student.name, violationType, hijriDate, customObservation), guardianPhone: student.guardianPhone || '', createdAt: serverTimestamp(), createdBy: getAdminName() };
   try {
     await addDoc(collection(db, WARNING_COLLECTION), record);
     setWarningStatus('تم تسجيل الإنذار وتجهيز الرسالة.', 'success');
@@ -734,7 +784,7 @@ function renderHistory() {
           <tr data-pledge-row="${escapeHtml(record.id)}">
             <td>${escapeHtml(record.studentName)}</td>
             <td>${escapeHtml(record.teacherName)}</td>
-            <td>${escapeHtml(PLEDGE_TYPES[record.type]?.label || record.type)}</td>
+            <td>${escapeHtml(getPledgeTypeLabel(record))}</td>
             <td>${escapeHtml(record.hijriDate)}</td>
             <td class="pledge-row-actions">
               <button class="pledge-table-button" type="button" data-pledge-details="${escapeHtml(record.id)}">عرض</button>
@@ -912,7 +962,7 @@ function showPledgeDetails(record) {
       <div class="pledge-details-grid">
         <div class="pledge-detail-cell"><span>الطالب</span><strong>${escapeHtml(record.studentName)}</strong></div>
         <div class="pledge-detail-cell"><span>المعلم</span><strong>${escapeHtml(record.teacherName)}</strong></div>
-        <div class="pledge-detail-cell"><span>نوع التعهد</span><strong>${escapeHtml(PLEDGE_TYPES[record.type]?.label || record.type)}</strong></div>
+        <div class="pledge-detail-cell"><span>نوع التعهد</span><strong>${escapeHtml(getPledgeTypeLabel(record))}</strong></div>
         <div class="pledge-detail-cell"><span>التاريخ الهجري</span><strong>${escapeHtml(record.hijriDate)}</strong></div>
       </div>
       <div class="pledge-detail-body"><strong>${escapeHtml(record.title || content.title || '')}</strong><p>${escapeHtml(content.notice || '')}</p><strong>الالتزام بالآتي:</strong><ol>${(content.points || []).map(point => `<li>${escapeHtml(point)}</li>`).join('')}</ol><p>${escapeHtml(content.closing || '')}</p></div>
@@ -951,7 +1001,16 @@ async function deleteSelectedPledge() {
   }
 }
 
-function buildPledgeContent(studentName, pledgeType, hijriDate) {
+function buildPledgeContent(studentName, pledgeType, hijriDate, customContent = null) {
+  if (pledgeType === 'custom') {
+    return {
+      title: customContent.title,
+      notice: `أتعهد أنا ولي أمر الطالب (${studentName}) بأن إدارة حلقات جامع حمدة آل ثاني قد أشعرتني بأن ${customContent.observation}، ${customContent.impact}`,
+      points: customContent.points,
+      closing: 'وهذا إقرار مني بالالتزام بما ورد أعلاه، وتعهد بعدم تكرار ذلك مستقبلًا.',
+      hijriDate
+    };
+  }
   const template = PLEDGE_TYPES[pledgeType];
   return {
     title: template.title,
@@ -1023,6 +1082,12 @@ async function createPledge() {
   const teacherId = document.getElementById('pledgeTeacherSelect')?.value;
   const studentId = document.getElementById('pledgeStudentSelect')?.value;
   const type = document.getElementById('pledgeTypeSelect')?.value;
+  const customContent = type === 'custom' ? {
+    title: document.getElementById('pledgeCustomTitle')?.value.trim() || '',
+    observation: document.getElementById('pledgeCustomObservation')?.value.trim() || '',
+    impact: document.getElementById('pledgeCustomImpact')?.value.trim() || '',
+    points: (document.getElementById('pledgeCustomPoints')?.value || '').split('\n').map(point => point.trim()).filter(Boolean)
+  } : null;
   if (!teacherId || !studentId || !type) {
     setStatus('أكمل اختيار المعلم والطالب ونوع التعهد أولًا.', 'error');
     return;
@@ -1030,8 +1095,9 @@ async function createPledge() {
   const teacher = teacherRecords.find(item => item.teacherId === teacherId);
   const student = currentStudents.find(item => item.id === studentId);
   const template = PLEDGE_TYPES[type];
-  if (!teacher || !student || !template) {
-    setStatus('تعذر العثور على بيانات الاختيارات الحالية.', 'error');
+  if (!teacher || !student || !template || (type === 'custom' && (!customContent.title || !customContent.observation || !customContent.impact || !customContent.points.length))) {
+    if (type === 'custom') setStatus('أكمل عنوان التعهد والملاحظة والأثر ونقطة التزام واحدة على الأقل.', 'error');
+    else setStatus('تعذر العثور على بيانات الاختيارات الحالية.', 'error');
     return;
   }
   const button = document.getElementById('createPledgeButton');
@@ -1039,7 +1105,7 @@ async function createPledge() {
   button.disabled = true;
   setStatus('جاري حفظ التعهد وإنشاء الملف...', 'loading');
   const hijriDate = getHijriDate();
-  const generatedContent = buildPledgeContent(student.name, type, hijriDate);
+  const generatedContent = buildPledgeContent(student.name, type, hijriDate, customContent);
   try {
     const record = {
       studentId,
@@ -1049,7 +1115,13 @@ async function createPledge() {
       classId: student.classId,
       actionType: 'pledge',
       type,
-      title: template.title,
+      title: type === 'custom' ? customContent.title : template.title,
+      ...(type === 'custom' ? {
+        customTitle: customContent.title,
+        customObservation: customContent.observation,
+        customImpact: customContent.impact,
+        customPoints: customContent.points
+      } : {}),
       generatedContent,
       hijriDate,
       createdAt: serverTimestamp(),
@@ -1077,8 +1149,13 @@ function resetPledgeForm() {
   document.getElementById('pledgeStudentSelect').innerHTML = '<option value="">اختر الطالب</option>';
   document.getElementById('pledgeStudentSelect').disabled = true;
   document.getElementById('pledgeTypeSelect').value = '';
+  ['pledgeCustomTitle', 'pledgeCustomObservation', 'pledgeCustomImpact', 'pledgeCustomPoints'].forEach(id => {
+    const field = document.getElementById(id);
+    if (field) field.value = '';
+  });
   document.getElementById('pledgeStudentField')?.classList.remove('is-visible');
   document.getElementById('pledgeTypeField')?.classList.remove('is-visible');
+  updateCustomObservationFields();
   updateCreateButton();
   setStatus('');
 }
@@ -1089,18 +1166,46 @@ function bindEvents() {
   document.getElementById('pledgeTeacherSelect')?.addEventListener('change', event => renderStudentOptions(event.target.value));
   document.getElementById('pledgeStudentSelect')?.addEventListener('change', event => {
     document.getElementById('pledgeTypeField')?.classList.toggle('is-visible', Boolean(event.target.value));
+    updateCustomObservationFields();
     updateCreateButton();
   });
   document.getElementById('pledgeTypeSelect')?.addEventListener('change', async event => {
+    updateCustomObservationFields();
     updateCreateButton();
-    await showPreviousWarningNotice(document.getElementById('pledgeStudentSelect')?.value, event.target.value);
+    await showPreviousWarningNotice(
+      document.getElementById('pledgeStudentSelect')?.value,
+      event.target.value,
+      document.getElementById('pledgeCustomObservation')?.value || ''
+    );
   });
   document.getElementById('warningTeacherSelect')?.addEventListener('change', event => renderWarningStudents(event.target.value));
   document.getElementById('warningStudentSelect')?.addEventListener('change', event => {
     document.getElementById('warningTypeField')?.classList.toggle('is-visible', Boolean(event.target.value));
+    updateCustomObservationFields();
     updateWarningCreateButton();
   });
-  document.getElementById('warningTypeSelect')?.addEventListener('change', updateWarningCreateButton);
+  document.getElementById('warningTypeSelect')?.addEventListener('change', async event => {
+    updateCustomObservationFields();
+    await showPreviousWarningNotice(
+      document.getElementById('warningStudentSelect')?.value,
+      event.target.value,
+      document.getElementById('warningCustomObservation')?.value || ''
+    );
+  });
+  document.getElementById('warningCustomObservation')?.addEventListener('input', async event => {
+    updateWarningCreateButton();
+    if (document.getElementById('warningTypeSelect')?.value === 'custom') {
+      await showPreviousWarningNotice(document.getElementById('warningStudentSelect')?.value, 'custom', event.target.value);
+    }
+  });
+  ['pledgeCustomTitle', 'pledgeCustomObservation', 'pledgeCustomImpact', 'pledgeCustomPoints'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', async () => {
+      updateCreateButton();
+      if (id === 'pledgeCustomObservation' && document.getElementById('pledgeTypeSelect')?.value === 'custom') {
+        await showPreviousWarningNotice(document.getElementById('pledgeStudentSelect')?.value, 'custom', document.getElementById(id).value);
+      }
+    });
+  });
   document.getElementById('createWarningButton')?.addEventListener('click', createWarning);
   document.getElementById('resetWarningButton')?.addEventListener('click', () => {
     document.getElementById('warningTeacherSelect').value = '';
@@ -1110,6 +1215,8 @@ function bindEvents() {
     document.getElementById('warningTypeField')?.classList.remove('is-visible');
     document.getElementById('warningPreviousNotice')?.setAttribute('hidden', '');
     document.getElementById('warningTypeSelect').value = '';
+    document.getElementById('warningCustomObservation').value = '';
+    updateCustomObservationFields();
     updateWarningCreateButton();
     setWarningStatus('');
   });
