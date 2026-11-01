@@ -1073,6 +1073,214 @@ async function checkClassHasAttendanceToday(classId, hijriDate) {
   }
 }
 
+function escapeEnrollmentHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+}
+
+function formatEnrollmentDate(value) {
+  if (!value) return 'غير مسجل';
+  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
+}
+
+function buildEnrollmentWhatsAppMessage(student, classData) {
+  const levelNames = { hifz: 'حفظ', dabt: 'ضبط', noorani: 'القاعدة النورانية' };
+  const level = levelNames[student.level] || student.level || 'غير محدد';
+  const className = classData.className || classData.name || student.classId || 'غير محددة';
+  const teacherName = classData.teacherName || classData.teacher || 'غير محدد';
+  const date = student.registrationDateHijri || formatHijriDate(new Date());
+  return `السلام عليكم ورحمة الله وبركاته،\n\nنبارك لكم انضمام الطالب ${student.name} إلى حلقات جامع حمدة آل ثاني.\nالمستوى: ${level}\nالحلقة/المعلم: ${className} - ${teacherName}\nتاريخ الانضمام: ${date}\n\nنسأل الله له التوفيق والبركة في حفظ كتابه والعمل به.\n\nإدارة حلقات جامع حمدة آل ثاني`;
+}
+
+function buildEnrollmentPdfElement(student, classData) {
+  const levelNames = { hifz: 'حفظ', dabt: 'ضبط', noorani: 'القاعدة النورانية' };
+  const className = classData.className || classData.name || student.classId || 'غير محددة';
+  const teacherName = classData.teacherName || classData.teacher || 'غير محدد';
+  const teacherLabel = teacherName.startsWith('أ/') || teacherName.startsWith('أ.') ? teacherName : `أ/${teacherName}`;
+  const registrationDateGregorian = student.registrationDateGregorian || student.addedDate || new Date();
+  const personalRows = [
+    ['اسم الطالب', student.name],
+    ['العمر', student.age ? `${student.age} سنة` : 'غير مسجل'],
+    ['الحلقة / المعلم', `${className} - ${teacherLabel}`],
+    ['رقم الهوية', student.nationalId || 'غير مسجل'],
+    ['المستوى', levelNames[student.level] || student.level || 'غير محدد'],
+    ['رقم جوال الطالب', student.studentPhone || 'غير مسجل'],
+    ['رقم جوال ولي الأمر', student.guardianPhone || 'غير مسجل'],
+    ['تاريخ التسجيل الميلادي', formatEnrollmentDate(registrationDateGregorian)],
+    ['تاريخ التسجيل الهجري', student.registrationDateHijri || formatHijriDate(new Date())]
+  ];
+  const declarationPoints = [
+    'الالتزام بوقت الحلقة من العصر إلى ما بعد العشاء، وصلاة العصر مع الجماعة الأولى، وعدم الانصراف قبل العشاء.',
+    'عدم التأخر أكثر من 45 دقيقة بعد أذان العصر، وتُطبق لائحة التأخير.',
+    'الالتزام بالزي: ثوب نظيف وطاقية.',
+    'إحضار المصحف يوميًا.',
+    'عدم إحضار الجوال، وتسليمه للإدارة عند إحضاره حتى الانصراف.',
+    'عند الغياب أو التأخر بعذر، يتواصل ولي الأمر مع المعلم قبل أذان العصر في اليوم نفسه، ولا يُقبل الاعتذار عبر واتساب.',
+    'احترام المعلم وتقديره.',
+    'الالتزام بحسن السلوك والانضباط داخل الحلقة.'
+  ];
+  const element = document.createElement('div');
+  element.className = 'student-enrollment-pdf';
+  element.dir = 'rtl';
+  element.innerHTML = `
+    <section class="student-enrollment-page">
+      <header class="enrollment-pdf-header">
+        <div class="enrollment-pdf-kicker">جامع حمدة آل ثاني</div>
+        <h1>استمارة تسجيل طالب بالحلقات</h1>
+      </header>
+      <section class="enrollment-pdf-section enrollment-pdf-personal">
+        <h2>البيانات الشخصية</h2>
+        <div class="enrollment-pdf-data">${personalRows.map(([label, value]) => `<div class="enrollment-pdf-data-item"><strong>${escapeEnrollmentHtml(label)}</strong><span>${escapeEnrollmentHtml(value)}</span></div>`).join('')}</div>
+      </section>
+      <section class="enrollment-pdf-section enrollment-pdf-declaration">
+        <h2>إقرار وتعهد بالأنظمة</h2>
+        <p class="enrollment-pdf-intro">أقر أنا الطالب وولي أمري بالاطلاع على الأنظمة التالية والالتزام بها:</p>
+        <ul class="enrollment-pdf-rules">${declarationPoints.map(point => `<li>${escapeEnrollmentHtml(point)}</li>`).join('')}</ul>
+      </section>
+      <section class="enrollment-pdf-acknowledgements">
+        <div class="enrollment-pdf-acknowledgement">
+          <strong>إقرار الطالب</strong>
+          <p>أتعهد أنا الطالب ${escapeEnrollmentHtml(student.name)} بالالتزام بالأنظمة أعلاه.</p>
+          <div><span>التوقيع</span><i></i></div>
+        </div>
+        <div class="enrollment-pdf-acknowledgement">
+          <strong>موافقة ولي الأمر</strong>
+          <p>أوافق على التزام ابني بالأنظمة أعلاه.</p>
+          <div><span>${escapeEnrollmentHtml(student.guardianName || '')}</span><i></i></div>
+        </div>
+      </section>
+      <footer class="enrollment-pdf-manager-signature"><span>توقيع مدير الحلقات</span><strong>أ/عبدالمجيد هوساوي</strong><i></i></footer>
+    </section>
+  `;
+  return element;
+}
+
+async function prepareStudentEnrollmentDocuments(student, classData = null) {
+  let resolvedClassData = classData;
+  if (!resolvedClassData && student.classId) {
+    try {
+      const classSnapshot = await getDoc(firestoreDoc(db, 'classes', student.classId));
+      resolvedClassData = classSnapshot.exists() ? classSnapshot.data() : {};
+    } catch (error) {
+      console.error('Unable to load class data for enrollment PDF:', error);
+    }
+  }
+  resolvedClassData = resolvedClassData || {};
+
+  let pdfBlob = null;
+  try {
+    if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error('PDF libraries are unavailable');
+    const pdfElement = buildEnrollmentPdfElement(student, resolvedClassData);
+    pdfElement.style.position = 'fixed';
+    pdfElement.style.left = '-10000px';
+    pdfElement.style.top = '0';
+    document.body.appendChild(pdfElement);
+    try {
+      const pages = [...pdfElement.querySelectorAll('.student-enrollment-page')];
+      const pdf = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+        if (pageIndex > 0) pdf.addPage();
+        const canvas = await window.html2canvas(pages[pageIndex], { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
+      }
+      pdfBlob = pdf.output('blob');
+    } finally {
+      pdfElement.remove();
+    }
+  } catch (pdfError) {
+    console.error('Enrollment PDF generation failed:', pdfError);
+  }
+
+  let whatsappPhone = String(student.guardianPhone || '').replace(/\D/g, '');
+  if (whatsappPhone.startsWith('00')) whatsappPhone = whatsappPhone.slice(2);
+  if (whatsappPhone && !whatsappPhone.startsWith('966')) {
+    whatsappPhone = `966${whatsappPhone.startsWith('0') ? whatsappPhone.slice(1) : whatsappPhone}`;
+  }
+
+  return {
+    pdfBlob,
+    fileName: `استمارة_تسجيل_${String(student.name || 'طالب').replace(/[\\/:*?"<>|]/g, '_')}.pdf`,
+    whatsappUrl: whatsappPhone
+      ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(buildEnrollmentWhatsAppMessage(student, resolvedClassData))}`
+      : ''
+  };
+}
+
+window.downloadOrShareEnrollmentPdf = async function() {
+  const { pdfBlob, fileName } = window.enrollmentOutputState || {};
+  if (!pdfBlob) return;
+
+  const file = typeof File === 'undefined' ? null : new File([pdfBlob], fileName, { type: 'application/pdf' });
+  if (file && navigator.share && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: fileName });
+      return;
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+    }
+  }
+
+  const downloadUrl = URL.createObjectURL(pdfBlob);
+  const downloadLink = document.createElement('a');
+  downloadLink.href = downloadUrl;
+  downloadLink.download = fileName;
+  downloadLink.click();
+  setTimeout(() => URL.revokeObjectURL(downloadUrl), 60000);
+};
+
+window.openEnrollmentWhatsApp = function() {
+  const { whatsappUrl } = window.enrollmentOutputState || {};
+  if (whatsappUrl) window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+};
+
+window.closeEnrollmentSuccess = function() {
+  document.getElementById('enrollmentSuccessModal')?.remove();
+  window.enrollmentOutputState = null;
+};
+
+window.startAnotherStudentEnrollment = function() {
+  window.closeEnrollmentSuccess();
+  const formContainer = document.getElementById('addStudentFormContainerNew');
+  if (formContainer) formContainer.style.display = 'block';
+  document.getElementById('studentNameNew')?.focus();
+};
+
+function showEnrollmentSuccess(student, outputState, allowAnother = false) {
+  window.enrollmentOutputState = outputState;
+  document.getElementById('enrollmentSuccessModal')?.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'enrollmentSuccessModal';
+  modal.className = 'enrollment-success-overlay';
+  modal.innerHTML = `
+    <section class="enrollment-success-dialog" role="dialog" aria-modal="true" aria-labelledby="enrollmentSuccessTitle" dir="rtl">
+      <button class="enrollment-success-close" type="button" onclick="window.closeEnrollmentSuccess()" aria-label="إغلاق">×</button>
+      <div class="enrollment-success-mark" aria-hidden="true">✓</div>
+      <h2 id="enrollmentSuccessTitle">تم تسجيل الطالب بنجاح</h2>
+      <p class="enrollment-success-student">${escapeEnrollmentHtml(student.name)}</p>
+      <p class="enrollment-success-hint">اختر الإجراء المناسب</p>
+      <div class="enrollment-success-actions">
+        <button class="enrollment-action-button enrollment-action-pdf" type="button" onclick="window.downloadOrShareEnrollmentPdf()" ${outputState.pdfBlob ? '' : 'disabled'}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
+          <span>${outputState.pdfBlob ? 'تحميل / مشاركة الاستمارة' : 'تعذر تجهيز الاستمارة'}</span>
+        </button>
+        <button class="enrollment-action-button enrollment-action-whatsapp" type="button" onclick="window.openEnrollmentWhatsApp()" ${outputState.whatsappUrl ? '' : 'disabled'}>
+          <span class="enrollment-whatsapp-icon" aria-hidden="true">💬</span>
+          <span>واتساب</span>
+        </button>
+      </div>
+      <div class="enrollment-success-footer">
+        ${allowAnother ? '<button class="enrollment-action-text" type="button" onclick="window.startAnotherStudentEnrollment()">إضافة طالب آخر</button>' : ''}
+        <button class="enrollment-action-text" type="button" onclick="window.closeEnrollmentSuccess()">إخفاء</button>
+      </div>
+    </section>
+  `;
+  modal.addEventListener('click', event => {
+    if (event.target === modal) window.closeEnrollmentSuccess();
+  });
+  document.body.appendChild(modal);
+}
+
 // Add student function
 window.addStudent = async function() {
   const name = document.getElementById("studentName").value.trim();
@@ -1162,6 +1370,7 @@ window.addStudent = async function() {
       learningProgram: level === 'noorani' ? 'noorani' : null,
       learningPath: level === 'noorani' ? 'noorani' : null,
       createdAt: serverTimestamp(),
+      registrationDateGregorian: todayDate.toISOString(),
       registrationDateHijri: registrationDateHijri,
       monthlyScore: 0,
       rank: 0
@@ -7694,6 +7903,7 @@ window.addStudentNew = async function() {
   const birthDate = document.getElementById("studentBirthDateNew").value;
   const nationalId = document.getElementById("studentNationalIdNew").value.trim();
   const studentPhone = document.getElementById("studentPhoneNew").value.trim();
+  const guardianName = document.getElementById("guardianNameNew").value.trim();
   const guardianPhone = document.getElementById("guardianPhoneNew").value.trim();
   const level = document.getElementById("studentLevelNew").value;
   const classId = document.getElementById("classSelectAddNew").value;
@@ -7714,6 +7924,12 @@ window.addStudentNew = async function() {
 
   if (!guardianPhone) {
     result.innerText = "❌ الرجاء إدخال رقم جوال ولي الأمر";
+    result.style.color = '#ff6b6b';
+    return;
+  }
+
+  if (!guardianName) {
+    result.innerText = "❌ الرجاء إدخال اسم ولي الأمر";
     result.style.color = '#ff6b6b';
     return;
   }
@@ -7744,6 +7960,8 @@ window.addStudentNew = async function() {
     return;
   }
 
+  const submitButton = document.querySelector('#addStudentFormContainerNew button[onclick="addStudentNew()"]');
+  if (submitButton) submitButton.disabled = true;
   try {
     result.innerText = "⏳ جاري إضافة الطالب...";
     result.style.color = '#667eea';
@@ -7772,11 +7990,13 @@ window.addStudentNew = async function() {
       classId: classId,
       birthDate: birthDate,
       age: age,
+      guardianName: guardianName,
       guardianPhone: guardianPhone,
       level: level,
       learningProgram: level === 'noorani' ? 'noorani' : null,
       learningPath: level === 'noorani' ? 'noorani' : null,
       createdAt: serverTimestamp(),
+      registrationDateGregorian: todayDate.toISOString(),
       registrationDateHijri: registrationDateHijri,
       monthlyScore: 0,
       rank: 0
@@ -7790,45 +8010,37 @@ window.addStudentNew = async function() {
       studentData.studentPhone = studentPhone;
     }
 
-    // Save to Firestore
-    await setDoc(firestoreDoc(db, "users", userId), studentData);
-
-    // Update class document with new student
-    const classDocRef = firestoreDoc(db, "classes", classId);
-    await updateDoc(classDocRef, {
+    // Save the student and update the class roster atomically.
+    const enrollmentBatch = writeBatch(db);
+    enrollmentBatch.set(firestoreDoc(db, "users", userId), studentData);
+    enrollmentBatch.update(firestoreDoc(db, "classes", classId), {
       studentIds: arrayUnion(userId)
     });
+    await enrollmentBatch.commit();
 
-    result.innerText = `✅ تم إضافة الطالب بنجاح: ${name} (${userId})`;
-    result.style.color = '#51cf66';
-    
-    // Clear form after short delay
-    setTimeout(() => {
-      document.getElementById("studentNameNew").value = "";
-      document.getElementById("studentBirthDateNew").value = "";
-      document.getElementById("studentNationalIdNew").value = "";
-      document.getElementById("studentPhoneNew").value = "";
-      document.getElementById("guardianPhoneNew").value = "";
-      document.getElementById("studentLevelNew").value = "";
-      document.getElementById("classSelectAddNew").value = "";
-      result.innerText = "";
-      
-      // Close form
-      const formContainer = document.getElementById('addStudentFormContainerNew');
-      if (formContainer) {
-        formContainer.style.display = 'none';
-      }
-      
-      // Reload dashboard stats to reflect new student
-      if (typeof window.loadDashboardStats === 'function') {
-        window.loadDashboardStats();
-      }
-    }, 2000);
+    result.innerText = 'تم الحفظ، جار تجهيز خيارات الاستمارة...';
+    result.style.color = '#1f6f78';
+    const outputState = await prepareStudentEnrollmentDocuments(studentData);
+
+    document.getElementById('studentNameNew').value = '';
+    document.getElementById('studentBirthDateNew').value = '';
+    document.getElementById('studentNationalIdNew').value = '';
+    document.getElementById('studentPhoneNew').value = '';
+    document.getElementById('guardianNameNew').value = '';
+    document.getElementById('guardianPhoneNew').value = '';
+    document.getElementById('studentLevelNew').value = '';
+    document.getElementById('classSelectAddNew').value = '';
+    result.innerText = '';
+    showEnrollmentSuccess(studentData, outputState, true);
+
+    if (typeof window.loadDashboardStats === 'function') window.loadDashboardStats();
 
   } catch (error) {
     console.error("Error adding student:", error);
     result.innerText = `❌ خطأ في إضافة الطالب: ${error.message}`;
     result.style.color = '#ff6b6b';
+  } finally {
+    if (submitButton) submitButton.disabled = false;
   }
 };
 
@@ -10313,6 +10525,7 @@ window.saveWaitingStudent = async function() {
   const nationalId = document.getElementById('waitingStudentNationalId').value.trim();
   const level = document.getElementById('waitingStudentLevel').value;
   const classId = document.getElementById('waitingStudentClass').value;
+  const guardianName = document.getElementById('waitingGuardianName').value.trim();
   const guardianPhone = document.getElementById('waitingGuardianPhone').value.trim();
   const studentPhone = document.getElementById('waitingStudentPhone').value.trim();
   const notes = document.getElementById('waitingStudentNotes').value.trim();
@@ -10354,6 +10567,11 @@ window.saveWaitingStudent = async function() {
   
   if (!guardianPhone) {
     alert('⚠️ الرجاء إدخال رقم ولي الأمر');
+    return;
+  }
+
+  if (!guardianName) {
+    alert('⚠️ الرجاء إدخال اسم ولي الأمر');
     return;
   }
   
@@ -10407,6 +10625,7 @@ window.saveWaitingStudent = async function() {
       birthDate: birthDate,
       age: numericAge,
       level: level,
+      guardianName: guardianName,
       guardianPhone: guardianPhone,
       priority: priority,
       registrationDateHijri: registrationDateHijri,
@@ -14084,6 +14303,9 @@ window.joinWaitingStudentToClass = async function(studentId) {
       <select id="selectedClassForWaiting" style="width: 100%; padding: 14px; border: 2px solid #e9ecef; border-radius: 12px; font-size: 15px; margin-bottom: 16px; background: white;">
         ${classesHTML}
       </select>
+
+      <label for="waitingGuardianNameForJoin" style="display: block; margin-bottom: 7px; color: #444; font-size: 13px; font-weight: 700;">اسم ولي الأمر *</label>
+      <input id="waitingGuardianNameForJoin" type="text" maxlength="120" required value="${escapeEnrollmentHtml(studentData.guardianName || '')}" placeholder="أدخل اسم ولي الأمر" style="width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #ccd6e0; border-radius: 8px; margin-bottom: 16px; font: inherit;">
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
         <button onclick="confirmJoinWaitingStudentToClass('${studentId}')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;">
@@ -14104,13 +14326,19 @@ window.joinWaitingStudentToClass = async function(studentId) {
 // Confirm Join Waiting Student to Class
 window.confirmJoinWaitingStudentToClass = async function(studentId) {
   const classSelect = document.getElementById('selectedClassForWaiting');
-  const classId = classSelect.value;
+  const classId = classSelect?.value;
+  const guardianName = document.getElementById('waitingGuardianNameForJoin')?.value.trim() || '';
   
   if (!classId) {
     alert('⚠️ الرجاء اختيار الحلقة');
     return;
   }
-  
+  if (!guardianName) {
+    alert('⚠️ الرجاء إدخال اسم ولي الأمر');
+    document.getElementById('waitingGuardianNameForJoin')?.focus();
+    return;
+  }
+
   try {
     console.log('💾 [WAITING] Moving student to class:', { studentId, classId });
     
@@ -14146,33 +14374,39 @@ window.confirmJoinWaitingStudentToClass = async function(studentId) {
       nationalId: studentData.nationalId || null,
       level: studentData.level,
       classId: classId,
+      className: classData.className || classData.name || classId,
+      teacherName: classData.teacherName || classData.teacher || 'غير محدد',
       teacher: classData.teacher || 'غير محدد',
+      guardianName: guardianName,
       guardianPhone: studentData.guardianPhone,
       studentPhone: studentData.studentPhone || null,
+      registrationDateGregorian: studentData.registrationDateGregorian || studentData.addedDate || new Date().toISOString(),
+      registrationDateHijri: studentData.registrationDateHijri || formatHijriDate(new Date()),
       notes: studentData.notes || null,
       addedDate: new Date().toISOString(),
       addedFrom: 'waitingList',
       status: 'active'
     };
     
-    // Add to users collection with custom ID
-    await setDoc(firestoreDoc(db, 'users', customUserId), newStudentData);
+    // Promote the student and update both source/target records atomically.
+    const promotionBatch = writeBatch(db);
+    promotionBatch.set(firestoreDoc(db, 'users', customUserId), newStudentData);
     console.log('✅ [WAITING] Student added to users collection:', customUserId);
     
-    // Update class document to add student ID
-    const classDocRef = firestoreDoc(db, 'classes', classId);
-    await updateDoc(classDocRef, {
+    promotionBatch.update(firestoreDoc(db, 'classes', classId), {
       studentIds: arrayUnion(customUserId)
     });
-    console.log('✅ [WAITING] Student added to class studentIds array');
-    
-    // Delete from waiting list
-    await deleteDoc(doc(db, 'waitingStudents', studentId));
+    promotionBatch.delete(doc(db, 'waitingStudents', studentId));
+    await promotionBatch.commit();
+    console.log('✅ [WAITING] Student added to class studentIds array and removed from waiting list');
+
     console.log('✅ [WAITING] Student removed from waiting list');
+
+    const outputState = await prepareStudentEnrollmentDocuments(newStudentData, classData);
     
     // Close modal and reload
     closeWaitingStudentModal();
-    showSuccessToast('تم إضافة الطالب للحلقة بنجاح');
+    showEnrollmentSuccess(newStudentData, outputState);
     loadWaitingStudents();
     
   } catch (error) {

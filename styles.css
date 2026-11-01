@@ -183,7 +183,56 @@ body {
 .pledge-pdf-footer span { color: #718092; }
 .pledge-pdf-footer strong { color: #263b4c; }
 .pledge-pdf-signature { margin-top: 62px; color: #1f6f78; font-size: 17px; font-weight: 700; text-align: center; }
+.student-enrollment-pdf { width: 794px; color: #263746; background: #fff; direction: rtl; font-family: "Noto Naskh Arabic", Tahoma, sans-serif; }
+.student-enrollment-page { width: 794px; min-height: 1123px; box-sizing: border-box; padding: 34px 48px; background: #fff; color: #263746; font-size: 14px; line-height: 1.5; }
+.enrollment-pdf-header { margin-bottom: 12px; padding-bottom: 9px; border-bottom: 2px solid #1f6f78; text-align: center; }
+.enrollment-pdf-kicker { color: #1f6f78; font-size: 15px; font-weight: 700; }
+.enrollment-pdf-header h1 { margin: 4px 0 0; color: #1e3445; font-size: 23px; }
+.enrollment-pdf-section { margin: 10px 0; break-inside: avoid; }
+.enrollment-pdf-section h2 { margin: 0 0 6px; padding-right: 8px; border-right: 3px solid #1f6f78; color: #1f5961; font-size: 17px; }
+.enrollment-pdf-data { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; padding: 5px 10px; border: 1px solid #d7e1e4; border-radius: 4px; background: #f7f9fa; }
+.enrollment-pdf-data-item { display: flex; align-items: baseline; gap: 5px; min-height: 29px; padding: 3px 0; border-bottom: 1px solid #e3e9eb; }
+.enrollment-pdf-data-item strong { flex: 0 0 auto; color: #536572; font-size: 12px; }
+.enrollment-pdf-data-item span { min-width: 0; color: #263746; font-size: 13px; overflow-wrap: anywhere; }
+.enrollment-pdf-intro { margin: 0 0 4px; font-weight: 700; }
+.enrollment-pdf-rules { direction: rtl; list-style: disc; list-style-position: outside; margin: 0; padding-right: 22px; padding-left: 0; font-size: 13px; line-height: 1.5; text-align: right; }
+.enrollment-pdf-rules li { margin: 0 0 4px; padding-right: 2px; }
+.enrollment-pdf-acknowledgements { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 10px; }
+.enrollment-pdf-acknowledgement { padding-top: 7px; border-top: 1px solid #dfe6e9; }
+.enrollment-pdf-acknowledgement > strong { color: #1f5961; font-size: 14px; }
+.enrollment-pdf-acknowledgement p { min-height: 32px; margin: 3px 0 5px; font-size: 12px; }
+.enrollment-pdf-acknowledgement div { display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 8px; }
+.enrollment-pdf-acknowledgement span, .enrollment-pdf-manager-signature span { color: #536572; font-size: 12px; font-weight: 700; }
+.enrollment-pdf-acknowledgement i, .enrollment-pdf-manager-signature i { display: block; min-height: 19px; border-bottom: 1px dotted #73818a; }
+.enrollment-pdf-manager-signature { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: end; margin-top: 10px; padding-top: 8px; border-top: 1px solid #dfe6e9; }
+.enrollment-pdf-manager-signature strong { color: #263746; font-size: 13px; }
+.enrollment-success-overlay { position: fixed; inset: 0; z-index: 11000; display: grid; place-items: center; padding: 16px; background: rgba(25, 39, 48, .48); animation: enrollmentOverlayIn .18s ease-out; }
+.enrollment-success-dialog { position: relative; width: min(100%, 430px); box-sizing: border-box; padding: 28px 24px 18px; border-top: 4px solid #23866b; border-radius: 12px; background: #fff; box-shadow: 0 18px 55px rgba(18, 38, 48, .24); text-align: center; animation: enrollmentDialogIn .22s ease-out; }
+.enrollment-success-close { position: absolute; top: 10px; left: 12px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: #f0f3f4; color: #66757d; font-size: 22px; cursor: pointer; }
+.enrollment-success-mark { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 10px; border-radius: 50%; background: #e7f5ef; color: #23866b; font-size: 24px; font-weight: 700; }
+.enrollment-success-dialog h2 { margin: 0; color: #213943; font-size: 19px; }
+.enrollment-success-student { margin: 7px 0 0; color: #53656e; font-size: 14px; font-weight: 700; }
+.enrollment-success-hint { margin: 16px 0 9px; color: #718089; font-size: 12px; }
+.enrollment-success-actions { display: grid; grid-template-columns: 1fr 112px; gap: 8px; }
+.enrollment-action-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 8px 12px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s ease, transform .15s ease; }
+.enrollment-action-button:hover:not(:disabled) { transform: translateY(-1px); }
+.enrollment-action-button:focus-visible, .enrollment-success-close:focus-visible, .enrollment-action-text:focus-visible { outline: 3px solid rgba(31, 111, 120, .25); outline-offset: 2px; }
+.enrollment-action-button:disabled { border-color: #e2e7e9; background: #f1f3f4; color: #97a2a7; cursor: not-allowed; }
+.enrollment-action-pdf { background: #1f6f78; color: #fff; }
+.enrollment-action-pdf:hover:not(:disabled) { background: #195d65; }
+.enrollment-action-pdf svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.enrollment-action-whatsapp { background: #eaf6ef; color: #13734d; }
+.enrollment-action-whatsapp:hover:not(:disabled) { background: #d9eee2; }
+.enrollment-action-whatsapp:disabled { background: #f1f3f4; color: #97a2a7; }
+.enrollment-whatsapp-icon { font-size: 17px; line-height: 1; }
+.enrollment-success-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 10px; border-top: 1px solid #edf0f1; }
+.enrollment-action-text { padding: 5px 2px; border: 0; background: transparent; color: #586b73; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.enrollment-action-text:hover { color: #1f6f78; }
+@keyframes enrollmentOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes enrollmentDialogIn { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (max-width: 600px) {
+  .enrollment-success-dialog { padding: 25px 18px 16px; }
+  .enrollment-success-actions { grid-template-columns: minmax(0, 1fr) 100px; }
   .pledge-page-content { padding: 16px 12px 90px; }
   .pledge-form-card, .pledge-history-card { padding: 16px; }
   .pledge-form-actions { flex-direction: column; align-items: stretch; }
