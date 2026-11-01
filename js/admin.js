@@ -14339,6 +14339,14 @@ window.confirmJoinWaitingStudentToClass = async function(studentId) {
     return;
   }
 
+  const confirmButton = document.querySelector('#waitingStudentModalContent button[onclick^="confirmJoinWaitingStudentToClass"]');
+  if (confirmButton?.disabled) return;
+  if (confirmButton) {
+    confirmButton.disabled = true;
+    confirmButton.textContent = 'جارٍ إضافة الطالب...';
+    confirmButton.setAttribute('aria-busy', 'true');
+  }
+
   try {
     console.log('💾 [WAITING] Moving student to class:', { studentId, classId });
     
@@ -14412,6 +14420,12 @@ window.confirmJoinWaitingStudentToClass = async function(studentId) {
   } catch (error) {
     console.error('❌ [WAITING] Error joining student to class:', error);
     alert('❌ حدث خطأ: ' + error.message);
+  } finally {
+    if (confirmButton?.isConnected) {
+      confirmButton.disabled = false;
+      confirmButton.textContent = 'تأكيد';
+      confirmButton.removeAttribute('aria-busy');
+    }
   }
 };
 
