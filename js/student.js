@@ -2,6 +2,7 @@
 import { db, collection, getDocs, doc, getDoc, query, where, orderBy, onSnapshot, updateDoc } from '../firebase-config.js';
 import { getCurrentHijriDate, formatHijriDate } from './hijri-date.js';
 import { getAccurateStudyDaysCurrentMonth, getAccurateStudyDaysForMonth, accurateHijriDates } from './accurate-hijri-dates.js';
+import { openEnrollmentPdf } from './enrollment-forms.js';
 
 let studentNotificationsListener = null;
 
@@ -776,6 +777,126 @@ window.toggleStudentNavbar = function() {
       overlay.style.display = 'none';
     }, 300);
   }
+};
+
+window.closeStudentEnrollmentForms = function() {
+  document.getElementById('studentEnrollmentFormsPanel')?.remove();
+};
+
+window.openStudentEnrollmentForms = function() {
+  const studentId = sessionStorage.getItem('loggedInStudent');
+  if (!studentId) return;
+
+  window.toggleStudentNavbar();
+  setTimeout(async () => {
+    window.closeStudentEnrollmentForms();
+    const panel = document.createElement('div');
+    panel.id = 'studentEnrollmentFormsPanel';
+    panel.className = 'enrollment-library-overlay';
+    panel.innerHTML = `
+      <section class="enrollment-library-dialog" role="dialog" aria-modal="true" aria-labelledby="studentEnrollmentFormsTitle" dir="rtl">
+        <header class="enrollment-library-header">
+          <div>
+            <h2 id="studentEnrollmentFormsTitle">استمارتي</h2>
+            <p>استمارة التسجيل الخاصة بك</p>
+          </div>
+          <button class="enrollment-library-close" type="button" aria-label="إغلاق">إغلاق</button>
+        </header>
+        <div class="enrollment-library-body" aria-live="polite">
+          <p class="enrollment-library-state">جار تحميل الاستمارة...</p>
+        </div>
+      </section>
+    `;
+    panel.querySelector('.enrollment-library-close').addEventListener('click', window.closeStudentEnrollmentForms);
+    panel.addEventListener('click', event => {
+      if (event.target === panel) window.closeStudentEnrollmentForms();
+    });
+    document.body.appendChild(panel);
+
+    const body = panel.querySelector('.enrollment-library-body');
+    try {
+      let forms = [];
+      try {
+        const formsSnapshot = await getDocs(query(collection(db, 'enrollmentForms'), where('studentId', '==', studentId)));
+        forms = formsSnapshot.docs.map(formDoc => ({ id: formDoc.id, ...formDoc.data() }));
+      } catch (error) {
+        console.warn('Saved student forms are unavailable; using current student data:', error);
+      }
+
+      if (!forms.length) {
+        const studentSnapshot = await getDoc(doc(db, 'users', studentId));
+        if (studentSnapshot.exists()) {
+          const student = { id: studentSnapshot.id, ...studentSnapshot.data() };
+          const classDataSnapshot = student.classId ? await getDoc(doc(db, 'classes', student.classId)) : null;
+          const classData = classDataSnapshot?.exists() ? classDataSnapshot.data() : {};
+          forms = [{
+            id: `current-${studentId}`,
+            studentId,
+            studentName: student.name,
+            classId: student.classId,
+            className: classData.className || classData.name || student.className || student.classId,
+            teacherName: classData.teacherName || classData.teacher || student.teacherName || student.teacher,
+            formSnapshot: student,
+            createdAt: student.registrationDateGregorian || student.addedDate || null,
+            isCurrentProfile: true
+          }];
+        }
+      }
+
+      if (!forms.length) {
+        body.innerHTML = '<p class="enrollment-library-state">لا توجد استمارات مسجلة حتى الآن.</p>';
+        return;
+      }
+
+      body.replaceChildren();
+      forms.sort((first, second) => {
+        const firstDate = first.createdAt?.toMillis?.() || new Date(first.createdAt || 0).getTime();
+        const secondDate = second.createdAt?.toMillis?.() || new Date(second.createdAt || 0).getTime();
+        return secondDate - firstDate;
+      });
+
+      forms.forEach(form => {
+        const card = document.createElement('article');
+        card.className = 'enrollment-library-card';
+        const copy = document.createElement('div');
+        copy.className = 'enrollment-library-card-copy';
+        const name = document.createElement('h3');
+        name.textContent = form.studentName || sessionStorage.getItem('loggedInStudentName') || 'استمارة الطالب';
+        const details = document.createElement('p');
+        details.textContent = `الحلقة: ${form.className || form.classId || 'غير محددة'}${form.isCurrentProfile ? ' · النسخة الحالية من البيانات' : ''}`;
+        copy.append(name, details);
+
+        const actionButton = document.createElement('button');
+        actionButton.className = 'enrollment-library-action';
+        actionButton.type = 'button';
+        actionButton.textContent = 'فتح الاستمارة';
+        const actionStatus = document.createElement('p');
+        actionStatus.className = 'enrollment-library-action-status';
+        actionStatus.setAttribute('aria-live', 'polite');
+        card.append(copy, actionButton, actionStatus);
+        body.appendChild(card);
+
+        actionButton.addEventListener('click', async () => {
+          actionButton.disabled = true;
+          actionButton.textContent = 'جار تجهيز الاستمارة...';
+          actionStatus.textContent = '';
+          try {
+            const opened = await openEnrollmentPdf(form.formSnapshot || {}, form);
+            if (!opened) actionStatus.textContent = 'يرجى السماح بالنوافذ المنبثقة ثم المحاولة مجددًا.';
+          } catch (error) {
+            console.error('Unable to open student enrollment form:', error);
+            actionStatus.textContent = 'تعذر تجهيز الاستمارة. حاول مرة أخرى.';
+          } finally {
+            actionButton.disabled = false;
+            actionButton.textContent = 'فتح الاستمارة';
+          }
+        });
+      });
+    } catch (error) {
+      console.error('Unable to load student enrollment form:', error);
+      body.innerHTML = '<p class="enrollment-library-state">تعذر تحميل بيانات الاستمارة. حاول مرة أخرى.</p>';
+    }
+  }, 300);
 };
 
 // Open Personal Data Modal from Navbar

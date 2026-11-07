@@ -27,6 +27,7 @@ import { calculateRevisionPages } from './quran-juz-data.js';
 import { formatHijriDate, gregorianToHijriDisplay, getHijriWeekAgo, getHijriMonthAgo, getStudyDaysInCurrentHijriMonth, getStudyDaysForHijriMonth, getTodayForStorage, getCurrentHijriDate, gregorianToHijri, hijriToGregorian as convertHijriToGregorian } from './hijri-date.js';
 import { accurateHijriDates, getTodayAccurateHijri, formatAccurateHijriDate } from './accurate-hijri-dates.js';
 import { getNooraniPath } from '../config/learning-paths.js';
+import { createEnrollmentPdfBlob } from './enrollment-forms.js';
 
 // ==========================================
 // TEACHER UTILITIES
@@ -1077,12 +1078,6 @@ function escapeEnrollmentHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 }
 
-function formatEnrollmentDate(value) {
-  if (!value) return 'غير مسجل';
-  const date = typeof value.toDate === 'function' ? value.toDate() : new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { year: 'numeric', month: 'long', day: 'numeric' }).format(date);
-}
-
 function buildEnrollmentWhatsAppMessage(student, classData) {
   const levelNames = { hifz: 'حفظ', dabt: 'ضبط', noorani: 'القاعدة النورانية' };
   const level = levelNames[student.level] || student.level || 'غير محدد';
@@ -1092,67 +1087,36 @@ function buildEnrollmentWhatsAppMessage(student, classData) {
   return `السلام عليكم ورحمة الله وبركاته،\n\nنبارك لكم انضمام الطالب ${student.name} إلى حلقات جامع حمدة آل ثاني.\nالمستوى: ${level}\nالحلقة/المعلم: ${className} - ${teacherName}\nتاريخ الانضمام: ${date}\n\nنسأل الله له التوفيق والبركة في حفظ كتابه والعمل به.\n\nإدارة حلقات جامع حمدة آل ثاني`;
 }
 
-function buildEnrollmentPdfElement(student, classData) {
-  const levelNames = { hifz: 'حفظ', dabt: 'ضبط', noorani: 'القاعدة النورانية' };
-  const className = classData.className || classData.name || student.classId || 'غير محددة';
-  const teacherName = classData.teacherName || classData.teacher || 'غير محدد';
-  const teacherLabel = teacherName.startsWith('أ/') || teacherName.startsWith('أ.') ? teacherName : `أ/${teacherName}`;
-  const registrationDateGregorian = student.registrationDateGregorian || student.addedDate || new Date();
-  const personalRows = [
-    ['اسم الطالب', student.name],
-    ['العمر', student.age ? `${student.age} سنة` : 'غير مسجل'],
-    ['الحلقة / المعلم', `${className} - ${teacherLabel}`],
-    ['رقم الهوية', student.nationalId || 'غير مسجل'],
-    ['المستوى', levelNames[student.level] || student.level || 'غير محدد'],
-    ['رقم جوال الطالب', student.studentPhone || 'غير مسجل'],
-    ['رقم جوال ولي الأمر', student.guardianPhone || 'غير مسجل'],
-    ['تاريخ التسجيل الميلادي', formatEnrollmentDate(registrationDateGregorian)],
-    ['تاريخ التسجيل الهجري', student.registrationDateHijri || formatHijriDate(new Date())]
-  ];
-  const declarationPoints = [
-    'الالتزام بوقت الحلقة من العصر إلى ما بعد العشاء، وصلاة العصر مع الجماعة الأولى، وعدم الانصراف قبل العشاء.',
-    'عدم التأخر أكثر من 45 دقيقة بعد أذان العصر، وتُطبق لائحة التأخير.',
-    'الالتزام بالزي: ثوب نظيف وطاقية.',
-    'إحضار المصحف يوميًا.',
-    'عدم إحضار الجوال، وتسليمه للإدارة عند إحضاره حتى الانصراف.',
-    'عند الغياب أو التأخر بعذر، يتواصل ولي الأمر مع المعلم قبل أذان العصر في اليوم نفسه، ولا يُقبل الاعتذار عبر واتساب.',
-    'احترام المعلم وتقديره.',
-    'الالتزام بحسن السلوك والانضباط داخل الحلقة.'
-  ];
-  const element = document.createElement('div');
-  element.className = 'student-enrollment-pdf';
-  element.dir = 'rtl';
-  element.innerHTML = `
-    <section class="student-enrollment-page">
-      <header class="enrollment-pdf-header">
-        <div class="enrollment-pdf-kicker">جامع حمدة آل ثاني</div>
-        <h1>استمارة تسجيل طالب بالحلقات</h1>
-      </header>
-      <section class="enrollment-pdf-section enrollment-pdf-personal">
-        <h2>البيانات الشخصية</h2>
-        <div class="enrollment-pdf-data">${personalRows.map(([label, value]) => `<div class="enrollment-pdf-data-item"><strong>${escapeEnrollmentHtml(label)}</strong><span>${escapeEnrollmentHtml(value)}</span></div>`).join('')}</div>
-      </section>
-      <section class="enrollment-pdf-section enrollment-pdf-declaration">
-        <h2>إقرار وتعهد بالأنظمة</h2>
-        <p class="enrollment-pdf-intro">أقر أنا الطالب وولي أمري بالاطلاع على الأنظمة التالية والالتزام بها:</p>
-        <ul class="enrollment-pdf-rules">${declarationPoints.map(point => `<li>${escapeEnrollmentHtml(point)}</li>`).join('')}</ul>
-      </section>
-      <section class="enrollment-pdf-acknowledgements">
-        <div class="enrollment-pdf-acknowledgement">
-          <strong>إقرار الطالب</strong>
-          <p>أتعهد أنا الطالب ${escapeEnrollmentHtml(student.name)} بالالتزام بالأنظمة أعلاه.</p>
-          <div><span>التوقيع</span><i></i></div>
-        </div>
-        <div class="enrollment-pdf-acknowledgement">
-          <strong>موافقة ولي الأمر</strong>
-          <p>أوافق على التزام ابني بالأنظمة أعلاه.</p>
-          <div><span>${escapeEnrollmentHtml(student.guardianName || '')}</span><i></i></div>
-        </div>
-      </section>
-      <footer class="enrollment-pdf-manager-signature"><span>توقيع مدير الحلقات</span><strong>أ/عبدالمجيد هوساوي</strong><i></i></footer>
-    </section>
-  `;
-  return element;
+function buildEnrollmentFormRecord(studentId, studentData, classData = {}) {
+  const className = classData.className || classData.name || studentData.className || studentData.classId || '';
+  const teacherName = classData.teacherName || classData.teacher || studentData.teacherName || studentData.teacher || '';
+  return {
+    studentId,
+    studentName: studentData.name || '',
+    classId: studentData.classId || '',
+    className,
+    teacherName,
+    formVersion: 1,
+    createdAt: serverTimestamp(),
+    formSnapshot: {
+      userId: studentId,
+      name: studentData.name || '',
+      role: 'student',
+      classId: studentData.classId || '',
+      className,
+      teacherName,
+      teacher: classData.teacher || studentData.teacher || teacherName,
+      birthDate: studentData.birthDate || null,
+      age: studentData.age || null,
+      nationalId: studentData.nationalId || null,
+      level: studentData.level || '',
+      guardianName: studentData.guardianName || '',
+      guardianPhone: studentData.guardianPhone || '',
+      studentPhone: studentData.studentPhone || null,
+      registrationDateGregorian: studentData.registrationDateGregorian || studentData.addedDate || null,
+      registrationDateHijri: studentData.registrationDateHijri || formatHijriDate(new Date())
+    }
+  };
 }
 
 async function prepareStudentEnrollmentDocuments(student, classData = null) {
@@ -1169,24 +1133,7 @@ async function prepareStudentEnrollmentDocuments(student, classData = null) {
 
   let pdfBlob = null;
   try {
-    if (!window.html2canvas || !window.jspdf?.jsPDF) throw new Error('PDF libraries are unavailable');
-    const pdfElement = buildEnrollmentPdfElement(student, resolvedClassData);
-    pdfElement.style.position = 'fixed';
-    pdfElement.style.left = '-10000px';
-    pdfElement.style.top = '0';
-    document.body.appendChild(pdfElement);
-    try {
-      const pages = [...pdfElement.querySelectorAll('.student-enrollment-page')];
-      const pdf = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-        if (pageIndex > 0) pdf.addPage();
-        const canvas = await window.html2canvas(pages[pageIndex], { scale: 2, backgroundColor: '#ffffff', useCORS: true });
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297);
-      }
-      pdfBlob = pdf.output('blob');
-    } finally {
-      pdfElement.remove();
-    }
+    pdfBlob = await createEnrollmentPdfBlob(student, resolvedClassData);
   } catch (pdfError) {
     console.error('Enrollment PDF generation failed:', pdfError);
   }
@@ -8010,9 +7957,16 @@ window.addStudentNew = async function() {
       studentData.studentPhone = studentPhone;
     }
 
+    const classSnapshot = await getDoc(firestoreDoc(db, 'classes', classId));
+    const classData = classSnapshot.exists() ? classSnapshot.data() : {};
+    studentData.className = classData.className || classData.name || classId;
+    studentData.teacherName = classData.teacherName || classData.teacher || 'غير محدد';
+    studentData.teacher = classData.teacher || studentData.teacherName;
+
     // Save the student and update the class roster atomically.
     const enrollmentBatch = writeBatch(db);
     enrollmentBatch.set(firestoreDoc(db, "users", userId), studentData);
+    enrollmentBatch.set(doc(collection(db, 'enrollmentForms')), buildEnrollmentFormRecord(userId, studentData, classData));
     enrollmentBatch.update(firestoreDoc(db, "classes", classId), {
       studentIds: arrayUnion(userId)
     });
@@ -8020,7 +7974,7 @@ window.addStudentNew = async function() {
 
     result.innerText = 'تم الحفظ، جار تجهيز خيارات الاستمارة...';
     result.style.color = '#1f6f78';
-    const outputState = await prepareStudentEnrollmentDocuments(studentData);
+    const outputState = await prepareStudentEnrollmentDocuments(studentData, classData);
 
     document.getElementById('studentNameNew').value = '';
     document.getElementById('studentBirthDateNew').value = '';
@@ -14399,6 +14353,7 @@ window.confirmJoinWaitingStudentToClass = async function(studentId) {
     // Promote the student and update both source/target records atomically.
     const promotionBatch = writeBatch(db);
     promotionBatch.set(firestoreDoc(db, 'users', customUserId), newStudentData);
+    promotionBatch.set(doc(collection(db, 'enrollmentForms')), buildEnrollmentFormRecord(customUserId, newStudentData, classData));
     console.log('✅ [WAITING] Student added to users collection:', customUserId);
     
     promotionBatch.update(firestoreDoc(db, 'classes', classId), {
