@@ -8439,15 +8439,15 @@ window.openNooraniAssessmentPreview = function() {
         <button class="teacher-outline-action" type="button" onclick="window.openNooraniTracksPreview()">تعديل المسارات والخطط</button>
       </div>
       <div class="teacher-previous-score" id="previewPreviousScore"><span>السابق</span><strong>--</strong><p>اختر طالبا لعرض آخر تقييم</p></div>
-      <details class="teacher-score-sheet">
-        <summary><span>نقاط التقييم</span><strong id="previewScoreSummary">30 / 30</strong></summary>
-        <div class="teacher-score-grid">
-          ${[['صلاة العصر','asr'],['الدرس','lesson'],['المراجعة','revision'],['التلاوة في البيت','homeRecitation'],['القراءة في البيت','homeReading'],['السلوك','behavior']].map(([label, id]) => `<label class="teacher-score-field">${label}<span class="teacher-score-control"><button type="button" onclick="window.previewScore('${id}', -1)">−</button><output id="preview-${id}">5</output><button type="button" onclick="window.previewScore('${id}', 1)">+</button></span></label>`).join('')}
-        </div>
-      </details>
       <div id="previewCurriculumFields"></div>
       <div id="previewAdditionalLessons" class="teacher-additional-lessons"></div>
       <button type="button" id="previewAddLessonBtn" class="teacher-add-lesson-btn" onclick="window.addAdditionalLessonBlock('previewAdditionalLessons','previewAddLesson', document.getElementById('previewLearningPath')?.value, 'previewAddLessonBtn')">+ إضافة درس إضافي</button>
+      <section class="teacher-score-panel" aria-label="نقاط التقييم">
+        <div class="teacher-score-panel-head"><strong>نقاط التقييم</strong><span id="previewScoreSummary">30 / 30</span></div>
+        <div class="teacher-score-grid teacher-score-grid-compact">
+          ${[['صلاة العصر','asr'],['الدرس','lesson'],['المراجعة','revision'],['التلاوة في البيت','homeRecitation'],['القراءة في البيت','homeReading'],['السلوك','behavior']].map(([label, id]) => `<label class="teacher-score-field">${label}<span class="teacher-score-control"><button type="button" onclick="window.previewScore('${id}', -1)">−</button><output id="preview-${id}">5</output><button type="button" onclick="window.previewScore('${id}', 1)">+</button></span></label>`).join('')}
+        </div>
+      </section>
       <div class="teacher-form-footer"><div class="teacher-total-row"><span>المجموع الحالي</span><strong id="previewTotalScore">30 / 30</strong></div><button id="previewSaveButton" class="teacher-save-preview" type="button" onclick="window.savePreviewAssessment()">حفظ التقييم</button></div><p id="teacherPreviewNotice" class="teacher-preview-notice" role="status"></p>
       </div>
       <div id="previewPreviousPanel" class="teacher-form-tab-panel" role="tabpanel" hidden>
@@ -8563,14 +8563,12 @@ async function loadPreviewPreviousReports(studentId) {
       const curriculum = report.curriculum || {};
       const lesson = curriculum.lesson || {};
       const revision = curriculum.revision || {};
-      const lessonSurah = lesson.surahName || getSurah(lesson.surahNumber)?.name;
-      const revisionSurah = revision.surahName || getSurah(revision.surahNumber)?.name;
       const lessonText = lesson.type === 'quranRange'
-        ? lessonSurah ? `${lessonSurah} ${lesson.fromVerse || ''}-${lesson.toVerse || ''}` : '—'
+        ? formatQuranRangeText(lesson) || '—'
         : lesson.lessonNumber ? `الدرس ${lesson.lessonNumber}${lesson.pageNumber ? ` · ص${lesson.pageNumber}` : ''}` : (report.lessonFrom || '—');
       const amountText = lesson.type === 'quranRange' ? '—' : lesson.amountLabel || lesson.amount || '—';
       const revisionText = revision.type === 'quranRange'
-        ? revisionSurah ? `${revisionSurah} ${revision.fromVerse || ''}-${revision.toVerse || ''}` : '—'
+        ? formatQuranRangeText(revision) || '—'
         : revision.text || report.revisionFrom || '—';
       const additionalCount = curriculum.additionalLessons?.length || 0;
       const additionalSuffix = additionalCount ? ` + ${additionalCount} إضافي` : '';
@@ -8595,13 +8593,12 @@ async function loadPreviousNooraniAssessment(studentId, target) {
     const lesson = curriculum.lesson || {};
     const revision = curriculum.revision || {};
     const lessonSummary = lesson.type === 'quranRange'
-      ? `${lesson.surahName || 'سورة'} ${lesson.fromVerse || ''}-${lesson.toVerse || ''}`
+      ? (formatQuranRangeText(lesson) || 'قرآن كريم')
       : lesson.lessonNumber
         ? `الدرس ${lesson.lessonNumber}${lesson.pageNumber ? ` · الصفحة ${lesson.pageNumber}` : ''}`
         : report.lessonFrom || 'بدون مقرر';
-    const revisionSurah = revision.surahName || getSurah(revision.surahNumber)?.name;
     const revisionSummary = revision.type === 'quranRange'
-      ? (revisionSurah ? `${revisionSurah} ${revision.fromVerse || ''}-${revision.toVerse || ''}` : 'بدون مراجعة')
+      ? (formatQuranRangeText(revision) || 'بدون مراجعة')
       : (revision.text || report.revisionFrom || 'بدون مراجعة');
     const additionalSuffix = report.curriculum?.additionalLessons?.length ? ` + ${report.curriculum.additionalLessons.length} إضافي` : '';
     target.innerHTML = `<span>السابق</span><strong>${report.totalScore ?? '--'} / ${report.maxTotalScore ?? 30}</strong><p>${escapeTeacherMarkup(report.id)} · ${escapeTeacherMarkup(lessonSummary)}${additionalSuffix} ${lessonStatusBadge(lesson.lessonStatus)} · مراجعة: ${escapeTeacherMarkup(revisionSummary)}</p>`;
@@ -8625,10 +8622,39 @@ function buildQuranRangeMarkup(prefix) {
   return `<div class="teacher-range-row"><select id="preview-${prefix}-surah" onchange="window.updatePreviewVerseOptions('${prefix}')"><option value="">السورة</option>${quranSurahs.map(surah => `<option value="${surah.number}">${surah.name}</option>`).join('')}</select><select id="preview-${prefix}-from"><option value="">من آية</option></select><select id="preview-${prefix}-to"><option value="">إلى آية</option></select></div>`;
 }
 
-function buildNonQuranLessonMarkup(prefix, path, amountOptions) {
-  const page = path.lesson.requiresPage ? `<input id="${prefix}Page" type="number" min="1" placeholder="رقم الصفحة">` : '';
-  return `<div class="teacher-range-row"><input id="${prefix}Number" type="number" min="1" placeholder="رقم الدرس">${page}</div><details class="teacher-amount-sheet"><summary><span>مقدار الدرس</span><strong>درس كامل</strong></summary><select id="${prefix}Amount" onchange="window.updatePreviewLessonAmount(this)">${amountOptions}</select><div class="teacher-lines-row" hidden><input id="${prefix}LineFrom" type="number" min="1" placeholder="من سطر"><input id="${prefix}LineTo" type="number" min="1" placeholder="إلى سطر"></div></details>`;
+// Page-range entry for the Quran-Kareem track (simpler than surah/verse selection; kept alongside buildQuranRangeMarkup for future reuse).
+function buildQuranPageRangeMarkup(prefix) {
+  return `<div class="teacher-range-row teacher-page-range-row"><input id="preview-${prefix}-fromPage" type="number" min="1" placeholder="من صفحة"><input id="preview-${prefix}-toPage" type="number" min="1" placeholder="إلى صفحة"></div>`;
 }
+
+// Prefers the new page range; falls back to the legacy surah/verse format for older saved assessments.
+function formatQuranRangeText(range = {}) {
+  if (range.fromPage || range.toPage) {
+    return `صفحة ${range.fromPage || '؟'} - ${range.toPage || '؟'}`;
+  }
+  const surahName = range.surahName || getSurah(range.surahNumber)?.name;
+  return surahName ? `${surahName} ${range.fromVerse || ''}-${range.toVerse || ''}` : '';
+}
+
+function buildNonQuranLessonMarkup(prefix, path, amountOptions, compact = false) {
+  const page = path.lesson.requiresPage ? `<input id="${prefix}Page" type="number" min="1" placeholder="رقم الصفحة">` : '';
+  const numberRow = `<div class="teacher-range-row"><input id="${prefix}Number" type="number" min="1" placeholder="رقم الدرس">${page}</div>`;
+  if (!compact) {
+    return `${numberRow}<details class="teacher-amount-sheet"><summary><span>مقدار الدرس</span><strong>درس كامل</strong></summary><select id="${prefix}Amount" onchange="window.updatePreviewLessonAmount(this)">${amountOptions}</select><div class="teacher-lines-row" hidden><input id="${prefix}LineFrom" type="number" min="1" placeholder="من سطر"><input id="${prefix}LineTo" type="number" min="1" placeholder="إلى سطر"></div></details>`;
+  }
+  const pills = LESSON_AMOUNT_OPTIONS.map((option, index) => `<button type="button" class="teacher-amount-pill${index === 0 ? ' is-active' : ''}" data-amount="${option.value}" onclick="window.setPreviewAmountPill(this)">${option.label}</button>`).join('');
+  return `${numberRow}<div class="teacher-amount-compact"><span class="teacher-amount-compact-label">مقدار الدرس</span><div class="teacher-amount-pills" role="group" aria-label="مقدار الدرس">${pills}</div><select id="${prefix}Amount" hidden aria-hidden="true" tabindex="-1">${amountOptions}</select><div class="teacher-lines-row" hidden><input id="${prefix}LineFrom" type="number" min="1" placeholder="من سطر"><input id="${prefix}LineTo" type="number" min="1" placeholder="إلى سطر"></div></div>`;
+}
+
+window.setPreviewAmountPill = function(button) {
+  const wrapper = button.closest('.teacher-amount-compact');
+  if (!wrapper) return;
+  wrapper.querySelectorAll('.teacher-amount-pill').forEach(pill => pill.classList.toggle('is-active', pill === button));
+  const select = wrapper.querySelector('select');
+  if (select) select.value = button.dataset.amount;
+  const lines = wrapper.querySelector('.teacher-lines-row');
+  if (lines) lines.hidden = button.dataset.amount !== 'lines';
+};
 
 function buildLessonBoxWrapper(boxId, label, fieldsHtml, scoreId, scoreControlHtml = '') {
   return `<div class="teacher-path-range" id="${boxId}" data-lesson-status="${LESSON_STATUS.COMPLETED}" data-score-id="${scoreId}"><div class="teacher-lesson-box-head"><strong>${label}</strong>${buildLessonStatusToggle()}</div>${fieldsHtml}${scoreControlHtml}</div>`;
@@ -8684,10 +8710,8 @@ function collectAdditionalLessonsFromContainer(containerId, pathId) {
     const lesson = blockPathId === 'quran'
       ? {
           type: 'quranRange',
-          surahNumber: document.getElementById(`preview-${prefix}-surah`)?.value || '',
-          surahName: getSurah(document.getElementById(`preview-${prefix}-surah`)?.value)?.name || '',
-          fromVerse: document.getElementById(`preview-${prefix}-from`)?.value || '',
-          toVerse: document.getElementById(`preview-${prefix}-to`)?.value || ''
+          fromPage: document.getElementById(`preview-${prefix}-fromPage`)?.value || '',
+          toPage: document.getElementById(`preview-${prefix}-toPage`)?.value || ''
         }
       : {
           type: blockPathId,
@@ -8738,7 +8762,8 @@ window.addAdditionalLessonBlock = function(containerId, prefixBase, pathId, butt
   const index = container.childElementCount;
   const fieldPrefix = `${prefixBase}${index}`;
   const scoreId = `${fieldPrefix}Score`;
-  const body = effectivePathId === 'quran' ? buildQuranRangeMarkup(fieldPrefix) : buildNonQuranLessonMarkup(fieldPrefix, path, amountOptions);
+  const compact = containerId === 'previewAdditionalLessons';
+  const body = effectivePathId === 'quran' ? buildQuranPageRangeMarkup(fieldPrefix) : buildNonQuranLessonMarkup(fieldPrefix, path, amountOptions, compact);
   const block = document.createElement('div');
   block.className = 'teacher-additional-lesson-block';
   block.id = `${fieldPrefix}Box`;
@@ -8764,10 +8789,10 @@ window.renderPreviewCurriculumFields = function(pathId) {
   if (!container) return;
   const path = getLearningPath(pathId);
   const amountOptions = LESSON_AMOUNT_OPTIONS.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
-  const lessonBody = pathId === 'quran' ? buildQuranRangeMarkup('lesson') : buildNonQuranLessonMarkup('previewLesson', path, amountOptions);
+  const lessonBody = pathId === 'quran' ? buildQuranPageRangeMarkup('lesson') : buildNonQuranLessonMarkup('previewLesson', path, amountOptions, true);
   const lessonFields = buildLessonBoxWrapper('previewLessonBox', 'الدرس الجديد', lessonBody, 'lesson');
   const revisionFields = pathId === 'quran'
-    ? `<div class="teacher-path-range"><strong>المراجعة</strong>${buildQuranRangeMarkup('revision')}</div>`
+    ? `<div class="teacher-path-range"><strong>المراجعة</strong>${buildQuranPageRangeMarkup('revision')}</div>`
     : `<div class="teacher-path-range"><strong>المراجعة</strong><input class="teacher-free-text" type="text" placeholder="اكتب مقرر المراجعة"></div>`;
   container.innerHTML = `<div class="teacher-curriculum-grid">${lessonFields}${revisionFields}</div>`;
 
@@ -8807,10 +8832,8 @@ function prefillAdditionalLessonBlock(block, existingLesson, pathId) {
   applyScoreLockState(block.dataset.scoreId, status === LESSON_STATUS.NOT_COMPLETED);
   const prefix = block.dataset.prefix;
   if (pathId === 'quran') {
-    setSelectValue(`preview-${prefix}-surah`, existingLesson.surahNumber);
-    window.updatePreviewVerseOptions(prefix);
-    setSelectValue(`preview-${prefix}-from`, existingLesson.fromVerse);
-    setSelectValue(`preview-${prefix}-to`, existingLesson.toVerse);
+    setInputValue(`preview-${prefix}-fromPage`, existingLesson.fromPage);
+    setInputValue(`preview-${prefix}-toPage`, existingLesson.toPage);
   } else {
     setInputValue(`${prefix}Number`, existingLesson.lessonNumber);
     setInputValue(`${prefix}Page`, existingLesson.pageNumber);
@@ -8855,8 +8878,8 @@ function renderPreviousAssessmentEditorModal(studentId, report) {
   const revision = report.curriculum?.revision || {};
   const lessonStatus = lesson.lessonStatus === LESSON_STATUS.NOT_COMPLETED ? LESSON_STATUS.NOT_COMPLETED : LESSON_STATUS.COMPLETED;
 
-  const lessonBody = pathId === 'quran' ? buildQuranRangeMarkup('editLesson') : buildNonQuranLessonMarkup('editLesson', path, amountOptions);
-  const revisionBody = pathId === 'quran' ? buildQuranRangeMarkup('editRevision') : `<input id="editRevisionText" class="teacher-free-text" type="text" placeholder="اكتب مقرر المراجعة">`;
+  const lessonBody = pathId === 'quran' ? buildQuranPageRangeMarkup('editLesson') : buildNonQuranLessonMarkup('editLesson', path, amountOptions);
+  const revisionBody = pathId === 'quran' ? buildQuranPageRangeMarkup('editRevision') : `<input id="editRevisionText" class="teacher-free-text" type="text" placeholder="اكتب مقرر المراجعة">`;
 
   const modal = document.createElement('div');
   modal.id = 'previewEditModal';
@@ -8899,14 +8922,10 @@ function renderPreviousAssessmentEditorModal(studentId, report) {
   applyScoreLockState('editLessonScore', lessonStatus === LESSON_STATUS.NOT_COMPLETED);
 
   if (pathId === 'quran') {
-    setSelectValue('preview-editLesson-surah', lesson.surahNumber);
-    window.updatePreviewVerseOptions('editLesson');
-    setSelectValue('preview-editLesson-from', lesson.fromVerse);
-    setSelectValue('preview-editLesson-to', lesson.toVerse);
-    setSelectValue('preview-editRevision-surah', revision.surahNumber);
-    window.updatePreviewVerseOptions('editRevision');
-    setSelectValue('preview-editRevision-from', revision.fromVerse);
-    setSelectValue('preview-editRevision-to', revision.toVerse);
+    setInputValue('preview-editLesson-fromPage', lesson.fromPage);
+    setInputValue('preview-editLesson-toPage', lesson.toPage);
+    setInputValue('preview-editRevision-fromPage', revision.fromPage);
+    setInputValue('preview-editRevision-toPage', revision.toPage);
   } else {
     setInputValue('editLessonNumber', lesson.lessonNumber);
     setInputValue('editLessonPage', lesson.pageNumber);
@@ -8935,10 +8954,8 @@ window.saveEditedPreviousAssessment = async function(studentId, reportId) {
   const lessonData = pathId === 'quran'
     ? {
         type: 'quranRange',
-        surahNumber: document.getElementById('preview-editLesson-surah')?.value || '',
-        surahName: getSurah(document.getElementById('preview-editLesson-surah')?.value)?.name || '',
-        fromVerse: document.getElementById('preview-editLesson-from')?.value || '',
-        toVerse: document.getElementById('preview-editLesson-to')?.value || ''
+        fromPage: document.getElementById('preview-editLesson-fromPage')?.value || '',
+        toPage: document.getElementById('preview-editLesson-toPage')?.value || ''
       }
     : {
         type: pathId,
@@ -8954,10 +8971,8 @@ window.saveEditedPreviousAssessment = async function(studentId, reportId) {
   const revisionData = pathId === 'quran'
     ? {
         type: 'quranRange',
-        surahNumber: document.getElementById('preview-editRevision-surah')?.value || '',
-        surahName: getSurah(document.getElementById('preview-editRevision-surah')?.value)?.name || '',
-        fromVerse: document.getElementById('preview-editRevision-from')?.value || '',
-        toVerse: document.getElementById('preview-editRevision-to')?.value || ''
+        fromPage: document.getElementById('preview-editRevision-fromPage')?.value || '',
+        toPage: document.getElementById('preview-editRevision-toPage')?.value || ''
       }
     : {
         type: 'freeText',
@@ -9072,10 +9087,8 @@ window.savePreviewAssessment = async function() {
   const lessonData = pathId === 'quran'
     ? {
         type: 'quranRange',
-        surahNumber: document.getElementById('preview-lesson-surah')?.value || '',
-        surahName: getSurah(document.getElementById('preview-lesson-surah')?.value)?.name || '',
-        fromVerse: document.getElementById('preview-lesson-from')?.value || '',
-        toVerse: document.getElementById('preview-lesson-to')?.value || ''
+        fromPage: document.getElementById('preview-lesson-fromPage')?.value || '',
+        toPage: document.getElementById('preview-lesson-toPage')?.value || ''
       }
     : {
         type: pathId,
@@ -9090,10 +9103,8 @@ window.savePreviewAssessment = async function() {
   const revisionData = pathId === 'quran'
     ? {
         type: 'quranRange',
-        surahNumber: document.getElementById('preview-revision-surah')?.value || '',
-        surahName: getSurah(document.getElementById('preview-revision-surah')?.value)?.name || '',
-        fromVerse: document.getElementById('preview-revision-from')?.value || '',
-        toVerse: document.getElementById('preview-revision-to')?.value || ''
+        fromPage: document.getElementById('preview-revision-fromPage')?.value || '',
+        toPage: document.getElementById('preview-revision-toPage')?.value || ''
       }
     : {
         type: 'freeText',
@@ -9231,9 +9242,8 @@ window.changeTracksStudent = function(studentId) {
 const STRUGGLE_THRESHOLD_PERCENT = 70;
 
 function describeLessonCurriculum(lesson = {}) {
-  const surahName = lesson.surahName || getSurah(lesson.surahNumber)?.name;
   if (lesson.type === 'quranRange') {
-    return surahName ? `${surahName} ${lesson.fromVerse || ''}-${lesson.toVerse || ''}` : '';
+    return formatQuranRangeText(lesson);
   }
   if (lesson.lessonNumber) {
     return `الدرس ${lesson.lessonNumber}${lesson.pageNumber ? ` - الصفحة ${lesson.pageNumber}` : ''}`;
@@ -9242,9 +9252,8 @@ function describeLessonCurriculum(lesson = {}) {
 }
 
 function describeRevisionCurriculum(revision = {}) {
-  const surahName = revision.surahName || getSurah(revision.surahNumber)?.name;
   if (revision.type === 'quranRange') {
-    return surahName ? `${surahName} ${revision.fromVerse || ''}-${revision.toVerse || ''}` : '';
+    return formatQuranRangeText(revision);
   }
   return revision.text || '';
 }

@@ -7132,6 +7132,7 @@ details[open] > summary {
 .teacher-path-range { min-width: 0; padding: 10px; border: 1px solid #d9e4e1; border-radius: 8px; background: #f8fbfa; }
 .teacher-path-range > strong { display: block; margin-bottom: 7px; color: #173b35; font-size: 12px; }
 .teacher-range-row, .teacher-lines-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.teacher-page-range-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .teacher-lines-row { margin-top: 6px; }
 .teacher-range-row select, .teacher-range-row input, .teacher-lines-row input, .teacher-free-text { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 7px; background: #fff; color: #1f2937; font: inherit; font-size: 12px; }
 .teacher-free-text { display: block; }
@@ -7143,6 +7144,12 @@ details[open] > summary {
 .teacher-amount-sheet summary strong { margin-right: auto; color: #16806d; font-size: 11px; }
 .teacher-amount-sheet select { display: block; width: calc(100% - 12px); margin: 0 6px 6px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px; background: #f8fbfa; color: #1f2937; font: inherit; font-size: 12px; }
 .teacher-amount-sheet .teacher-lines-row { padding: 0 6px 6px; }
+.teacher-amount-compact { margin-top: 8px; }
+.teacher-amount-compact-label { display: block; margin-bottom: 5px; color: #475569; font-size: 11px; font-weight: 700; }
+.teacher-amount-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.teacher-amount-pill { border: 1px solid #cfe3dd; border-radius: 999px; padding: 7px 12px; background: #fff; color: #173b35; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.teacher-amount-pill.is-active { border-color: #16806d; background: #16806d; color: #fff; }
+.teacher-amount-pill:disabled { opacity: .5; cursor: not-allowed; }
 .teacher-outline-action { align-self: end; border: 1px solid #2a9d8f; border-radius: 8px; padding: 11px 14px; background: #fff; color: #16806d; cursor: pointer; font: inherit; font-weight: 700; }
 .teacher-score-sheet { margin-bottom: 8px; border: 1px solid #cfe3dd; border-radius: 9px; background: #f7fbfa; }
 .teacher-score-sheet summary { display: flex; align-items: center; justify-content: space-between; padding: 8px 11px; color: #173b35; cursor: pointer; font-size: 12px; font-weight: 700; list-style: none; }
@@ -7156,6 +7163,30 @@ details[open] > summary {
 .teacher-score-control { display: inline-flex; align-items: center; gap: 8px; }
 .teacher-score-control button { width: 22px; height: 22px; border: 1px solid #b8d8d0; border-radius: 5px; background: #effaf6; color: #16806d; cursor: pointer; font-size: 15px; line-height: 1; }
 .teacher-score-control output { min-width: 15px; text-align: center; font-size: 14px; font-weight: 700; color: #173b35; }
+.teacher-score-panel { margin-bottom: 10px; border: 1px solid #cfe3dd; border-radius: 9px; background: #f7fbfa; padding: 9px 7px; }
+.teacher-score-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 8px; }
+.teacher-score-panel-head strong { color: #173b35; font-size: 12px; font-weight: 700; }
+.teacher-score-panel-head span { color: #16806d; font-size: 13px; font-weight: 700; }
+.teacher-score-grid-compact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#previewCurrentPanel .teacher-path-range { background: #fff; box-shadow: 0 1px 2px rgba(23, 59, 53, .05); }
+#previewCurrentPanel .teacher-path-range > strong { font-size: 11px; }
+#previewCurrentPanel .teacher-lesson-box-head strong { font-size: 11px; }
+#previewCurrentPanel .teacher-status-btn { padding: 4px 8px; font-size: 10.5px; }
+#previewCurrentPanel .teacher-assessment-selector-grid select { font-size: 12px; padding: 7px 8px; }
+#previewCurrentPanel .teacher-outline-action { padding: 7px 10px; font-size: 11.5px; }
+#previewCurrentPanel .teacher-range-row select, #previewCurrentPanel .teacher-range-row input, #previewCurrentPanel .teacher-free-text { font-size: 11px; padding: 6px; }
+#previewCurrentPanel .teacher-amount-compact-label { font-size: 10px; }
+#previewCurrentPanel .teacher-amount-pill { padding: 5px 9px; font-size: 10px; }
+#previewCurrentPanel .teacher-score-panel-head strong, #previewCurrentPanel .teacher-score-panel-head span { font-size: 11px; }
+#previewCurrentPanel .teacher-score-field { padding: 5px 6px; font-size: 10px; }
+#previewCurrentPanel .teacher-score-control button { width: 19px; height: 19px; font-size: 13px; }
+#previewCurrentPanel .teacher-score-control output { font-size: 12px; }
+#previewCurrentPanel .teacher-add-lesson-btn { padding: 7px; font-size: 11px; }
+#previewCurrentPanel .teacher-form-footer { min-height: 40px; padding: 6px 0 2px; }
+#previewCurrentPanel .teacher-total-row { min-height: 34px; padding: 6px 10px; }
+#previewCurrentPanel .teacher-total-row span { font-size: 10.5px; }
+#previewCurrentPanel .teacher-total-row strong { font-size: 14px; }
+#previewCurrentPanel .teacher-save-preview { min-height: 34px; padding: 6px; font-size: 12.5px; }
 .teacher-form-footer { position: sticky; bottom: 0; z-index: 5; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; flex: 0 0 auto; min-height: 48px; padding: 8px 0 4px; background: #f8f9fa; }
 .teacher-total-row { display: flex !important; justify-content: space-between; align-items: center; min-height: 42px; box-sizing: border-box; padding: 8px 12px; border: 1px solid #173b35; border-radius: 8px; background: #173b35 !important; color: #fff !important; margin: 0; visibility: visible !important; opacity: 1 !important; }
 .teacher-total-row span { color: #fff !important; font-size: 12px; }
@@ -7165,7 +7196,7 @@ details[open] > summary {
 .teacher-preview-notice { min-height: 20px; color: #b45309; text-align: center; font-size: 13px; }
 .teacher-weekend-disabled { position: relative; }
 .teacher-weekend-disabled input:disabled, .teacher-weekend-disabled select:disabled, .teacher-weekend-disabled button:disabled { opacity: .55; cursor: not-allowed; }
-.teacher-weekend-disabled .teacher-score-sheet { opacity: .65; }
+.teacher-weekend-disabled .teacher-score-sheet, .teacher-weekend-disabled .teacher-score-panel { opacity: .65; }
 .teacher-weekend-notice { display: block; margin: 4px 0 0; padding: 8px 10px; border: 1px solid #f2c97d; border-radius: 7px; background: #fff8e8; color: #8a5a00; font-size: 12px; }
 .teacher-previous-table-wrap { max-height: 250px; overflow: auto; border: 1px solid #d9e4e1; border-radius: 8px; background: #fff; -webkit-overflow-scrolling: touch; }
 .teacher-previous-table.keep-table { display: table !important; width: 100% !important; min-width: 560px; border-collapse: collapse; table-layout: auto; font-size: 12px; }
@@ -7252,7 +7283,7 @@ details[open] > summary {
 .teacher-status-pill.is-full-score { background: #eff6ff; color: #1d4ed8; }
 .teacher-status-pill.is-struggling { background: #fef2f2; color: #b91c1c; }
 
-@media (max-width: 640px) { .teacher-assessment-heading, .teacher-assessment-note, .teacher-previous-score { flex-direction: column; } .teacher-date-chip { width: 100%; box-sizing: border-box; } .teacher-assessment-cards, .teacher-assessment-selector-grid, .teacher-course-fields, .teacher-curriculum-grid { grid-template-columns: 1fr; } .teacher-score-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .teacher-form-footer { grid-template-columns: 1fr 1fr; } .teacher-track-list article { align-items: stretch; flex-direction: column; gap: 8px; } .teacher-track-list article strong { min-width: 0; } .teacher-reports-controls { flex-direction: column; align-items: stretch; } .teacher-daily-summary-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .teacher-assessment-heading, .teacher-assessment-note, .teacher-previous-score { flex-direction: column; } .teacher-date-chip { width: 100%; box-sizing: border-box; } .teacher-assessment-cards, .teacher-assessment-selector-grid, .teacher-course-fields, .teacher-curriculum-grid { grid-template-columns: 1fr; } .teacher-score-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .teacher-score-grid-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); } .teacher-form-footer { grid-template-columns: 1fr 1fr; } .teacher-track-list article { align-items: stretch; flex-direction: column; gap: 8px; } .teacher-track-list article strong { min-width: 0; } .teacher-reports-controls { flex-direction: column; align-items: stretch; } .teacher-daily-summary-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* Teacher Home Section Styles */
 .teacher-home-container {
