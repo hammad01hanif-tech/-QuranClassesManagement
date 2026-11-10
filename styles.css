@@ -228,11 +228,41 @@ body {
 .enrollment-success-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; padding-top: 10px; border-top: 1px solid #edf0f1; }
 .enrollment-action-text { padding: 5px 2px; border: 0; background: transparent; color: #586b73; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .enrollment-action-text:hover { color: #1f6f78; }
+.student-enrollment-menu-item { width: 100%; padding: 18px 20px; border: 0; border-bottom: 1px solid #f0f0f0; background: #fff; color: #333; text-align: right; font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; }
+.student-enrollment-menu-item:hover { background: #f5f8f8; }
+.teacher-more-enrollment-button { min-height: 48px; padding: 12px 16px; border: 1px solid #d5e1e3; border-radius: 8px; background: #fff; color: #285d63; text-align: right; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+.teacher-more-enrollment-button:hover { border-color: #9ab9bc; background: #f5f9f9; }
+.enrollment-library-overlay { position: fixed; inset: 0; z-index: 12000; display: grid; place-items: center; padding: 16px; background: rgba(25, 39, 48, .48); }
+.enrollment-library-dialog { width: min(100%, 560px); max-height: min(720px, 90vh); overflow: auto; border-radius: 10px; background: #fff; box-shadow: 0 18px 55px rgba(18, 38, 48, .24); }
+.enrollment-library-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 22px; border-bottom: 1px solid #e8edef; }
+.enrollment-library-header h2, .enrollment-library-page-header h2 { margin: 0; color: #243b45; font-size: 19px; }
+.enrollment-library-header p, .enrollment-library-page-header p { margin: 5px 0 0; color: #718089; font-size: 13px; }
+.enrollment-library-close, .enrollment-library-back { padding: 8px 12px; border: 1px solid #d9e1e3; border-radius: 6px; background: #fff; color: #52646c; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.enrollment-library-body { padding: 16px 20px 20px; }
+.enrollment-library-state { margin: 0; padding: 28px 12px; color: #718089; text-align: center; font-size: 14px; }
+.enrollment-library-page { max-width: 760px; margin: 0 auto; padding: 20px 16px; }
+.enrollment-library-page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #e5ebed; }
+.enrollment-library-list { display: grid; gap: 10px; }
+.enrollment-library-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 16px; padding: 14px 16px; border: 1px solid #e3e9eb; border-radius: 7px; background: #fff; }
+.enrollment-library-card-copy { min-width: 0; }
+.enrollment-library-card-copy h3 { overflow: hidden; margin: 0; color: #293d45; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.enrollment-library-card-copy p { overflow: hidden; margin: 4px 0 0; color: #718089; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.enrollment-library-action { min-height: 38px; padding: 8px 12px; border: 1px solid #1f6f78; border-radius: 6px; background: #1f6f78; color: #fff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.enrollment-library-action:hover:not(:disabled) { background: #195d65; }
+.enrollment-library-action:disabled { opacity: .65; cursor: wait; }
+.enrollment-library-action-status { grid-column: 1 / -1; margin: 0; color: #9a5c1a; font-size: 12px; }
+.enrollment-library-action-status:empty { display: none; }
 @keyframes enrollmentOverlayIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes enrollmentDialogIn { from { opacity: 0; transform: translateY(8px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @media (max-width: 600px) {
   .enrollment-success-dialog { padding: 25px 18px 16px; }
   .enrollment-success-actions { grid-template-columns: minmax(0, 1fr) 100px; }
+  .enrollment-library-page { padding: 16px 12px; }
+  .enrollment-library-page-header { align-items: flex-start; }
+  .enrollment-library-back { max-width: 120px; }
+  .enrollment-library-card { gap: 8px; padding: 12px; }
+  .enrollment-library-action { padding: 8px; }
+  .enrollment-library-body { padding: 12px; }
   .pledge-page-content { padding: 16px 12px 90px; }
   .pledge-form-card, .pledge-history-card { padding: 16px; }
   .pledge-form-actions { flex-direction: column; align-items: stretch; }

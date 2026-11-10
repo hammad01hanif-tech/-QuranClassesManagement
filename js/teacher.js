@@ -27,6 +27,7 @@ import { getMonthlyReport, countStudyDays, getAllWorkingDaysInMonth, getDayInfo,
 import { getTodayPrayerTimes, getPrayerTimesLocal } from './prayer-times-local.js';
 import { calculateAbsencePenalty } from './attendance-calculator.js';
 import { getLearningPath, LESSON_AMOUNT_OPTIONS, LESSON_STATUS, getVerseOptions, getSurah, isValidVerseRange, getNooraniPath } from '../config/learning-paths.js';
+import { openEnrollmentPdf } from './enrollment-forms.js';
 
 // ✅ نظام Cache بسيط لتقليل القراءات من Firestore
 const firestoreCache = {
@@ -12231,6 +12232,7 @@ function loadTeacherMoreSection(container) {
     </div>
     
     <div class="more-options" style="display: flex; flex-direction: column; gap: 15px;">
+      <button class="teacher-more-enrollment-button" type="button" onclick="window.loadTeacherEnrollmentForms()">استمارات الطلاب</button>
       <button onclick="window.logoutTeacher()" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 18px; border: none; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 3px 10px rgba(220,53,69,0.2);">
         <span style="font-size: 24px;">🚪</span>
         <span>تسجيل الخروج</span>
@@ -12238,6 +12240,115 @@ function loadTeacherMoreSection(container) {
     </div>
   `;
 }
+
+window.loadTeacherEnrollmentForms = async function() {
+  const container = document.getElementById('teacherMainContent');
+  if (!container) return;
+
+  const classId = currentTeacherClassId;
+  container.innerHTML = `
+    <section class="enrollment-library-page" dir="rtl">
+      <header class="enrollment-library-page-header">
+        <div>
+          <h2>استمارات الطلاب</h2>
+          <p>استمارات طلاب الحلقة المسندة إليك</p>
+        </div>
+        <button class="enrollment-library-back" type="button">العودة إلى المزيد</button>
+      </header>
+      <div class="enrollment-library-list" aria-live="polite"><p class="enrollment-library-state">جار تحميل الطلاب...</p></div>
+    </section>
+  `;
+  container.querySelector('.enrollment-library-back').addEventListener('click', () => window.switchTeacherSection('more'));
+
+  const list = container.querySelector('.enrollment-library-list');
+  if (!classId) {
+    list.innerHTML = '<p class="enrollment-library-state">تعذر تحديد الحلقة المسندة إليك.</p>';
+    return;
+  }
+
+  try {
+    const [formsSnapshot, studentsSnapshot, classSnapshot] = await Promise.all([
+      getDocs(query(collection(db, 'enrollmentForms'), where('classId', '==', classId))).catch(error => {
+        console.warn('Saved enrollment forms are unavailable; using current student data:', error);
+        return null;
+      }),
+      getDocs(query(collection(db, 'users'), where('role', '==', 'student'), where('classId', '==', classId))),
+      getDoc(doc(db, 'classes', classId))
+    ]);
+    const classData = classSnapshot.exists() ? classSnapshot.data() : {};
+    const forms = (formsSnapshot?.docs || []).map(formDoc => ({ id: formDoc.id, ...formDoc.data() }));
+    const students = studentsSnapshot.docs.map(studentDoc => ({ id: studentDoc.id, ...studentDoc.data() }));
+    const studentsWithForms = new Set(forms.map(form => form.studentId));
+
+    students.filter(student => !studentsWithForms.has(student.id)).forEach(student => {
+      forms.push({
+        id: `current-${student.id}`,
+        studentId: student.id,
+        studentName: student.name || student.id,
+        classId,
+        className: classData.className || classData.name || student.className || classId,
+        teacherName: classData.teacherName || classData.teacher || student.teacherName || student.teacher,
+        formSnapshot: student,
+        createdAt: student.registrationDateGregorian || student.addedDate || null,
+        isCurrentProfile: true
+      });
+    });
+
+    if (!forms.length) {
+      list.innerHTML = '<p class="enrollment-library-state">لا يوجد طلاب مسجلون في هذه الحلقة حاليًا.</p>';
+      return;
+    }
+
+    forms.sort((first, second) => (first.studentName || '').localeCompare(second.studentName || '', 'ar'));
+    list.replaceChildren();
+    forms.forEach(form => {
+      const card = document.createElement('article');
+      card.className = 'enrollment-library-card';
+      const copy = document.createElement('div');
+      copy.className = 'enrollment-library-card-copy';
+      const name = document.createElement('h3');
+      name.textContent = form.studentName || form.studentId;
+      const levelNames = { hifz: 'حفظ', dabt: 'ضبط', noorani: 'القاعدة النورانية' };
+      const details = document.createElement('p');
+      const createdAt = form.createdAt?.toDate?.() || (form.createdAt ? new Date(form.createdAt) : null);
+      const dateText = createdAt && !Number.isNaN(createdAt.getTime())
+        ? new Intl.DateTimeFormat('ar-SA-u-ca-gregory', { year: 'numeric', month: 'short', day: 'numeric' }).format(createdAt)
+        : 'التاريخ غير متوفر';
+      const levelText = levelNames[form.formSnapshot?.level] || form.formSnapshot?.level || 'المستوى غير محدد';
+      details.textContent = `${form.className || classId} · ${levelText} · ${dateText}${form.isCurrentProfile ? ' · النسخة الحالية من البيانات' : ''}`;
+      copy.append(name, details);
+
+      const button = document.createElement('button');
+      button.className = 'enrollment-library-action';
+      button.type = 'button';
+      button.textContent = 'فتح الاستمارة';
+      const status = document.createElement('p');
+      status.className = 'enrollment-library-action-status';
+      status.setAttribute('aria-live', 'polite');
+      card.append(copy, button, status);
+      list.appendChild(card);
+
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        button.textContent = 'جار تجهيز الاستمارة...';
+        status.textContent = '';
+        try {
+          const opened = await openEnrollmentPdf(form.formSnapshot || {}, form);
+          if (!opened) status.textContent = 'يرجى السماح بالنوافذ المنبثقة ثم المحاولة مجددًا.';
+        } catch (error) {
+          console.error('Unable to open student enrollment form:', error);
+          status.textContent = 'تعذر تجهيز الاستمارة. حاول مرة أخرى.';
+        } finally {
+          button.disabled = false;
+          button.textContent = 'فتح الاستمارة';
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Unable to load teacher enrollment forms:', error);
+    list.innerHTML = '<p class="enrollment-library-state">تعذر تحميل الطلاب. حاول مرة أخرى.</p>';
+  }
+};
 
 // Toggle teacher notifications
 window.toggleTeacherNotifications = function() {
