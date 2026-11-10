@@ -8624,13 +8624,14 @@ function buildQuranRangeMarkup(prefix) {
 
 // Page-range entry for the Quran-Kareem track (simpler than surah/verse selection; kept alongside buildQuranRangeMarkup for future reuse).
 function buildQuranPageRangeMarkup(prefix) {
-  return `<div class="teacher-range-row teacher-page-range-row"><input id="preview-${prefix}-fromPage" type="number" min="1" placeholder="من صفحة"><input id="preview-${prefix}-toPage" type="number" min="1" placeholder="إلى صفحة"></div>`;
+  return `<div class="teacher-range-row teacher-page-range-row"><input id="preview-${prefix}-fromPage" type="number" min="1" placeholder="من صفحة"><input id="preview-${prefix}-toPage" type="number" min="1" placeholder="إلى صفحة"></div><input id="preview-${prefix}-partial" class="teacher-free-text teacher-partial-input" type="text" placeholder="عدد الأسطر/الآيات (إن لم تكتمل الصفحة)">`;
 }
 
 // Prefers the new page range; falls back to the legacy surah/verse format for older saved assessments.
 function formatQuranRangeText(range = {}) {
   if (range.fromPage || range.toPage) {
-    return `صفحة ${range.fromPage || '؟'} - ${range.toPage || '؟'}`;
+    const base = `صفحة ${range.fromPage || '؟'} - ${range.toPage || '؟'}`;
+    return range.partialNote ? `${base} (${range.partialNote})` : base;
   }
   const surahName = range.surahName || getSurah(range.surahNumber)?.name;
   return surahName ? `${surahName} ${range.fromVerse || ''}-${range.toVerse || ''}` : '';
@@ -8711,7 +8712,8 @@ function collectAdditionalLessonsFromContainer(containerId, pathId) {
       ? {
           type: 'quranRange',
           fromPage: document.getElementById(`preview-${prefix}-fromPage`)?.value || '',
-          toPage: document.getElementById(`preview-${prefix}-toPage`)?.value || ''
+          toPage: document.getElementById(`preview-${prefix}-toPage`)?.value || '',
+          partialNote: document.getElementById(`preview-${prefix}-partial`)?.value.trim() || ''
         }
       : {
           type: blockPathId,
@@ -8834,6 +8836,7 @@ function prefillAdditionalLessonBlock(block, existingLesson, pathId) {
   if (pathId === 'quran') {
     setInputValue(`preview-${prefix}-fromPage`, existingLesson.fromPage);
     setInputValue(`preview-${prefix}-toPage`, existingLesson.toPage);
+    setInputValue(`preview-${prefix}-partial`, existingLesson.partialNote);
   } else {
     setInputValue(`${prefix}Number`, existingLesson.lessonNumber);
     setInputValue(`${prefix}Page`, existingLesson.pageNumber);
@@ -8924,8 +8927,10 @@ function renderPreviousAssessmentEditorModal(studentId, report) {
   if (pathId === 'quran') {
     setInputValue('preview-editLesson-fromPage', lesson.fromPage);
     setInputValue('preview-editLesson-toPage', lesson.toPage);
+    setInputValue('preview-editLesson-partial', lesson.partialNote);
     setInputValue('preview-editRevision-fromPage', revision.fromPage);
     setInputValue('preview-editRevision-toPage', revision.toPage);
+    setInputValue('preview-editRevision-partial', revision.partialNote);
   } else {
     setInputValue('editLessonNumber', lesson.lessonNumber);
     setInputValue('editLessonPage', lesson.pageNumber);
@@ -8955,7 +8960,8 @@ window.saveEditedPreviousAssessment = async function(studentId, reportId) {
     ? {
         type: 'quranRange',
         fromPage: document.getElementById('preview-editLesson-fromPage')?.value || '',
-        toPage: document.getElementById('preview-editLesson-toPage')?.value || ''
+        toPage: document.getElementById('preview-editLesson-toPage')?.value || '',
+        partialNote: document.getElementById('preview-editLesson-partial')?.value.trim() || ''
       }
     : {
         type: pathId,
@@ -8972,7 +8978,8 @@ window.saveEditedPreviousAssessment = async function(studentId, reportId) {
     ? {
         type: 'quranRange',
         fromPage: document.getElementById('preview-editRevision-fromPage')?.value || '',
-        toPage: document.getElementById('preview-editRevision-toPage')?.value || ''
+        toPage: document.getElementById('preview-editRevision-toPage')?.value || '',
+        partialNote: document.getElementById('preview-editRevision-partial')?.value.trim() || ''
       }
     : {
         type: 'freeText',
@@ -9088,7 +9095,8 @@ window.savePreviewAssessment = async function() {
     ? {
         type: 'quranRange',
         fromPage: document.getElementById('preview-lesson-fromPage')?.value || '',
-        toPage: document.getElementById('preview-lesson-toPage')?.value || ''
+        toPage: document.getElementById('preview-lesson-toPage')?.value || '',
+        partialNote: document.getElementById('preview-lesson-partial')?.value.trim() || ''
       }
     : {
         type: pathId,
@@ -9104,7 +9112,8 @@ window.savePreviewAssessment = async function() {
     ? {
         type: 'quranRange',
         fromPage: document.getElementById('preview-revision-fromPage')?.value || '',
-        toPage: document.getElementById('preview-revision-toPage')?.value || ''
+        toPage: document.getElementById('preview-revision-toPage')?.value || '',
+        partialNote: document.getElementById('preview-revision-partial')?.value.trim() || ''
       }
     : {
         type: 'freeText',

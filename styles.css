@@ -7136,6 +7136,8 @@ details[open] > summary {
 .teacher-lines-row { margin-top: 6px; }
 .teacher-range-row select, .teacher-range-row input, .teacher-lines-row input, .teacher-free-text { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 7px; background: #fff; color: #1f2937; font: inherit; font-size: 12px; }
 .teacher-free-text { display: block; }
+.teacher-partial-input { margin-top: 6px; border-style: dashed; font-size: 11px; padding: 6px 7px; color: #475569; }
+#previewCurrentPanel .teacher-partial-input { font-size: 10px; padding: 5px 6px; }
 .teacher-amount-sheet { margin-top: 7px; border: 1px solid #cfe3dd; border-radius: 7px; background: #fff; }
 .teacher-amount-sheet summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; color: #475569; cursor: pointer; font-size: 11px; list-style: none; }
 .teacher-amount-sheet summary::-webkit-details-marker { display: none; }
