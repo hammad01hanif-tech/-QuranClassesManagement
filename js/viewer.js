@@ -2234,6 +2234,150 @@ window.loadHizbQueue = async function() {
 };
 
 /**
+ * Load Stage Queue - students registered for stage display (from stageDisplays collection)
+ */
+window.loadStageQueue = async function() {
+  const container = document.getElementById('stageQueueContainer');
+  
+  if (!container) return;
+  
+  container.innerHTML = '<p style="text-align: center; color: #667eea; padding: 20px;">⏳ جاري تحميل جدول المراحل...</p>';
+  
+  try {
+    console.log('🏆 Loading stage queue...');
+    const startTime = performance.now();
+    
+    // Get today's Hijri date
+    const todayHijri = getTodayForStorage(); // Returns YYYY-MM-DD
+    
+    // Get all stageDisplays that are still pending
+    const q = query(
+      collection(db, 'stageDisplays'),
+      where('status', '==', 'incomplete')
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">✅ لا توجد طلاب في قائمة انتظار المراحل</p>';
+      return;
+    }
+    
+    // Get teacher names from classes collection
+    const classesSnapshot = await getDocs(collection(db, 'classes'));
+    const teacherNamesMap = {};
+    classesSnapshot.forEach(classDoc => {
+      const classData = classDoc.data();
+      const classId = classData.classId || classDoc.id;
+      teacherNamesMap[classId] = classData.teacherName || classData.className || classId;
+    });
+    
+    // Process students (same priority logic as Hizb/Juz queues)
+    const queue = [];
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const reportId = doc.id;
+      
+      // Only include if displayDate is empty or null
+      if (!data.displayDate || data.displayDate === '') {
+        let daysSinceAttempt = 0;
+        const daysSinceLesson = calculateHijriDaysDifference(data.lastLessonDate, todayHijri);
+        
+        if (data.lastAttemptDate) {
+          daysSinceAttempt = calculateHijriDaysDifference(data.lastAttemptDate, todayHijri);
+        } else {
+          daysSinceAttempt = daysSinceLesson;
+        }
+        
+        const teacherName = teacherNamesMap[data.teacherId] || data.teacherName || 'غير محدد';
+        
+        queue.push({
+          reportId: reportId,
+          studentId: data.studentId,
+          studentName: data.studentName,
+          teacherId: data.teacherId,
+          teacherName: teacherName,
+          stageId: data.stageId,
+          stageNumber: data.stageNumber,
+          stageTitle: data.stageTitle || `المرحلة ${data.stageNumber || '؟'}`,
+          pathwayName: data.pathwayName || '',
+          juzCount: data.juzCount || '',
+          lastLessonDate: data.lastLessonDate,
+          lastAttemptDate: data.lastAttemptDate || null,
+          failedAttempts: data.failedAttempts || [],
+          daysSinceAttempt: daysSinceAttempt,
+          daysSinceLesson: daysSinceLesson
+        });
+      }
+    });
+    
+    // Sort by two criteria (same logic as Hizb/Juz queues)
+    queue.sort((a, b) => {
+      if (b.daysSinceAttempt !== a.daysSinceAttempt) {
+        return b.daysSinceAttempt - a.daysSinceAttempt;
+      }
+      return b.daysSinceLesson - a.daysSinceLesson;
+    });
+    
+    const endTime = performance.now();
+    console.log(`✅ Stage queue loaded in ${Math.round(endTime - startTime)}ms`);
+    console.log(`📊 Total students in stage queue: ${queue.length}`);
+    
+    if (queue.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">✅ لا توجد طلاب في قائمة انتظار المراحل</p>';
+      return;
+    }
+    
+    let tableHTML = `
+      <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -15px; padding: 0 15px;">
+        <table class="keep-table" style="width: 100%; min-width: 650px; border-collapse: collapse; font-size: 14px;">
+          <thead>
+            <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+              <th style="padding: 10px 8px; text-align: right; border-radius: 8px 0 0 0; width: 40px;">#</th>
+              <th style="padding: 10px 8px; text-align: right; min-width: 120px;">اسم الطالب</th>
+              <th style="padding: 10px 8px; text-align: right; min-width: 100px;">اسم المعلم</th>
+              <th style="padding: 10px 8px; text-align: center; min-width: 130px;">المرحلة</th>
+              <th style="padding: 10px 8px; text-align: center; border-radius: 0 8px 0 0; min-width: 100px;">منذ</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    queue.forEach((student, index) => {
+      const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+      const priorityColor = student.daysSinceLesson >= 7 ? '#dc3545' : student.daysSinceLesson >= 5 ? '#ffc107' : '#28a745';
+      const daysText = student.daysSinceLesson === 1 ? 'يوم واحد' : student.daysSinceLesson === 2 ? 'يومان' : `${student.daysSinceLesson} أيام`;
+      
+      const displayName = extractArabicName(student.studentName);
+      const stageInfo = student.juzCount ? `${student.stageTitle} (${student.juzCount} أجزاء)` : student.stageTitle;
+      
+      tableHTML += `
+        <tr style="background: ${rowColor}; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
+          <td style="padding: 10px 8px; font-weight: bold; color: #667eea;">${index + 1}</td>
+          <td style="padding: 10px 8px; font-weight: bold;">${displayName}</td>
+          <td style="padding: 10px 8px; color: #666;">${student.teacherName}</td>
+          <td style="padding: 10px 8px; text-align: center; font-weight: bold; color: #764ba2;" title="${student.pathwayName}">🏆 ${stageInfo}</td>
+          <td style="padding: 10px 8px; text-align: center;">
+            <span style="padding: 5px 12px; background: ${priorityColor}; color: white; border-radius: 15px; font-weight: bold; font-size: 12px; white-space: nowrap;">
+              ${daysText}
+            </span>
+          </td>
+        </tr>
+      `;
+    });
+    
+    tableHTML += '</tbody></table></div>';
+    
+    container.innerHTML = tableHTML;
+    
+  } catch (error) {
+    console.error('Error loading stage queue:', error);
+    container.innerHTML = '<p style="text-align: center; color: #dc3545; padding: 20px;">❌ حدث خطأ في تحميل جدول المراحل</p>';
+  }
+};
+
+/**
  * Show Hizb Display Options Popup (Placeholder for now)
  */
 window.showHizbDisplayOptions = async function(reportId, studentName, hizbNumber) {

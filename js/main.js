@@ -1177,8 +1177,16 @@ window.switchQueueType = function(type) {
         window.loadDailyQueue();
       }
     }
+  } else if (type === 'stage') {
+    // Load Stage queue if not already loaded
+    const stageContainer = document.getElementById('stageQueueContainer');
+    if (stageContainer && (stageContainer.children.length === 0 || 
+        stageContainer.textContent.includes('جاري التحميل'))) {
+      if (typeof window.loadStageQueue === 'function') {
+        window.loadStageQueue();
+      }
+    }
   }
-  // Stage tab doesn't need loading (placeholder only)
 };
 
 /**
@@ -1715,34 +1723,107 @@ window.saveStageRegistration = async function() {
   if (!teacherId || !studentId || !pathway || !stageId || !day || !month || !year) {
     messageBox.textContent = '⚠️ يرجى ملء جميع الحقول';
     messageBox.className = 'reg-message error';
+    messageBox.style.display = 'block';
     return;
   }
   
-  const hijriDate = `${day}-${month}-${year}`;
+  const hijriDate = `${year}-${month}-${day}`; // Format: YYYY-MM-DD for storage (same as Hizb/Juz)
   
   try {
     // Get stage info
     const { getMarhalahById } = await import('./quran-marahil.js');
     const marhalah = getMarhalahById(stageId);
     
-    // Save to Firestore
-    messageBox.textContent = `✅ تم حفظ تسجيل ${marhalah.title} بنجاح`;
+    if (!marhalah) {
+      messageBox.textContent = '❌ المرحلة المختارة غير صحيحة';
+      messageBox.className = 'reg-message error';
+      messageBox.style.display = 'block';
+      return;
+    }
+    
+    // Get student and teacher names
+    const teacherSelect = document.getElementById('regStageTeacher');
+    const studentSelect = document.getElementById('regStageStudent');
+    const teacherName = teacherSelect.options[teacherSelect.selectedIndex]?.text || 'غير محدد';
+    const studentName = studentSelect.options[studentSelect.selectedIndex]?.text || 'غير محدد';
+    
+    console.log('💾 Saving Stage registration:', {
+      studentId, studentName, teacherId, teacherName, stageId, pathway, hijriDate
+    });
+    
+    // Check for existing registration (prevent duplicates)
+    const existingQuery = query(
+      collection(db, 'stageDisplays'),
+      where('studentId', '==', studentId),
+      where('stageId', '==', stageId)
+    );
+    
+    const existingSnapshot = await getDocs(existingQuery);
+    
+    if (!existingSnapshot.empty) {
+      const existingData = existingSnapshot.docs[0].data();
+      const statusText = existingData.status === 'completed' ? 'وقد اجتازها' : 'ولم يجتزها بعد';
+      const dateText = existingData.status === 'completed' && existingData.displayDate 
+        ? ` في تاريخ ${existingData.displayDate}` 
+        : '';
+      
+      messageBox.textContent = `⚠️ الطالب ${studentName} مسجل بالفعل لـ${marhalah.title} ${statusText}${dateText}`;
+      messageBox.className = 'reg-message error';
+      messageBox.style.display = 'block';
+      return;
+    }
+    
+    // Create stageDisplay document for display queue
+    const stageDisplayData = {
+      studentId: studentId,
+      studentName: studentName,
+      teacherId: teacherId,
+      teacherName: teacherName,
+      stageId: stageId,
+      stageNumber: marhalah.stageNumber,
+      stageTitle: marhalah.title,
+      pathway: pathway,
+      pathwayName: marhalah.pathwayName,
+      juzCount: marhalah.juzCount,
+      stageDescription: marhalah.description,
+      lastLessonDate: hijriDate,
+      lastAttemptDate: null,
+      displayDate: '', // Empty until viewer completes
+      viewerName: '',
+      viewerId: '',
+      status: 'incomplete',
+      failedAttempts: [],
+      notes: [],
+      createdAt: serverTimestamp(),
+      createdFromRegistration: true
+    };
+    
+    // Save to Firestore stageDisplays collection
+    await addDoc(collection(db, 'stageDisplays'), stageDisplayData);
+    
+    console.log('✅ Stage display created successfully');
+    
+    messageBox.textContent = `✅ تم حفظ تسجيل ${marhalah.title} (${marhalah.juzCount} أجزاء) بنجاح وإضافته لجدول العرض`;
     messageBox.className = 'reg-message success';
+    messageBox.style.display = 'block';
+    
+    // Reload Stage queue if it's visible
+    if (typeof window.loadStageQueue === 'function') {
+      setTimeout(() => window.loadStageQueue(), 500);
+    }
     
     // Clear form after 2 seconds
     setTimeout(() => {
       document.getElementById('regStageStudent').value = '';
       document.getElementById('regStagePathway').value = '';
-      document.getElementById('regStageLevel').value = '';
-      document.getElementById('regStageDay').value = '';
-      document.getElementById('regStageMonth').value = '';
-      document.getElementById('regStageYear').value = '';
+      document.getElementById('regStageLevel').innerHTML = '<option value="">-- اختر المسار أولاً --</option>';
       messageBox.style.display = 'none';
     }, 2000);
     
   } catch (error) {
     console.error('Error saving Stage registration:', error);
-    messageBox.textContent = '❌ خطأ في حفظ التسجيل';
+    messageBox.textContent = '❌ خطأ في حفظ التسجيل: ' + error.message;
     messageBox.className = 'reg-message error';
+    messageBox.style.display = 'block';
   }
 };
