@@ -28,6 +28,7 @@ import { formatHijriDate, gregorianToHijriDisplay, getHijriWeekAgo, getHijriMont
 import { accurateHijriDates, getTodayAccurateHijri, formatAccurateHijriDate } from './accurate-hijri-dates.js';
 import { getNooraniPath } from '../config/learning-paths.js';
 import { createEnrollmentPdfBlob } from './enrollment-forms.js';
+import './admin-meetings.js';
 
 // ==========================================
 // TEACHER UTILITIES

@@ -1061,6 +1061,15 @@
               </div>
               <div class="more-card-arrow">←</div>
             </div>
+
+            <div class="more-menu-card meetings-menu-card" onclick="window.openAdminMeetings()">
+              <div class="more-card-icon meetings-menu-label">محاضر</div>
+              <div class="more-card-content">
+                <h4 class="more-card-title">الاجتماعات</h4>
+                <p class="more-card-desc">توثيق الاجتماعات ومتابعة تنفيذ نقاطها</p>
+              </div>
+              <div class="more-card-arrow">←</div>
+            </div>
             
             <!-- Staff Attendance Card -->
             <div class="more-menu-card" onclick="window.openStaffAttendanceSection()">
@@ -1124,6 +1133,18 @@
             </div>
 
           </div>
+        </div>
+
+        <div id="meetingsSection" class="admin-full-page-section meetings-admin-section" style="display: none;">
+          <div class="full-page-header meetings-full-page-header">
+            <button class="back-btn" type="button" onclick="window.closeAdminMeetings()" aria-label="العودة إلى المزيد">
+              <span class="back-arrow">→</span>
+            </button>
+            <h2 class="full-page-title">الاجتماعات</h2>
+            <div class="header-spacer"></div>
+          </div>
+          <div id="meetingsPageStatus" class="meetings-page-status" role="status" aria-live="polite"></div>
+          <div id="meetingsPageContent" class="meetings-page-content"></div>
         </div>
 
         <!-- Student Pledges Section -->
