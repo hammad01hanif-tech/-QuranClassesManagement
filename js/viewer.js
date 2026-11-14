@@ -2307,7 +2307,8 @@ window.loadStageQueue = async function() {
           lastAttemptDate: data.lastAttemptDate || null,
           failedAttempts: data.failedAttempts || [],
           daysSinceAttempt: daysSinceAttempt,
-          daysSinceLesson: daysSinceLesson
+          daysSinceLesson: daysSinceLesson,
+          dabt: computeStageDabtState(data)
         });
       }
     });
@@ -2331,14 +2332,18 @@ window.loadStageQueue = async function() {
     
     let tableHTML = `
       <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -15px; padding: 0 15px;">
-        <table class="keep-table" style="width: 100%; min-width: 650px; border-collapse: collapse; font-size: 14px;">
+        <table class="keep-table" style="width: 100%; min-width: 950px; border-collapse: collapse; font-size: 13px;">
           <thead>
             <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-              <th style="padding: 10px 8px; text-align: right; border-radius: 8px 0 0 0; width: 40px;">#</th>
-              <th style="padding: 10px 8px; text-align: right; min-width: 120px;">اسم الطالب</th>
-              <th style="padding: 10px 8px; text-align: right; min-width: 100px;">اسم المعلم</th>
-              <th style="padding: 10px 8px; text-align: center; min-width: 130px;">المرحلة</th>
-              <th style="padding: 10px 8px; text-align: center; border-radius: 0 8px 0 0; min-width: 100px;">منذ</th>
+              <th style="padding: 10px 6px; text-align: right; border-radius: 8px 0 0 0; width: 35px;">#</th>
+              <th style="padding: 10px 6px; text-align: right; min-width: 115px;">اسم الطالب</th>
+              <th style="padding: 10px 6px; text-align: right; min-width: 95px;">المعلم / الحلقة</th>
+              <th style="padding: 10px 6px; text-align: center; min-width: 110px;">المرحلة</th>
+              <th style="padding: 10px 6px; text-align: center; min-width: 90px;">تاريخ التسجيل</th>
+              <th style="padding: 10px 6px; text-align: center; width: 70px;">اللفات</th>
+              <th style="padding: 10px 6px; text-align: center; width: 85px;">آخر اختبار</th>
+              <th style="padding: 10px 6px; text-align: center; min-width: 150px;">الحالة</th>
+              <th style="padding: 10px 6px; text-align: center; border-radius: 0 8px 0 0; min-width: 85px;">أيام الضبط</th>
             </tr>
           </thead>
           <tbody>
@@ -2346,22 +2351,40 @@ window.loadStageQueue = async function() {
     
     queue.forEach((student, index) => {
       const rowColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-      const priorityColor = student.daysSinceLesson >= 7 ? '#dc3545' : student.daysSinceLesson >= 5 ? '#ffc107' : '#28a745';
-      const daysText = student.daysSinceLesson === 1 ? 'يوم واحد' : student.daysSinceLesson === 2 ? 'يومان' : `${student.daysSinceLesson} أيام`;
+      const st = student.dabt;
       
       const displayName = extractArabicName(student.studentName);
       const stageInfo = student.juzCount ? `${student.stageTitle} (${student.juzCount} أجزاء)` : student.stageTitle;
+      const regDate = student.lastLessonDate ? formatDateForDisplay(student.lastLessonDate) : '—';
+      
+      // Laps progress badge
+      const lapsBadge = `${st.completedLaps}/${st.requiredLaps}`;
+      const lapsColor = st.completedLaps >= st.requiredLaps ? '#28a745' : st.completedLaps > 0 ? '#2196F3' : '#9e9e9e';
+      
+      // Last trial exam score
+      const lastScore = (st.lastTrialScore !== null && st.lastTrialScore !== undefined) ? `${st.lastTrialScore}/100` : '—';
+      
+      // Days in dabt (since registration)
+      const daysInDabt = student.daysSinceLesson;
+      const daysColor = daysInDabt >= 30 ? '#dc3545' : daysInDabt >= 15 ? '#ffc107' : '#28a745';
+      const daysText = daysInDabt === 1 ? 'يوم واحد' : daysInDabt === 2 ? 'يومان' : `${daysInDabt} أيام`;
       
       tableHTML += `
-        <tr style="background: ${rowColor}; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
-          <td style="padding: 10px 8px; font-weight: bold; color: #667eea;">${index + 1}</td>
-          <td style="padding: 10px 8px; font-weight: bold;">${displayName}</td>
-          <td style="padding: 10px 8px; color: #666;">${student.teacherName}</td>
-          <td style="padding: 10px 8px; text-align: center; font-weight: bold; color: #764ba2;" title="${student.pathwayName}">🏆 ${stageInfo}</td>
-          <td style="padding: 10px 8px; text-align: center;">
-            <span style="padding: 5px 12px; background: ${priorityColor}; color: white; border-radius: 15px; font-weight: bold; font-size: 12px; white-space: nowrap;">
-              ${daysText}
-            </span>
+        <tr onclick="window.showStageTrackingModal('${student.reportId}')" style="background: ${rowColor}; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${rowColor}'">
+          <td style="padding: 10px 6px; font-weight: bold; color: #667eea;">${index + 1}</td>
+          <td style="padding: 10px 6px; font-weight: bold;">${displayName}</td>
+          <td style="padding: 10px 6px; color: #666;">${student.teacherName}</td>
+          <td style="padding: 10px 6px; text-align: center; font-weight: bold; color: #764ba2;" title="${student.pathwayName}">🏆 ${stageInfo}</td>
+          <td style="padding: 10px 6px; text-align: center; color: #555; white-space: nowrap;">${regDate}</td>
+          <td style="padding: 10px 6px; text-align: center;">
+            <span style="padding: 4px 10px; background: ${lapsColor}; color: white; border-radius: 12px; font-weight: bold; font-size: 12px;">${lapsBadge}</span>
+          </td>
+          <td style="padding: 10px 6px; text-align: center; font-weight: bold; color: #333;">${lastScore}</td>
+          <td style="padding: 10px 6px; text-align: center;">
+            <span style="padding: 4px 10px; background: ${st.phaseColor}; color: white; border-radius: 12px; font-weight: bold; font-size: 11px; white-space: nowrap;">${st.phaseLabel}</span>
+          </td>
+          <td style="padding: 10px 6px; text-align: center;">
+            <span style="padding: 4px 10px; background: ${daysColor}; color: white; border-radius: 12px; font-weight: bold; font-size: 11px; white-space: nowrap;">${daysText}</span>
           </td>
         </tr>
       `;
@@ -2374,6 +2397,616 @@ window.loadStageQueue = async function() {
   } catch (error) {
     console.error('Error loading stage queue:', error);
     container.innerHTML = '<p style="text-align: center; color: #dc3545; padding: 20px;">❌ حدث خطأ في تحميل جدول المراحل</p>';
+  }
+};
+
+// ============================================
+// STAGE DABT (MASTERY) CYCLE TRACKING SYSTEM
+// دورة ضبط المرحلة: تسجيل → 5 لفات (بداية/نهاية/اختبار تجريبي) → اختبار نهائي
+// ============================================
+
+/**
+ * Compute the current dabt-cycle state of a stageDisplays document.
+ * A lap is complete when it has examDate + examScore recorded.
+ */
+function computeStageDabtState(data) {
+  const laps = Array.isArray(data.laps) ? data.laps : [];
+  const finalExams = Array.isArray(data.finalExams) ? data.finalExams : [];
+  const requiredLaps = data.requiredLaps || 5;
+  
+  const isLapComplete = (l) => l.examDate && l.examScore !== null && l.examScore !== undefined;
+  const completedLaps = laps.filter(isLapComplete).length;
+  const activeLap = laps.find(l => !isLapComplete(l)) || null;
+  const lastFinal = finalExams.length > 0 ? finalExams[finalExams.length - 1] : null;
+  const passed = data.status === 'completed' || !!(lastFinal && lastFinal.passed);
+  
+  let lastTrialScore = null;
+  for (let i = laps.length - 1; i >= 0; i--) {
+    if (laps[i].examScore !== null && laps[i].examScore !== undefined) {
+      lastTrialScore = laps[i].examScore;
+      break;
+    }
+  }
+  
+  let phase, phaseLabel, phaseColor, nextAction;
+  
+  if (passed) {
+    phase = 'passed';
+    phaseLabel = '✅ اجتاز المرحلة';
+    phaseColor = '#28a745';
+    nextAction = null;
+  } else if (activeLap && !activeLap.endDate) {
+    phase = 'lap_in_progress';
+    phaseLabel = `🔄 في اللفة ${activeLap.lapNumber}`;
+    phaseColor = '#2196F3';
+    nextAction = 'end_lap';
+  } else if (activeLap) {
+    phase = 'awaiting_trial';
+    phaseLabel = `📝 بانتظار اختبار اللفة ${activeLap.lapNumber}`;
+    phaseColor = '#ff9800';
+    nextAction = 'trial_exam';
+  } else if (completedLaps >= requiredLaps) {
+    phase = 'ready_final';
+    phaseLabel = (lastFinal && !lastFinal.passed) ? '🔁 إعادة الاختبار النهائي' : '🏁 جاهز للاختبار النهائي';
+    phaseColor = '#9C27B0';
+    nextAction = 'final_exam';
+  } else if (laps.length === 0) {
+    phase = 'registered';
+    phaseLabel = '🆕 مسجل - لم تبدأ اللفات';
+    phaseColor = '#6c757d';
+    nextAction = 'start_lap';
+  } else {
+    phase = 'awaiting_lap';
+    phaseLabel = `⏳ بانتظار بدء اللفة ${laps.length + 1}`;
+    phaseColor = '#6c757d';
+    nextAction = 'start_lap';
+  }
+  
+  return {
+    laps, finalExams, requiredLaps, completedLaps,
+    activeLap, lastFinal, lastTrialScore, passed,
+    phase, phaseLabel, phaseColor, nextAction,
+    nextLapNumber: laps.length + 1
+  };
+}
+
+/**
+ * Build Hijri date selects (day/month/year) pre-filled with today's date
+ */
+function stageHijriDateSelectsHTML(prefix) {
+  const monthNames = [
+    'محرم', 'صفر', 'ربيع الأول', 'ربيع الثاني',
+    'جمادى الأولى', 'جمادى الآخرة', 'رجب', 'شعبان',
+    'رمضان', 'شوال', 'ذو القعدة', 'ذو الحجة'
+  ];
+  
+  const todayStr = getTodayForStorage() || '';
+  const [tYear, tMonth, tDay] = todayStr.split('-').map(Number);
+  
+  const years = [...new Set(accurateHijriDates.map(e => e.hijriYear))].sort((a, b) => a - b);
+  
+  let dayOpts = '';
+  for (let i = 1; i <= 30; i++) {
+    dayOpts += `<option value="${i}" ${tDay === i ? 'selected' : ''}>${i}</option>`;
+  }
+  
+  let monthOpts = '';
+  for (let i = 1; i <= 12; i++) {
+    monthOpts += `<option value="${i}" ${tMonth === i ? 'selected' : ''}>${monthNames[i - 1]}</option>`;
+  }
+  
+  let yearOpts = '';
+  years.forEach(y => {
+    yearOpts += `<option value="${y}" ${tYear === y ? 'selected' : ''}>${y}</option>`;
+  });
+  
+  const selStyle = 'flex: 1; padding: 8px 6px; border: 2px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; background: white;';
+  
+  return `
+    <div style="display: flex; gap: 6px; direction: rtl;">
+      <select id="${prefix}Day" style="${selStyle}">${dayOpts}</select>
+      <select id="${prefix}Month" style="${selStyle} flex: 1.6;">${monthOpts}</select>
+      <select id="${prefix}Year" style="${selStyle}">${yearOpts}</select>
+    </div>
+  `;
+}
+
+/**
+ * Read a Hijri date (YYYY-MM-DD) from the stage date selects
+ */
+function readStageDateSelects(prefix) {
+  const day = document.getElementById(`${prefix}Day`)?.value;
+  const month = document.getElementById(`${prefix}Month`)?.value;
+  const year = document.getElementById(`${prefix}Year`)?.value;
+  if (!day || !month || !year) return null;
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Persist dabt-cycle changes + keep top-level summary fields in sync (for future queries/profiles)
+ */
+async function saveStageDabtUpdate(reportId, data, laps, finalExams, requiredLaps, extra = {}) {
+  const st = computeStageDabtState({ ...data, laps, finalExams, requiredLaps, status: extra.status || data.status });
+  
+  await updateDoc(doc(db, 'stageDisplays', reportId), {
+    laps: laps,
+    finalExams: finalExams,
+    requiredLaps: requiredLaps,
+    completedLaps: st.completedLaps,
+    currentLap: st.activeLap ? st.activeLap.lapNumber : (st.passed ? st.completedLaps : Math.min(laps.length + 1, requiredLaps)),
+    lastTrialScore: st.lastTrialScore,
+    dabtStatus: st.phase,
+    updatedAt: serverTimestamp(),
+    ...extra
+  });
+}
+
+/**
+ * Open the stage dabt-cycle tracking modal for a student
+ */
+window.showStageTrackingModal = async function(reportId) {
+  try {
+    const reportDoc = await getDoc(doc(db, 'stageDisplays', reportId));
+    
+    if (!reportDoc.exists()) {
+      alert('❌ التسجيل غير موجود');
+      return;
+    }
+    
+    const data = reportDoc.data();
+    const st = computeStageDabtState(data);
+    
+    // Remove any existing modal
+    document.getElementById('stageTrackingOverlay')?.remove();
+    
+    const todayHijri = getTodayForStorage();
+    const daysInDabt = data.lastLessonDate ? calculateHijriDaysDifference(data.lastLessonDate, todayHijri) : 0;
+    const displayName = extractArabicName(data.studentName);
+    const stageInfo = data.juzCount ? `${data.stageTitle} (${data.juzCount} أجزاء)` : (data.stageTitle || '');
+    const regDate = data.lastLessonDate ? formatDateForDisplay(data.lastLessonDate) : '—';
+    const dabtStart = data.dabtStartDate ? formatDateForDisplay(data.dabtStartDate) : '—';
+    
+    // ===== Build laps timeline =====
+    let timelineHTML = '';
+    const totalRows = Math.max(st.requiredLaps, st.laps.length);
+    
+    for (let i = 1; i <= totalRows; i++) {
+      const lap = st.laps.find(l => l.lapNumber === i);
+      const isExtra = i > 5;
+      const lapTitle = isExtra ? `اللفة ${i} (إضافية)` : `اللفة ${i}`;
+      
+      if (!lap) {
+        timelineHTML += `
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #f8f9fa; border-radius: 8px; margin-bottom: 6px; opacity: 0.6;">
+            <span style="font-size: 18px;">⬜</span>
+            <div style="flex: 1;">
+              <div style="font-weight: bold; font-size: 13px; color: #999;">${lapTitle}</div>
+              <div style="font-size: 11px; color: #bbb;">لم تبدأ بعد</div>
+            </div>
+          </div>
+        `;
+      } else {
+        const isComplete = lap.examDate && lap.examScore !== null && lap.examScore !== undefined;
+        const icon = isComplete ? '✅' : (lap.endDate ? '📝' : '🔄');
+        const bg = isComplete ? '#e8f5e9' : (lap.endDate ? '#fff3e0' : '#e3f2fd');
+        const border = isComplete ? '#28a745' : (lap.endDate ? '#ff9800' : '#2196F3');
+        
+        let details = `<span style="white-space: nowrap;">🟢 البداية: ${formatDateForDisplay(lap.startDate)}</span>`;
+        if (lap.endDate) details += ` <span style="white-space: nowrap;">🔴 النهاية: ${formatDateForDisplay(lap.endDate)}</span>`;
+        if (isComplete) {
+          const scoreColor = lap.examScore >= 90 ? '#28a745' : lap.examScore >= 75 ? '#ff9800' : '#dc3545';
+          details += ` <span style="white-space: nowrap;">📝 الاختبار: ${formatDateForDisplay(lap.examDate)} — <strong style="color: ${scoreColor};">${lap.examScore}/100</strong></span>`;
+        }
+        
+        timelineHTML += `
+          <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: ${bg}; border-radius: 8px; margin-bottom: 6px; border-right: 3px solid ${border};">
+            <span style="font-size: 18px;">${icon}</span>
+            <div style="flex: 1;">
+              <div style="font-weight: bold; font-size: 13px; color: #333;">${lapTitle}</div>
+              <div style="font-size: 11px; color: #666; margin-top: 3px; display: flex; flex-wrap: wrap; gap: 8px;">${details}</div>
+              ${lap.examNote ? `<div style="font-size: 11px; color: #856404; margin-top: 3px;">💬 ${lap.examNote}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }
+    }
+    
+    // ===== Final exam attempts =====
+    let finalExamsHTML = '';
+    if (st.finalExams.length > 0) {
+      finalExamsHTML = '<div style="font-weight: bold; font-size: 13px; color: #333; margin: 12px 0 6px 0;">🏁 محاولات الاختبار النهائي:</div>';
+      st.finalExams.forEach((fe, idx) => {
+        const feBg = fe.passed ? '#e8f5e9' : '#fdecea';
+        const feBorder = fe.passed ? '#28a745' : '#dc3545';
+        const feIcon = fe.passed ? '🎉' : '❌';
+        const feResult = fe.passed ? 'اجتاز' : 'لم يجتز';
+        finalExamsHTML += `
+          <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: ${feBg}; border-radius: 8px; margin-bottom: 6px; border-right: 3px solid ${feBorder};">
+            <span style="font-size: 18px;">${feIcon}</span>
+            <div style="flex: 1;">
+              <div style="font-weight: bold; font-size: 13px; color: #333;">المحاولة ${idx + 1}: ${feResult}</div>
+              <div style="font-size: 11px; color: #666; margin-top: 3px;">📅 ${formatDateForDisplay(fe.date)} — الدرجة: <strong>${fe.score}/100</strong></div>
+            </div>
+          </div>
+        `;
+      });
+    }
+    
+    // ===== Action form based on current phase =====
+    let actionHTML = '';
+    
+    if (st.nextAction === 'start_lap') {
+      actionHTML = `
+        <div class="stage-action-box" style="border-color: #2196F3;">
+          <div style="font-weight: bold; font-size: 14px; color: #2196F3; margin-bottom: 10px;">🚀 بدء اللفة ${st.nextLapNumber}</div>
+          <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">📅 تاريخ بداية اللفة (هجري):</label>
+          ${stageHijriDateSelectsHTML('stageActionDate')}
+          <button onclick="window.startStageLap('${reportId}')" style="width: 100%; margin-top: 10px; padding: 12px; background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">
+            🚀 بدء اللفة ${st.nextLapNumber}
+          </button>
+        </div>
+      `;
+    } else if (st.nextAction === 'end_lap') {
+      actionHTML = `
+        <div class="stage-action-box" style="border-color: #ff9800;">
+          <div style="font-weight: bold; font-size: 14px; color: #ff9800; margin-bottom: 10px;">🏁 إنهاء اللفة ${st.activeLap.lapNumber}</div>
+          <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">📅 تاريخ نهاية اللفة (هجري):</label>
+          ${stageHijriDateSelectsHTML('stageActionDate')}
+          <button onclick="window.endStageLap('${reportId}')" style="width: 100%; margin-top: 10px; padding: 12px; background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">
+            🏁 تسجيل نهاية اللفة ${st.activeLap.lapNumber}
+          </button>
+        </div>
+      `;
+    } else if (st.nextAction === 'trial_exam') {
+      actionHTML = `
+        <div class="stage-action-box" style="border-color: #9C27B0;">
+          <div style="font-weight: bold; font-size: 14px; color: #9C27B0; margin-bottom: 10px;">📝 الاختبار التجريبي للفة ${st.activeLap.lapNumber}</div>
+          <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">📅 تاريخ الاختبار (هجري):</label>
+          ${stageHijriDateSelectsHTML('stageActionDate')}
+          <label style="font-size: 12px; color: #666; display: block; margin: 10px 0 5px 0;">💯 الدرجة (من 100):</label>
+          <input id="stageTrialScore" type="number" min="0" max="100" placeholder="مثال: 85" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit; box-sizing: border-box;">
+          <label style="font-size: 12px; color: #666; display: block; margin: 10px 0 5px 0;">💬 ملاحظة (اختياري):</label>
+          <input id="stageTrialNote" type="text" placeholder="ملاحظات على الاختبار..." style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; box-sizing: border-box;">
+          <button onclick="window.saveStageLapExam('${reportId}')" style="width: 100%; margin-top: 10px; padding: 12px; background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">
+            📝 حفظ نتيجة الاختبار التجريبي
+          </button>
+        </div>
+      `;
+    } else if (st.nextAction === 'final_exam') {
+      actionHTML = `
+        <div class="stage-action-box" style="border-color: #28a745;">
+          <div style="font-weight: bold; font-size: 14px; color: #28a745; margin-bottom: 10px;">🏆 الاختبار النهائي للمرحلة</div>
+          <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">📅 تاريخ الاختبار (هجري):</label>
+          ${stageHijriDateSelectsHTML('stageActionDate')}
+          <label style="font-size: 12px; color: #666; display: block; margin: 10px 0 5px 0;">💯 الدرجة (من 100):</label>
+          <input id="stageFinalScore" type="number" min="0" max="100" placeholder="مثال: 90" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit; box-sizing: border-box;">
+          <div style="display: flex; gap: 10px; margin-top: 12px;">
+            <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; background: #e8f5e9; border: 2px solid #28a745; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; color: #155724;">
+              <input type="radio" name="stageFinalResult" value="pass"> ✅ اجتاز
+            </label>
+            <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; background: #fdecea; border: 2px solid #dc3545; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; color: #721c24;">
+              <input type="radio" name="stageFinalResult" value="fail"> ❌ لم يجتز
+            </label>
+          </div>
+          <button onclick="window.saveStageFinalExam('${reportId}')" style="width: 100%; margin-top: 12px; padding: 12px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;">
+            🏆 حفظ نتيجة الاختبار النهائي
+          </button>
+          <div style="font-size: 11px; color: #856404; background: #fff3cd; padding: 8px; border-radius: 6px; margin-top: 8px;">
+            ⚠️ في حال "لم يجتز": ستُضاف لفة إضافية ثم يُعاد الاختبار النهائي
+          </div>
+        </div>
+      `;
+    }
+    
+    // ===== Create modal =====
+    const overlay = document.createElement('div');
+    overlay.id = 'stageTrackingOverlay';
+    overlay.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center;
+      align-items: center; z-index: 10000; backdrop-filter: blur(3px);
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+      background: white; border-radius: 12px; padding: 20px;
+      width: 92%; max-width: 480px; max-height: 85vh; overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+      animation: slideUp 0.3s ease; direction: rtl;
+    `;
+    
+    popup.innerHTML = `
+      <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .stage-action-box {
+          background: #f8f9fa; border: 2px solid; border-radius: 10px;
+          padding: 15px; margin-top: 15px;
+        }
+        .stage-info-cell {
+          background: #f8f9fa; border-radius: 8px; padding: 8px; text-align: center;
+        }
+        .stage-info-label { font-size: 10px; color: #888; margin-bottom: 2px; }
+        .stage-info-value { font-size: 13px; font-weight: bold; color: #333; }
+      </style>
+      
+      <!-- Header -->
+      <div style="text-align: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 12px; margin-bottom: 12px;">
+        <div style="font-size: 32px; margin-bottom: 5px;">🏆</div>
+        <h3 style="margin: 0 0 4px 0; color: #333; font-size: 18px;">${displayName}</h3>
+        <div style="font-size: 13px; color: #764ba2; font-weight: bold;">${stageInfo}</div>
+        <div style="font-size: 11px; color: #999; margin-top: 3px;">${data.pathwayName || ''} | المعلم: ${data.teacherName || 'غير محدد'}</div>
+        <div style="margin-top: 8px;">
+          <span style="padding: 5px 14px; background: ${st.phaseColor}; color: white; border-radius: 15px; font-weight: bold; font-size: 12px;">${st.phaseLabel}</span>
+        </div>
+      </div>
+      
+      <!-- Info Grid -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px;">
+        <div class="stage-info-cell">
+          <div class="stage-info-label">📅 تاريخ التسجيل</div>
+          <div class="stage-info-value">${regDate}</div>
+        </div>
+        <div class="stage-info-cell">
+          <div class="stage-info-label">🚀 بداية الضبط</div>
+          <div class="stage-info-value">${dabtStart}</div>
+        </div>
+        <div class="stage-info-cell">
+          <div class="stage-info-label">⏱️ أيام في الضبط</div>
+          <div class="stage-info-value">${daysInDabt}</div>
+        </div>
+        <div class="stage-info-cell">
+          <div class="stage-info-label">🔄 اللفات المكتملة</div>
+          <div class="stage-info-value">${st.completedLaps}/${st.requiredLaps}</div>
+        </div>
+        <div class="stage-info-cell">
+          <div class="stage-info-label">💯 آخر نتيجة تجريبية</div>
+          <div class="stage-info-value">${st.lastTrialScore !== null ? st.lastTrialScore + '/100' : '—'}</div>
+        </div>
+        <div class="stage-info-cell">
+          <div class="stage-info-label">🏁 محاولات نهائية</div>
+          <div class="stage-info-value">${st.finalExams.length}</div>
+        </div>
+      </div>
+      
+      <!-- Laps Timeline -->
+      <div style="font-weight: bold; font-size: 13px; color: #333; margin-bottom: 6px;">🗓️ سجل اللفات:</div>
+      ${timelineHTML}
+      ${finalExamsHTML}
+      
+      <!-- Action Form -->
+      ${actionHTML}
+      
+      <!-- Footer Buttons -->
+      <div style="display: flex; gap: 8px; margin-top: 15px;">
+        <button onclick="window.deleteStageRegistration('${reportId}')" style="flex: 1; padding: 10px; background: #fdecea; color: #dc3545; border: 2px solid #dc3545; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer;">
+          🗑️ حذف التسجيل
+        </button>
+        <button onclick="window.closeStageTrackingModal()" style="flex: 1; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer;">
+          إغلاق
+        </button>
+      </div>
+    `;
+    
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    
+    // Close on overlay click (outside popup)
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) window.closeStageTrackingModal();
+    });
+    
+  } catch (error) {
+    console.error('Error opening stage tracking modal:', error);
+    alert('❌ خطأ في فتح نافذة المتابعة: ' + error.message);
+  }
+};
+
+/**
+ * Close the stage tracking modal
+ */
+window.closeStageTrackingModal = function() {
+  document.getElementById('stageTrackingOverlay')?.remove();
+};
+
+/**
+ * Refresh modal + queue after a dabt-cycle update
+ */
+async function refreshStageTracking(reportId) {
+  window.closeStageTrackingModal();
+  if (typeof window.loadStageQueue === 'function') window.loadStageQueue();
+  await window.showStageTrackingModal(reportId);
+}
+
+/**
+ * Start a new lap (records start date)
+ */
+window.startStageLap = async function(reportId) {
+  try {
+    const date = readStageDateSelects('stageActionDate');
+    if (!date) { alert('⚠️ يرجى اختيار تاريخ بداية اللفة'); return; }
+    
+    const snap = await getDoc(doc(db, 'stageDisplays', reportId));
+    if (!snap.exists()) { alert('❌ التسجيل غير موجود'); return; }
+    
+    const data = snap.data();
+    const st = computeStageDabtState(data);
+    
+    if (st.activeLap) { alert('⚠️ توجد لفة جارية بالفعل'); return; }
+    if (st.passed) { alert('⚠️ الطالب اجتاز المرحلة بالفعل'); return; }
+    
+    const laps = [...st.laps, {
+      lapNumber: st.laps.length + 1,
+      startDate: date,
+      endDate: null,
+      examDate: null,
+      examScore: null,
+      examNote: ''
+    }];
+    
+    await saveStageDabtUpdate(reportId, data, laps, st.finalExams, st.requiredLaps, {
+      dabtStartDate: data.dabtStartDate || date
+    });
+    
+    console.log(`✅ Lap ${laps.length} started for ${reportId}`);
+    await refreshStageTracking(reportId);
+    
+  } catch (error) {
+    console.error('Error starting lap:', error);
+    alert('❌ خطأ في بدء اللفة: ' + error.message);
+  }
+};
+
+/**
+ * End the active lap (records end date)
+ */
+window.endStageLap = async function(reportId) {
+  try {
+    const date = readStageDateSelects('stageActionDate');
+    if (!date) { alert('⚠️ يرجى اختيار تاريخ نهاية اللفة'); return; }
+    
+    const snap = await getDoc(doc(db, 'stageDisplays', reportId));
+    if (!snap.exists()) { alert('❌ التسجيل غير موجود'); return; }
+    
+    const data = snap.data();
+    const st = computeStageDabtState(data);
+    
+    if (!st.activeLap || st.activeLap.endDate) { alert('⚠️ لا توجد لفة جارية لإنهائها'); return; }
+    
+    const laps = st.laps.map(l => l.lapNumber === st.activeLap.lapNumber ? { ...l, endDate: date } : l);
+    
+    await saveStageDabtUpdate(reportId, data, laps, st.finalExams, st.requiredLaps);
+    
+    console.log(`✅ Lap ${st.activeLap.lapNumber} ended for ${reportId}`);
+    await refreshStageTracking(reportId);
+    
+  } catch (error) {
+    console.error('Error ending lap:', error);
+    alert('❌ خطأ في إنهاء اللفة: ' + error.message);
+  }
+};
+
+/**
+ * Save trial exam result for the active lap (date + score/100 + optional note)
+ */
+window.saveStageLapExam = async function(reportId) {
+  try {
+    const date = readStageDateSelects('stageActionDate');
+    const scoreRaw = document.getElementById('stageTrialScore')?.value;
+    const note = document.getElementById('stageTrialNote')?.value.trim() || '';
+    
+    if (!date) { alert('⚠️ يرجى اختيار تاريخ الاختبار'); return; }
+    
+    const score = parseInt(scoreRaw);
+    if (isNaN(score) || score < 0 || score > 100) { alert('⚠️ يرجى إدخال درجة صحيحة من 0 إلى 100'); return; }
+    
+    const snap = await getDoc(doc(db, 'stageDisplays', reportId));
+    if (!snap.exists()) { alert('❌ التسجيل غير موجود'); return; }
+    
+    const data = snap.data();
+    const st = computeStageDabtState(data);
+    
+    if (!st.activeLap || !st.activeLap.endDate) { alert('⚠️ لا توجد لفة منتهية بانتظار الاختبار'); return; }
+    
+    const laps = st.laps.map(l => l.lapNumber === st.activeLap.lapNumber
+      ? { ...l, examDate: date, examScore: score, examNote: note }
+      : l);
+    
+    await saveStageDabtUpdate(reportId, data, laps, st.finalExams, st.requiredLaps, {
+      lastAttemptDate: date
+    });
+    
+    console.log(`✅ Trial exam saved for lap ${st.activeLap.lapNumber} (${score}/100)`);
+    await refreshStageTracking(reportId);
+    
+  } catch (error) {
+    console.error('Error saving trial exam:', error);
+    alert('❌ خطأ في حفظ الاختبار التجريبي: ' + error.message);
+  }
+};
+
+/**
+ * Save final exam result: pass => stage completed; fail => one extra lap then retry
+ */
+window.saveStageFinalExam = async function(reportId) {
+  try {
+    const date = readStageDateSelects('stageActionDate');
+    const scoreRaw = document.getElementById('stageFinalScore')?.value;
+    const resultRadio = document.querySelector('input[name="stageFinalResult"]:checked');
+    
+    if (!date) { alert('⚠️ يرجى اختيار تاريخ الاختبار'); return; }
+    
+    const score = parseInt(scoreRaw);
+    if (isNaN(score) || score < 0 || score > 100) { alert('⚠️ يرجى إدخال درجة صحيحة من 0 إلى 100'); return; }
+    
+    if (!resultRadio) { alert('⚠️ يرجى تحديد النتيجة: اجتاز / لم يجتز'); return; }
+    const passed = resultRadio.value === 'pass';
+    
+    const snap = await getDoc(doc(db, 'stageDisplays', reportId));
+    if (!snap.exists()) { alert('❌ التسجيل غير موجود'); return; }
+    
+    const data = snap.data();
+    const st = computeStageDabtState(data);
+    
+    if (st.completedLaps < st.requiredLaps) { alert(`⚠️ يجب إكمال ${st.requiredLaps} لفات قبل الاختبار النهائي`); return; }
+    
+    const finalExams = [...st.finalExams, {
+      attemptNumber: st.finalExams.length + 1,
+      date: date,
+      score: score,
+      passed: passed
+    }];
+    
+    if (passed) {
+      await saveStageDabtUpdate(reportId, data, st.laps, finalExams, st.requiredLaps, {
+        status: 'completed',
+        displayDate: date,
+        finalScore: score,
+        completedAt: serverTimestamp()
+      });
+      
+      console.log(`🎉 Stage PASSED for ${reportId} (${score}/100)`);
+      window.closeStageTrackingModal();
+      if (typeof window.loadStageQueue === 'function') window.loadStageQueue();
+      alert(`🎉 مبارك! اجتاز الطالب ${extractArabicName(data.studentName)} ${data.stageTitle || 'المرحلة'} بدرجة ${score}/100`);
+    } else {
+      // Failed: add one extra required lap, then final exam can be retaken
+      const newRequiredLaps = st.completedLaps + 1;
+      
+      await saveStageDabtUpdate(reportId, data, st.laps, finalExams, newRequiredLaps, {
+        lastAttemptDate: date
+      });
+      
+      console.log(`❌ Final exam failed for ${reportId} - extra lap added (now ${newRequiredLaps} laps required)`);
+      await refreshStageTracking(reportId);
+    }
+    
+  } catch (error) {
+    console.error('Error saving final exam:', error);
+    alert('❌ خطأ في حفظ الاختبار النهائي: ' + error.message);
+  }
+};
+
+/**
+ * Delete a stage registration entirely (with confirmation)
+ */
+window.deleteStageRegistration = async function(reportId) {
+  try {
+    const snap = await getDoc(doc(db, 'stageDisplays', reportId));
+    const name = snap.exists() ? extractArabicName(snap.data().studentName) : '';
+    
+    if (!confirm(`⚠️ هل أنت متأكد من حذف تسجيل ${name}؟\nسيتم حذف جميع بيانات دورة الضبط نهائياً.`)) return;
+    
+    await deleteDoc(doc(db, 'stageDisplays', reportId));
+    
+    console.log(`🗑️ Stage registration deleted: ${reportId}`);
+    window.closeStageTrackingModal();
+    if (typeof window.loadStageQueue === 'function') window.loadStageQueue();
+    
+  } catch (error) {
+    console.error('Error deleting stage registration:', error);
+    alert('❌ خطأ في حذف التسجيل: ' + error.message);
   }
 };
 

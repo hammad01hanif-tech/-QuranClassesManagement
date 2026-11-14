@@ -1788,12 +1788,21 @@ window.saveStageRegistration = async function() {
       stageDescription: marhalah.description,
       lastLessonDate: hijriDate,
       lastAttemptDate: null,
-      displayDate: '', // Empty until viewer completes
+      displayDate: '', // Empty until final exam is passed
       viewerName: '',
       viewerId: '',
       status: 'incomplete',
       failedAttempts: [],
       notes: [],
+      // Dabt (mastery) cycle fields
+      laps: [],
+      finalExams: [],
+      requiredLaps: 5,
+      completedLaps: 0,
+      currentLap: 0,
+      lastTrialScore: null,
+      dabtStatus: 'registered',
+      dabtStartDate: null,
       createdAt: serverTimestamp(),
       createdFromRegistration: true
     };
