@@ -3995,6 +3995,15 @@
                 <span class="more-arrow">◀</span>
               </button>
 
+              <button class="more-menu-item" onclick="window.switchViewerSection('goals')">
+                <span class="more-icon">🎯</span>
+                <div class="more-text">
+                  <div class="more-title">أهداف الطلاب</div>
+                  <div class="more-desc">تحديد ومتابعة الأهداف الشهرية للطلاب</div>
+                </div>
+                <span class="more-arrow">◀</span>
+              </button>
+
               <button class="more-menu-item" onclick="window.toggleViewerInbox()">
                 <span class="more-icon">🔔</span>
                 <div class="more-text">
@@ -4298,6 +4307,31 @@
 
             </div>
           </div>
+
+        </div>
+
+        <!-- Student Goals Section -->
+        <div id="viewerGoalsSection" class="viewer-main-section">
+
+          <!-- Header -->
+          <div class="welcome-card">
+            <h2 style="margin: 0 0 10px 0; font-size: 22px;">أهداف الطلاب</h2>
+            <p style="margin: 0; opacity: 0.9;">تحديد ومتابعة الأهداف الشهرية وتخطيط مسار الطلاب التعليمي</p>
+          </div>
+
+          <!-- Dashboard View (stats + filters + students list) -->
+          <div id="goalsDashboardView">
+            <div id="goalsStatsPanel"></div>
+            <div id="goalsFiltersPanel"></div>
+            <div id="goalsStudentsList">
+              <div class="content-card">
+                <p style="text-align: center; color: #999; padding: 30px;">جاري تحميل بيانات الأهداف...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Student Profile View (goals history + forms) -->
+          <div id="goalsProfileView" style="display: none;"></div>
 
         </div>
 
@@ -4777,6 +4811,7 @@
   </script>
   <script type="module" src="js/mobile-ui.js"></script>
   <script type="module" src="js/honor-system.js"></script>
+  <script type="module" src="js/student-goals.js"></script>
   
   <!-- Debug: Check Honor Section on page load -->
   <script>

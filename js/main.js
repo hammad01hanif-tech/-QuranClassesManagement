@@ -946,7 +946,8 @@ window.switchViewerSection = function(section) {
     'tasks': 'viewerTasksSection',
     'more': 'viewerMoreSection',
     'exams': 'viewerExamsSection',
-    'honor': 'viewerHonorSection'
+    'honor': 'viewerHonorSection',
+    'goals': 'viewerGoalsSection'
   };
   
   const sectionId = sectionMap[section];
@@ -996,6 +997,13 @@ window.switchViewerSection = function(section) {
       window.initHonorSystem();
     } else {
       console.error('❌ ERROR: window.initHonorSystem function NOT FOUND!');
+    }
+  } else if (section === 'goals') {
+    // Initialize student goals section
+    if (typeof window.initStudentGoals === 'function') {
+      window.initStudentGoals();
+    } else {
+      console.error('❌ ERROR: window.initStudentGoals function NOT FOUND!');
     }
   }
 };
