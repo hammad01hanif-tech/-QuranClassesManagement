@@ -113,6 +113,15 @@ const GOAL_STATUS_META = {
   no_goal:          { label: 'بدون هدف',         color: '#868e96', bg: '#f8f9fa' }
 };
 
+/**
+ * Format start lesson for display.
+ * Auto-derived (chained from previous month's goal) values are marked "متوقع".
+ */
+function formatStartLesson(goal) {
+  if (!goal.startLesson) return '—';
+  return goal.startLessonAuto ? `متوقع: ${goal.startLesson}` : goal.startLesson;
+}
+
 // ============ Data loading ============
 
 /** Load classes + students once (cached) */
@@ -624,7 +633,7 @@ function renderGoalProfile(student, goals) {
       rowsHTML += `
         <tr onclick="window.showGoalActions('${g.id}')" style="background: ${rowBg}; cursor: pointer;" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='${rowBg}'">
           <td style="padding: 9px 6px; font-weight: bold; white-space: nowrap;">${monthLabel(g.hijriYear, g.hijriMonth)}${isCurrent ? ' •' : ''}</td>
-          <td style="padding: 9px 6px; color: #555;">${g.startLesson || '—'}</td>
+          <td style="padding: 9px 6px; color: ${g.startLessonAuto ? '#999' : '#555'}; ${g.startLessonAuto ? 'font-style: italic;' : ''}">${formatStartLesson(g)}</td>
           <td style="padding: 9px 6px; color: #333;">${g.goalText || '—'}</td>
           <td style="padding: 9px 6px; text-align: center;">${g.requiredPages || '—'}</td>
           <td style="padding: 9px 6px; text-align: center;">${completedText}</td>
@@ -733,10 +742,10 @@ window.showGoalForm = function(studentId, goalId = null) {
     <div style="font-size: 12px; color: #999; margin-bottom: 8px;">${extractGoalArabicName(student.name)} — ${teacherNameForClass(student.classId)}</div>
     
     <label style="${GOAL_LABEL_STYLE}">الشهر المستهدف</label>
-    <select id="goalFormMonth" style="${GOAL_INPUT_STYLE}" ${isEdit ? 'disabled' : ''}>${monthOpts}</select>
+    <select id="goalFormMonth" style="${GOAL_INPUT_STYLE}" ${isEdit ? 'disabled' : ''} onchange="window.suggestGoalStartLesson()">${monthOpts}</select>
     
     <label style="${GOAL_LABEL_STYLE}">الدرس الحالي عند تسجيل الهدف</label>
-    <input id="goalFormStartLesson" type="text" placeholder="مثال: نهاية الجزء الرابع / درس 20 نوراني" style="${GOAL_INPUT_STYLE}" value="${existing?.startLesson || ''}">
+    <input id="goalFormStartLesson" type="text" placeholder="مثال: نهاية الجزء الرابع / درس 20 نوراني" style="${GOAL_INPUT_STYLE}" value="${existing?.startLesson || ''}" oninput="this.dataset.userEdited='1'">
     
     <label style="${GOAL_LABEL_STYLE}">الهدف المطلوب بنهاية الشهر <span style="color: #c62828;">*</span></label>
     <input id="goalFormText" type="text" placeholder="مثال: إتمام الجزء الخامس" style="${GOAL_INPUT_STYLE}" value="${existing?.goalText || ''}">
@@ -754,6 +763,28 @@ window.showGoalForm = function(studentId, goalId = null) {
       <button onclick="document.getElementById('goalFormModal').remove()" style="flex: 1; padding: 11px; background: #f0f0f0; color: #555; border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">إلغاء</button>
     </div>
   `);
+  
+  // Auto-suggest start lesson from the previous month's chain (new goals only)
+  if (!isEdit) window.suggestGoalStartLesson();
+};
+
+/**
+ * Suggest start lesson from previous month's goal:
+ * actual lesson if evaluated, otherwise the planned goal text.
+ * Never overwrites what the supervisor typed manually.
+ */
+window.suggestGoalStartLesson = function() {
+  const input = document.getElementById('goalFormStartLesson');
+  const mKey = document.getElementById('goalFormMonth')?.value;
+  if (!input || !mKey || input.dataset.userEdited === '1') return;
+  
+  const { year, month } = parseMonthKey(mKey);
+  const prev = addHijriMonths({ year, month }, -1);
+  const prevGoal = currentProfileGoals.find(g => g.hijriYear === prev.year && g.hijriMonth === prev.month);
+  if (!prevGoal) return;
+  
+  const suggestion = (prevGoal.evaluated && prevGoal.actualLesson) ? prevGoal.actualLesson : (prevGoal.goalText || '');
+  if (suggestion) input.value = suggestion;
 };
 
 function showGoalFormMsg(elId, text, isError) {
@@ -796,6 +827,11 @@ window.saveGoalForm = async function(studentId, existingDocId = null) {
     }
     
     const actor = goalsActorId();
+    
+    // Preserve the "expected" marker only if an auto-derived value was left untouched
+    const editedGoal = existingDocId ? currentProfileGoals.find(g => g.id === existingDocId) : null;
+    const startLessonAuto = !!(editedGoal?.startLessonAuto && startLesson === (editedGoal.startLesson || ''));
+    
     const base = {
       studentId,
       studentName: student?.name || studentId,
@@ -805,6 +841,7 @@ window.saveGoalForm = async function(studentId, existingDocId = null) {
       hijriYear: year,
       hijriMonth: month,
       startLesson,
+      startLessonAuto,
       goalText,
       requiredPages,
       notes,
@@ -899,6 +936,9 @@ window.renderGoalPlanRows = function(studentId) {
       rowsHTML += `
         <div style="background: #f8f9ff; border-radius: 8px; padding: 10px; margin-bottom: 8px; border-right: 3px solid #667eea;" data-plan-month="${key}">
           <div style="font-weight: bold; font-size: 13px; color: #333; margin-bottom: 6px;">${monthLabel(m.year, m.month)}${i === 0 ? ' (الحالي)' : ''}</div>
+          ${i === 0
+            ? `<input type="text" class="goal-plan-start" placeholder="الدرس الحالي للطالب الآن (مثال: نهاية الجزء الرابع)" style="${GOAL_INPUT_STYLE} margin-bottom: 6px;">`
+            : `<div style="font-size: 11px; color: #8a93a8; margin-bottom: 6px;">البداية المتوقعة: تُشتق تلقائياً من هدف الشهر السابق</div>`}
           <input type="text" class="goal-plan-text" placeholder="الهدف (مثال: إتمام الجزء السادس)" style="${GOAL_INPUT_STYLE} margin-bottom: 6px;">
           <input type="number" class="goal-plan-pages" min="1" placeholder="عدد الصفحات المطلوبة (اختياري)" style="${GOAL_INPUT_STYLE}">
         </div>
@@ -916,13 +956,24 @@ window.saveGoalPlanning = async function(studentId) {
     const student = goalsStudents.find(s => s.id === studentId);
     const actor = goalsActorId();
     
+    // Chain source: month key → lesson text (existing goals: actual if evaluated, else goal text)
+    const chainTextByKey = new Map();
+    currentProfileGoals.forEach(g => {
+      chainTextByKey.set(
+        monthKey(g.hijriYear, g.hijriMonth),
+        (g.evaluated && g.actualLesson) ? g.actualLesson : (g.goalText || '')
+      );
+    });
+    
     const toSave = [];
     rows.forEach(row => {
       const key = row.getAttribute('data-plan-month');
       const goalText = row.querySelector('.goal-plan-text')?.value.trim() || '';
       const pagesRaw = row.querySelector('.goal-plan-pages')?.value;
+      const manualStart = row.querySelector('.goal-plan-start')?.value.trim() || '';
       if (goalText) {
-        toSave.push({ key, goalText, requiredPages: pagesRaw ? parseInt(pagesRaw) || 0 : 0 });
+        chainTextByKey.set(key, goalText);
+        toSave.push({ key, goalText, requiredPages: pagesRaw ? parseInt(pagesRaw) || 0 : 0, manualStart });
       }
     });
     
@@ -935,6 +986,18 @@ window.saveGoalPlanning = async function(studentId) {
       const { year, month } = parseMonthKey(item.key);
       const docId = `${studentId}_${year}-${month}`;
       
+      // Start lesson: manual for first month, otherwise chained from previous month's goal
+      let startLesson = item.manualStart || '';
+      let startLessonAuto = false;
+      if (!startLesson) {
+        const prev = addHijriMonths({ year, month }, -1);
+        const derived = chainTextByKey.get(monthKey(prev.year, prev.month)) || '';
+        if (derived) {
+          startLesson = derived;
+          startLessonAuto = true;
+        }
+      }
+      
       await setDoc(doc(db, 'studentGoals', docId), {
         studentId,
         studentName: student?.name || studentId,
@@ -943,7 +1006,8 @@ window.saveGoalPlanning = async function(studentId) {
         teacherName: teacherNameForClass(student?.classId),
         hijriYear: year,
         hijriMonth: month,
-        startLesson: '',
+        startLesson,
+        startLessonAuto,
         goalText: item.goalText,
         requiredPages: item.requiredPages,
         notes: '',
@@ -997,7 +1061,7 @@ window.showGoalActions = function(goalDocId) {
     
     <div style="background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 12px; color: #555;">
       <div><strong>الهدف:</strong> ${goal.goalText || '—'}</div>
-      <div style="margin-top: 3px;"><strong>الدرس عند البداية:</strong> ${goal.startLesson || '—'}</div>
+      <div style="margin-top: 3px;"><strong>الدرس عند البداية:</strong> ${formatStartLesson(goal)}</div>
       ${goal.requiredPages ? `<div style="margin-top: 3px;"><strong>الصفحات المطلوبة:</strong> ${goal.requiredPages}</div>` : ''}
       ${goal.evaluated ? `<div style="margin-top: 3px;"><strong>المنجز:</strong> ${goal.completedPages || 0} صفحة — <strong>النسبة:</strong> ${goal.percentage || 0}%</div>` : ''}
       ${goal.evaluated && goal.actualLesson ? `<div style="margin-top: 3px;"><strong>الدرس الفعلي:</strong> ${goal.actualLesson}</div>` : ''}
@@ -1075,7 +1139,7 @@ window.showGoalFollowUpForm = function(goalDocId) {
     
     <div style="background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 4px; font-size: 12px; color: #555;">
       <div><strong>الهدف:</strong> ${goal.goalText || '—'}</div>
-      <div style="margin-top: 3px;"><strong>الدرس عند البداية:</strong> ${goal.startLesson || '—'}</div>
+      <div style="margin-top: 3px;"><strong>الدرس عند البداية:</strong> ${formatStartLesson(goal)}</div>
     </div>
     
     <label style="${GOAL_LABEL_STYLE}">الدرس الفعلي الذي وصل إليه الطالب</label>
@@ -1228,11 +1292,48 @@ window.saveGoalFollowUp = async function(goalDocId) {
     console.log(`✅ Follow-up saved for ${goalDocId}: ${state.percentage}%`);
     document.getElementById('goalFollowUpModal')?.remove();
     
+    // Auto-chain: propagate the actual lesson to next month's start lesson
+    // (only if next month's start is empty or still an auto-derived expectation)
+    let chainMsg = '';
+    if (actualLesson) {
+      const next = addHijriMonths({ year: goal.hijriYear, month: goal.hijriMonth }, 1);
+      const nextDocId = `${goal.studentId}_${next.year}-${next.month}`;
+      try {
+        const nextSnap = await getDoc(doc(db, 'studentGoals', nextDocId));
+        if (nextSnap.exists()) {
+          const nextData = nextSnap.data();
+          if (!nextData.startLesson || nextData.startLessonAuto) {
+            await updateDoc(doc(db, 'studentGoals', nextDocId), {
+              startLesson: actualLesson,
+              startLessonAuto: false,
+              updatedAt: serverTimestamp(),
+              updatedBy: actor
+            });
+            chainMsg = `تم تحديث بداية شهر ${monthLabel(next.year, next.month)} تلقائياً إلى: ${actualLesson}`;
+            console.log('🔗 ' + chainMsg);
+          }
+        }
+      } catch (chainError) {
+        console.warn('Chain update to next month failed:', chainError);
+      }
+    }
+    
     // Refresh caches + views
     if (monthKey(goal.hijriYear, goal.hijriMonth) === goalsCurrentMonthKey) {
       await loadGoalsForMonth(goalsCurrentMonthKey);
     }
     await window.openGoalStudentProfile(goal.studentId);
+    
+    // Advisory: goal not fully achieved + future goals exist → suggest reviewing the plan
+    const finalPct = Math.max(0, Math.min(100, state.percentage));
+    const hasFutureGoals = currentProfileGoals.some(g => compareToCurrentMonth(g.hijriYear, g.hijriMonth) > 0);
+    
+    let notice = '';
+    if (chainMsg) notice += chainMsg;
+    if (finalPct < 100 && hasFutureGoals) {
+      notice += (notice ? '\n\n' : '') + 'الطالب لم يحقق الهدف كاملاً — راجع أهداف الأشهر القادمة وعدّلها حسب مستواه الفعلي';
+    }
+    if (notice) alert(notice);
     
   } catch (error) {
     console.error('Error saving follow-up:', error);
@@ -1295,7 +1396,7 @@ window.exportGoalsReport = async function() {
           <td style="padding: 8px 6px; border: 1px solid #e0e0e0; text-align: center; font-weight: bold;">${idx + 1}</td>
           <td style="padding: 8px 6px; border: 1px solid #e0e0e0; font-weight: bold;">${extractGoalArabicName(r.student.name)}</td>
           <td style="padding: 8px 6px; border: 1px solid #e0e0e0;">${teacherNameForClass(r.student.classId)}</td>
-          <td style="padding: 8px 6px; border: 1px solid #e0e0e0;">${g.startLesson || '—'}</td>
+          <td style="padding: 8px 6px; border: 1px solid #e0e0e0; ${g.startLessonAuto ? 'color: #888; font-style: italic;' : ''}">${formatStartLesson(g)}</td>
           <td style="padding: 8px 6px; border: 1px solid #e0e0e0;">${g.goalText || '—'}</td>
           <td style="padding: 8px 6px; border: 1px solid #e0e0e0; text-align: center;">${g.requiredPages || '—'}</td>
           <td style="padding: 8px 6px; border: 1px solid #e0e0e0; text-align: center;">${completed}</td>
